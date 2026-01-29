@@ -1,0 +1,12 @@
+{
+  "name": "helbreath-test-server",
+  "version": "1.0.0",
+  "description": "Simple WebSocket test server for Helbreath client development",
+  "main": "test_server.js",
+  "scripts": {
+    "start": "node test_server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

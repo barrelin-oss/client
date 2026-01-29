@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "x-client",
+  "version": "0.0.1",
+  "homepage": "https://helbreathx.net",
+  "dependencies": [
+    "sfml",
+    "openssl",
+    "zlib",
+    "spdlog",
+    "nlohmann-json",
+    "libsodium",
+    "lz4",
+    "ixwebsocket"
+  ]
+}

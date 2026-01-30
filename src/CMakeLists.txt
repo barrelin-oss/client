@@ -53,6 +53,7 @@ add_executable(helbreath_client
     ui/screens/character_create_screen.cpp
 
     # UI Dialogs
+    ui/dialogs/connection_dialog.cpp
     ui/dialogs/character_dialog.cpp
     ui/dialogs/inventory_dialog.cpp
     ui/dialogs/equipment_dialog.cpp

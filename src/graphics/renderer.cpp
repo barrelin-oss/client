@@ -98,6 +98,21 @@ void renderer::draw_text(std::string_view text, int32_t x, int32_t y, sf::Color 
     window_.draw(sf_text);
 }
 
+void renderer::draw_text_outlined(std::string_view text, int32_t x, int32_t y,
+                                  sf::Color color, sf::Color outline_color,
+                                  uint32_t size, float outline_thickness) {
+    if (!font_loaded_) {
+        return;
+    }
+
+    sf::Text sf_text(font_, std::string(text), size);
+    sf_text.setFillColor(color);
+    sf_text.setOutlineColor(outline_color);
+    sf_text.setOutlineThickness(outline_thickness);
+    sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
+    window_.draw(sf_text);
+}
+
 void renderer::draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color color, bool filled) {
     sf::RectangleShape rect({static_cast<float>(w), static_cast<float>(h)});
     rect.setPosition({static_cast<float>(x), static_cast<float>(y)});

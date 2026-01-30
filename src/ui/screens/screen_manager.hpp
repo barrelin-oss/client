@@ -47,8 +47,14 @@ public:
     // Update current screen (input handling)
     void update(float delta_time, const input& inp);
 
+    // Update just mouse position (for cursor rendering when input blocked)
+    void update_mouse_position(const input& inp);
+
     // Render current screen (sprite drawing)
     void render(renderer& rend, sprite_manager& sprites);
+
+    // Render just the mouse cursor (call after dialogs)
+    void render_cursor(renderer& rend, sprite_manager& sprites);
 
     // Get specific screens for setup
     main_menu_screen& get_main_menu_screen() { return main_menu_; }

@@ -422,7 +422,7 @@ void menu_character_renderer::draw_body(renderer& rend, sprite_manager& sprites,
     uint16_t sprite_id = static_cast<uint16_t>(body_base + (owner_type - 1) * body_stride + action * 8 + (dir - 1));
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame);
     }
 }
@@ -437,7 +437,7 @@ void menu_character_renderer::draw_underwear(renderer& rend, sprite_manager& spr
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -452,7 +452,7 @@ void menu_character_renderer::draw_hair(renderer& rend, sprite_manager& sprites,
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -469,7 +469,7 @@ void menu_character_renderer::draw_body_armor(renderer& rend, sprite_manager& sp
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -485,7 +485,7 @@ void menu_character_renderer::draw_arm_armor(renderer& rend, sprite_manager& spr
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -501,7 +501,7 @@ void menu_character_renderer::draw_pants(renderer& rend, sprite_manager& sprites
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -517,7 +517,7 @@ void menu_character_renderer::draw_boots(renderer& rend, sprite_manager& sprites
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -533,7 +533,7 @@ void menu_character_renderer::draw_helmet(renderer& rend, sprite_manager& sprite
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -549,7 +549,7 @@ void menu_character_renderer::draw_mantle(renderer& rend, sprite_manager& sprite
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }
@@ -565,7 +565,7 @@ void menu_character_renderer::draw_weapon(renderer& rend, sprite_manager& sprite
     uint16_t sprite_id = static_cast<uint16_t>(base + type * weapon_stride + action * 8 + (dir - 1));
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame);
     }
 }
@@ -583,7 +583,7 @@ void menu_character_renderer::draw_shield(renderer& rend, sprite_manager& sprite
     int32_t frame_index = calc_frame(dir, frame);
 
     const sprite* spr = sprites.get_sprite_by_id(sprite_id);
-    if (spr && spr->is_loaded()) {
+    if (spr) {
         rend.draw_sprite(*spr, x, y, frame_index);
     }
 }

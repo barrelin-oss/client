@@ -1,0 +1,66 @@
+{
+    "audio": {
+        "master_volume": 1.0,
+        "music_enabled": true,
+        "music_volume": 0.699999988079071,
+        "muted": false,
+        "sfx_enabled": true,
+        "sfx_volume": 1.0
+    },
+    "chat": {
+        "block_spam": true,
+        "filter_profanity": true,
+        "max_history": 500,
+        "max_message_length": 200,
+        "show_global": true,
+        "show_guild": true,
+        "show_normal": true,
+        "show_party": true,
+        "show_shout": true,
+        "show_system": true,
+        "show_timestamps": false,
+        "show_trade": true,
+        "show_whisper": true,
+        "spam_delay": 0.5
+    },
+    "controls": {
+        "attack_key": 0,
+        "chat_key": 0,
+        "inventory_key": 0,
+        "invert_mouse_y": false,
+        "mouse_sensitivity": 1.0,
+        "move_down_key": 0,
+        "move_left_key": 0,
+        "move_right_key": 0,
+        "move_up_key": 0,
+        "screenshot_key": 0,
+        "skill_key": 0,
+        "skills_key": 0,
+        "spells_key": 0
+    },
+    "game": {
+        "auto_attack": true,
+        "camera_shake": true,
+        "camera_speed": 1.0,
+        "show_damage_numbers": true,
+        "show_guild_names": true,
+        "show_hp_bars": true,
+        "show_names": true,
+        "ui_language": "en"
+    },
+    "network": {
+        "connection_timeout_ms": 10000,
+        "login_server_host": "127.0.0.1",
+        "login_server_port": 2848,
+        "reconnect_attempts": 3,
+        "reconnect_delay_ms": 2000
+    },
+    "video": {
+        "framerate_limit": 60,
+        "fullscreen": false,
+        "screen_height": 480,
+        "screen_width": 640,
+        "show_fps": false,
+        "vsync": true
+    }
+}

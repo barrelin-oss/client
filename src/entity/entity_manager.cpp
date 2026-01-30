@@ -415,7 +415,7 @@ void entity_manager::render_entity(renderer& rend, const entity& e, int32_t came
     // Render sprite layers based on entity type
     if (e.type() == entity_type::item) {
         // Items just render their sprite
-        if (s.body_sprite && s.body_sprite->is_loaded()) {
+        if (s.body_sprite) {
             rend.draw_sprite(*s.body_sprite, screen_x - 16, screen_y - 16, s.body_frame);
         }
     } else if (e.type() == entity_type::effect) {
@@ -430,7 +430,7 @@ void entity_manager::render_entity(renderer& rend, const entity& e, int32_t came
         uint32_t frame = static_cast<uint32_t>(t.direction) * a.frame_count + a.current_frame;
 
         // Body/underwear
-        if (s.underwear_sprite && s.underwear_sprite->is_loaded()) {
+        if (s.underwear_sprite) {
             if (s.alpha < 1.0f) {
                 rend.draw_sprite_alpha(*s.underwear_sprite, screen_x - 32, screen_y - 64, frame, s.alpha);
             } else {
@@ -439,7 +439,7 @@ void entity_manager::render_entity(renderer& rend, const entity& e, int32_t came
         }
 
         // Body
-        if (s.body_sprite && s.body_sprite->is_loaded()) {
+        if (s.body_sprite) {
             if (s.alpha < 1.0f) {
                 rend.draw_sprite_alpha(*s.body_sprite, screen_x - 32, screen_y - 64, frame, s.alpha);
             } else {
@@ -448,32 +448,32 @@ void entity_manager::render_entity(renderer& rend, const entity& e, int32_t came
         }
 
         // Armor
-        if (s.armor_sprite && s.armor_sprite->is_loaded()) {
+        if (s.armor_sprite) {
             rend.draw_sprite(*s.armor_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Helm
-        if (s.helm_sprite && s.helm_sprite->is_loaded()) {
+        if (s.helm_sprite) {
             rend.draw_sprite(*s.helm_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Hair (if no helm)
-        if (!s.helm_sprite && s.hair_sprite && s.hair_sprite->is_loaded()) {
+        if (!s.helm_sprite && s.hair_sprite) {
             rend.draw_sprite(*s.hair_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Weapon
-        if (s.weapon_sprite && s.weapon_sprite->is_loaded()) {
+        if (s.weapon_sprite) {
             rend.draw_sprite(*s.weapon_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Shield
-        if (s.shield_sprite && s.shield_sprite->is_loaded()) {
+        if (s.shield_sprite) {
             rend.draw_sprite(*s.shield_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Effect overlay
-        if (s.effect_sprite && s.effect_sprite->is_loaded()) {
+        if (s.effect_sprite) {
             rend.draw_sprite(*s.effect_sprite, screen_x - 32, screen_y - 64, a.current_frame);
         }
     }

@@ -257,8 +257,11 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x
         rend.draw_text(masked_password, 85, 184, sf::Color::White);
     }
 
-    // Draw mouse cursor (frame 0)
-    draw_sprite(rend, sprites, login_sprites::mouse_cursor, mouse_x, mouse_y, 0);
+    // Mouse cursor is drawn separately via render_cursor()
+}
+
+void login_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
+    draw_sprite(rend, sprites, login_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 } // namespace hb

@@ -329,35 +329,43 @@ void icon_panel_dialog::render_classic_background(renderer& rend) {
 }
 
 void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
-    // Use classic layout positions from legacy code
-    // The legacy game uses sprite frame 12 for HP/MP bars and frame 13 for SP bar
-    // with PutSpriteFastWidth for variable-width rendering
+    // Get the icon panel sprite for bar fills
+    const sprite* icon_spr = sprites_ ?
+        sprites_->get_sprite(classic_sprites::pak_name, classic_sprites::sprite_index) : nullptr;
 
-    // For now, we use programmatic rendering that mimics the classic look
-    // TODO: Implement sprite-based variable-width bar rendering if needed
-
-    // Classic HP bar - red gradient (position from legacy: 23, 437)
+    // HP bar (position from legacy: 23, 437)
     int32_t hp_y = classic_layout::hp_bar_y;
-
-    // Bar frame (darker border)
-    rend.draw_rect(classic_layout::hp_bar_x - 1, hp_y - 1, classic_layout::bar_max_width + 2, 16,
-                   sf::Color(20, 20, 30), true);
-    rend.draw_rect(classic_layout::hp_bar_x - 1, hp_y - 1, classic_layout::bar_max_width + 2, 16,
-                   sf::Color(60, 60, 80), false);
-
-    // HP bar background
-    rend.draw_rect(classic_layout::hp_bar_x, hp_y, classic_layout::bar_max_width, 14,
-                   sf::Color(40, 0, 0), true);
-
-    // HP bar fill
     int32_t hp_fill_width = static_cast<int32_t>(classic_layout::bar_max_width * hp_display_);
-    if (hp_fill_width > 0) {
-        sf::Color hp_color = is_poisoned_ ? sf::Color(0, 150, 0) : sf::Color(180, 0, 0);
-        rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 14, hp_color, true);
 
-        // Classic gradient effect (lighter at top)
-        sf::Color hp_light = is_poisoned_ ? sf::Color(0, 200, 0) : sf::Color(220, 50, 50);
-        rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 3, hp_light, true);
+    // Draw HP bar fill using sprite if available
+    if (icon_spr && icon_spr->frame_count() > classic_sprites::hp_mp_bar_fill && hp_fill_width > 0) {
+        // Use sprite-based variable-width rendering (like legacy PutSpriteFastWidth)
+        icon_spr->draw_width(rend.window(), classic_layout::hp_bar_x, hp_y,
+                             classic_sprites::hp_mp_bar_fill, hp_fill_width);
+
+        // If poisoned, tint the bar green (draw overlay)
+        if (is_poisoned_) {
+            sf::RectangleShape poison_overlay(sf::Vector2f(
+                static_cast<float>(hp_fill_width),
+                14.0f
+            ));
+            poison_overlay.setPosition({
+                static_cast<float>(classic_layout::hp_bar_x),
+                static_cast<float>(hp_y)
+            });
+            poison_overlay.setFillColor(sf::Color(0, 150, 0, 128));
+            rend.window().draw(poison_overlay);
+        }
+    } else {
+        // Fallback: programmatic rendering
+        rend.draw_rect(classic_layout::hp_bar_x, hp_y, classic_layout::bar_max_width, 14,
+                       sf::Color(40, 0, 0), true);
+        if (hp_fill_width > 0) {
+            sf::Color hp_color = is_poisoned_ ? sf::Color(0, 150, 0) : sf::Color(180, 0, 0);
+            rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 14, hp_color, true);
+            sf::Color hp_light = is_poisoned_ ? sf::Color(0, 200, 0) : sf::Color(220, 50, 50);
+            rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 3, hp_light, true);
+        }
     }
 
     // HP text centered
@@ -366,49 +374,49 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
     rend.draw_text(hp_str, hp_text_x + 1, hp_y + 2, sf::Color(0, 0, 0), 10);  // Shadow
     rend.draw_text(hp_str, hp_text_x, hp_y + 1, sf::Color::White, 10);
 
-    // Classic MP bar - blue gradient (position from legacy: 23, 459)
+    // MP bar (position from legacy: 23, 459)
     int32_t mp_y = classic_layout::mp_bar_y;
-
-    rend.draw_rect(classic_layout::hp_bar_x - 1, mp_y - 1, classic_layout::bar_max_width + 2, 16,
-                   sf::Color(20, 20, 30), true);
-    rend.draw_rect(classic_layout::hp_bar_x - 1, mp_y - 1, classic_layout::bar_max_width + 2, 16,
-                   sf::Color(60, 60, 80), false);
-
-    rend.draw_rect(classic_layout::hp_bar_x, mp_y, classic_layout::bar_max_width, 14,
-                   sf::Color(0, 0, 40), true);
-
     int32_t mp_fill_width = static_cast<int32_t>(classic_layout::bar_max_width * mp_display_);
-    if (mp_fill_width > 0) {
-        rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 14,
-                       sf::Color(0, 0, 180), true);
-        rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 3, sf::Color(50, 50, 220), true);
+
+    // Draw MP bar fill using sprite if available
+    if (icon_spr && icon_spr->frame_count() > classic_sprites::hp_mp_bar_fill && mp_fill_width > 0) {
+        icon_spr->draw_width(rend.window(), classic_layout::hp_bar_x, mp_y,
+                             classic_sprites::hp_mp_bar_fill, mp_fill_width);
+    } else {
+        // Fallback: programmatic rendering
+        rend.draw_rect(classic_layout::hp_bar_x, mp_y, classic_layout::bar_max_width, 14,
+                       sf::Color(0, 0, 40), true);
+        if (mp_fill_width > 0) {
+            rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 14,
+                           sf::Color(0, 0, 180), true);
+            rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 3, sf::Color(50, 50, 220), true);
+        }
     }
 
+    // MP text centered
     std::string mp_str = std::format("{}/{}", mp_current_, mp_max_);
     int32_t mp_text_x = classic_layout::hp_bar_x + (classic_layout::bar_max_width - static_cast<int32_t>(mp_str.length()) * 5) / 2;
     rend.draw_text(mp_str, mp_text_x + 1, mp_y + 2, sf::Color(0, 0, 0), 10);  // Shadow
     rend.draw_text(mp_str, mp_text_x, mp_y + 1, sf::Color::White, 10);
 
-    // Classic SP bar - yellow/gold (position from legacy: 147, 435)
+    // SP bar - yellow/gold (position from legacy: 147, 435)
     int32_t sp_y = classic_layout::sp_bar_y;
-
-    rend.draw_rect(classic_layout::sp_bar_x - 1, sp_y - 1, classic_layout::sp_bar_max_width + 2, 14,
-                   sf::Color(20, 20, 30), true);
-    rend.draw_rect(classic_layout::sp_bar_x - 1, sp_y - 1, classic_layout::sp_bar_max_width + 2, 14,
-                   sf::Color(60, 60, 80), false);
-
-    rend.draw_rect(classic_layout::sp_bar_x, sp_y, classic_layout::sp_bar_max_width, 12,
-                   sf::Color(40, 35, 0), true);
-
     int32_t sp_fill_width = static_cast<int32_t>(classic_layout::sp_bar_max_width * sp_display_);
-    if (sp_fill_width > 0) {
-        rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 12,
-                       sf::Color(180, 160, 0), true);
-        rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 2, sf::Color(220, 200, 50), true);
-    }
 
-    // Note: The classic UI doesn't have an EXP bar in the icon panel - it shows in the character dialog
-    // But we can add a small EXP indicator for convenience
+    // Draw SP bar fill using sprite if available
+    if (icon_spr && icon_spr->frame_count() > classic_sprites::sp_bar_fill && sp_fill_width > 0) {
+        icon_spr->draw_width(rend.window(), classic_layout::sp_bar_x, sp_y,
+                             classic_sprites::sp_bar_fill, sp_fill_width);
+    } else {
+        // Fallback: programmatic rendering
+        rend.draw_rect(classic_layout::sp_bar_x, sp_y, classic_layout::sp_bar_max_width, 12,
+                       sf::Color(40, 35, 0), true);
+        if (sp_fill_width > 0) {
+            rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 12,
+                           sf::Color(180, 160, 0), true);
+            rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 2, sf::Color(220, 200, 50), true);
+        }
+    }
 }
 
 void icon_panel_dialog::render_classic_map_info(renderer& rend) {

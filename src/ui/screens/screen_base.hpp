@@ -32,8 +32,14 @@ public:
     // Returns true if screen should remain active
     virtual bool update(float delta_time, const input& inp) = 0;
 
+    // Update just the mouse position (for rendering cursor when input is blocked)
+    void update_mouse_position(const input& inp);
+
     // Render the screen (sprite drawing)
     virtual void render(renderer& rend, sprite_manager& sprites) = 0;
+
+    // Render just the mouse cursor (called last, after dialogs)
+    virtual void render_cursor(renderer& rend, sprite_manager& sprites) = 0;
 
 protected:
     // Helper to draw a sprite from the sprite manager (with color key transparency)

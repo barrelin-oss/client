@@ -143,8 +143,11 @@ void main_menu_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mou
             break;
     }
 
-    // Draw mouse cursor (frame 0)
-    draw_sprite(rend, sprites, main_menu_sprites::mouse_cursor, mouse_x, mouse_y, 0);
+    // Mouse cursor is drawn separately via render_cursor()
+}
+
+void main_menu_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
+    draw_sprite(rend, sprites, main_menu_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 } // namespace hb

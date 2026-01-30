@@ -35,6 +35,7 @@ public:
 
     // Map info
     std::string_view name() const { return name_; }
+    void set_name(std::string_view name) { name_ = name; }
     int32_t width() const { return width_; }
     int32_t height() const { return height_; }
     bool is_loaded() const { return !tiles_.empty(); }

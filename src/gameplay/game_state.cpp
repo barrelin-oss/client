@@ -289,6 +289,9 @@ void game_state_manager::render(renderer& rend) {
 
     // Render UI on top
     ui_.render(rend);
+
+    // Render cursor last (on top of everything including dialogs)
+    screens_.render_cursor(rend, sprites_);
 }
 
 void game_state_manager::change_state(game_state new_state) {
@@ -393,23 +396,39 @@ void game_state_manager::exit_state(game_state state) {
 }
 
 void game_state_manager::update_main_menu(float delta_time, const input& inp) {
-    // Screen manager handles input
-    screens_.update(delta_time, inp);
+    // Always update mouse position for cursor rendering
+    screens_.update_mouse_position(inp);
+    // Only process screen input when no modal dialog is open
+    if (!ui_.is_modal_open()) {
+        screens_.update(delta_time, inp);
+    }
 }
 
 void game_state_manager::update_login(float delta_time, const input& inp) {
-    // Screen manager handles input
-    screens_.update(delta_time, inp);
+    // Always update mouse position for cursor rendering
+    screens_.update_mouse_position(inp);
+    // Only process screen input when no modal dialog is open
+    if (!ui_.is_modal_open()) {
+        screens_.update(delta_time, inp);
+    }
 }
 
 void game_state_manager::update_character_select(float delta_time, const input& inp) {
-    // Screen manager handles input
-    screens_.update(delta_time, inp);
+    // Always update mouse position for cursor rendering
+    screens_.update_mouse_position(inp);
+    // Only process screen input when no modal dialog is open
+    if (!ui_.is_modal_open()) {
+        screens_.update(delta_time, inp);
+    }
 }
 
 void game_state_manager::update_character_create(float delta_time, const input& inp) {
-    // Screen manager handles input
-    screens_.update(delta_time, inp);
+    // Always update mouse position for cursor rendering
+    screens_.update_mouse_position(inp);
+    // Only process screen input when no modal dialog is open
+    if (!ui_.is_modal_open()) {
+        screens_.update(delta_time, inp);
+    }
 }
 
 void game_state_manager::update_loading(float delta_time, const input& inp) {
@@ -680,11 +699,14 @@ void game_state_manager::set_character_create_result(uint16_t result) {
 }
 
 void game_state_manager::show_message(std::string_view message) {
-    ui_.create_message_box("Message", message);
+    // Show the waiting dialog (message parameter is ignored now)
+    (void)message; // Unused - dialog always shows "Waiting for response from the server"
+    ui_.show_connection_dialog(nullptr);
 }
 
 void game_state_manager::show_error(std::string_view error) {
-    ui_.create_message_box("Error", error);
+    // Use classic error dialog (with OK button)
+    ui_.show_error_dialog(error, nullptr);
 }
 
 void game_state_manager::handle_playing_input(const input& inp) {
@@ -1215,7 +1237,14 @@ void game_state_manager::attempt_login(const std::string& username, const std::s
         return;
     }
 
-    show_message("Connecting to server...");
+    // Show connection dialog (escape to cancel after 7 seconds)
+    ui_.show_connection_dialog([this]() {
+        // User cancelled - disconnect and return to main menu
+        ws_connection_.disconnect();
+        pending_username_.clear();
+        pending_password_.clear();
+        change_state(game_state::main_menu);
+    });
 }
 
 void game_state_manager::handle_ws_message(const json& message) {
@@ -1256,6 +1285,9 @@ void game_state_manager::handle_login_response_ws(const json& message) {
         pending_username_.clear();
         pending_password_.clear();
 
+        // Show loading dialog while waiting for character data
+        ui_.show_connection_dialog(nullptr);
+
         // Request character list
         request_characters();
     } else {
@@ -1271,6 +1303,9 @@ void game_state_manager::handle_login_response_ws(const json& message) {
 
 void game_state_manager::handle_get_characters_response(const json& message) {
     auto response = get_characters_response_data::from_json(message);
+
+    // Hide the connection dialog
+    ui_.hide_connection_dialog();
 
     if (response.success) {
         // Convert server characters to our format
@@ -1312,6 +1347,9 @@ void game_state_manager::handle_get_characters_response(const json& message) {
 
 void game_state_manager::handle_enter_game_response(const json& message) {
     auto response = enter_game_response_data::from_json(message);
+
+    // Hide connection dialog
+    ui_.hide_connection_dialog();
 
     if (!response.success) {
         std::string error_msg = response.error_message.empty() ? "Failed to enter game" : response.error_message;
@@ -1464,11 +1502,13 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     }
     spdlog::debug("Spawned {} nearby entities", response.world.entities.size());
 
-    // Store map name for loading
-    loading_message_ = "Loading map: " + ch.map_name;
+    // Set current map name in world
+    world_.current_map_mut().set_name(ch.map_name);
 
-    // Transition to loading state (map loading will happen there)
-    change_state(game_state::loading);
+    // Go directly to playing - no loading screen needed
+    // Assets are loaded on-demand via sprite_manager
+    spdlog::info("Entering game world: {}", ch.map_name);
+    change_state(game_state::playing);
 }
 
 void game_state_manager::handle_create_character_response(const json& message) {
@@ -1494,6 +1534,10 @@ void game_state_manager::request_characters() {
 
 void game_state_manager::request_enter_game(int32_t character_id) {
     spdlog::info("Requesting to enter game with character ID: {}", character_id);
+
+    // Show waiting dialog while entering game
+    ui_.show_connection_dialog(nullptr);
+
     json msg = make_enter_game_request(character_id);
     ws_connection_.send(msg);
 }

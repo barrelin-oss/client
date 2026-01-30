@@ -59,6 +59,7 @@ enum class dialog_type {
     confirm,
     input_box,
     message_box,
+    connection,  // Classic Helbreath connection status dialog
     icon_panel,
     gauge_panel,
     levelup,
@@ -181,6 +182,13 @@ public:
                             std::function<void(bool)> on_result);
     void create_input_box(std::string_view title, std::string_view prompt,
                           std::function<void(std::string_view)> on_submit);
+
+    // Connection/waiting dialog
+    // Shows "Waiting for response from the server" with animated dots
+    // After 7 seconds, shows "press escape to cancel" hint
+    void show_connection_dialog(std::function<void()> on_cancel = nullptr);
+    void show_error_dialog(std::string_view message, std::function<void()> on_cancel = nullptr);
+    void hide_connection_dialog();
 
     // Phase 3 dialogs
     void create_character_create_dialog();

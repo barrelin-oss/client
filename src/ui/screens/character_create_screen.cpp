@@ -529,8 +529,11 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites, int3
         draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 63);  // Normal
     }
 
-    // Draw mouse cursor
-    draw_sprite(rend, sprites, charcreate_sprites::mouse_cursor, mouse_x, mouse_y, 0);
+    // Mouse cursor is drawn separately via render_cursor()
+}
+
+void character_create_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
+    draw_sprite(rend, sprites, charcreate_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 } // namespace hb

@@ -77,7 +77,7 @@ void map_renderer::render_layer(renderer& rend, const map& m, int32_t camera_x, 
                 // Terrain layer
                 if (t.terrain_id != 0) {
                     const sprite* spr = get_terrain_sprite(t.terrain_id);
-                    if (spr && spr->is_loaded()) {
+                    if (spr) {
                         // Apply lighting
                         float alpha = config_.light_level * (t.light_level / 255.0f);
                         if (alpha >= 1.0f) {
@@ -91,7 +91,7 @@ void map_renderer::render_layer(renderer& rend, const map& m, int32_t camera_x, 
                 // Object layer
                 if (t.object_id != 0) {
                     const sprite* spr = get_object_sprite(t.object_id);
-                    if (spr && spr->is_loaded()) {
+                    if (spr) {
                         rend.draw_sprite(*spr, sx, sy, 0);
                     }
                 }

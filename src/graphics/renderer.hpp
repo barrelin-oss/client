@@ -33,6 +33,9 @@ public:
     bool load_font(std::string_view path);
     void draw_text(std::string_view text, int32_t x, int32_t y, sf::Color color = sf::Color::White);
     void draw_text(std::string_view text, int32_t x, int32_t y, sf::Color color, uint32_t size);
+    void draw_text_outlined(std::string_view text, int32_t x, int32_t y,
+                            sf::Color color, sf::Color outline_color,
+                            uint32_t size = 12, float outline_thickness = 1.0f);
 
     // Primitives
     void draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color color, bool filled = true);

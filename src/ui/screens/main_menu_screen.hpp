@@ -31,6 +31,7 @@ public:
     void on_exit() override;
     bool update(float delta_time, const input& inp) override;
     void render(renderer& rend, sprite_manager& sprites) override;
+    void render_cursor(renderer& rend, sprite_manager& sprites) override;
 
     // Set callbacks
     void set_on_start(start_callback callback) { on_start_ = std::move(callback); }

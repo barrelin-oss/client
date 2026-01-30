@@ -118,6 +118,51 @@ void ui_system::update(float delta_time, const input& inp) {
     for (auto* dlg : dialog_order_) {
         dlg->update(delta_time, inp);
     }
+
+    // Route mouse clicks to open dialogs (front to back)
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
+        int32_t mx = inp.mouse_x();
+        int32_t my = inp.mouse_y();
+
+        for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+            if ((*it)->is_open()) {
+                // For modal dialogs, always send the click (even if outside bounds)
+                // The dialog will handle blocking clicks outside its area
+                if ((*it)->modal()) {
+                    (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                    break;  // Modal consumes all clicks
+                }
+                // For non-modal, only if click is inside bounds
+                if ((*it)->bounds().contains(mx, my)) {
+                    bring_to_front(*it);
+                    (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Route key presses to open dialogs (front to back)
+    // This ensures modal dialogs like connection_dialog can receive Escape key
+    for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+        if ((*it)->is_open()) {
+            // Check common keys that dialogs might want to handle
+            if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+                if ((*it)->handle_key_press(sf::Keyboard::Key::Escape)) {
+                    return;  // Key was consumed
+                }
+            }
+            if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
+                if ((*it)->handle_key_press(sf::Keyboard::Key::Enter)) {
+                    return;  // Key was consumed
+                }
+            }
+            // Modal dialogs should block further key routing
+            if ((*it)->modal()) {
+                break;
+            }
+        }
+    }
 }
 
 void ui_system::render(renderer& rend) {
@@ -622,6 +667,44 @@ void ui_system::create_levelup_dialog() {
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::levelup] = std::move(dlg);
     dialog_order_.push_back(ptr);
+}
+
+void ui_system::show_connection_dialog(std::function<void()> on_cancel) {
+    // Remove existing connection dialog if any
+    hide_connection_dialog();
+
+    auto dlg = std::make_unique<connection_dialog>();
+    dlg->set_on_cancel(std::move(on_cancel));
+
+    dialog* ptr = dlg.get();
+    dialogs_[dialog_type::connection] = std::move(dlg);
+    dialog_order_.push_back(ptr);
+    static_cast<connection_dialog*>(ptr)->open();
+}
+
+void ui_system::show_error_dialog(std::string_view message, std::function<void()> on_cancel) {
+    // Remove existing connection dialog if any
+    hide_connection_dialog();
+
+    auto dlg = std::make_unique<connection_dialog>();
+    dlg->set_error_mode(true, message);
+    dlg->set_on_cancel(std::move(on_cancel));
+
+    dialog* ptr = dlg.get();
+    dialogs_[dialog_type::connection] = std::move(dlg);
+    dialog_order_.push_back(ptr);
+    static_cast<connection_dialog*>(ptr)->open();
+}
+
+void ui_system::hide_connection_dialog() {
+    // Close and remove connection dialog
+    close_dialog(dialog_type::connection);
+    dialogs_.erase(dialog_type::connection);
+    dialog_order_.erase(
+        std::remove_if(dialog_order_.begin(), dialog_order_.end(),
+            [](dialog* d) { return d->type() == dialog_type::connection; }),
+        dialog_order_.end()
+    );
 }
 
 } // namespace hb

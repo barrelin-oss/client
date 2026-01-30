@@ -49,9 +49,21 @@ void screen_manager::update(float delta_time, const input& inp) {
     }
 }
 
+void screen_manager::update_mouse_position(const input& inp) {
+    if (current_screen_) {
+        current_screen_->update_mouse_position(inp);
+    }
+}
+
 void screen_manager::render(renderer& rend, sprite_manager& sprites) {
     if (current_screen_) {
         current_screen_->render(rend, sprites);
+    }
+}
+
+void screen_manager::render_cursor(renderer& rend, sprite_manager& sprites) {
+    if (current_screen_) {
+        current_screen_->render_cursor(rend, sprites);
     }
 }
 

@@ -53,3 +53,4 @@ hbio/x64/
 assets/
 build/
 node_modules/
+/.claude

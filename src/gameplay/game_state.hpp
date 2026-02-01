@@ -217,6 +217,10 @@ private:
 
     // Audio reference
     audio* audio_ = nullptr;
+
+    // Combat mode state
+    bool combat_mode_ = false;      // Attack stance (Tab toggles)
+    bool safe_attack_mode_ = false; // Safe attack mode (Home toggles)
 };
 
 } // namespace hb

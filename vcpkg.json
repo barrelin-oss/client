@@ -9,6 +9,7 @@
     "zlib",
     "spdlog",
     "nlohmann-json",
+    "yaml-cpp",
     "libsodium",
     "lz4",
     "ixwebsocket"

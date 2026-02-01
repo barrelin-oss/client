@@ -18,6 +18,7 @@ icon_panel_dialog::icon_panel_dialog()
     set_closeable(false);
     set_draggable(false);
     set_modal(false);
+    set_always_on_top(true);  // Icon panel should always be visible on top
     set_has_border(false);
     set_background_color(sf::Color(0, 0, 0, 0));  // Transparent - we draw custom background
 }
@@ -570,6 +571,15 @@ bool icon_panel_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Butto
     if (!visible_) return false;
     if (btn != sf::Mouse::Button::Left) return false;
 
+    // Check if clicking on combat indicator (around 368, 440 with ~36x36 size)
+    int32_t combat_screen_x = classic_layout::combat_x;
+    int32_t combat_screen_y = classic_layout::combat_y;
+    if (x >= combat_screen_x && x < combat_screen_x + 36 &&
+        y >= combat_screen_y && y < combat_screen_y + 36) {
+        if (on_combat_indicator_) on_combat_indicator_();
+        return true;
+    }
+
     int32_t clicked_button = get_hovered_button(x, y);
     if (clicked_button < 0) return false;
 
@@ -646,6 +656,10 @@ void icon_panel_dialog::set_super_attack_count(int32_t count) {
 
 void icon_panel_dialog::set_super_attack_available(bool available) {
     super_attack_available_ = available;
+}
+
+void icon_panel_dialog::set_alt_held(bool held) {
+    alt_held_ = held;
 }
 
 void icon_panel_dialog::set_poisoned(bool poisoned) {

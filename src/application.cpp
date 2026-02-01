@@ -179,6 +179,12 @@ void application::main_loop() {
         // Update game logic
         update(delta_time);
 
+        // Check if game wants to quit
+        if (game_state_ && game_state_->current_state() == game_state::quit) {
+            running_ = false;
+            continue;
+        }
+
         // Render
         render();
 

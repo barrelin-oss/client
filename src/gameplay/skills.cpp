@@ -88,6 +88,14 @@ uint8_t skills_system::get_skill_level(uint16_t skill_id) const {
     return 0;
 }
 
+bool skills_system::is_skill_mastered(uint16_t skill_id) const noexcept {
+    auto it = skills_.find(skill_id);
+    if (it != skills_.end()) {
+        return it->second.experience >= skill::max_experience;
+    }
+    return false;
+}
+
 float skills_system::get_damage_bonus() const {
     float bonus = 0.0f;
 

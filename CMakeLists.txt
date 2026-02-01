@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Build options
+option(HB_HOT_RELOAD "Enable hot-reload for dialog YAML/JSON files" ON)
+
 # Export compile commands for IDE support
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -17,5 +20,6 @@ find_package(ZLIB REQUIRED)
 find_package(lz4 CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(ixwebsocket CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(src)

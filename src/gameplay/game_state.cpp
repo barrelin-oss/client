@@ -6,6 +6,10 @@
 #include "assets/sprite_manager.hpp"
 #include "core/constants.hpp"
 #include "core/config.hpp"
+#include "ui/dialog_manager.hpp"
+#include "ui/managed_dialog.hpp"
+#include "ui/dialogs/icon_panel_dialog.hpp"
+#include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -21,23 +25,14 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     }
 
     entities_.initialize();
-    ui_.initialize();
-    ui_.set_sprite_manager(&sprites_);  // Enable classic UI rendering
-    inventory_.initialize();
-    magic_.initialize();
-    skills_.initialize();
-    combat_.initialize(&entities_, &magic_, &skills_);
 
-    // Setup network handlers
-    setup_network_handlers();
-
-    // Initialize sprite manager for UI sprites
+    // Initialize sprite manager and load PAK files FIRST
+    // (UI needs sprites for classic rendering)
     sprites_.initialize("assets/");
 
-    // Load UI PAK files
+    // Load UI PAK files before UI initialization
     if (sprites_.load_pak("interface", "sprites/interface.pak")) {
         spdlog::info("Loaded interface.pak");
-        // Load cursor sprite (sprite 0 from interface.pak)
         sprites_.store_sprite_at_id(0, "interface", 0);  // Mouse cursor
     }
 
@@ -47,33 +42,18 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
 
     if (sprites_.load_pak("New-Dialog", "sprites/New-Dialog.pak")) {
         spdlog::info("Loaded New-Dialog.pak");
-        // New-Dialog.pak has 3 sprites:
-        // Index 0: Loading screen (frame 0=bg, frame 1="Loading Data...", frame 2=blank)
-        // Index 1: Main Menu (frame 0=bg, frame 1=LOG IN, frame 2=NEW ACCOUNT, frame 3=EXIT)
-        // Index 2: Logout/Exit screen (frame 0=bg, frame 1="thanks for playing...")
         sprites_.store_sprite_at_id(51, "New-Dialog", 0);  // Loading
         sprites_.store_sprite_at_id(52, "New-Dialog", 1);  // Main Menu
-        sprites_.store_sprite_at_id(54, "New-Dialog", 2);  // Logout/Exit (NOT login!)
+        sprites_.store_sprite_at_id(54, "New-Dialog", 2);  // Logout/Exit
     }
 
-    // Load LoginDialog.pak for the actual login screen
     if (sprites_.load_pak("LoginDialog", "sprites/LoginDialog.pak")) {
         spdlog::info("Loaded LoginDialog.pak");
-        // Login screen sprite
         sprites_.store_sprite_at_id(53, "LoginDialog", 0);  // Login screen
     }
 
-    // Load GameDialog.pak for character select and other game dialogs
     if (sprites_.load_pak("GameDialog", "sprites/GameDialog.pak")) {
         spdlog::info("Loaded GameDialog.pak");
-        // GameDialog sprites (see Game.cpp line 3655+):
-        // Index 0-3: ND_GAME1-4 (IDs 60-63)
-        // Index 4: ND_CRUSADE (ID 64)
-        // Index 6: ND_ICONPANNEL (ID 66)
-        // Index 7: ND_INVENTORY (ID 67)
-        // Index 8: ND_SELECTCHAR (ID 57) - Character select screen
-        // Index 9: ND_NEWCHAR (ID 58) - Character create screen
-        // Index 10: ND_NEWEXCHANGE (ID 59)
         sprites_.store_sprite_at_id(57, "GameDialog", 8);   // Character select
         sprites_.store_sprite_at_id(58, "GameDialog", 9);   // Character create
         sprites_.store_sprite_at_id(60, "GameDialog", 0);   // Game dialog 1
@@ -82,12 +62,23 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         sprites_.store_sprite_at_id(63, "GameDialog", 3);   // Game dialog 4
     }
 
-    // Load DialogText.pak for buttons and UI elements
     if (sprites_.load_pak("DialogText", "sprites/DialogText.pak")) {
         spdlog::info("Loaded DialogText.pak");
-        // DialogText sprite 1 contains button graphics (ID 71)
         sprites_.store_sprite_at_id(71, "DialogText", 1);   // Button sprites
     }
+
+    // Set sprite manager on UI before initializing
+    // (so dialog_manager gets it during initialization)
+    ui_.set_sprite_manager(&sprites_);
+    ui_.initialize();
+
+    inventory_.initialize();
+    magic_.initialize();
+    skills_.initialize();
+    combat_.initialize(&entities_, &magic_, &skills_);
+
+    // Setup network handlers
+    setup_network_handlers();
 
     // Initialize menu character renderer (loads body, underwear, hair PAK files)
     if (menu_char_renderer_.initialize(sprites_)) {
@@ -174,6 +165,11 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     ui_.create_help_dialog();
     ui_.create_system_menu_dialog();
     ui_.create_options_dialog();
+
+    // Load YAML-based dialog definitions BEFORE creating icon panel
+    // (icon_panel uses YAML definition if available)
+    ui_.load_dialog_definitions_from_directory("assets/ui/dialogs");
+
     ui_.create_icon_panel_dialog();
     ui_.create_gauge_panel_dialog();
     ui_.create_levelup_dialog();
@@ -445,6 +441,15 @@ void game_state_manager::update_loading(float delta_time, const input& inp) {
 void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Handle input
     handle_playing_input(inp);
+
+    // Track alt key state for super attack indicator
+    bool alt_held = inp.is_key_down(sf::Keyboard::Key::LAlt) ||
+                    inp.is_key_down(sf::Keyboard::Key::RAlt);
+    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        yaml_dlg->set_alt_held(alt_held);
+    } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        icon_dlg->set_alt_held(alt_held);
+    }
 
     // Update world
     world_.update(delta_time);
@@ -817,9 +822,18 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         ui_.toggle_dialog(dialog_type::system_menu);
     }
 
-    // Map dialog
+    // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab)) {
-        ui_.toggle_dialog(dialog_type::map);
+        combat_mode_ = !combat_mode_;
+        spdlog::debug("Combat mode toggled: {}", combat_mode_ ? "attack" : "peace");
+        // Update will push this to icon panel
+    }
+
+    // Toggle safe attack mode (Home)
+    if (inp.is_key_pressed(sf::Keyboard::Key::Home)) {
+        safe_attack_mode_ = !safe_attack_mode_;
+        spdlog::debug("Safe attack mode toggled: {}", safe_attack_mode_ ? "safe" : "PK");
+        // Update will push this to icon panel
     }
 
     // Help dialog
@@ -1051,7 +1065,88 @@ void game_state_manager::setup_dialog_callbacks() {
     }
 
     // Icon panel - bottom HUD buttons
-    if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+    // First try YAML-based icon panel
+    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        // YAML icon panel uses callbacks set in the dialog constructor via on_button_click
+        // We just need to wire up the high-level game actions
+        yaml_dlg->set_on_character([this]() {
+            ui_.toggle_dialog(dialog_type::character_info);
+        });
+
+        yaml_dlg->set_on_inventory([this]() {
+            ui_.toggle_dialog(dialog_type::inventory);
+        });
+
+        yaml_dlg->set_on_spellbook([this]() {
+            ui_.toggle_dialog(dialog_type::spellbook);
+        });
+
+        yaml_dlg->set_on_skills([this]() {
+            ui_.toggle_dialog(dialog_type::skills);
+        });
+
+        yaml_dlg->set_on_chat_history([this]() {
+            ui_.toggle_dialog(dialog_type::chat);
+        });
+
+        yaml_dlg->set_on_system_menu([this]() {
+            // Try YAML-based system menu first
+            auto& dlg_mgr = ui_.dialogs();
+            auto* sys_menu = dlg_mgr.find_dialog("system_menu");
+
+            if (sys_menu) {
+                // YAML system menu exists, toggle it
+                if (sys_menu->is_open()) {
+                    sys_menu->close();
+                } else {
+                    sys_menu->open();
+                }
+            } else if (dlg_mgr.get_definition("system_menu")) {
+                // YAML definition exists, create and open
+                sys_menu = dlg_mgr.open_dialog("system_menu");
+                if (sys_menu) {
+                    // Wire up system menu buttons on first creation
+                    sys_menu->on_button_click("btn_settings", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
+                            settings->set_ui_style(ui_.style());
+                        }
+                        ui_.open_dialog(dialog_type::options);
+                    });
+                    sys_menu->on_button_click("btn_help", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        auto* help_dlg = ui_.dialogs().create_help_dialog();
+                        if (help_dlg) {
+                            help_dlg->open();
+                        } else {
+                            ui_.open_dialog(dialog_type::help);
+                        }
+                    });
+                    sys_menu->on_button_click("btn_logout", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        spdlog::info("Logout requested");
+                        ws_connection_.disconnect();
+                        change_state(game_state::login);
+                    });
+                    sys_menu->on_button_click("btn_exit", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        spdlog::info("Exit game requested");
+                        change_state(game_state::quit);
+                    });
+                }
+            } else {
+                // Fall back to legacy code-based system menu
+                ui_.toggle_dialog(dialog_type::system_menu);
+            }
+        });
+
+        yaml_dlg->set_on_combat_indicator([this]() {
+            combat_mode_ = !combat_mode_;
+            spdlog::debug("Combat mode toggled via click: {}", combat_mode_ ? "attack" : "peace");
+        });
+    }
+    // Fallback to code-based icon panel
+    else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
         // Set up UI style and sprite manager for dual rendering support
         icon_dlg->set_ui_style(ui_.style());
         icon_dlg->set_sprite_manager(&sprites_);
@@ -1078,38 +1173,92 @@ void game_state_manager::setup_dialog_callbacks() {
         });
 
         icon_dlg->set_on_system_menu([this]() {
-            ui_.toggle_dialog(dialog_type::system_menu);
+            // Use YAML-based system menu dialog
+            auto& dlg_mgr = ui_.dialogs();
+            auto* sys_menu = dlg_mgr.find_dialog("system_menu");
+
+            if (sys_menu) {
+                // Toggle existing dialog
+                if (sys_menu->is_open()) {
+                    sys_menu->close();
+                } else {
+                    sys_menu->open();
+                }
+            } else {
+                // Create and open if not yet created
+                sys_menu = dlg_mgr.open_dialog("system_menu");
+                if (sys_menu) {
+                    // Wire up button callbacks on first creation
+                    sys_menu->on_button_click("btn_settings", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        // Open settings dialog and initialize with current values
+                        if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
+                            settings->set_ui_style(ui_.style());
+                        }
+                        ui_.open_dialog(dialog_type::options);
+                    });
+
+                    sys_menu->on_button_click("btn_help", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        // Use YAML-based help dialog
+                        auto* help_dlg = ui_.dialogs().create_help_dialog();
+                        if (help_dlg) {
+                            help_dlg->open();
+                        } else {
+                            // Fallback to legacy help dialog
+                            ui_.open_dialog(dialog_type::help);
+                        }
+                    });
+
+                    sys_menu->on_button_click("btn_logout", [this]() {
+                        ui_.dialogs().close_dialog("system_menu");
+                        spdlog::info("Logout requested");
+                        ws_connection_.disconnect();
+                        change_state(game_state::login);
+                    });
+
+                    sys_menu->on_button_click("btn_exit", [this]() {
+                        spdlog::info("Exit requested");
+                        change_state(game_state::quit);
+                    });
+                }
+            }
+        });
+
+        icon_dlg->set_on_combat_indicator([this]() {
+            combat_mode_ = !combat_mode_;
+            spdlog::debug("Combat mode toggled via click: {}", combat_mode_ ? "attack" : "peace");
         });
     }
 
-    // System menu dialog - main game menu
+    // Legacy system menu dialog - keep for fallback (can be removed later)
     if (auto* sys_dlg = dynamic_cast<system_menu_dialog*>(ui_.get_dialog(dialog_type::system_menu))) {
         sys_dlg->set_on_settings([this]() {
-            // Open settings dialog and initialize with current values
             if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
                 settings->set_ui_style(ui_.style());
-                // TODO: Get actual volume from audio system
-                // settings->set_music_volume(audio_->music_volume());
-                // settings->set_sound_volume(audio_->sfx_volume());
             }
             ui_.open_dialog(dialog_type::options);
         });
 
         sys_dlg->set_on_help([this]() {
-            ui_.open_dialog(dialog_type::help);
+            // Use YAML-based help dialog
+            auto* help_dlg = ui_.dialogs().create_help_dialog();
+            if (help_dlg) {
+                help_dlg->open();
+            } else {
+                // Fallback to legacy help dialog
+                ui_.open_dialog(dialog_type::help);
+            }
         });
 
         sys_dlg->set_on_logout([this]() {
             spdlog::info("Logout requested");
-            // Disconnect and return to login screen
             ws_connection_.disconnect();
             change_state(game_state::login);
         });
 
         sys_dlg->set_on_exit([this]() {
             spdlog::info("Exit requested");
-            // Signal application to close
-            // For now, just change state - the application will handle the actual exit
             change_state(game_state::quit);
         });
     }
@@ -1144,12 +1293,55 @@ void game_state_manager::setup_dialog_callbacks() {
 }
 
 void game_state_manager::update_icon_panel() {
-    auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel));
-    if (!icon_dlg) return;
-
     // Get local player entity
     entity* player = local_player();
     if (!player) return;
+
+    // Try YAML-based icon panel first
+    auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel));
+    if (yaml_dlg) {
+        // Update stats from player entity
+        if (player->has_stats()) {
+            const auto& stats = player->stats();
+            yaml_dlg->set_hp(stats.hp, stats.max_hp);
+            yaml_dlg->set_mp(stats.mp, stats.max_mp);
+            yaml_dlg->set_sp(stats.sp, stats.max_sp);
+
+            // Calculate experience for next level (simplified)
+            int64_t exp_for_next_level = static_cast<int64_t>(stats.level) * 1000;  // Placeholder formula
+            yaml_dlg->set_experience(stats.experience, exp_for_next_level, stats.level);
+        }
+
+        // Update position from transform
+        const auto& transform = player->transform();
+        yaml_dlg->set_position(transform.tile_x, transform.tile_y);
+
+        // Set map name from world
+        yaml_dlg->set_map_name(world_.current_map_name());
+
+        // Update status effects
+        if (player->has_combat()) {
+            const auto& combat_comp = player->combat();
+            yaml_dlg->set_poisoned(combat_comp.poisoned);
+        }
+
+        // Check if equipped weapon skill is mastered (100%)
+        bool weapon_mastered = false;
+        if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand)) {
+            weapon_skill ws = combat_.get_weapon_skill(weapon->type_id);
+            weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
+        }
+        yaml_dlg->set_super_attack_available(weapon_mastered);
+
+        // Push combat mode state
+        yaml_dlg->set_combat_mode(combat_mode_);
+        yaml_dlg->set_safe_attack_mode(safe_attack_mode_);
+        return;
+    }
+
+    // Fallback to code-based icon panel
+    auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel));
+    if (!icon_dlg) return;
 
     // Update stats from player entity
     if (player->has_stats()) {
@@ -1172,15 +1364,28 @@ void game_state_manager::update_icon_panel() {
 
     // Update status effects
     if (player->has_combat()) {
-        const auto& combat = player->combat();
-        icon_dlg->set_poisoned(combat.poisoned);
+        const auto& combat_comp = player->combat();
+        icon_dlg->set_poisoned(combat_comp.poisoned);
     }
+
+    // Check if equipped weapon skill is mastered (100%)
+    bool weapon_mastered = false;
+    if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand)) {
+        weapon_skill ws = combat_.get_weapon_skill(weapon->type_id);
+        weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
+    }
+    icon_dlg->set_super_attack_available(weapon_mastered);
+
+    // Push combat mode state
+    icon_dlg->set_combat_mode(combat_mode_);
+    icon_dlg->set_safe_attack_mode(safe_attack_mode_);
 }
 
 void game_state_manager::set_ui_style(ui_style style) {
     ui_.set_style(style);
 
     // Propagate style to icon panel (and any other style-aware dialogs)
+    // Note: yaml_icon_panel_dialog uses render_mode from dialog_manager, not ui_style
     if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
         icon_dlg->set_ui_style(style);
     }

@@ -42,7 +42,12 @@ add_executable(helbreath_client
     # UI
     ui/ui_element.cpp
     ui/ui_system.cpp
+    ui/dialog_base.cpp
     ui/mouse_interface.cpp
+    ui/dialog_builder.cpp
+    ui/render_strategy.cpp
+    ui/managed_dialog.cpp
+    ui/dialog_manager.cpp
 
     # UI Screens (sprite-based)
     ui/screens/screen_base.cpp
@@ -69,10 +74,12 @@ add_executable(helbreath_client
     ui/dialogs/map_dialog.cpp
     ui/dialogs/repair_dialog.cpp
     ui/dialogs/help_dialog.cpp
+    ui/dialogs/yaml_help_dialog.cpp
     ui/dialogs/login_dialog.cpp
     ui/dialogs/character_select_dialog.cpp
     ui/dialogs/character_create_dialog.cpp
     ui/dialogs/icon_panel_dialog.cpp
+    ui/dialogs/yaml_icon_panel_dialog.cpp
     ui/dialogs/gauge_panel_dialog.cpp
     ui/dialogs/levelup_dialog.cpp
     ui/dialogs/system_menu_dialog.cpp
@@ -101,6 +108,7 @@ target_link_libraries(helbreath_client PRIVATE
     SFML::Network
     spdlog::spdlog
     nlohmann_json::nlohmann_json
+    yaml-cpp::yaml-cpp
     OpenSSL::SSL
     OpenSSL::Crypto
     ZLIB::ZLIB
@@ -125,4 +133,62 @@ if(MSVC)
     target_compile_options(helbreath_client PRIVATE /W4)
 else()
     target_compile_options(helbreath_client PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Hot-reload feature flag
+if(HB_HOT_RELOAD)
+    target_compile_definitions(helbreath_client PRIVATE HB_HOT_RELOAD_ENABLED)
+endif()
+
+# === Icon Panel Demo ===
+add_executable(icon_panel_demo
+    icon_panel_demo.cpp
+
+    # Graphics
+    graphics/renderer.cpp
+
+    # Input
+    input/input.cpp
+
+    # Assets
+    assets/pak_file.cpp
+    assets/sprite.cpp
+    assets/sprite_manager.cpp
+
+    # UI (minimal set needed for icon panel - NO ui_system)
+    ui/ui_element.cpp
+    ui/dialog_base.cpp
+    ui/dialog_builder.cpp
+    ui/render_strategy.cpp
+    ui/managed_dialog.cpp
+    ui/dialog_manager.cpp
+    ui/dialogs/yaml_icon_panel_dialog.cpp
+    ui/dialogs/yaml_help_dialog.cpp
+)
+
+target_include_directories(icon_panel_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(icon_panel_demo PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    spdlog::spdlog
+    nlohmann_json::nlohmann_json
+    yaml-cpp::yaml-cpp
+    ZLIB::ZLIB
+    lz4::lz4
+)
+
+if(WIN32)
+    target_compile_definitions(icon_panel_demo PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+endif()
+
+if(MSVC)
+    target_compile_options(icon_panel_demo PRIVATE /W4)
+else()
+    target_compile_options(icon_panel_demo PRIVATE -Wall -Wextra -Wpedantic)
 endif()

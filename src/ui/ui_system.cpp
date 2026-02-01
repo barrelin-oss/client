@@ -1,4 +1,5 @@
 #include "ui/ui_system.hpp"
+#include "ui/dialog_manager.hpp"
 #include "ui/dialogs/dialogs.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
@@ -8,106 +9,25 @@
 
 namespace hb {
 
-// dialog implementation
+// ui_system constructor/destructor (defined here due to unique_ptr to forward-declared type)
+ui_system::ui_system() = default;
+ui_system::~ui_system() = default;
 
-dialog::dialog(dialog_type type)
-    : type_(type) {
-    // Dialogs start hidden - must be explicitly opened
-    visible_ = false;
-}
-
-void dialog::update(float delta_time, const input& inp) {
-    if (!visible_) return;
-    ui_panel::update(delta_time, inp);
-}
-
-void dialog::render(renderer& rend) {
-    if (!visible_) return;
-
-    ui_panel::render(rend);
-    render_title_bar(rend);
-}
-
-bool dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
-    if (!visible_) return false;
-
-    // Check title bar for dragging
-    if (draggable_ && btn == sf::Mouse::Button::Left) {
-        ui_rect title_rect{bounds_.x, bounds_.y, bounds_.width, title_bar_height};
-        if (title_rect.contains(x, y)) {
-            // Check close button
-            if (closeable_) {
-                ui_rect close_rect{bounds_.x + bounds_.width - 20, bounds_.y + 4, 16, 16};
-                if (close_rect.contains(x, y)) {
-                    close();
-                    return true;
-                }
-            }
-
-            dragging_ = true;
-            drag_offset_x_ = x - bounds_.x;
-            drag_offset_y_ = y - bounds_.y;
-            return true;
-        }
-    }
-
-    return ui_panel::handle_mouse_down(x, y, btn);
-}
-
-bool dialog::handle_mouse_move(int32_t x, int32_t y) {
-    if (dragging_) {
-        bounds_.x = x - drag_offset_x_;
-        bounds_.y = y - drag_offset_y_;
-
-        // Clamp to screen
-        bounds_.x = std::clamp(bounds_.x, 0, static_cast<int32_t>(screen_width) - bounds_.width);
-        bounds_.y = std::clamp(bounds_.y, 0, static_cast<int32_t>(screen_height) - bounds_.height);
-
-        return true;
-    }
-
-    return ui_panel::handle_mouse_move(x, y);
-}
-
-void dialog::open() {
-    set_visible(true);
-}
-
-void dialog::close() {
-    set_visible(false);
-    dragging_ = false;
-    if (on_close_) {
-        on_close_();
-    }
-}
-
-void dialog::render_title_bar(renderer& rend) {
-    // Title bar background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, title_bar_height,
-                   sf::Color(60, 60, 80), true);
-    rend.draw_line(bounds_.x, bounds_.y + title_bar_height,
-                   bounds_.x + bounds_.width, bounds_.y + title_bar_height,
-                   sf::Color(100, 100, 140));
-
-    // Title text
-    rend.draw_text(title_, bounds_.x + 8, bounds_.y + 4, sf::Color::White);
-
-    // Close button
-    if (closeable_) {
-        int32_t close_x = bounds_.x + bounds_.width - 20;
-        int32_t close_y = bounds_.y + 4;
-        rend.draw_rect(close_x, close_y, 16, 16, sf::Color(120, 60, 60), true);
-        rend.draw_text("X", close_x + 4, close_y + 1, sf::Color::White);
-    }
-}
+// dialog base class implementation is in dialog_base.cpp
 
 // ui_system implementation
 
 void ui_system::initialize() {
+    dialog_manager_ = std::make_unique<dialog_manager>();
+    dialog_manager_->initialize(sprites_);
     spdlog::info("UI system initialized");
 }
 
 void ui_system::shutdown() {
+    if (dialog_manager_) {
+        dialog_manager_->shutdown();
+        dialog_manager_.reset();
+    }
     dialogs_.clear();
     dialog_order_.clear();
     focused_ = nullptr;
@@ -115,34 +35,79 @@ void ui_system::shutdown() {
 }
 
 void ui_system::update(float delta_time, const input& inp) {
+    // Update legacy dialogs
     for (auto* dlg : dialog_order_) {
         dlg->update(delta_time, inp);
     }
 
+    // Update data-driven dialogs
+    if (dialog_manager_) {
+        dialog_manager_->update(delta_time, inp);
+    }
+
+    int32_t mx = inp.mouse_x();
+    int32_t my = inp.mouse_y();
+
+    // Route mouse move to data-driven dialogs (for hover states)
+    if (dialog_manager_) {
+        dialog_manager_->handle_mouse_move(mx, my);
+    }
+
     // Route mouse clicks to open dialogs (front to back)
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
-        int32_t mx = inp.mouse_x();
-        int32_t my = inp.mouse_y();
-
-        for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
-            if ((*it)->is_open()) {
-                // For modal dialogs, always send the click (even if outside bounds)
-                // The dialog will handle blocking clicks outside its area
-                if ((*it)->modal()) {
-                    (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
-                    break;  // Modal consumes all clicks
-                }
-                // For non-modal, only if click is inside bounds
-                if ((*it)->bounds().contains(mx, my)) {
-                    bring_to_front(*it);
-                    (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
-                    break;
+        // First check data-driven dialogs (they render on top)
+        if (dialog_manager_ && dialog_manager_->handle_mouse_down(mx, my, sf::Mouse::Button::Left)) {
+            // Data-driven dialog handled it
+        } else {
+            // Then check legacy dialogs
+            for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+                if ((*it)->is_open()) {
+                    // For modal dialogs, always send the click (even if outside bounds)
+                    // The dialog will handle blocking clicks outside its area
+                    if ((*it)->modal()) {
+                        (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                        break;  // Modal consumes all clicks
+                    }
+                    // For non-modal, only if click is inside bounds
+                    if ((*it)->bounds().contains(mx, my)) {
+                        dialog* dlg = *it;  // Save pointer before modifying vector
+                        bring_to_front(dlg);
+                        dlg->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                        break;
+                    }
                 }
             }
         }
     }
 
-    // Route key presses to open dialogs (front to back)
+    // Route mouse release to data-driven dialogs
+    if (inp.is_mouse_released(sf::Mouse::Button::Left)) {
+        if (dialog_manager_) {
+            dialog_manager_->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+        }
+    }
+
+    // Route mouse wheel to data-driven dialogs
+    int32_t wheel_delta = inp.wheel_delta();
+    if (wheel_delta != 0 && dialog_manager_) {
+        dialog_manager_->handle_mouse_wheel(mx, my, wheel_delta);
+    }
+
+    // Route key presses to data-driven dialogs first
+    if (dialog_manager_) {
+        if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+            if (dialog_manager_->handle_key_press(sf::Keyboard::Key::Escape)) {
+                return;
+            }
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
+            if (dialog_manager_->handle_key_press(sf::Keyboard::Key::Enter)) {
+                return;
+            }
+        }
+    }
+
+    // Route key presses to legacy dialogs (front to back)
     // This ensures modal dialogs like connection_dialog can receive Escape key
     for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
         if ((*it)->is_open()) {
@@ -166,11 +131,16 @@ void ui_system::update(float delta_time, const input& inp) {
 }
 
 void ui_system::render(renderer& rend) {
-    // Render dialogs in order (back to front)
+    // Render legacy dialogs in order (back to front)
     for (auto* dlg : dialog_order_) {
         if (dlg->is_open()) {
             dlg->render(rend);
         }
+    }
+
+    // Render data-driven dialogs
+    if (dialog_manager_) {
+        dialog_manager_->render(rend);
     }
 
     // Render tooltip
@@ -187,7 +157,12 @@ void ui_system::render(renderer& rend) {
 }
 
 bool ui_system::handle_mouse_move(int32_t x, int32_t y) {
-    // Process in reverse order (front to back)
+    // First try data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->handle_mouse_move(x, y)) {
+        return true;
+    }
+
+    // Then legacy dialogs (process in reverse order, front to back)
     for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
         if ((*it)->is_open() && (*it)->handle_mouse_move(x, y)) {
             return true;
@@ -197,6 +172,11 @@ bool ui_system::handle_mouse_move(int32_t x, int32_t y) {
 }
 
 bool ui_system::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
+    // First try data-driven dialogs (they render on top)
+    if (dialog_manager_ && dialog_manager_->handle_mouse_down(x, y, btn)) {
+        return true;
+    }
+
     // Check if clicking outside modal dialog
     if (is_modal_open()) {
         for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
@@ -209,12 +189,13 @@ bool ui_system::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
         }
     }
 
-    // Process dialogs
+    // Process legacy dialogs
     for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
         if ((*it)->is_open()) {
             if ((*it)->bounds().contains(x, y)) {
-                bring_to_front(*it);
-                (*it)->handle_mouse_down(x, y, btn);
+                dialog* dlg = *it;  // Save pointer before modifying vector
+                bring_to_front(dlg);
+                dlg->handle_mouse_down(x, y, btn);
                 return true;
             }
         }
@@ -230,6 +211,12 @@ bool ui_system::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
 }
 
 bool ui_system::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
+    // First try data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->handle_mouse_up(x, y, btn)) {
+        return true;
+    }
+
+    // Then legacy dialogs
     for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
         if ((*it)->is_open() && (*it)->handle_mouse_up(x, y, btn)) {
             return true;
@@ -239,7 +226,12 @@ bool ui_system::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
 }
 
 bool ui_system::handle_key_press(sf::Keyboard::Key key) {
-    // Handle escape to close top dialog
+    // First try data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->handle_key_press(key)) {
+        return true;
+    }
+
+    // Handle escape to close top legacy dialog
     if (key == sf::Keyboard::Key::Escape) {
         for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
             if ((*it)->is_open() && (*it)->closeable()) {
@@ -257,6 +249,11 @@ bool ui_system::handle_key_press(sf::Keyboard::Key key) {
 }
 
 bool ui_system::handle_text_input(char32_t unicode) {
+    // First try data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->handle_text_input(unicode)) {
+        return true;
+    }
+
     if (focused_) {
         return focused_->handle_text_input(unicode);
     }
@@ -264,6 +261,11 @@ bool ui_system::handle_text_input(char32_t unicode) {
 }
 
 dialog* ui_system::get_dialog(dialog_type type) {
+    // Special case: icon_panel may be managed by dialog_manager (YAML version)
+    if (type == dialog_type::icon_panel && yaml_icon_panel_) {
+        return yaml_icon_panel_;
+    }
+
     auto it = dialogs_.find(type);
     if (it != dialogs_.end()) {
         return it->second.get();
@@ -272,6 +274,12 @@ dialog* ui_system::get_dialog(dialog_type type) {
 }
 
 void ui_system::open_dialog(dialog_type type) {
+    // Special case: icon_panel may be managed by dialog_manager (YAML version)
+    if (type == dialog_type::icon_panel && yaml_icon_panel_) {
+        yaml_icon_panel_->open();
+        return;
+    }
+
     auto* dlg = get_dialog(type);
     if (dlg) {
         dlg->open();
@@ -625,6 +633,12 @@ void ui_system::set_focus(ui_element* element) {
 }
 
 bool ui_system::is_modal_open() const {
+    // Check data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->is_modal_open()) {
+        return true;
+    }
+
+    // Check legacy dialogs
     for (const auto& [type, dlg] : dialogs_) {
         if (dlg->is_open() && dlg->modal()) {
             return true;
@@ -637,7 +651,16 @@ void ui_system::bring_to_front(dialog* dlg) {
     auto it = std::find(dialog_order_.begin(), dialog_order_.end(), dlg);
     if (it != dialog_order_.end()) {
         dialog_order_.erase(it);
-        dialog_order_.push_back(dlg);
+
+        if (dlg->always_on_top()) {
+            // Always-on-top dialogs go at the very end
+            dialog_order_.push_back(dlg);
+        } else {
+            // Insert before the first always-on-top dialog
+            auto insert_pos = std::find_if(dialog_order_.begin(), dialog_order_.end(),
+                [](dialog* d) { return d->always_on_top(); });
+            dialog_order_.insert(insert_pos, dlg);
+        }
     }
 }
 
@@ -649,6 +672,28 @@ void ui_system::create_character_create_dialog() {
 }
 
 void ui_system::create_icon_panel_dialog() {
+    // Try to use YAML-based icon panel if definition exists
+    if (dialog_manager_) {
+        auto* def = dialog_manager_->get_definition("icon_panel");
+        if (def) {
+            spdlog::info("Found YAML icon_panel definition, creating YAML-based dialog");
+            yaml_icon_panel_ = dialog_manager_->create_icon_panel_dialog();
+            if (yaml_icon_panel_) {
+                spdlog::info("Using YAML-based icon panel (sprites_={})",
+                    yaml_icon_panel_->sprites() != nullptr);
+                return;
+            } else {
+                spdlog::warn("Failed to create YAML-based icon panel");
+            }
+        } else {
+            spdlog::info("No YAML icon_panel definition found, using code-based icon panel");
+        }
+    } else {
+        spdlog::warn("dialog_manager_ is null when creating icon panel");
+    }
+
+    // Fallback to code-based icon panel
+    spdlog::info("Creating code-based icon panel");
     auto dlg = std::make_unique<icon_panel_dialog>();
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::icon_panel] = std::move(dlg);
@@ -705,6 +750,34 @@ void ui_system::hide_connection_dialog() {
             [](dialog* d) { return d->type() == dialog_type::connection; }),
         dialog_order_.end()
     );
+}
+
+void ui_system::load_dialog_definitions(const std::filesystem::path& path) {
+    if (!dialog_manager_) return;
+
+    // Set render mode based on current UI style
+    render_mode mode = (style_ == ui_style::classic) ? render_mode::classic : render_mode::modern;
+    dialog_manager_->set_default_render_mode(mode);
+
+    dialog_manager_->load_definitions_from_yaml(path);
+}
+
+void ui_system::load_dialog_definitions_from_directory(const std::filesystem::path& dir) {
+    if (!dialog_manager_) return;
+
+    // Set render mode based on current UI style
+    render_mode mode = (style_ == ui_style::classic) ? render_mode::classic : render_mode::modern;
+    dialog_manager_->set_default_render_mode(mode);
+
+    dialog_manager_->load_definitions_from_directory(dir);
+}
+
+dialog_manager& ui_system::dialogs() {
+    return *dialog_manager_;
+}
+
+const dialog_manager& ui_system::dialogs() const {
+    return *dialog_manager_;
 }
 
 } // namespace hb

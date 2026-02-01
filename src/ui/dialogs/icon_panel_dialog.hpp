@@ -37,6 +37,7 @@ public:
     void set_on_skills(button_callback cb) { on_skills_ = std::move(cb); }
     void set_on_chat_history(button_callback cb) { on_chat_history_ = std::move(cb); }
     void set_on_system_menu(button_callback cb) { on_system_menu_ = std::move(cb); }
+    void set_on_combat_indicator(button_callback cb) { on_combat_indicator_ = std::move(cb); }
 
     // Stats (HP/MP/SP)
     void set_hp(int32_t current, int32_t max);
@@ -57,6 +58,7 @@ public:
     // Super attack (displayed when weapon skill is at 100%)
     void set_super_attack_count(int32_t count);
     void set_super_attack_available(bool available);
+    void set_alt_held(bool held);
 
     // Poisoned status (affects HP bar display)
     void set_poisoned(bool poisoned);
@@ -91,6 +93,7 @@ private:
     button_callback on_skills_;
     button_callback on_chat_history_;
     button_callback on_system_menu_;
+    button_callback on_combat_indicator_;
 
     // Stats
     int32_t hp_current_ = 100;
@@ -118,11 +121,12 @@ private:
 
     // Combat mode
     bool combat_mode_ = false;
-    bool safe_attack_mode_ = true;
+    bool safe_attack_mode_ = false;
 
     // Super attack
     int32_t super_attack_count_ = 0;
     bool super_attack_available_ = false;
+    bool alt_held_ = false;
 
     // Status effects
     bool is_poisoned_ = false;

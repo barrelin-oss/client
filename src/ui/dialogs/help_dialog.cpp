@@ -345,7 +345,8 @@ void help_dialog::load_default_help() {
             "automatically navigate around obstacles.",
             "",
             "* Click and hold to keep moving",
-            "* Double-click to run",
+            "* Press shift to run",
+            "* Press control+r to set run mode",
             "* Use arrow keys for manual control"
         },
         0

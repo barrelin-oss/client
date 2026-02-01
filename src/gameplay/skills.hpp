@@ -78,6 +78,10 @@ public:
     float get_crafting_success_rate(uint16_t recipe_id) const;
     float get_gathering_bonus() const;
 
+    // Weapon mastery check - efficient for per-frame rendering
+    // Returns true if the skill is at 100% mastery (level >= 100)
+    [[nodiscard]] bool is_skill_mastered(uint16_t skill_id) const noexcept;
+
     // Active skill usage
     bool can_use_skill(uint16_t skill_id, int32_t mp, int32_t sp) const;
     void update_cooldowns(float delta_time);

@@ -4,6 +4,10 @@
 namespace hb {
 
 websocket_connection::websocket_connection() {
+    // Disable automatic reconnection - we'll create new connections as needed
+    // based on game state (only reconnect during character select or in-game)
+    websocket_.disableAutomaticReconnection();
+
     // Configure WebSocket
     websocket_.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg) {
         on_message(msg);

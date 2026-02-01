@@ -228,6 +228,26 @@ void game_state_manager::update(float delta_time, const input& inp) {
     // Update network
     network_.update();
 
+    // Poll for WebSocket messages on main thread (avoids race conditions)
+    while (auto msg = ws_connection_.receive()) {
+        handle_ws_message(*msg);
+    }
+
+    // Handle pending disconnect from background thread
+    if (has_pending_disconnect_.exchange(false)) {
+        std::string reason;
+        {
+            std::lock_guard<std::mutex> lock(pending_disconnect_mutex_);
+            reason = std::move(pending_disconnect_reason_);
+        }
+        // Now safe to access pending_username_ and show_error on main thread
+        if (!pending_username_.empty()) {
+            show_error("Connection lost: " + reason);
+            pending_username_.clear();
+            pending_password_.clear();
+        }
+    }
+
     // Update sprite memory management (evict unused bitmaps)
     sprites_.update_memory(delta_time);
 
@@ -1424,17 +1444,18 @@ void game_state_manager::attempt_login(const std::string& username, const std::s
 
     ws_connection_.set_disconnect_callback([this](const std::string& reason) {
         spdlog::warn("Disconnected from server: {}", reason);
-        // Only show error and clear credentials if we weren't intentionally reconnecting
-        if (!pending_username_.empty()) {
-            show_error("Connection lost: " + reason);
-            pending_username_.clear();
-            pending_password_.clear();
+        // Queue the disconnect for main thread processing (avoid race conditions)
+        // Don't access pending_username_ here - it's not thread-safe
+        {
+            std::lock_guard<std::mutex> lock(pending_disconnect_mutex_);
+            pending_disconnect_reason_ = reason;
         }
+        has_pending_disconnect_.store(true);
     });
 
-    ws_connection_.set_message_callback([this](const json& msg) {
-        handle_ws_message(msg);
-    });
+    // NOTE: Do NOT set message_callback here - it runs on a background thread
+    // and modifying UI from there causes race conditions. Instead, we poll
+    // for messages on the main thread in update().
 
     // Connect to server
     if (!ws_connection_.connect(ws_url)) {

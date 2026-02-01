@@ -28,6 +28,62 @@ This is the **Helbreath** game client, a 2D MMORPG client originally developed c
 
 ---
 
+## Building the Project
+
+### Prerequisites
+
+- **CMake 3.20+**
+- **Visual Studio 2022** (or MSVC 19.29+)
+- **vcpkg** installed at `C:/code/vcpkg`
+
+### Build Commands
+
+The project uses CMake presets with vcpkg for dependency management. Dependencies are defined in `vcpkg.json` and will be automatically installed during the configure step.
+
+**Configure and build (Debug):**
+```bash
+cmake --preset=default
+cmake --build build --config Debug
+```
+
+**Configure and build (Release):**
+```bash
+cmake --preset=release
+cmake --build build --config Release
+```
+
+**Clean rebuild:**
+```bash
+rm -rf build
+cmake --preset=default
+cmake --build build --config Debug
+```
+
+### Dependencies (via vcpkg)
+
+The following dependencies are automatically managed:
+- SFML (graphics, audio, networking, window management)
+- spdlog (logging)
+- nlohmann-json (JSON parsing)
+- yaml-cpp (YAML parsing for dialog definitions)
+- OpenSSL, zlib, lz4, libsodium (networking/compression)
+- ixwebsocket (WebSocket support)
+
+### Output
+
+All binaries and DLLs are output to the `bin/` directory in the project root:
+- Executable: `bin/helbreath_client.exe`
+- Demo: `bin/icon_panel_demo.exe`
+- DLLs: Automatically copied to `bin/` after build
+
+This allows running the game directly from the `bin/` directory alongside assets.
+
+### Visual Studio
+
+The generated solution is at `build/helbreath_client.sln`. The debugger working directory is automatically configured to `bin/`, so F5 debugging works correctly with assets.
+
+---
+
 ## Modernization Goals
 
 ### Primary Objectives
@@ -923,35 +979,62 @@ namespace hb::i18n {
 
 ### CMakeLists.txt (Root)
 
+The project uses CMake with vcpkg integration via CMake presets.
+
 ```cmake
 cmake_minimum_required(VERSION 3.20)
-project(HelbreathClient VERSION 3.0.0 LANGUAGES CXX)
+project(helbreath_client VERSION 3.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Options
-option(HB_BUILD_TESTS "Build unit tests" ON)
-option(HB_USE_SDL "Use SDL2 backend instead of DirectX" OFF)
+option(HB_HOT_RELOAD "Enable hot-reload for dialog YAML/JSON files" ON)
 
-# Dependencies
-find_package(fmt CONFIG REQUIRED)          # Until std::format is fully supported
-find_package(spdlog CONFIG REQUIRED)       # Logging
-find_package(nlohmann_json CONFIG REQUIRED) # JSON parsing
+# Export compile commands for IDE support
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(HB_USE_SDL)
-    find_package(SDL2 CONFIG REQUIRED)
-    find_package(SDL2_mixer CONFIG REQUIRED)
-endif()
+# Dependencies via vcpkg (see vcpkg.json)
+find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(lz4 CONFIG REQUIRED)
+find_package(unofficial-sodium CONFIG REQUIRED)
+find_package(ixwebsocket CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
-# Subdirectories
 add_subdirectory(src)
+```
 
-if(HB_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+### CMakePresets.json
+
+The project uses CMake presets to configure vcpkg integration:
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "default",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "C:/code/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "C:/code/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
+}
 ```
 
 ---
@@ -1088,6 +1171,61 @@ std::expected<Result, Error> tryOperation();
 HB_ASSERT(ptr != nullptr, "Pointer must not be null");
 ```
 
+### Memory Safety Patterns
+
+#### Container Removal Order
+
+When an object is owned by one container (e.g., `unique_ptr` in a map) and referenced by another (e.g., raw pointers in a vector), **always remove references before deleting the owner**:
+
+```cpp
+// WRONG - use-after-free!
+dialogs_.erase(type);  // Deletes the object
+dialog_order_.erase(   // Dereferences deleted pointer
+    std::remove_if(..., [](dialog* d) { return d->type() == type; }), ...);
+
+// CORRECT - remove reference first, then delete
+if (auto it = dialogs_.find(type); it != dialogs_.end()) {
+    dialog* ptr = it->second.get();  // Get pointer while object is alive
+    dialog_order_.erase(
+        std::remove(dialog_order_.begin(), dialog_order_.end(), ptr),
+        dialog_order_.end()
+    );
+    dialogs_.erase(it);  // Now safe to delete
+}
+```
+
+#### Thread Safety
+
+Never modify UI containers (`dialog_order_`, etc.) from background threads. The ixwebsocket library runs callbacks on a background thread. Use one of these patterns:
+
+1. **Polling**: Don't set callbacks; poll for messages on the main thread:
+   ```cpp
+   // In update() on main thread:
+   while (auto msg = ws_connection_.receive()) {
+       handle_ws_message(*msg);  // Safe to modify UI here
+   }
+   ```
+
+2. **Deferred actions**: Queue events for main thread processing:
+   ```cpp
+   // Background thread - just set a flag
+   {
+       std::lock_guard<std::mutex> lock(mutex_);
+       pending_error_ = reason;
+   }
+   has_pending_error_.store(true);
+
+   // Main thread - process the queued event
+   if (has_pending_error_.exchange(false)) {
+       std::string error;
+       {
+           std::lock_guard<std::mutex> lock(mutex_);
+           error = std::move(pending_error_);
+       }
+       show_error(error);  // Safe to modify UI
+   }
+   ```
+
 ---
 
 ## Dependencies
@@ -1095,17 +1233,27 @@ HB_ASSERT(ptr != nullptr, "Pointer must not be null");
 ### Required
 - **CMake 3.20+**
 - **C++20 Compiler** (MSVC 19.29+, GCC 11+, Clang 13+)
-- **Windows SDK** (for D3D11, XAudio2)
+- **vcpkg** - Package manager (installed at `C:/code/vcpkg`)
+- **Windows SDK** (for Windows-specific APIs)
 
-### Recommended Libraries
-- **fmt** - String formatting (fallback for std::format)
-- **spdlog** - Fast logging
-- **nlohmann/json** - JSON parsing
-- **asio** - Async networking (standalone, non-Boost)
+### vcpkg Dependencies (automatically managed)
+
+These are defined in `vcpkg.json` and installed automatically during CMake configure:
+
+| Package | Purpose |
+|---------|---------|
+| **sfml** | Graphics, audio, input, and window management |
+| **spdlog** | Fast structured logging |
+| **nlohmann-json** | JSON parsing |
+| **yaml-cpp** | YAML parsing for dialog definitions |
+| **openssl** | Cryptographic functions |
+| **zlib** | Compression |
+| **lz4** | Fast compression |
+| **libsodium** | Modern cryptography |
+| **ixwebsocket** | WebSocket client/server |
+
+### Optional (for future development)
 - **Catch2** or **GoogleTest** - Unit testing
-
-### Optional
-- **SDL2** - Cross-platform alternative
 - **Dear ImGui** - Debug UI overlay
 
 ---

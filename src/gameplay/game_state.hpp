@@ -22,6 +22,8 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <atomic>
 
 namespace hb {
 
@@ -190,6 +192,11 @@ private:
     std::string session_token_;
     std::string pending_username_;
     std::string pending_password_;
+
+    // Thread-safe pending disconnect (set by background thread, consumed by main thread)
+    mutable std::mutex pending_disconnect_mutex_;
+    std::string pending_disconnect_reason_;
+    std::atomic<bool> has_pending_disconnect_{false};
 
     // Network handlers
     notify_handler notify_handler_;

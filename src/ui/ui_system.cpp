@@ -489,13 +489,15 @@ void ui_system::create_message_box(std::string_view title, std::string_view mess
     });
     dlg->add_child(std::move(ok_btn));
 
-    // Remove old message box if exists
-    dialogs_.erase(dialog_type::message_box);
-    dialog_order_.erase(
-        std::remove_if(dialog_order_.begin(), dialog_order_.end(),
-            [](dialog* d) { return d->type() == dialog_type::message_box; }),
-        dialog_order_.end()
-    );
+    // Remove old message box if exists (remove from dialog_order_ before erasing from dialogs_)
+    if (auto it = dialogs_.find(dialog_type::message_box); it != dialogs_.end()) {
+        dialog* old_ptr = it->second.get();
+        dialog_order_.erase(
+            std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr),
+            dialog_order_.end()
+        );
+        dialogs_.erase(it);
+    }
 
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::message_box] = std::move(dlg);
@@ -538,13 +540,15 @@ void ui_system::create_confirm_box(std::string_view title, std::string_view mess
     });
     dlg->add_child(std::move(no_btn));
 
-    // Remove old confirm box
-    dialogs_.erase(dialog_type::confirm);
-    dialog_order_.erase(
-        std::remove_if(dialog_order_.begin(), dialog_order_.end(),
-            [](dialog* d) { return d->type() == dialog_type::confirm; }),
-        dialog_order_.end()
-    );
+    // Remove old confirm box (remove from dialog_order_ before erasing from dialogs_)
+    if (auto it = dialogs_.find(dialog_type::confirm); it != dialogs_.end()) {
+        dialog* old_ptr = it->second.get();
+        dialog_order_.erase(
+            std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr),
+            dialog_order_.end()
+        );
+        dialogs_.erase(it);
+    }
 
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::confirm] = std::move(dlg);
@@ -597,13 +601,15 @@ void ui_system::create_input_box(std::string_view title, std::string_view prompt
     });
     dlg->add_child(std::move(cancel_btn));
 
-    // Remove old input box
-    dialogs_.erase(dialog_type::input_box);
-    dialog_order_.erase(
-        std::remove_if(dialog_order_.begin(), dialog_order_.end(),
-            [](dialog* d) { return d->type() == dialog_type::input_box; }),
-        dialog_order_.end()
-    );
+    // Remove old input box (remove from dialog_order_ before erasing from dialogs_)
+    if (auto it = dialogs_.find(dialog_type::input_box); it != dialogs_.end()) {
+        dialog* old_ptr = it->second.get();
+        dialog_order_.erase(
+            std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr),
+            dialog_order_.end()
+        );
+        dialogs_.erase(it);
+    }
 
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::input_box] = std::move(dlg);
@@ -743,13 +749,18 @@ void ui_system::show_error_dialog(std::string_view message, std::function<void()
 
 void ui_system::hide_connection_dialog() {
     // Close and remove connection dialog
-    close_dialog(dialog_type::connection);
-    dialogs_.erase(dialog_type::connection);
-    dialog_order_.erase(
-        std::remove_if(dialog_order_.begin(), dialog_order_.end(),
-            [](dialog* d) { return d->type() == dialog_type::connection; }),
-        dialog_order_.end()
-    );
+    // IMPORTANT: Remove from dialog_order_ BEFORE erasing from dialogs_
+    // to avoid use-after-free (dialogs_ owns the object via unique_ptr)
+    auto it = dialogs_.find(dialog_type::connection);
+    if (it != dialogs_.end()) {
+        dialog* ptr = it->second.get();
+        ptr->close();
+        dialog_order_.erase(
+            std::remove(dialog_order_.begin(), dialog_order_.end(), ptr),
+            dialog_order_.end()
+        );
+        dialogs_.erase(it);
+    }
 }
 
 void ui_system::load_dialog_definitions(const std::filesystem::path& path) {

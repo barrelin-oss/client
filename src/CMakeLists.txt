@@ -140,6 +140,21 @@ if(HB_HOT_RELOAD)
     target_compile_definitions(helbreath_client PRIVATE HB_HOT_RELOAD_ENABLED)
 endif()
 
+# Copy DLLs to bin/ directory after build
+if(WIN32)
+    add_custom_command(TARGET helbreath_client POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:helbreath_client>
+            $<TARGET_FILE_DIR:helbreath_client>
+        COMMAND_EXPAND_LISTS
+    )
+
+    # Set Visual Studio debugger working directory to bin/
+    set_target_properties(helbreath_client PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+    )
+endif()
+
 # === Icon Panel Demo ===
 add_executable(icon_panel_demo
     icon_panel_demo.cpp
@@ -191,4 +206,19 @@ if(MSVC)
     target_compile_options(icon_panel_demo PRIVATE /W4)
 else()
     target_compile_options(icon_panel_demo PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Copy DLLs for demo
+if(WIN32)
+    add_custom_command(TARGET icon_panel_demo POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:icon_panel_demo>
+            $<TARGET_FILE_DIR:icon_panel_demo>
+        COMMAND_EXPAND_LISTS
+    )
+
+    # Set Visual Studio debugger working directory to bin/
+    set_target_properties(icon_panel_demo PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+    )
 endif()

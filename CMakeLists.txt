@@ -30,3 +30,6 @@ find_package(ixwebsocket CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_subdirectory(src)
+
+# Set helbreath_client as the default startup project in Visual Studio
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT helbreath_client)

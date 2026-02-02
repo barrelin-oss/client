@@ -1,0 +1,137 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+
+namespace hb {
+
+class renderer;
+
+namespace debug {
+
+// Debug statistics overlay - displays FPS, camera info, and other debug data
+// Toggle with Alt+`
+class debug_stats
+{
+public:
+    static debug_stats& instance();
+
+    // Non-copyable
+    debug_stats(const debug_stats&) = delete;
+    debug_stats& operator=(const debug_stats&) = delete;
+
+    // Toggle visibility
+    void toggle() { visible_ = !visible_; }
+    void set_visible(bool visible) { visible_ = visible; }
+    bool visible() const { return visible_; }
+
+    // Update stats (call every frame)
+    void update(float delta_time);
+
+    // Render the stats overlay
+    void render(renderer& rend);
+
+    // === Camera & World ===
+    void set_camera_bounds(int32_t left, int32_t top, int32_t right, int32_t bottom);
+    void set_player_position(int32_t tile_x, int32_t tile_y, int32_t world_x, int32_t world_y);
+    void set_entity_count(int32_t count) { entity_count_ = count; }
+    void set_map_name(const std::string& name) { map_name_ = name; }
+
+    // === Network Stats ===
+    void set_network_connected(bool connected) { network_connected_ = connected; }
+    void set_ping(int32_t ping_ms) { ping_ms_ = ping_ms; }
+    void increment_messages_received() { messages_received_++; }
+    void increment_messages_sent() { messages_sent_++; }
+
+    // === Rendering Stats ===
+    void set_sprites_rendered(int32_t count) { sprites_rendered_ = count; }
+    void set_tiles_rendered(int32_t count) { tiles_rendered_ = count; }
+    void add_sprites_rendered(int32_t count) { sprites_rendered_ += count; }
+    void add_tiles_rendered(int32_t count) { tiles_rendered_ += count; }
+    void reset_frame_counters() { sprites_rendered_ = 0; tiles_rendered_ = 0; }
+
+    // === Memory/Assets ===
+    void set_sprite_cache_count(int32_t count) { sprite_cache_count_ = count; }
+    void set_pak_files_loaded(int32_t count) { pak_files_loaded_ = count; }
+
+    // === Input ===
+    void set_mouse_screen_pos(int32_t x, int32_t y) { mouse_screen_x_ = x; mouse_screen_y_ = y; }
+    void set_mouse_world_pos(int32_t x, int32_t y) { mouse_world_x_ = x; mouse_world_y_ = y; }
+    void set_mouse_tile_pos(int32_t x, int32_t y) { mouse_tile_x_ = x; mouse_tile_y_ = y; }
+    void set_hovered_entity(const std::string& info) { hovered_entity_ = info; }
+
+    // === Game State ===
+    void set_game_state(const std::string& state) { game_state_ = state; }
+    void set_combat_mode(bool attack_mode, bool safe_mode);
+
+private:
+    debug_stats() = default;
+
+    void render_section(renderer& rend, int32_t& y, const char* title);
+
+    bool visible_ = false;
+
+    // FPS tracking
+    float fps_timer_ = 0.0f;
+    int32_t frame_count_ = 0;
+    float current_fps_ = 0.0f;
+    float delta_time_ms_ = 0.0f;
+
+    // Camera bounds
+    int32_t camera_left_ = 0;
+    int32_t camera_top_ = 0;
+    int32_t camera_right_ = 0;
+    int32_t camera_bottom_ = 0;
+
+    // Player position
+    int32_t player_tile_x_ = 0;
+    int32_t player_tile_y_ = 0;
+    int32_t player_world_x_ = 0;
+    int32_t player_world_y_ = 0;
+
+    // Entity/map info
+    int32_t entity_count_ = 0;
+    std::string map_name_;
+
+    // Network stats
+    bool network_connected_ = false;
+    int32_t ping_ms_ = 0;
+    int32_t messages_received_ = 0;
+    int32_t messages_sent_ = 0;
+    int32_t messages_received_per_sec_ = 0;
+    int32_t messages_sent_per_sec_ = 0;
+    int32_t messages_received_counter_ = 0;
+    int32_t messages_sent_counter_ = 0;
+    float network_stats_timer_ = 0.0f;
+
+    // Rendering stats
+    int32_t sprites_rendered_ = 0;
+    int32_t tiles_rendered_ = 0;
+
+    // Memory/Assets
+    int32_t sprite_cache_count_ = 0;
+    int32_t pak_files_loaded_ = 0;
+
+    // Input
+    int32_t mouse_screen_x_ = 0;
+    int32_t mouse_screen_y_ = 0;
+    int32_t mouse_world_x_ = 0;
+    int32_t mouse_world_y_ = 0;
+    int32_t mouse_tile_x_ = 0;
+    int32_t mouse_tile_y_ = 0;
+    std::string hovered_entity_;
+
+    // Game state
+    std::string game_state_;
+    bool combat_mode_ = false;
+    bool safe_attack_mode_ = false;
+
+    // Layout
+    static constexpr int32_t padding_ = 10;
+    static constexpr int32_t line_height_ = 14;
+    static constexpr int32_t section_spacing_ = 6;
+    static constexpr int32_t box_width_ = 260;
+};
+
+} // namespace debug
+} // namespace hb

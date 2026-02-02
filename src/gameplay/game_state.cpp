@@ -16,6 +16,8 @@
 #include "debug/debug_overlay.hpp"
 #endif
 
+#include "debug/debug_stats.hpp"
+
 namespace hb {
 
 bool game_state_manager::initialize(renderer& rend, audio& aud) {
@@ -518,6 +520,61 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update HUD with current player stats
     update_icon_panel();
+
+    // Update debug stats
+    auto& debug_stats = debug::debug_stats::instance();
+    debug_stats.update(delta_time);
+    if (debug_stats.visible()) {
+        // Update camera bounds
+        int32_t cam_x = world_.camera_x();
+        int32_t cam_y = world_.camera_y();
+        debug_stats.set_camera_bounds(
+            cam_x, cam_y,
+            cam_x + static_cast<int32_t>(renderer_->width()),
+            cam_y + static_cast<int32_t>(renderer_->height())
+        );
+
+        // Update player position
+        if (entity* player = local_player()) {
+            const auto& transform = player->transform();
+            debug_stats.set_player_position(
+                transform.tile_x, transform.tile_y,
+                transform.x, transform.y
+            );
+        }
+
+        // Update entity count and map name
+        debug_stats.set_entity_count(static_cast<int32_t>(entities_.entity_count()));
+        debug_stats.set_map_name(std::string(world_.current_map_name()));
+
+        // Update network stats
+        debug_stats.set_network_connected(ws_connection_.is_connected());
+
+        // Update asset stats
+        debug_stats.set_sprite_cache_count(static_cast<int32_t>(sprites_.cached_sprite_count()));
+        debug_stats.set_pak_files_loaded(static_cast<int32_t>(sprites_.loaded_pak_count()));
+
+        // Update mouse position
+        debug_stats.set_mouse_screen_pos(inp.mouse_x(), inp.mouse_y());
+        int32_t mouse_world_x = inp.mouse_x() + cam_x;
+        int32_t mouse_world_y = inp.mouse_y() + cam_y;
+        debug_stats.set_mouse_world_pos(mouse_world_x, mouse_world_y);
+        auto [tile_x, tile_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        debug_stats.set_mouse_tile_pos(tile_x, tile_y);
+
+        // Update hovered entity info
+        entity* hovered = entities_.get_entity_at_screen_pos(
+            inp.mouse_x(), inp.mouse_y(), cam_x, cam_y);
+        if (hovered && hovered->has_name()) {
+            debug_stats.set_hovered_entity(hovered->name().name + " (ID:" + std::to_string(hovered->id()) + ")");
+        } else {
+            debug_stats.set_hovered_entity("");
+        }
+
+        // Update game state info
+        debug_stats.set_game_state("Playing");
+        debug_stats.set_combat_mode(combat_mode_, safe_attack_mode_);
+    }
 }
 
 void game_state_manager::render_main_menu(renderer& rend) {
@@ -593,6 +650,9 @@ void game_state_manager::render_playing(renderer& rend) {
 
     // Render entities
     entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y());
+
+    // Render debug stats overlay (before UI so UI renders on top)
+    debug::debug_stats::instance().render(rend);
 }
 
 void game_state_manager::setup_network_handlers() {
@@ -839,6 +899,13 @@ void game_state_manager::handle_combat_input(const input& inp) {
 }
 
 void game_state_manager::handle_hotkey_input(const input& inp) {
+    // Toggle debug stats (Alt+`)
+    if (inp.is_key_pressed(sf::Keyboard::Key::Grave) &&
+        (inp.is_key_down(sf::Keyboard::Key::LAlt) || inp.is_key_down(sf::Keyboard::Key::RAlt))) {
+        debug::debug_stats::instance().toggle();
+        spdlog::info("Debug stats: {}", debug::debug_stats::instance().visible() ? "ON" : "OFF");
+    }
+
     // Toggle cinematic mode (F5)
     if (inp.is_key_pressed(sf::Keyboard::Key::F5)) {
         bool cinematic = !world_.is_cinematic_mode();

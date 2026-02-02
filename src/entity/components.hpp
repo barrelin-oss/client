@@ -41,6 +41,7 @@ struct sprite_component {
     uint8_t hair_style = 0;
     uint8_t hair_color = 0;
     uint8_t underwear_color = 0;
+    uint8_t gender = 1;  // 1 = male, 2 = female
 
     float alpha = 1.0f;         // For transparency effects
     bool visible = true;

@@ -592,7 +592,7 @@ void game_state_manager::render_playing(renderer& rend) {
     world_.render(rend);
 
     // Render entities
-    entities_.render(rend, world_.camera_x(), world_.camera_y());
+    entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y());
 }
 
 void game_state_manager::setup_network_handlers() {
@@ -1708,6 +1708,15 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     sprite.skin_color = static_cast<uint8_t>(ch.skin_color);
     sprite.hair_style = static_cast<uint8_t>(ch.hair_style);
     sprite.hair_color = static_cast<uint8_t>(ch.hair_color);
+    // Server sends 0=Male, 1=Female; sprite_component uses 1=Male, 2=Female
+    sprite.gender = (ch.gender == 0) ? 1 : 2;
+
+    // Load character sprites based on appearance
+    entities_.load_character_sprites(player, sprites_);
+
+    // Initialize animation state
+    auto& anim = player.animation();
+    anim.set_state(entity_anim_state::stop);
 
     spdlog::debug("Player stats - Level: {}, STR: {}, DEX: {}, VIT: {}, INT: {}, MAG: {}, CHA: {}",
                   stats.level, stats.strength, stats.dexterity, stats.vitality,

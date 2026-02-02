@@ -11,6 +11,7 @@ namespace hb {
 
 class renderer;
 class world;
+class sprite_manager;
 
 // Entity creation callbacks
 using entity_created_callback = std::function<void(entity&)>;
@@ -63,7 +64,10 @@ public:
     void update(float delta_time, world& w);
 
     // Render all entities
-    void render(renderer& rend, int32_t camera_x, int32_t camera_y);
+    void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y);
+
+    // Load character sprites based on appearance data in sprite_component
+    void load_character_sprites(entity& ent, sprite_manager& sprites);
 
     // Callbacks
     void set_entity_created_callback(entity_created_callback cb) { on_created_ = std::move(cb); }
@@ -79,7 +83,7 @@ private:
     void update_animation(entity& e, float delta_time);
     void update_movement(entity& e, float delta_time, world& w);
 
-    void render_entity(renderer& rend, const entity& e, int32_t camera_x, int32_t camera_y);
+    void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y);
     void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
     void render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
 

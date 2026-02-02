@@ -1,5 +1,6 @@
 #include "entity/entity_manager.hpp"
 #include "graphics/renderer.hpp"
+#include "assets/sprite_manager.hpp"
 #include "world/world.hpp"
 #include "world/tile.hpp"
 #include "core/constants.hpp"
@@ -373,7 +374,7 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w) {
     }
 }
 
-void entity_manager::render(renderer& rend, int32_t camera_x, int32_t camera_y) {
+void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y) {
     // Collect visible entities and sort by Y position for depth ordering
     std::vector<entity*> visible_entities;
 
@@ -400,11 +401,11 @@ void entity_manager::render(renderer& rend, int32_t camera_x, int32_t camera_y) 
 
     // Render sorted entities
     for (entity* e : visible_entities) {
-        render_entity(rend, *e, camera_x, camera_y);
+        render_entity(rend, sprites, *e, camera_x, camera_y);
     }
 }
 
-void entity_manager::render_entity(renderer& rend, const entity& e, int32_t camera_x, int32_t camera_y) {
+void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y) {
     const auto& t = e.transform();
     const auto& s = e.sprite();
     const auto& a = e.animation();
@@ -426,53 +427,90 @@ void entity_manager::render_entity(renderer& rend, const entity& e, int32_t came
         }
     } else {
         // Characters, NPCs, monsters - layered rendering
-        // Calculate frame based on direction and animation
-        uint32_t frame = static_cast<uint32_t>(t.direction) * a.frame_count + a.current_frame;
+        // Sprite constants (from menu_character_renderer.hpp)
+        static constexpr uint16_t body_base = 500;
+        static constexpr uint16_t body_stride = 120;
+        static constexpr uint16_t male_underwear_base = 4580;
+        static constexpr uint16_t female_underwear_base = 14580;
+        static constexpr uint16_t underwear_stride = 15;
+        static constexpr uint16_t male_hair_base = 4820;
+        static constexpr uint16_t female_hair_base = 14820;
+        static constexpr uint16_t hair_stride = 15;
 
-        // Body/underwear
-        if (s.underwear_sprite) {
+        // Direction enum: none=0, north=1, ... north_west=8
+        // Sprite IDs use direction 1-8 (dir-1 for 0-7 index)
+        int32_t dir = (t.direction == direction::none) ? 5 : static_cast<int32_t>(t.direction);  // Default to south (5) if none
+
+        // Map animation state to action index
+        int32_t action = 0;  // Default: stop
+        switch (a.state) {
+            case entity_anim_state::stop: action = 0; break;
+            case entity_anim_state::move: action = 1; break;
+            case entity_anim_state::run: action = 2; break;
+            case entity_anim_state::attack:
+            case entity_anim_state::attack_move: action = 3; break;
+            case entity_anim_state::magic:
+            case entity_anim_state::magic_attack: action = 4; break;
+            case entity_anim_state::get_item: action = 5; break;
+            case entity_anim_state::damage:
+            case entity_anim_state::damage_move: action = 6; break;
+            case entity_anim_state::dying: action = 10; break;
+            case entity_anim_state::dead: action = 11; break;
+            default: action = 0; break;
+        }
+
+        // Calculate frame index for sprites: (dir-1)*8 + current_frame
+        int32_t frame_index = (dir - 1) * 8 + a.current_frame;
+
+        // Determine gender and appearance
+        uint8_t gender = std::clamp(s.gender, uint8_t(1), uint8_t(2));
+        uint8_t skin = std::clamp(s.skin_color, uint8_t(1), uint8_t(3));
+        uint8_t hair_style = std::clamp(s.hair_style, uint8_t(0), uint8_t(7));
+        uint8_t underwear_color = std::clamp(s.underwear_color, uint8_t(0), uint8_t(7));
+        bool is_female = (gender == 2);
+
+        // Calculate owner type: 1-3 for male (skin 1-3), 4-6 for female (skin 1-3)
+        int32_t owner_type = is_female ? (3 + skin) : skin;
+
+        // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + (dir - 1)
+        uint16_t body_id = static_cast<uint16_t>(body_base + (owner_type - 1) * body_stride + action * 8 + (dir - 1));
+        const sprite* body_spr = sprites.get_sprite_by_id(body_id);
+
+        // Underwear sprite ID: base + color * 15 + action
+        uint16_t underwear_base = is_female ? female_underwear_base : male_underwear_base;
+        uint16_t underwear_id = static_cast<uint16_t>(underwear_base + underwear_color * underwear_stride + action);
+        const sprite* underwear_spr = sprites.get_sprite_by_id(underwear_id);
+
+        // Hair sprite ID: base + style * 15 + action
+        uint16_t hair_base = is_female ? female_hair_base : male_hair_base;
+        uint16_t hair_id = static_cast<uint16_t>(hair_base + hair_style * hair_stride + action);
+        const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
+
+        // Draw layers: underwear, body, hair
+        if (underwear_spr) {
             if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*s.underwear_sprite, screen_x - 32, screen_y - 64, frame, s.alpha);
+                rend.draw_sprite_alpha(*underwear_spr, screen_x - 32, screen_y - 64, frame_index, s.alpha);
             } else {
-                rend.draw_sprite(*s.underwear_sprite, screen_x - 32, screen_y - 64, frame);
+                rend.draw_sprite(*underwear_spr, screen_x - 32, screen_y - 64, frame_index);
             }
         }
 
-        // Body
-        if (s.body_sprite) {
+        if (body_spr) {
             if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*s.body_sprite, screen_x - 32, screen_y - 64, frame, s.alpha);
+                rend.draw_sprite_alpha(*body_spr, screen_x - 32, screen_y - 64, a.current_frame, s.alpha);
             } else {
-                rend.draw_sprite(*s.body_sprite, screen_x - 32, screen_y - 64, frame);
+                rend.draw_sprite(*body_spr, screen_x - 32, screen_y - 64, a.current_frame);
             }
-        }
-
-        // Armor
-        if (s.armor_sprite) {
-            rend.draw_sprite(*s.armor_sprite, screen_x - 32, screen_y - 64, frame);
-        }
-
-        // Helm
-        if (s.helm_sprite) {
-            rend.draw_sprite(*s.helm_sprite, screen_x - 32, screen_y - 64, frame);
         }
 
         // Hair (if no helm)
-        if (!s.helm_sprite && s.hair_sprite) {
-            rend.draw_sprite(*s.hair_sprite, screen_x - 32, screen_y - 64, frame);
+        if (!s.helm_sprite && hair_spr) {
+            rend.draw_sprite(*hair_spr, screen_x - 32, screen_y - 64, frame_index);
         }
 
-        // Weapon
-        if (s.weapon_sprite) {
-            rend.draw_sprite(*s.weapon_sprite, screen_x - 32, screen_y - 64, frame);
-        }
+        // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
 
-        // Shield
-        if (s.shield_sprite) {
-            rend.draw_sprite(*s.shield_sprite, screen_x - 32, screen_y - 64, frame);
-        }
-
-        // Effect overlay
+        // Effect overlay (keep using pre-loaded sprite pointer)
         if (s.effect_sprite) {
             rend.draw_sprite(*s.effect_sprite, screen_x - 32, screen_y - 64, a.current_frame);
         }
@@ -564,6 +602,62 @@ void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, i
 
     // Border
     rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(100, 100, 100), false);
+}
+
+void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites) {
+    auto& s = ent.sprite();
+
+    // Sprite ID constants (from menu_character_renderer.hpp)
+    static constexpr uint16_t body_base = 500;
+    static constexpr uint16_t body_stride = 120;
+    static constexpr uint16_t male_underwear_base = 4580;
+    static constexpr uint16_t female_underwear_base = 14580;
+    static constexpr uint16_t underwear_stride = 15;
+    static constexpr uint16_t male_hair_base = 4820;
+    static constexpr uint16_t female_hair_base = 14820;
+    static constexpr uint16_t hair_stride = 15;
+
+    // Action index for idle/stop (action 0)
+    static constexpr int32_t action_stop = 0;
+
+    // Clamp appearance values
+    uint8_t gender = std::clamp(s.gender, uint8_t(1), uint8_t(2));
+    uint8_t skin = std::clamp(s.skin_color, uint8_t(1), uint8_t(3));
+    uint8_t hair_style = std::clamp(s.hair_style, uint8_t(0), uint8_t(7));
+    uint8_t underwear_color = std::clamp(s.underwear_color, uint8_t(0), uint8_t(7));
+
+    bool is_female = (gender == 2);
+
+    // Calculate owner type: 1-3 for male (skin 1-3), 4-6 for female (skin 1-3)
+    int32_t owner_type = is_female ? (3 + skin) : skin;
+
+    // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + direction
+    // For idle, we use action 0, direction will be applied during rendering
+    uint16_t body_id = static_cast<uint16_t>(body_base + (owner_type - 1) * body_stride + action_stop * 8);
+    s.body_sprite = sprites.get_sprite_by_id(body_id);
+
+    // Underwear sprite ID: base + color * 15 + action
+    uint16_t underwear_base = is_female ? female_underwear_base : male_underwear_base;
+    uint16_t underwear_id = static_cast<uint16_t>(underwear_base + underwear_color * underwear_stride + action_stop);
+    s.underwear_sprite = sprites.get_sprite_by_id(underwear_id);
+
+    // Hair sprite ID: base + style * 15 + action
+    uint16_t hair_base = is_female ? female_hair_base : male_hair_base;
+    uint16_t hair_id = static_cast<uint16_t>(hair_base + hair_style * hair_stride + action_stop);
+    s.hair_sprite = sprites.get_sprite_by_id(hair_id);
+
+    spdlog::debug("Loaded character sprites - body:{} underwear:{} hair:{} (gender:{} skin:{} hair_style:{})",
+                  body_id, underwear_id, hair_id, gender, skin, hair_style);
+
+    if (!s.body_sprite) {
+        spdlog::warn("Failed to load body sprite ID {}", body_id);
+    }
+    if (!s.underwear_sprite) {
+        spdlog::warn("Failed to load underwear sprite ID {}", underwear_id);
+    }
+    if (!s.hair_sprite) {
+        spdlog::warn("Failed to load hair sprite ID {}", hair_id);
+    }
 }
 
 size_t entity_manager::entity_count_of_type(entity_type type) const {

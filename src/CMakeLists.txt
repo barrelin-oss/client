@@ -21,6 +21,7 @@ add_executable(helbreath_client
     assets/pak_file.cpp
     assets/sprite.cpp
     assets/sprite_manager.cpp
+    assets/tile_sprite_registry.cpp
 
     # Network
     network/packet.cpp
@@ -96,6 +97,10 @@ add_executable(helbreath_client
 
     # Localization
     localization/localization.cpp
+
+    # Debug
+    debug/position_store.cpp
+    debug/debug_overlay.cpp
 )
 
 target_include_directories(helbreath_client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -138,6 +143,25 @@ endif()
 # Hot-reload feature flag
 if(HB_HOT_RELOAD)
     target_compile_definitions(helbreath_client PRIVATE HB_HOT_RELOAD_ENABLED)
+endif()
+
+# Debug overlay feature flag
+# AUTO (default): enabled in Debug, disabled in Release
+# ON: always enabled
+# OFF: always disabled
+if(HB_DEBUG_OVERLAY STREQUAL "ON")
+    # Always enabled
+    target_compile_definitions(helbreath_client PRIVATE HB_DEBUG_OVERLAY_ENABLED)
+    message(STATUS "Debug overlay: ENABLED (always)")
+elseif(HB_DEBUG_OVERLAY STREQUAL "OFF")
+    # Always disabled
+    message(STATUS "Debug overlay: DISABLED")
+else()
+    # AUTO mode - enabled in Debug builds only (using generator expression for multi-config)
+    target_compile_definitions(helbreath_client PRIVATE
+        $<$<CONFIG:Debug>:HB_DEBUG_OVERLAY_ENABLED>
+    )
+    message(STATUS "Debug overlay: AUTO (Debug builds only)")
 endif()
 
 # Copy DLLs to bin/ directory after build

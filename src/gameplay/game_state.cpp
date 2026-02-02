@@ -2,8 +2,8 @@
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "audio/audio.hpp"
-#include "assets/pak_file.hpp"
 #include "assets/sprite_manager.hpp"
+#include "assets/tile_sprite_registry.hpp"
 #include "core/constants.hpp"
 #include "core/config.hpp"
 #include "ui/dialog_manager.hpp"
@@ -11,6 +11,10 @@
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include <spdlog/spdlog.h>
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/debug_overlay.hpp"
+#endif
 
 namespace hb {
 
@@ -177,20 +181,22 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     // Wire up dialog callbacks (for in-game dialogs)
     setup_dialog_callbacks();
 
-    // Try to load asset packs for world/terrain
-    terrain_pak_ = std::make_unique<pak_file>();
-    sprite_pak_ = std::make_unique<pak_file>();
+    // Initialize tile sprite registry for world/terrain rendering
+    // This maps legacy sprite IDs to PAK files and provides lazy-loading
+    // Note: sprite_manager already prepends "assets/" so we use "sprites/" here
+    if (tile_registry_.initialize(sprites_, "sprites/"))
+    {
+        spdlog::info("Tile sprite registry initialized with {} mappings", tile_registry_.registered_count());
 
-    // Assets might not exist yet, that's OK
-    if (terrain_pak_->open("assets/tiles.pak")) {
-        spdlog::info("Loaded terrain pak");
-    }
-
-    if (sprite_pak_->open("assets/sprites.pak")) {
-        spdlog::info("Loaded sprite pak");
-        if (terrain_pak_->is_open()) {
-            world_.initialize(*terrain_pak_, *sprite_pak_);
+        // Initialize world with the tile registry
+        if (!world_.initialize(tile_registry_))
+        {
+            spdlog::warn("World initialization failed - terrain rendering may not work");
         }
+    }
+    else
+    {
+        spdlog::warn("Tile sprite registry initialization failed - terrain rendering disabled");
     }
 
     // Start at main menu - directly enter the state since it's the initial state
@@ -200,7 +206,8 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     return true;
 }
 
-void game_state_manager::shutdown() {
+void game_state_manager::shutdown()
+{
     exit_state(state_);
 
     screens_.shutdown();
@@ -209,9 +216,7 @@ void game_state_manager::shutdown() {
     entities_.shutdown();
     ui_.shutdown();
     sprites_.clear_cache();
-
-    terrain_pak_.reset();
-    sprite_pak_.reset();
+    tile_registry_.clear_cache();
 
     spdlog::info("Game state manager shutdown");
 }
@@ -251,32 +256,45 @@ void game_state_manager::update(float delta_time, const input& inp) {
     // Update sprite memory management (evict unused bitmaps)
     sprites_.update_memory(delta_time);
 
-    // Update based on current state
-    switch (state_) {
-        case game_state::main_menu:
-            update_main_menu(delta_time, inp);
-            break;
-        case game_state::login:
-            update_login(delta_time, inp);
-            break;
-        case game_state::select_character:
-            update_character_select(delta_time, inp);
-            break;
-        case game_state::create_character:
-            update_character_create(delta_time, inp);
-            break;
-        case game_state::loading:
-            update_loading(delta_time, inp);
-            break;
-        case game_state::playing:
-            update_playing(delta_time, inp);
-            break;
-        default:
-            break;
-    }
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Update debug overlay FIRST (handles F11 toggle, input, hot-reload)
+    // This must happen before other input processing so it can consume input
+    auto& debug_overlay = debug::debug_overlay::instance();
+    debug_overlay.update(delta_time, inp);
+    bool debug_consumed_input = debug_overlay.consumed_mouse_input() ||
+                                 debug_overlay.consumed_keyboard_input();
+#else
+    bool debug_consumed_input = false;
+#endif
 
-    // Update UI
-    ui_.update(delta_time, inp);
+    // Update based on current state (skip if debug overlay consumed input)
+    if (!debug_consumed_input) {
+        switch (state_) {
+            case game_state::main_menu:
+                update_main_menu(delta_time, inp);
+                break;
+            case game_state::login:
+                update_login(delta_time, inp);
+                break;
+            case game_state::select_character:
+                update_character_select(delta_time, inp);
+                break;
+            case game_state::create_character:
+                update_character_create(delta_time, inp);
+                break;
+            case game_state::loading:
+                update_loading(delta_time, inp);
+                break;
+            case game_state::playing:
+                update_playing(delta_time, inp);
+                break;
+            default:
+                break;
+        }
+
+        // Update UI
+        ui_.update(delta_time, inp);
+    }
 }
 
 void game_state_manager::render(renderer& rend) {
@@ -305,6 +323,11 @@ void game_state_manager::render(renderer& rend) {
 
     // Render UI on top
     ui_.render(rend);
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Render debug overlay (draws outlines, selection, status bar)
+    debug::debug_overlay::instance().render(rend);
+#endif
 
     // Render cursor last (on top of everything including dialogs)
     screens_.render_cursor(rend, sprites_);
@@ -476,6 +499,13 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update entities
     entities_.update(delta_time, world_);
+
+    // Update camera to follow local player
+    if (entity* player = local_player()) {
+        const auto& transform = player->transform();
+        // Use pixel position for smooth following
+        world_.set_player_position(transform.x, transform.y);
+    }
 
     // Update combat
     combat_.update(delta_time);
@@ -809,6 +839,34 @@ void game_state_manager::handle_combat_input(const input& inp) {
 }
 
 void game_state_manager::handle_hotkey_input(const input& inp) {
+    // Toggle cinematic mode (F5)
+    if (inp.is_key_pressed(sf::Keyboard::Key::F5)) {
+        bool cinematic = !world_.is_cinematic_mode();
+        world_.set_cinematic_mode(cinematic);
+        spdlog::info("Cinematic mode: {}", cinematic ? "ON" : "OFF");
+    }
+
+    // Camera panning with arrow keys - only in cinematic mode (Shift = 5 tiles)
+    if (world_.is_cinematic_mode()) {
+        int32_t pan_amount = 32;  // 1 tile
+        if (inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift)) {
+            pan_amount = 32 * 5;  // 5 tiles
+        }
+
+        if (inp.is_key_down(sf::Keyboard::Key::Left)) {
+            world_.move_camera(-pan_amount, 0);
+        }
+        if (inp.is_key_down(sf::Keyboard::Key::Right)) {
+            world_.move_camera(pan_amount, 0);
+        }
+        if (inp.is_key_down(sf::Keyboard::Key::Up)) {
+            world_.move_camera(0, -pan_amount);
+        }
+        if (inp.is_key_down(sf::Keyboard::Key::Down)) {
+            world_.move_camera(0, pan_amount);
+        }
+    }
+
     // Toggle dialogs
     if (inp.is_key_pressed(sf::Keyboard::Key::C)) {
         ui_.toggle_dialog(dialog_type::character_info);
@@ -1404,9 +1462,13 @@ void game_state_manager::update_icon_panel() {
 void game_state_manager::set_ui_style(ui_style style) {
     ui_.set_style(style);
 
-    // Propagate style to icon panel (and any other style-aware dialogs)
-    // Note: yaml_icon_panel_dialog uses render_mode from dialog_manager, not ui_style
-    if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+    // Convert ui_style to render_mode for managed dialogs
+    render_mode mode = (style == ui_style::modern) ? render_mode::modern : render_mode::classic;
+
+    // Propagate style to icon panel - check both dialog types
+    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        yaml_dlg->set_render_mode(mode);
+    } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
         icon_dlg->set_ui_style(style);
     }
 
@@ -1580,6 +1642,22 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     if (!response.success) {
         std::string error_msg = response.error_message.empty() ? "Failed to enter game" : response.error_message;
         spdlog::warn("Enter game failed: {}", error_msg);
+
+        // Check for account already in game error - offer force disconnect
+        if (response.error_message == "account_already_in_game") {
+            int32_t char_id = pending_enter_game_character_id_;
+            ui_.create_confirm_box(
+                "Session Conflict",
+                "This account is already logged in.\nDisconnect other session?",
+                [this, char_id](bool confirmed) {
+                    if (confirmed) {
+                        request_enter_game(char_id, true);
+                    }
+                }
+            );
+            return;
+        }
+
         show_error(error_msg);
         return;
     }
@@ -1728,8 +1806,19 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     }
     spdlog::debug("Spawned {} nearby entities", response.world.entities.size());
 
-    // Set current map name in world
-    world_.current_map_mut().set_name(ch.map_name);
+    // Load map data from AMD file
+    if (!world_.load_map(ch.map_name)) {
+        spdlog::warn("Failed to load map data for '{}', continuing without tile data", ch.map_name);
+        // Still set the map name even if loading fails
+        world_.current_map_mut().set_name(ch.map_name);
+    }
+
+    // Set player position for camera to follow (convert tile coords to world coords)
+    int32_t player_world_x = ch.pos_x * 32;
+    int32_t player_world_y = ch.pos_y * 32;
+    world_.set_player_position(player_world_x, player_world_y);
+    spdlog::debug("Player position set at tile ({},{}) -> world ({},{})",
+                  ch.pos_x, ch.pos_y, player_world_x, player_world_y);
 
     // Go directly to playing - no loading screen needed
     // Assets are loaded on-demand via sprite_manager
@@ -1758,13 +1847,17 @@ void game_state_manager::request_characters() {
     ws_connection_.send(msg);
 }
 
-void game_state_manager::request_enter_game(int32_t character_id) {
-    spdlog::info("Requesting to enter game with character ID: {}", character_id);
+void game_state_manager::request_enter_game(int32_t character_id, bool force_disconnect) {
+    spdlog::info("Requesting to enter game with character ID: {}{}",
+                 character_id, force_disconnect ? " (force disconnect)" : "");
+
+    // Store character ID for potential retry
+    pending_enter_game_character_id_ = character_id;
 
     // Show waiting dialog while entering game
     ui_.show_connection_dialog(nullptr);
 
-    json msg = make_enter_game_request(character_id);
+    json msg = make_enter_game_request(character_id, force_disconnect);
     ws_connection_.send(msg);
 }
 

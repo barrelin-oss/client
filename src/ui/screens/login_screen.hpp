@@ -4,6 +4,12 @@
 #include <functional>
 #include <string>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/screen_adapters.hpp"
+#include <memory>
+#include <vector>
+#endif
+
 namespace hb {
 
 // Sprite IDs for login screen
@@ -59,14 +65,31 @@ private:
     static constexpr int32_t account_max_length = 11;
     static constexpr int32_t password_max_length = 11;
 
-    // UI positions (matching original)
-    static constexpr int32_t text_input_x = 180;
-    static constexpr int32_t account_y = 162;
-    static constexpr int32_t password_y = 185;
-
     // Cursor blink state
     float cursor_timer_ = 0.0f;
     bool cursor_visible_ = true;
+
+    // UI positions (mutable for debug overlay positioning)
+    // Login panel position
+    int32_t panel_x_ = 39;
+    int32_t panel_y_ = 122;
+    static constexpr int32_t panel_width_ = 332;
+    static constexpr int32_t panel_height_ = 184;
+
+    // Input box positions
+    int32_t account_box_x_ = 171;
+    int32_t account_box_y_ = 156;
+    int32_t password_box_x_ = 171;
+    int32_t password_box_y_ = 180;
+    static constexpr int32_t input_box_width_ = 197;
+    static constexpr int32_t input_box_height_ = 20;
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Debug overlay adapters
+    void register_debug_adapters();
+    void unregister_debug_adapters();
+    std::vector<std::unique_ptr<debug::screen_point_adapter>> debug_adapters_;
+#endif
 };
 
 } // namespace hb

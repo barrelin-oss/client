@@ -21,6 +21,11 @@ managed_dialog::managed_dialog(dialog_definition def)
     set_has_border(definition_.has_border);
     set_always_on_top(definition_.always_on_top);
 
+    // Set position ID for debug overlay (use "dialog.<yaml_id>" format)
+    if (!definition_.id.empty()) {
+        set_position_id("dialog." + definition_.id);
+    }
+
     // Apply centering if requested
     if (definition_.centered) {
         int32_t x = (static_cast<int32_t>(screen_width) - definition_.bounds.width) / 2;

@@ -5,6 +5,10 @@
 #include "assets/sprite.hpp"
 #include <spdlog/spdlog.h>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/debug_overlay.hpp"
+#endif
+
 namespace hb {
 
 void login_screen::on_enter() {
@@ -29,10 +33,17 @@ void login_screen::on_enter() {
     mouse_interface_.add_rect(80, 280, 163, 302);   // Button 3: Connect button
     mouse_interface_.add_rect(258, 280, 327, 302);  // Button 4: Cancel button
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    register_debug_adapters();
+#endif
+
     spdlog::info("Login screen entered");
 }
 
 void login_screen::on_exit() {
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    unregister_debug_adapters();
+#endif
     mouse_interface_.clear();
     spdlog::info("Login screen exited");
 }
@@ -196,10 +207,11 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x
     // - Frame 5-7: Text elements
 
     // Draw the login details panel (frame 2) after fade-in animation
+    // Use adjustable position (Shift+Arrows to move, check log for coordinates)
     if (mode_count_ >= 15 && mode_count_ <= 20) {
-        draw_sprite_alpha(rend, sprites, login_sprites::background, 154, 148, 2, 0.25f);
+        draw_sprite_alpha(rend, sprites, login_sprites::background, panel_x_, panel_y_, 2, 0.25f);
     } else if (mode_count_ > 20) {
-        draw_sprite(rend, sprites, login_sprites::background, 154, 148, 2);
+        draw_sprite(rend, sprites, login_sprites::background, panel_x_, panel_y_, 2);
     }
 
     // Draw button highlights based on focus
@@ -214,47 +226,32 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x
         draw_sprite(rend, sprites, login_sprites::background, 256, 282, 4);
     }
 
-    // DEBUG: Draw outlines around click areas
-    // Account name field (click area 1): (80, 151) to (337, 179)
-    sf::Color account_outline = (current_focus_ == 1) ? sf::Color::Yellow : sf::Color(100, 100, 100);
-    rend.draw_rect(80, 151, 257, 28, account_outline, false);
-
-    // Password field (click area 2): (80, 180) to (337, 205)
-    sf::Color password_outline = (current_focus_ == 2) ? sf::Color::Yellow : sf::Color(100, 100, 100);
-    rend.draw_rect(80, 180, 257, 25, password_outline, false);
-
-    // Connect button (click area 3): (80, 280) to (163, 302)
-    sf::Color connect_outline = (current_focus_ == 3) ? sf::Color::Yellow : sf::Color(100, 100, 100);
-    rend.draw_rect(80, 280, 83, 22, connect_outline, false);
-
-    // Cancel button (click area 4): (258, 280) to (327, 302)
-    sf::Color cancel_outline = (current_focus_ == 4) ? sf::Color::Yellow : sf::Color(100, 100, 100);
-    rend.draw_rect(258, 280, 69, 22, cancel_outline, false);
-
-    // Draw account name text inside its click area
+    // Draw account name text inside its click area (offset +5, +4 from box position)
+    int32_t account_text_x = account_box_x_ + 5;
+    int32_t account_text_y = account_box_y_ + 4;
     if (current_focus_ != 1) {
-        sf::Color text_color = sf::Color(200, 200, 200);
-        rend.draw_text(account_name_, 85, 155, text_color);
+        rend.draw_text(account_name_, account_text_x, account_text_y, sf::Color::Black);
     } else {
         // Draw with cursor when editing
         std::string display_text = account_name_;
         if (cursor_visible_) {
             display_text += "_";
         }
-        rend.draw_text(display_text, 85, 155, sf::Color::White);
+        rend.draw_text(display_text, account_text_x, account_text_y, sf::Color::Black);
     }
 
     // Draw password text (masked with asterisks) inside its click area
+    int32_t password_text_x = password_box_x_ + 5;
+    int32_t password_text_y = password_box_y_ + 4;
     std::string masked_password(password_.size(), '*');
     if (current_focus_ != 2) {
-        sf::Color text_color = sf::Color(200, 200, 200);
-        rend.draw_text(masked_password, 85, 184, text_color);
+        rend.draw_text(masked_password, password_text_x, password_text_y, sf::Color::Black);
     } else {
         // Draw with cursor when editing
         if (cursor_visible_) {
             masked_password += "_";
         }
-        rend.draw_text(masked_password, 85, 184, sf::Color::White);
+        rend.draw_text(masked_password, password_text_x, password_text_y, sf::Color::Black);
     }
 
     // Mouse cursor is drawn separately via render_cursor()
@@ -263,5 +260,39 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x
 void login_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
     draw_sprite(rend, sprites, login_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+void login_screen::register_debug_adapters() {
+    debug_adapters_.clear();
+
+    // Panel adapter
+    debug_adapters_.push_back(std::make_unique<debug::screen_point_adapter>(
+        "login_screen.panel", panel_x_, panel_y_, panel_width_, panel_height_));
+
+    // Account input box adapter
+    debug_adapters_.push_back(std::make_unique<debug::screen_point_adapter>(
+        "login_screen.account_box", account_box_x_, account_box_y_,
+        input_box_width_, input_box_height_));
+
+    // Password input box adapter
+    debug_adapters_.push_back(std::make_unique<debug::screen_point_adapter>(
+        "login_screen.password_box", password_box_x_, password_box_y_,
+        input_box_width_, input_box_height_));
+
+    // Register all adapters with debug overlay
+    auto& overlay = debug::debug_overlay::instance();
+    for (auto& adapter : debug_adapters_) {
+        overlay.register_element(adapter.get());
+    }
+}
+
+void login_screen::unregister_debug_adapters() {
+    auto& overlay = debug::debug_overlay::instance();
+    for (auto& adapter : debug_adapters_) {
+        overlay.unregister_element(adapter.get());
+    }
+    debug_adapters_.clear();
+}
+#endif
 
 } // namespace hb

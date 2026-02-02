@@ -10,10 +10,11 @@
 namespace hb {
 
 class renderer;
-class pak_file;
+class tile_sprite_registry;
 
 // Weather types
-enum class weather_type : uint8_t {
+enum class weather_type : uint8_t
+{
     clear = 0,
     rain = 1,
     snow = 2,
@@ -21,7 +22,8 @@ enum class weather_type : uint8_t {
 };
 
 // Time of day
-enum class time_of_day : uint8_t {
+enum class time_of_day : uint8_t
+{
     dawn = 0,
     morning = 1,
     noon = 2,
@@ -32,13 +34,15 @@ enum class time_of_day : uint8_t {
 };
 
 // World events
-struct world_events {
+struct world_events
+{
     std::function<void(std::string_view old_map, std::string_view new_map)> on_map_changed;
     std::function<void(weather_type weather)> on_weather_changed;
     std::function<void(time_of_day time)> on_time_changed;
 };
 
-class world {
+class world
+{
 public:
     world() = default;
     ~world() = default;
@@ -46,8 +50,8 @@ public:
     world(const world&) = delete;
     world& operator=(const world&) = delete;
 
-    // Initialize with asset packs
-    bool initialize(pak_file& terrain_pak, pak_file& object_pak);
+    // Initialize with tile sprite registry
+    bool initialize(tile_sprite_registry& registry);
     void shutdown();
 
     // Update world state
@@ -65,11 +69,23 @@ public:
     std::string_view current_map_name() const { return current_map_.name(); }
 
     // Camera control
+    // Set the player position the camera should follow (in world pixels)
+    void set_player_position(int32_t world_x, int32_t world_y);
+
+    // Camera shake (offset from player position, decays over time)
+    void add_camera_shake(float intensity, float duration);
+
+    // Cinematic mode - detaches camera from player for free movement
+    void set_cinematic_mode(bool enabled);
+    bool is_cinematic_mode() const { return cinematic_mode_; }
+
+    // Direct camera control (only works in cinematic mode)
     void set_camera_position(int32_t x, int32_t y);
-    void set_camera_target(int32_t x, int32_t y);
-    void center_camera_on(int32_t world_x, int32_t world_y);
-    int32_t camera_x() const { return camera_x_; }
-    int32_t camera_y() const { return camera_y_; }
+    void move_camera(int32_t dx, int32_t dy);
+
+    // Get effective camera position (includes shake offset)
+    int32_t camera_x() const { return camera_x_ + shake_offset_x_; }
+    int32_t camera_y() const { return camera_y_ + shake_offset_y_; }
 
     // World state
     void set_weather(weather_type weather);
@@ -93,17 +109,24 @@ public:
 private:
     void update_camera(float delta_time);
     void update_lighting();
+    void center_on_player();
 
     map current_map_;
     map_renderer map_renderer_;
 
-    // Camera
+    // Camera - follows player unless in cinematic mode
     int32_t camera_x_ = 0;
     int32_t camera_y_ = 0;
-    int32_t camera_target_x_ = 0;
-    int32_t camera_target_y_ = 0;
-    float camera_speed_ = 500.0f;  // Pixels per second for smooth scrolling
-    bool camera_following_ = false;
+    int32_t player_world_x_ = 0;  // Player position to follow
+    int32_t player_world_y_ = 0;
+    bool cinematic_mode_ = false;
+
+    // Camera shake
+    int32_t shake_offset_x_ = 0;
+    int32_t shake_offset_y_ = 0;
+    float shake_intensity_ = 0.0f;
+    float shake_duration_ = 0.0f;
+    float shake_timer_ = 0.0f;
 
     // World state
     weather_type weather_ = weather_type::clear;

@@ -39,14 +39,17 @@ inline bool has_flag(tile_flag flags, tile_flag flag) {
 
 // Single map tile
 struct tile {
-    uint16_t terrain_id = 0;     // Base terrain sprite
-    uint16_t object_id = 0;      // Object/decoration sprite
-    uint16_t roof_id = 0;        // Roof sprite (for buildings)
+    int16_t terrain_id = 0;         // Base terrain sprite ID
+    int16_t terrain_frame = 0;      // Base terrain animation frame
+    int16_t object_id = 0;          // Object/decoration sprite ID
+    int16_t object_frame = 0;       // Object animation frame
+    uint16_t roof_id = 0;           // Roof sprite (for buildings, loaded separately)
     tile_flag flags = tile_flag::walkable;
-    uint8_t light_level = 255;   // 0 = dark, 255 = full bright
+    uint8_t light_level = 255;      // 0 = dark, 255 = full bright
 
     bool is_walkable() const { return has_flag(flags, tile_flag::walkable); }
     bool is_water() const { return has_flag(flags, tile_flag::water); }
+    bool is_teleport() const { return has_flag(flags, tile_flag::teleport); }
     bool is_safe_zone() const { return has_flag(flags, tile_flag::safe_zone); }
     bool blocks_sight() const { return has_flag(flags, tile_flag::blocks_sight); }
     bool is_occupied() const { return has_flag(flags, tile_flag::occupied); }

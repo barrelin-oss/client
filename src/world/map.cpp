@@ -33,29 +33,54 @@ bool map::load(std::string_view path) {
 }
 
 bool map::load_from_memory(const uint8_t* data, size_t size) {
-    // Helbreath map format (simplified - actual format may vary):
-    // Header: map name (32 bytes) + width (4) + height (4)
-    // Tiles: terrain_id (2) + object_id (2) + flags (2) per tile
+    // AMD file format:
+    // Header: 256 bytes text-based config (MAPSIZEX = N, MAPSIZEY = N)
+    // Tiles: 10 bytes per tile (terrain_id, terrain_frame, object_id, object_frame, flags, reserved)
 
-    constexpr size_t header_size = 40;  // name (32) + width (4) + height (4)
-    constexpr size_t tile_data_size = 6; // terrain (2) + object (2) + flags (2)
+    constexpr size_t header_size = 256;
+    constexpr size_t tile_data_size = 10;
 
     if (size < header_size) {
-        spdlog::error("Map file too small for header");
+        spdlog::error("Map file too small for header (got {} bytes)", size);
         return false;
     }
 
-    // Read header
-    char name_buf[33] = {0};
-    std::memcpy(name_buf, data, 32);
-    name_ = name_buf;
+    // Parse text-based header
+    // Replace NULL bytes with spaces for tokenization
+    std::string header(reinterpret_cast<const char*>(data), header_size);
+    for (char& c : header) {
+        if (c == '\0') c = ' ';
+    }
 
-    std::memcpy(&width_, data + 32, 4);
-    std::memcpy(&height_, data + 36, 4);
+    // Extract MAPSIZEX and MAPSIZEY values
+    width_ = 0;
+    height_ = 0;
+
+    auto parse_value = [&header](const std::string& key) -> int32_t {
+        size_t pos = header.find(key);
+        if (pos == std::string::npos) return 0;
+
+        pos += key.length();
+        // Skip whitespace and '='
+        while (pos < header.length() && (header[pos] == ' ' || header[pos] == '=' || header[pos] == '\t')) {
+            ++pos;
+        }
+
+        // Parse integer
+        int32_t value = 0;
+        while (pos < header.length() && header[pos] >= '0' && header[pos] <= '9') {
+            value = value * 10 + (header[pos] - '0');
+            ++pos;
+        }
+        return value;
+    };
+
+    width_ = parse_value("MAPSIZEX");
+    height_ = parse_value("MAPSIZEY");
 
     if (width_ <= 0 || width_ > max_map_width ||
         height_ <= 0 || height_ > max_map_height) {
-        spdlog::error("Invalid map dimensions: {}x{}", width_, height_);
+        spdlog::error("Invalid map dimensions: {}x{} (parsed from header)", width_, height_);
         return false;
     }
 
@@ -65,20 +90,52 @@ bool map::load_from_memory(const uint8_t* data, size_t size) {
         return false;
     }
 
-    // Read tiles
+    // Read tiles (row-major order: Y outer, X inner)
     tiles_.resize(static_cast<size_t>(width_ * height_));
 
     const uint8_t* tile_data = data + header_size;
-    for (size_t i = 0; i < tiles_.size(); ++i) {
-        const uint8_t* src = tile_data + i * tile_data_size;
+    for (int32_t y = 0; y < height_; ++y) {
+        for (int32_t x = 0; x < width_; ++x) {
+            size_t file_idx = static_cast<size_t>(y * width_ + x);
+            size_t tile_idx = tile_index(x, y);
+            const uint8_t* src = tile_data + file_idx * tile_data_size;
 
-        tiles_[i].terrain_id = static_cast<uint16_t>(src[0]) | (static_cast<uint16_t>(src[1]) << 8);
-        tiles_[i].object_id = static_cast<uint16_t>(src[2]) | (static_cast<uint16_t>(src[3]) << 8);
-        tiles_[i].flags = static_cast<tile_flag>(src[4] | (src[5] << 8));
-        tiles_[i].light_level = 255;
+            // Read 10-byte tile record (little-endian)
+            auto read_i16 = [](const uint8_t* p) -> int16_t {
+                return static_cast<int16_t>(p[0] | (p[1] << 8));
+            };
+
+            tiles_[tile_idx].terrain_id = read_i16(src + 0);
+            tiles_[tile_idx].terrain_frame = read_i16(src + 2);
+            tiles_[tile_idx].object_id = read_i16(src + 4);
+            tiles_[tile_idx].object_frame = read_i16(src + 6);
+
+            // Parse flags byte (byte 8)
+            // AMD format: bit 7 = BLOCKED (inverted), bit 6 = TELEPORT, bit 5 = FARM
+            uint8_t amd_flags = src[8];
+            tile_flag flags = tile_flag::none;
+
+            // Walkable if NOT blocked (bit 7 clear = walkable)
+            if ((amd_flags & 0x80) == 0) {
+                flags = flags | tile_flag::walkable;
+            }
+
+            // Teleport (bit 6)
+            if ((amd_flags & 0x40) != 0) {
+                flags = flags | tile_flag::teleport;
+            }
+
+            // Water detection: sprite ID 19 is water
+            if (tiles_[tile_idx].terrain_id == 19) {
+                flags = flags | tile_flag::water;
+            }
+
+            tiles_[tile_idx].flags = flags;
+            tiles_[tile_idx].light_level = 255;
+        }
     }
 
-    spdlog::info("Loaded map '{}' ({}x{})", name_, width_, height_);
+    spdlog::info("Loaded map '{}' ({}x{}, {} tiles)", name_, width_, height_, tiles_.size());
     return true;
 }
 

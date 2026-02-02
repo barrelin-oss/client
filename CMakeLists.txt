@@ -8,6 +8,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build options
 option(HB_HOT_RELOAD "Enable hot-reload for dialog YAML/JSON files" ON)
 
+# Debug overlay option: AUTO (default), ON, or OFF
+# AUTO = enabled in Debug builds only
+set(HB_DEBUG_OVERLAY "AUTO" CACHE STRING "Enable debug positioning overlay (AUTO=Debug only, ON=always, OFF=never)")
+set_property(CACHE HB_DEBUG_OVERLAY PROPERTY STRINGS "AUTO" "ON" "OFF")
+
 # Export compile commands for IDE support
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

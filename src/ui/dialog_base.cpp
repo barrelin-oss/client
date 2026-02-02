@@ -4,7 +4,67 @@
 #include "core/constants.hpp"
 #include <algorithm>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/debug_overlay.hpp"
+#include "debug/position_store.hpp"
+#endif
+
 namespace hb {
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+namespace {
+
+// Convert dialog_type to string for position ID
+const char* dialog_type_to_string(dialog_type type)
+{
+    switch (type)
+    {
+        case dialog_type::login: return "dialog.login";
+        case dialog_type::character_select: return "dialog.character_select";
+        case dialog_type::character_create: return "dialog.character_create";
+        case dialog_type::inventory: return "dialog.inventory";
+        case dialog_type::equipment: return "dialog.equipment";
+        case dialog_type::spellbook: return "dialog.spellbook";
+        case dialog_type::skills: return "dialog.skills";
+        case dialog_type::quest: return "dialog.quest";
+        case dialog_type::party: return "dialog.party";
+        case dialog_type::guild: return "dialog.guild";
+        case dialog_type::guild_menu: return "dialog.guild_menu";
+        case dialog_type::guild_bank: return "dialog.guild_bank";
+        case dialog_type::chat: return "dialog.chat";
+        case dialog_type::whisper: return "dialog.whisper";
+        case dialog_type::system_menu: return "dialog.system_menu";
+        case dialog_type::options: return "dialog.options";
+        case dialog_type::key_bindings: return "dialog.key_bindings";
+        case dialog_type::shop: return "dialog.shop";
+        case dialog_type::shop_sell: return "dialog.shop_sell";
+        case dialog_type::bank: return "dialog.bank";
+        case dialog_type::warehouse: return "dialog.warehouse";
+        case dialog_type::trade: return "dialog.trade";
+        case dialog_type::exchange: return "dialog.exchange";
+        case dialog_type::craft: return "dialog.craft";
+        case dialog_type::manufacture: return "dialog.manufacture";
+        case dialog_type::repair: return "dialog.repair";
+        case dialog_type::map: return "dialog.map";
+        case dialog_type::minimap: return "dialog.minimap";
+        case dialog_type::help: return "dialog.help";
+        case dialog_type::character_info: return "dialog.character_info";
+        case dialog_type::monster_info: return "dialog.monster_info";
+        case dialog_type::item_info: return "dialog.item_info";
+        case dialog_type::npc_dialog: return "dialog.npc_dialog";
+        case dialog_type::confirm: return "dialog.confirm";
+        case dialog_type::input_box: return "dialog.input_box";
+        case dialog_type::message_box: return "dialog.message_box";
+        case dialog_type::connection: return "dialog.connection";
+        case dialog_type::icon_panel: return "dialog.icon_panel";
+        case dialog_type::gauge_panel: return "dialog.gauge_panel";
+        case dialog_type::levelup: return "dialog.levelup";
+        default: return "dialog.unknown";
+    }
+}
+
+}  // namespace
+#endif
 
 // dialog implementation
 
@@ -69,15 +129,53 @@ bool dialog::handle_mouse_move(int32_t x, int32_t y) {
 
 void dialog::open() {
     set_visible(true);
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Register with debug overlay and apply stored position
+    debug::debug_overlay::instance().register_element(this);
+    if (auto pos = debug::position_store::instance().get(position_id()))
+    {
+        bounds_.x = pos->x;
+        bounds_.y = pos->y;
+    }
+#endif
 }
 
 void dialog::close() {
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Unregister from debug overlay
+    debug::debug_overlay::instance().unregister_element(this);
+#endif
+
     set_visible(false);
     dragging_ = false;
     if (on_close_) {
         on_close_();
     }
 }
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+std::string dialog::position_id() const
+{
+    // Use custom ID if set (for YAML dialogs), otherwise use dialog_type
+    if (!position_id_.empty())
+    {
+        return position_id_;
+    }
+    return dialog_type_to_string(type_);
+}
+
+debug::bounds dialog::get_bounds() const
+{
+    return {bounds_.x, bounds_.y, bounds_.width, bounds_.height};
+}
+
+void dialog::set_position(int32_t x, int32_t y)
+{
+    bounds_.x = x;
+    bounds_.y = y;
+}
+#endif
 
 void dialog::render_title_bar(renderer& rend) {
     // Title bar background

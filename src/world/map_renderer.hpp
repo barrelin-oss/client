@@ -4,15 +4,14 @@
 #include "graphics/renderer.hpp"
 #include "assets/sprite.hpp"
 #include <cstdint>
-#include <memory>
-#include <unordered_map>
 
 namespace hb {
 
-class pak_file;
+class tile_sprite_registry;
 
 // Map rendering configuration
-struct map_render_config {
+struct map_render_config
+{
     bool show_terrain = true;
     bool show_objects = true;
     bool show_roofs = true;
@@ -21,7 +20,8 @@ struct map_render_config {
     float light_level = 1.0f;
 };
 
-class map_renderer {
+class map_renderer
+{
 public:
     map_renderer() = default;
     ~map_renderer() = default;
@@ -29,8 +29,8 @@ public:
     map_renderer(const map_renderer&) = delete;
     map_renderer& operator=(const map_renderer&) = delete;
 
-    // Initialize with sprite data
-    bool initialize(pak_file& terrain_pak, pak_file& object_pak);
+    // Initialize with tile sprite registry
+    bool initialize(tile_sprite_registry& registry);
     void shutdown();
 
     // Render map
@@ -48,23 +48,18 @@ public:
                                                 int32_t camera_x, int32_t camera_y) const;
 
 private:
-    // Load sprite for tile
-    const sprite* get_terrain_sprite(uint16_t id);
-    const sprite* get_object_sprite(uint16_t id);
+    // Get sprite for tile (terrain and objects use the same registry)
+    const sprite* get_tile_sprite(int16_t id);
 
     // Calculate visible tile range
-    struct visible_range {
+    struct visible_range
+    {
         int32_t start_x, start_y;
         int32_t end_x, end_y;
     };
     visible_range calculate_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const;
 
-    pak_file* terrain_pak_ = nullptr;
-    pak_file* object_pak_ = nullptr;
-
-    std::unordered_map<uint16_t, std::unique_ptr<sprite>> terrain_sprites_;
-    std::unordered_map<uint16_t, std::unique_ptr<sprite>> object_sprites_;
-
+    tile_sprite_registry* registry_ = nullptr;
     map_render_config config_;
 };
 

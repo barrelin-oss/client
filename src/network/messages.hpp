@@ -418,10 +418,13 @@ inline json make_get_characters_request() {
         .build();
 }
 
-inline json make_enter_game_request(int32_t character_id) {
-    return message_builder(msg_type::enter_game_request)
-        .set("character_id", character_id)
-        .build();
+inline json make_enter_game_request(int32_t character_id, bool force_disconnect = false) {
+    auto builder = message_builder(msg_type::enter_game_request)
+        .set("character_id", character_id);
+    if (force_disconnect) {
+        builder.set("force_disconnect", true);
+    }
+    return builder.build();
 }
 
 } // namespace hb

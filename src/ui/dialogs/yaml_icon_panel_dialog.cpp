@@ -102,8 +102,8 @@ bool yaml_icon_panel_dialog::on_custom_render(renderer& rend) {
 void yaml_icon_panel_dialog::render_background(renderer& rend) {
     const auto& def = definition();
 
-    // Try classic sprite background first
-    if (sprites_ && !def.background_sprite_pak.empty()) {
+    // Try classic sprite background first (only if render mode is classic)
+    if (get_render_mode() == render_mode::classic && sprites_ && !def.background_sprite_pak.empty()) {
         const sprite* spr = sprites_->get_sprite(def.background_sprite_pak,
                                                   def.background_sprite_index);
 
@@ -113,7 +113,7 @@ void yaml_icon_panel_dialog::render_background(renderer& rend) {
         }
     }
 
-    // Fallback: modern style background
+    // Modern style background (or fallback if sprites not available)
     rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
                    sf::Color(20, 20, 30, 220), true);
     rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, 1,
@@ -128,8 +128,8 @@ void yaml_icon_panel_dialog::render_hp_bar(renderer& rend, const element_def& el
 
     const auto& def = definition();
 
-    // Classic sprite rendering - if sprites are available, use them regardless of fill amount
-    if (sprites_ && !def.background_sprite_pak.empty()) {
+    // Classic sprite rendering (only if render mode is classic)
+    if (get_render_mode() == render_mode::classic && sprites_ && !def.background_sprite_pak.empty()) {
         const sprite* spr = sprites_->get_sprite(def.background_sprite_pak,
                                                   def.background_sprite_index);
         int32_t frame = 12;  // Default for HP/MP bars
@@ -218,8 +218,8 @@ void yaml_icon_panel_dialog::render_mp_bar(renderer& rend, const element_def& el
 
     const auto& def = definition();
 
-    // Classic sprite rendering
-    if (sprites_ && !def.background_sprite_pak.empty()) {
+    // Classic sprite rendering (only if render mode is classic)
+    if (get_render_mode() == render_mode::classic && sprites_ && !def.background_sprite_pak.empty()) {
         const sprite* spr = sprites_->get_sprite(def.background_sprite_pak,
                                                   def.background_sprite_index);
         int32_t frame = 12;  // Default for HP/MP bars
@@ -271,8 +271,8 @@ void yaml_icon_panel_dialog::render_sp_bar(renderer& rend, const element_def& el
 
     const auto& def = definition();
 
-    // Classic sprite rendering
-    if (sprites_ && !def.background_sprite_pak.empty()) {
+    // Classic sprite rendering (only if render mode is classic)
+    if (get_render_mode() == render_mode::classic && sprites_ && !def.background_sprite_pak.empty()) {
         const sprite* spr = sprites_->get_sprite(def.background_sprite_pak,
                                                   def.background_sprite_index);
         int32_t frame = 13;  // Default for SP bar
@@ -391,8 +391,8 @@ void yaml_icon_panel_dialog::render_combat_indicator(renderer& rend, const eleme
     ui_bounds abs = get_absolute_bounds(elem);
     const auto& def = definition();
 
-    // Classic sprite rendering
-    if (sprites_ && !def.background_sprite_pak.empty()) {
+    // Classic sprite rendering (only if render mode is classic)
+    if (get_render_mode() == render_mode::classic && sprites_ && !def.background_sprite_pak.empty()) {
         const sprite* spr = sprites_->get_sprite(def.background_sprite_pak,
                                                   def.background_sprite_index);
         if (spr && spr->frame_count() > static_cast<uint32_t>(frame)) {
@@ -401,7 +401,7 @@ void yaml_icon_panel_dialog::render_combat_indicator(renderer& rend, const eleme
         }
     }
 
-    // Modern fallback (colored rectangles)
+    // Modern rendering (or fallback if sprites not available)
     sf::Color indicator_color;
     const char* mode_text;
 
@@ -447,37 +447,33 @@ void yaml_icon_panel_dialog::render_buttons(renderer& rend) {
         if (it == element_states_.end() || !it->second.visible) continue;
 
         bool hovered = it->second.hovered;
+        ui_bounds abs = get_absolute_bounds(elem);
 
-        // Classic mode: render nothing unless hovered
-        if (sprites_ && !elem.sprite_pak.empty()) {
-            if (!hovered) continue;  // Don't render anything when not hovered
+        // Classic mode: buttons are part of background sprite, only render hover effect
+        if (get_render_mode() == render_mode::classic && sprites_ && !elem.sprite_pak.empty()) {
+            if (hovered) {
+                const sprite* spr = sprites_->get_sprite(elem.sprite_pak, elem.sprite_index);
+                if (spr) {
+                    int32_t frame = elem.sprite_frame;
 
-            const sprite* spr = sprites_->get_sprite(elem.sprite_pak, elem.sprite_index);
-            if (spr) {
-                ui_bounds abs = get_absolute_bounds(elem);
-                int32_t frame = elem.sprite_frame;
-
-                // Draw the button sprite on hover
-                if (static_cast<uint32_t>(frame) < spr->frame_count()) {
-                    spr->draw(rend.window(), abs.x, abs.y, frame);
+                    // Draw the button sprite on hover
+                    if (static_cast<uint32_t>(frame) < spr->frame_count()) {
+                        spr->draw(rend.window(), abs.x, abs.y, frame);
+                    }
                 }
-                continue;
             }
+        } else {
+            // Modern rendering: always render buttons (no background sprite includes them)
+            sf::Color bg = hovered ? sf::Color(70, 70, 90, 220) : sf::Color(40, 40, 55, 200);
+            rend.draw_rect(abs.x, abs.y, abs.width, abs.height, bg, true);
+            rend.draw_rect(abs.x, abs.y, abs.width, abs.height, sf::Color(80, 80, 100), false);
+
+            sf::Color text_color = hovered ? sf::Color::White : sf::Color(180, 180, 200);
+            rend.draw_text(elem.text, abs.x + abs.width / 2 - 4, abs.y + abs.height / 2 - 6,
+                           text_color, 12);
         }
 
-        // Modern fallback: only render when hovered
-        if (!hovered) continue;
-
-        ui_bounds abs = get_absolute_bounds(elem);
-        sf::Color bg = sf::Color(70, 70, 90, 220);
-        rend.draw_rect(abs.x, abs.y, abs.width, abs.height, bg, true);
-        rend.draw_rect(abs.x, abs.y, abs.width, abs.height, sf::Color(80, 80, 100), false);
-
-        sf::Color text_color = sf::Color::White;
-        rend.draw_text(elem.text, abs.x + abs.width / 2 - 4, abs.y + abs.height / 2 - 6,
-                       text_color, 12);
-
-        // Tooltip when hovered
+        // Tooltip when hovered (both classic and modern)
         if (hovered && !elem.tooltip.empty()) {
             int32_t tooltip_y = bounds_.y - 22;
             int32_t tooltip_width = static_cast<int32_t>(elem.tooltip.length()) * 7 + 8;

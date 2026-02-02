@@ -3,6 +3,12 @@
 #include "ui/screens/screen_base.hpp"
 #include <functional>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/screen_adapters.hpp"
+#include <memory>
+#include <vector>
+#endif
+
 namespace hb {
 
 // Sprite IDs for main menu (matching original DEF_SPRID_INTERFACE_ND_MAINMENU)
@@ -43,6 +49,25 @@ private:
 
     start_callback on_start_;
     quit_callback on_quit_;
+
+    // Button highlight positions (mutable for debug overlay positioning)
+    int32_t btn1_x_ = 385;  // Start Game
+    int32_t btn1_y_ = 178;
+    int32_t btn2_x_ = 385;  // Create Account
+    int32_t btn2_y_ = 217;
+    int32_t btn3_x_ = 385;  // Quit
+    int32_t btn3_y_ = 255;
+
+    // Button dimensions (from sprite)
+    static constexpr int32_t btn_width_ = 164;
+    static constexpr int32_t btn_height_ = 22;
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Debug overlay adapters
+    void register_debug_adapters();
+    void unregister_debug_adapters();
+    std::vector<std::unique_ptr<debug::screen_point_adapter>> debug_adapters_;
+#endif
 };
 
 } // namespace hb

@@ -4,6 +4,10 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <thread>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/debug_overlay.hpp"
+#endif
+
 namespace hb {
 
 int application::run() {
@@ -108,6 +112,12 @@ bool application::initialize() {
         return false;
     }
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Initialize debug overlay for UI positioning
+    debug::debug_overlay::instance().initialize("config/ui_positions.json");
+    spdlog::info("Debug overlay available (F11 to toggle)");
+#endif
+
     // Setup chat callbacks
     chat_callbacks chat_cb;
     chat_cb.on_message_received = [](const chat_message& msg) {
@@ -128,6 +138,11 @@ void application::shutdown() {
 
     // Save configuration
     save_config();
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // Shutdown debug overlay (saves positions if modified)
+    debug::debug_overlay::instance().shutdown();
+#endif
 
     // Shutdown in reverse order
     if (game_state_) {
@@ -214,14 +229,6 @@ void application::process_events() {
     }
 
     // Handle global hotkeys
-    if (input_.is_key_pressed(sf::Keyboard::Key::F11)) {
-        // Toggle fullscreen
-        auto& video_cfg = config::instance().video();
-        video_cfg.fullscreen = !video_cfg.fullscreen;
-        // Would need to recreate window for fullscreen toggle
-        spdlog::info("Fullscreen toggle: {}", video_cfg.fullscreen);
-    }
-
     if (input_.is_key_pressed(sf::Keyboard::Key::F12)) {
         // Screenshot
         spdlog::info("Screenshot requested");

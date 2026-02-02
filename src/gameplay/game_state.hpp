@@ -15,8 +15,8 @@
 #include "ui/ui_system.hpp"
 #include "ui/dialogs/dialogs.hpp"
 #include "ui/screens/screen_manager.hpp"
-#include "assets/pak_file.hpp"
 #include "assets/sprite_manager.hpp"
+#include "assets/tile_sprite_registry.hpp"
 #include "graphics/menu_character_renderer.hpp"
 #include <cstdint>
 #include <string>
@@ -169,7 +169,7 @@ private:
 
     // WebSocket requests
     void request_characters();
-    void request_enter_game(int32_t character_id);
+    void request_enter_game(int32_t character_id, bool force_disconnect = false);
     void request_create_character(const character_create_data& data);
 
     // State
@@ -203,9 +203,8 @@ private:
     motion_handler motion_handler_;
 
     // Assets
-    std::unique_ptr<pak_file> terrain_pak_;
-    std::unique_ptr<pak_file> sprite_pak_;
     sprite_manager sprites_;
+    tile_sprite_registry tile_registry_;
 
     // Character rendering for menus
     menu_character_renderer menu_char_renderer_;
@@ -217,6 +216,7 @@ private:
     // Character selection
     std::vector<character_info> characters_;
     size_t selected_character_ = 0;
+    int32_t pending_enter_game_character_id_ = 0;  // For force disconnect retry
 
     // Loading
     float loading_progress_ = 0.0f;

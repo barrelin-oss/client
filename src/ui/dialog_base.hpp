@@ -6,6 +6,10 @@
 #include <string_view>
 #include <functional>
 
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+#include "debug/positionable.hpp"
+#endif
+
 namespace hb {
 
 class renderer;
@@ -57,7 +61,11 @@ enum class dialog_type {
 };
 
 // Dialog base class
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+class dialog : public ui_panel, public debug::positionable {
+#else
 class dialog : public ui_panel {
+#endif
 public:
     dialog(dialog_type type);
     ~dialog() override = default;
@@ -92,11 +100,22 @@ public:
     using close_callback = std::function<void()>;
     void set_on_close(close_callback callback) { on_close_ = std::move(callback); }
 
+    // Set a custom position ID (for managed dialogs with YAML names)
+    void set_position_id(std::string_view id) { position_id_ = id; }
+
+#ifdef HB_DEBUG_OVERLAY_ENABLED
+    // positionable interface
+    std::string position_id() const override;
+    debug::bounds get_bounds() const override;
+    void set_position(int32_t x, int32_t y) override;
+#endif
+
 protected:
     void render_title_bar(renderer& rend);
 
     dialog_type type_;
     std::string title_;
+    std::string position_id_;  // Custom ID for debug overlay
     bool draggable_ = true;
     bool closeable_ = true;
     bool modal_ = false;

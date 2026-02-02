@@ -50,6 +50,9 @@ public:
     // Status effects
     void set_poisoned(bool poisoned);
 
+    // Screen size (for dynamic positioning)
+    void set_screen_size(uint32_t width, uint32_t height);
+
 protected:
     // managed_dialog overrides
     void on_update_impl(float delta_time) override;

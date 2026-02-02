@@ -583,4 +583,391 @@ std::string_view ui_list_box::selected_text() const {
     return {};
 }
 
+// ui_dropdown implementation
+
+void ui_dropdown::get_absolute_position(int32_t& abs_x, int32_t& abs_y) const {
+    abs_x = bounds_.x;
+    abs_y = bounds_.y;
+
+    // Traverse parent hierarchy to get absolute position
+    const ui_element* p = parent_;
+    while (p != nullptr) {
+        abs_x += p->bounds().x;
+        abs_y += p->bounds().y;
+        p = p->parent();
+    }
+}
+
+bool ui_dropdown::point_in_header(int32_t x, int32_t y) const {
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
+    return x >= abs_x && x < abs_x + bounds_.width &&
+           y >= abs_y && y < abs_y + bounds_.height;
+}
+
+bool ui_dropdown::point_in_list(int32_t x, int32_t y) const {
+    if (!expanded_ || items_.empty()) return false;
+
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
+    int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+    int32_t list_y = abs_y + bounds_.height;
+    int32_t list_height = visible_count * item_height_;
+
+    return x >= abs_x && x < abs_x + bounds_.width &&
+           y >= list_y && y < list_y + list_height;
+}
+
+int32_t ui_dropdown::item_at_position(int32_t x, int32_t y) const {
+    if (!point_in_list(x, y)) return -1;
+
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
+    int32_t list_y = abs_y + bounds_.height;
+    int32_t item_index = (y - list_y) / item_height_ + scroll_offset_;
+
+    if (item_index >= 0 && item_index < static_cast<int32_t>(items_.size())) {
+        return item_index;
+    }
+    return -1;
+}
+
+void ui_dropdown::update(float delta_time, const input& inp) {
+    if (!visible_ || !enabled_) return;
+
+    // Update animation
+    if (animating_) {
+        if (expanded_) {
+            // Expanding
+            animation_progress_ += delta_time * animation_speed_;
+            if (animation_progress_ >= 1.0f) {
+                animation_progress_ = 1.0f;
+                animating_ = false;
+            }
+        } else {
+            // Collapsing
+            animation_progress_ -= delta_time * animation_speed_;
+            if (animation_progress_ <= 0.0f) {
+                animation_progress_ = 0.0f;
+                animating_ = false;
+            }
+        }
+    }
+
+    ui_element::update(delta_time, inp);
+}
+
+void ui_dropdown::render(renderer& rend) {
+    if (!visible_) return;
+
+    // Use bounds_ directly for rendering (consistent with other widgets)
+    int32_t draw_x = bounds_.x;
+    int32_t draw_y = bounds_.y;
+
+    // Determine header color based on state
+    sf::Color header_bg = header_color_;
+    if (!enabled_) {
+        header_bg = sf::Color(40, 40, 40);
+    } else if (expanded_ || animating_ || hovered_) {
+        header_bg = header_hover_color_;
+    }
+
+    // Draw header background
+    rend.draw_rect(draw_x, draw_y, bounds_.width, bounds_.height, header_bg, true);
+    rend.draw_rect(draw_x, draw_y, bounds_.width, bounds_.height, border_color_, false);
+
+    // Draw selected text or placeholder
+    std::string_view display_text = selected_index_ >= 0 ? selected_text() : placeholder_;
+    sf::Color text_color = selected_index_ >= 0 ? item_color_ : sf::Color(120, 120, 140);
+    rend.draw_text(std::string(display_text), draw_x + 8, draw_y + (bounds_.height - 14) / 2, text_color);
+
+    // Draw dropdown arrow (rotates with animation)
+    int32_t arrow_x = draw_x + bounds_.width - 20;
+    int32_t arrow_y = draw_y + bounds_.height / 2;
+
+    // Interpolate arrow position based on animation
+    float arrow_offset = 3.0f * (1.0f - 2.0f * animation_progress_);  // +3 when closed, -3 when open
+    int32_t arrow_top = arrow_y + static_cast<int32_t>(arrow_offset);
+    int32_t arrow_bottom = arrow_y - static_cast<int32_t>(arrow_offset);
+
+    rend.draw_line(arrow_x, arrow_top, arrow_x + 6, arrow_bottom, arrow_color_);
+    rend.draw_line(arrow_x + 6, arrow_bottom, arrow_x + 12, arrow_top, arrow_color_);
+
+    // Draw list if expanded or animating
+    if ((expanded_ || animating_) && !items_.empty() && animation_progress_ > 0.0f) {
+        int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+        int32_t full_list_height = visible_count * item_height_;
+        int32_t list_y = draw_y + bounds_.height;
+
+        // Calculate animated height with easing (ease-out for smooth deceleration)
+        float eased_progress = 1.0f - (1.0f - animation_progress_) * (1.0f - animation_progress_);
+        int32_t current_height = static_cast<int32_t>(full_list_height * eased_progress);
+
+        if (current_height > 0) {
+            // Draw list background at animated height
+            rend.draw_rect(draw_x, list_y, bounds_.width, current_height, list_bg_color_, true);
+
+            // Enable scissor clipping for items
+            rend.push_scissor(draw_x, list_y, bounds_.width, current_height);
+
+            // Draw items (scissor will clip overflow)
+            for (int32_t i = 0; i < visible_count && i + scroll_offset_ < static_cast<int32_t>(items_.size()); ++i) {
+                int32_t index = i + scroll_offset_;
+                int32_t item_y = list_y + i * item_height_;
+
+                // Item background (hover or selected)
+                if (index == hovered_index_) {
+                    rend.draw_rect(draw_x + 1, item_y, bounds_.width - 2, item_height_, item_hover_color_, true);
+                } else if (index == selected_index_) {
+                    rend.draw_rect(draw_x + 1, item_y, bounds_.width - 2, item_height_, item_selected_color_, true);
+                }
+
+                // Item text
+                rend.draw_text(items_[index], draw_x + 8, item_y + (item_height_ - 14) / 2, item_color_);
+            }
+
+            // Disable scissor clipping
+            rend.pop_scissor();
+
+            // Draw border at animated height (after scissor so it's not clipped)
+            rend.draw_rect(draw_x, list_y, bounds_.width, current_height, border_color_, false);
+        }
+    }
+
+    render_children(rend);
+}
+
+bool ui_dropdown::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
+    if (!visible_ || !enabled_) return false;
+
+    if (btn != sf::Mouse::Button::Left) {
+        return ui_element::handle_mouse_down(x, y, btn);
+    }
+
+    // Use bounds_ directly for hit testing (consistent with other widgets)
+    // Check if click is on the header
+    if (contains_point(x, y)) {
+        if (expanded_) {
+            collapse();
+        } else {
+            expand();
+        }
+        return true;
+    }
+
+    // Check if click is on the expanded list
+    if (expanded_) {
+        int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_height = visible_count * item_height_;
+
+        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+            y >= list_y && y < list_y + list_height) {
+            int32_t clicked_index = (y - list_y) / item_height_ + scroll_offset_;
+            if (clicked_index >= 0 && clicked_index < static_cast<int32_t>(items_.size())) {
+                set_selected_index(clicked_index);
+            }
+            collapse();
+            return true;
+        }
+
+        // Click outside - collapse without selecting
+        collapse();
+        return false;
+    }
+
+    return ui_element::handle_mouse_down(x, y, btn);
+}
+
+bool ui_dropdown::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
+    if (!visible_ || !enabled_) return false;
+
+    // Consume mouse up if we're in the header or expanded list area
+    if (contains_point(x, y)) {
+        return true;
+    }
+
+    if (expanded_) {
+        int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_height = visible_count * item_height_;
+
+        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+            y >= list_y && y < list_y + list_height) {
+            return true;
+        }
+    }
+
+    return ui_element::handle_mouse_up(x, y, btn);
+}
+
+bool ui_dropdown::handle_mouse_move(int32_t x, int32_t y) {
+    if (!visible_ || !enabled_) return false;
+
+    // Update header hover state using bounds_ directly
+    hovered_ = contains_point(x, y);
+
+    // Update hovered item in expanded list
+    if (expanded_) {
+        int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_height = visible_count * item_height_;
+
+        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+            y >= list_y && y < list_y + list_height) {
+            int32_t hover_index = (y - list_y) / item_height_ + scroll_offset_;
+            if (hover_index >= 0 && hover_index < static_cast<int32_t>(items_.size())) {
+                hovered_index_ = hover_index;
+            } else {
+                hovered_index_ = -1;
+            }
+            return true;
+        } else {
+            hovered_index_ = -1;
+        }
+    }
+
+    // Check children
+    for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
+        if ((*it)->handle_mouse_move(x, y)) {
+            return true;
+        }
+    }
+
+    return hovered_ || (expanded_ && hovered_index_ >= 0);
+}
+
+bool ui_dropdown::handle_key_press(sf::Keyboard::Key key) {
+    if (!visible_ || !enabled_ || !expanded_) return false;
+
+    if (key == sf::Keyboard::Key::Escape) {
+        collapse();
+        return true;
+    }
+
+    if (key == sf::Keyboard::Key::Enter) {
+        if (hovered_index_ >= 0) {
+            set_selected_index(hovered_index_);
+        }
+        collapse();
+        return true;
+    }
+
+    if (key == sf::Keyboard::Key::Up) {
+        if (hovered_index_ > 0) {
+            hovered_index_--;
+            // Adjust scroll if needed
+            if (hovered_index_ < scroll_offset_) {
+                scroll_offset_ = hovered_index_;
+            }
+        } else if (hovered_index_ == -1 && !items_.empty()) {
+            hovered_index_ = static_cast<int32_t>(items_.size()) - 1;
+        }
+        return true;
+    }
+
+    if (key == sf::Keyboard::Key::Down) {
+        if (hovered_index_ < static_cast<int32_t>(items_.size()) - 1) {
+            hovered_index_++;
+            // Adjust scroll if needed
+            int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+            if (hovered_index_ >= scroll_offset_ + visible_count) {
+                scroll_offset_ = hovered_index_ - visible_count + 1;
+            }
+        } else if (hovered_index_ == -1 && !items_.empty()) {
+            hovered_index_ = 0;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void ui_dropdown::add_item(std::string_view text) {
+    items_.emplace_back(text);
+}
+
+void ui_dropdown::remove_item(int32_t index) {
+    if (index >= 0 && index < static_cast<int32_t>(items_.size())) {
+        items_.erase(items_.begin() + index);
+        if (selected_index_ >= static_cast<int32_t>(items_.size())) {
+            selected_index_ = items_.empty() ? -1 : static_cast<int32_t>(items_.size()) - 1;
+        }
+    }
+}
+
+void ui_dropdown::clear_items() {
+    items_.clear();
+    selected_index_ = -1;
+    hovered_index_ = -1;
+    scroll_offset_ = 0;
+    collapse();
+}
+
+void ui_dropdown::set_selected_index(int32_t index) {
+    if (index >= -1 && index < static_cast<int32_t>(items_.size())) {
+        int32_t old_index = selected_index_;
+        selected_index_ = index;
+        if (selected_index_ != old_index && on_select_) {
+            on_select_(index);
+        }
+    }
+}
+
+std::string_view ui_dropdown::selected_text() const {
+    if (selected_index_ >= 0 && selected_index_ < static_cast<int32_t>(items_.size())) {
+        return items_[selected_index_];
+    }
+    return {};
+}
+
+void ui_dropdown::expand() {
+    if (!expanded_ && !items_.empty()) {
+        expanded_ = true;
+        focused_ = true;
+        hovered_index_ = selected_index_;
+
+        if (animation_enabled_) {
+            animating_ = true;
+            // Don't reset progress if already partially open from interrupted collapse
+            // animation_progress_ will continue from current value
+        } else {
+            animation_progress_ = 1.0f;
+        }
+    }
+}
+
+void ui_dropdown::collapse() {
+    expanded_ = false;
+    focused_ = false;
+    hovered_index_ = -1;
+
+    if (animation_enabled_ && animation_progress_ > 0.0f) {
+        animating_ = true;
+        // animation_progress_ will animate down from current value
+    } else {
+        animation_progress_ = 0.0f;
+        animating_ = false;
+    }
+}
+
+ui_rect ui_dropdown::expanded_bounds() const {
+    if (!expanded_) {
+        return bounds_;
+    }
+
+    int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
+    int32_t list_height = visible_count * item_height_;
+
+    return ui_rect{
+        bounds_.x,
+        bounds_.y,
+        bounds_.width,
+        bounds_.height + list_height
+    };
+}
+
 } // namespace hb

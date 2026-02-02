@@ -19,6 +19,7 @@ namespace msg_type {
     inline constexpr const char* enter_game_response = "enter_game_response";
     inline constexpr const char* create_character_request = "create_character_request";
     inline constexpr const char* create_character_response = "create_character_response";
+    inline constexpr const char* set_view_range = "set_view_range";
 }
 
 // Character info from server
@@ -425,6 +426,13 @@ inline json make_enter_game_request(int32_t character_id, bool force_disconnect 
         builder.set("force_disconnect", true);
     }
     return builder.build();
+}
+
+inline json make_set_view_range_request(uint32_t width, uint32_t height) {
+    return message_builder(msg_type::set_view_range)
+        .set("screen_width", width)
+        .set("screen_height", height)
+        .build();
 }
 
 } // namespace hb

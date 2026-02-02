@@ -286,4 +286,83 @@ protected:
     sf::Color hover_color_ = sf::Color(50, 50, 70);
 };
 
+// Dropdown - collapsible selection widget
+class ui_dropdown : public ui_element {
+public:
+    using select_callback = std::function<void(int32_t)>;
+
+    void update(float delta_time, const input& inp) override;
+    void render(renderer& rend) override;
+    bool handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) override;
+    bool handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) override;
+    bool handle_mouse_move(int32_t x, int32_t y) override;
+    bool handle_key_press(sf::Keyboard::Key key) override;
+
+    void add_item(std::string_view text);
+    void remove_item(int32_t index);
+    void clear_items();
+
+    int32_t selected_index() const { return selected_index_; }
+    void set_selected_index(int32_t index);
+    std::string_view selected_text() const;
+    const std::vector<std::string>& items() const { return items_; }
+
+    void set_on_select(select_callback callback) { on_select_ = std::move(callback); }
+    void set_item_height(int32_t height) { item_height_ = height; }
+    void set_max_visible_items(int32_t count) { max_visible_items_ = count; }
+    void set_placeholder(std::string_view placeholder) { placeholder_ = placeholder; }
+
+    bool is_expanded() const { return expanded_; }
+    bool is_animating() const { return animating_; }
+    void expand();
+    void collapse();
+
+    // Animation settings
+    void set_animation_speed(float speed) { animation_speed_ = speed; }
+    void set_animation_enabled(bool enabled) { animation_enabled_ = enabled; }
+
+    // Get the expanded bounds (header + list) for hit testing
+    ui_rect expanded_bounds() const;
+
+protected:
+    // Get absolute screen position by traversing parent hierarchy
+    void get_absolute_position(int32_t& abs_x, int32_t& abs_y) const;
+
+    // Check if point is in header (using local coordinates relative to parent)
+    bool point_in_header(int32_t x, int32_t y) const;
+
+    // Check if point is in list area (using local coordinates relative to parent)
+    bool point_in_list(int32_t x, int32_t y) const;
+
+    // Get item index at position (using local coordinates), returns -1 if not in list
+    int32_t item_at_position(int32_t x, int32_t y) const;
+
+    std::vector<std::string> items_;
+    int32_t selected_index_ = -1;
+    int32_t hovered_index_ = -1;
+    int32_t scroll_offset_ = 0;
+    int32_t item_height_ = 24;
+    int32_t max_visible_items_ = 5;
+    bool expanded_ = false;
+    std::string placeholder_ = "Select...";
+
+    // Animation state
+    bool animation_enabled_ = true;
+    bool animating_ = false;
+    float animation_progress_ = 0.0f;  // 0.0 = closed, 1.0 = fully open
+    float animation_speed_ = 8.0f;     // Speed multiplier
+
+    select_callback on_select_;
+
+    // Colors
+    sf::Color header_color_ = sf::Color(50, 50, 70);
+    sf::Color header_hover_color_ = sf::Color(60, 60, 80);
+    sf::Color list_bg_color_ = sf::Color(35, 35, 50);
+    sf::Color item_color_ = sf::Color::White;
+    sf::Color item_hover_color_ = sf::Color(60, 80, 120);
+    sf::Color item_selected_color_ = sf::Color(50, 100, 160);
+    sf::Color border_color_ = sf::Color(80, 80, 100);
+    sf::Color arrow_color_ = sf::Color(180, 180, 200);
+};
+
 } // namespace hb

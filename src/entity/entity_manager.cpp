@@ -378,17 +378,29 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     // Collect visible entities and sort by Y position for depth ordering
     std::vector<entity*> visible_entities;
 
+    // Use actual screen dimensions from renderer with margin for off-screen sprites
+    // that may extend into view (characters render at -32, -64 from their position)
+    static constexpr int32_t render_margin = 128;
+    int32_t scr_width = static_cast<int32_t>(rend.width());
+    int32_t scr_height = static_cast<int32_t>(rend.height());
+
     for (auto& [id, e] : entities_) {
         if (e->should_remove()) continue;
         if (!e->sprite().visible) continue;
+
+        // In global render mode, skip distance culling - render all entities
+        if (global_render_mode_) {
+            visible_entities.push_back(e.get());
+            continue;
+        }
 
         const auto& t = e->transform();
         int32_t screen_x = t.x - camera_x;
         int32_t screen_y = t.y - camera_y;
 
-        // Check if on screen (with margin)
-        if (screen_x >= -64 && screen_x < static_cast<int32_t>(screen_width) + 64 &&
-            screen_y >= -64 && screen_y < static_cast<int32_t>(screen_height) + 64) {
+        // Check if on screen (with margin to prevent pop-in/pop-out)
+        if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
+            screen_y >= -render_margin && screen_y < scr_height + render_margin) {
             visible_entities.push_back(e.get());
         }
     }

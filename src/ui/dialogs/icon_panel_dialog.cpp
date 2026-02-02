@@ -14,7 +14,7 @@ icon_panel_dialog::icon_panel_dialog()
     : dialog(dialog_type::icon_panel) {
     // Position at bottom of screen, full width
     set_title("");
-    set_bounds({0, panel_y, static_cast<int32_t>(screen_width), panel_height});
+    set_bounds({0, get_panel_y(), static_cast<int32_t>(screen_width_), panel_height});
     set_closeable(false);
     set_draggable(false);
     set_modal(false);
@@ -50,6 +50,7 @@ void icon_panel_dialog::update(float delta_time, const input& inp) {
     hovered_button_ = get_hovered_button(mx, my);
 
     // Check if mouse is in info area (show exp instead of map info)
+    int32_t panel_y = get_panel_y();
     mouse_in_info_area_ = (mx >= info_area_x && mx < info_area_x + info_area_width &&
                            my >= panel_y + info_area_y && my < panel_y + info_area_y + info_area_height);
 }
@@ -70,12 +71,14 @@ void icon_panel_dialog::render(renderer& rend) {
 // =============================================================================
 
 void icon_panel_dialog::render_modern(renderer& rend) {
+    int32_t panel_y = get_panel_y();
+
     // Draw panel background (dark semi-transparent bar)
-    rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width), panel_height,
+    rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width_), panel_height,
                    sf::Color(20, 20, 30, 220), true);
 
     // Draw subtle top border
-    rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width), 1,
+    rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width_), 1,
                    sf::Color(60, 60, 80), true);
 
     // Render components
@@ -87,6 +90,8 @@ void icon_panel_dialog::render_modern(renderer& rend) {
 }
 
 void icon_panel_dialog::render_modern_gauge_bars(renderer& rend) {
+    int32_t panel_y = get_panel_y();
+
     // HP bar colors
     sf::Color hp_fill = is_poisoned_ ? sf::Color(80, 180, 80) : sf::Color(200, 50, 50);
     sf::Color hp_bg = sf::Color(60, 20, 20);
@@ -177,7 +182,7 @@ void icon_panel_dialog::render_modern_gauge_bars(renderer& rend) {
 }
 
 void icon_panel_dialog::render_modern_map_info(renderer& rend) {
-    int32_t text_y = panel_y + info_area_y;
+    int32_t text_y = get_panel_y() + info_area_y;
     int32_t text_x = info_area_x + info_area_width / 2;  // Center position
 
     std::string display_text;
@@ -226,6 +231,8 @@ void icon_panel_dialog::render_modern_action_buttons(renderer& rend) {
         "System (F12)"
     };
 
+    int32_t panel_y = get_panel_y();
+
     for (int32_t i = 0; i < button_count; ++i) {
         int32_t btn_x = button_start_x + i * button_width;
         int32_t btn_y = panel_y + button_y;
@@ -263,7 +270,7 @@ void icon_panel_dialog::render_modern_combat_indicator(renderer& rend) {
     if (!combat_mode_) return;
 
     int32_t cx = combat_x;
-    int32_t cy = panel_y + combat_y;
+    int32_t cy = get_panel_y() + combat_y;
 
     // Combat mode indicator
     sf::Color indicator_color = safe_attack_mode_ ?
@@ -282,7 +289,7 @@ void icon_panel_dialog::render_modern_super_attack_counter(renderer& rend) {
     if (super_attack_count_ <= 0) return;
 
     int32_t sx = super_attack_x;
-    int32_t sy = panel_y + super_attack_y;
+    int32_t sy = get_panel_y() + super_attack_y;
 
     // Only highlight if super attack is available (100% mastery)
     if (super_attack_available_) {
@@ -309,6 +316,8 @@ void icon_panel_dialog::render_classic(renderer& rend) {
 }
 
 void icon_panel_dialog::render_classic_background(renderer& rend) {
+    int32_t panel_y = get_panel_y();
+
     // Try to render the classic panel background sprite from GameDialog.pak
     const sprite* icon_spr = sprites_ ?
         sprites_->get_sprite(classic_sprites::pak_name, classic_sprites::sprite_index) : nullptr;
@@ -318,13 +327,13 @@ void icon_panel_dialog::render_classic_background(renderer& rend) {
         icon_spr->draw(rend.window(), 0, panel_y, classic_sprites::panel_background);
     } else {
         // Fallback: programmatic classic-style background
-        rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width), panel_height,
+        rend.draw_rect(0, panel_y, static_cast<int32_t>(screen_width_), panel_height,
                        sf::Color(32, 32, 48, 255), true);
 
         // Classic border styling
-        rend.draw_line(0, panel_y, static_cast<int32_t>(screen_width), panel_y,
+        rend.draw_line(0, panel_y, static_cast<int32_t>(screen_width_), panel_y,
                        sf::Color(100, 100, 140));
-        rend.draw_line(0, panel_y + panel_height - 1, static_cast<int32_t>(screen_width), panel_y + panel_height - 1,
+        rend.draw_line(0, panel_y + panel_height - 1, static_cast<int32_t>(screen_width_), panel_y + panel_height - 1,
                        sf::Color(20, 20, 30));
     }
 }
@@ -334,8 +343,8 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
     const sprite* icon_spr = sprites_ ?
         sprites_->get_sprite(classic_sprites::pak_name, classic_sprites::sprite_index) : nullptr;
 
-    // HP bar (position from legacy: 23, 437)
-    int32_t hp_y = classic_layout::hp_bar_y;
+    // HP bar
+    int32_t hp_y = get_hp_bar_y();
     int32_t hp_fill_width = static_cast<int32_t>(classic_layout::bar_max_width * hp_display_);
 
     // Draw HP bar fill using sprite if available
@@ -375,8 +384,8 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
     rend.draw_text(hp_str, hp_text_x + 1, hp_y + 2, sf::Color(0, 0, 0), 10);  // Shadow
     rend.draw_text(hp_str, hp_text_x, hp_y + 1, sf::Color::White, 10);
 
-    // MP bar (position from legacy: 23, 459)
-    int32_t mp_y = classic_layout::mp_bar_y;
+    // MP bar
+    int32_t mp_y = get_mp_bar_y();
     int32_t mp_fill_width = static_cast<int32_t>(classic_layout::bar_max_width * mp_display_);
 
     // Draw MP bar fill using sprite if available
@@ -400,8 +409,8 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
     rend.draw_text(mp_str, mp_text_x + 1, mp_y + 2, sf::Color(0, 0, 0), 10);  // Shadow
     rend.draw_text(mp_str, mp_text_x, mp_y + 1, sf::Color::White, 10);
 
-    // SP bar - yellow/gold (position from legacy: 147, 435)
-    int32_t sp_y = classic_layout::sp_bar_y;
+    // SP bar - yellow/gold
+    int32_t sp_y = get_sp_bar_y();
     int32_t sp_fill_width = static_cast<int32_t>(classic_layout::sp_bar_max_width * sp_display_);
 
     // Draw SP bar fill using sprite if available
@@ -421,7 +430,7 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend) {
 }
 
 void icon_panel_dialog::render_classic_map_info(renderer& rend) {
-    int32_t text_y = panel_y + info_area_y;
+    int32_t text_y = get_panel_y() + info_area_y;
     int32_t text_x = info_area_x + info_area_width / 2;
 
     // Classic styling uses brighter yellow text
@@ -462,9 +471,10 @@ void icon_panel_dialog::render_classic_action_buttons(renderer& rend) {
     // Fallback labels if sprites not available
     static const char* button_labels[] = { "C", "I", "M", "K", "H", "S" };
 
+    int32_t btn_y = get_button_y();
+
     for (int32_t i = 0; i < button_count; ++i) {
         int32_t btn_x = button_x_positions[i];
-        int32_t btn_y = classic_layout::button_y;
         bool hovered = (hovered_button_ == i);
 
         // Try to render sprite button
@@ -504,19 +514,20 @@ void icon_panel_dialog::render_classic_action_buttons(renderer& rend) {
 
     // Render combat mode indicator if in combat
     if (combat_mode_) {
+        int32_t combat_y = get_combat_y();
         uint32_t combat_frame = safe_attack_mode_ ?
             classic_sprites::combat_safe_mode : classic_sprites::combat_pk_mode;
 
         if (icon_spr && icon_spr->frame_count() > combat_frame) {
-            icon_spr->draw(rend.window(), classic_layout::combat_x, classic_layout::combat_y, combat_frame);
+            icon_spr->draw(rend.window(), classic_layout::combat_x, combat_y, combat_frame);
         } else {
             // Fallback combat indicator
             sf::Color indicator_color = safe_attack_mode_ ?
                 sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
-            rend.draw_rect(classic_layout::combat_x, classic_layout::combat_y, 30, 30, indicator_color, true);
-            rend.draw_rect(classic_layout::combat_x, classic_layout::combat_y, 30, 30, sf::Color(150, 150, 150), false);
+            rend.draw_rect(classic_layout::combat_x, combat_y, 30, 30, indicator_color, true);
+            rend.draw_rect(classic_layout::combat_x, combat_y, 30, 30, sf::Color(150, 150, 150), false);
             const char* mode_text = safe_attack_mode_ ? "S" : "P";
-            rend.draw_text(mode_text, classic_layout::combat_x + 10, classic_layout::combat_y + 8, sf::Color::White, 12);
+            rend.draw_text(mode_text, classic_layout::combat_x + 10, combat_y + 8, sf::Color::White, 12);
         }
     }
 }
@@ -526,6 +537,8 @@ void icon_panel_dialog::render_classic_action_buttons(renderer& rend) {
 // =============================================================================
 
 int32_t icon_panel_dialog::get_hovered_button(int32_t mouse_x, int32_t mouse_y) const {
+    int32_t panel_y = get_panel_y();
+
     // Use different button positions depending on UI style
     if (ui_style_ == ui_style::classic) {
         // Classic layout button positions
@@ -538,9 +551,10 @@ int32_t icon_panel_dialog::get_hovered_button(int32_t mouse_x, int32_t mouse_y) 
             classic_layout::button_system_x
         };
 
+        int32_t btn_y = get_button_y();
+
         for (int32_t i = 0; i < button_count; ++i) {
             int32_t btn_x = button_x_positions[i];
-            int32_t btn_y = classic_layout::button_y;
 
             if (mouse_x >= btn_x && mouse_x < btn_x + classic_layout::button_width &&
                 mouse_y >= btn_y && mouse_y < btn_y + classic_layout::button_height) {
@@ -571,9 +585,9 @@ bool icon_panel_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Butto
     if (!visible_) return false;
     if (btn != sf::Mouse::Button::Left) return false;
 
-    // Check if clicking on combat indicator (around 368, 440 with ~36x36 size)
+    // Check if clicking on combat indicator (around 368, panel_y+6 with ~36x36 size)
     int32_t combat_screen_x = classic_layout::combat_x;
-    int32_t combat_screen_y = classic_layout::combat_y;
+    int32_t combat_screen_y = get_combat_y();
     if (x >= combat_screen_x && x < combat_screen_x + 36 &&
         y >= combat_screen_y && y < combat_screen_y + 36) {
         if (on_combat_indicator_) on_combat_indicator_();
@@ -664,6 +678,14 @@ void icon_panel_dialog::set_alt_held(bool held) {
 
 void icon_panel_dialog::set_poisoned(bool poisoned) {
     is_poisoned_ = poisoned;
+}
+
+void icon_panel_dialog::set_screen_size(uint32_t width, uint32_t height) {
+    screen_width_ = width;
+    screen_height_ = height;
+
+    // Update bounds to snap to bottom of screen
+    set_bounds({0, get_panel_y(), static_cast<int32_t>(screen_width_), panel_height});
 }
 
 } // namespace hb

@@ -172,6 +172,9 @@ private:
     void request_enter_game(int32_t character_id, bool force_disconnect = false);
     void request_create_character(const character_create_data& data);
 
+    // View range notification
+    void send_view_range();
+
     // State
     game_state state_ = game_state::main_menu;
     game_state pending_state_ = game_state::main_menu;
@@ -228,6 +231,16 @@ private:
     // Combat mode state
     bool combat_mode_ = false;      // Attack stance (Tab toggles)
     bool safe_attack_mode_ = false; // Safe attack mode (Home toggles)
+
+    // Camera drag lock (for cinematic mode)
+    bool camera_drag_locked_ = false;  // When true, Ctrl+click drag is disabled
+
+public:
+    // Camera drag lock control (for cinematic sequences)
+    void set_camera_drag_locked(bool locked) { camera_drag_locked_ = locked; }
+    bool is_camera_drag_locked() const { return camera_drag_locked_; }
+    // Resolution change API
+    bool change_resolution(uint32_t width, uint32_t height, bool fullscreen);
 };
 
 } // namespace hb

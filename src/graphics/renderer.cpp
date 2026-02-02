@@ -1,5 +1,7 @@
 #include "graphics/renderer.hpp"
 #include "assets/sprite.hpp"
+#include "core/config.hpp"
+#include <SFML/OpenGL.hpp>
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -18,7 +20,12 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
         window_.create(mode, "Helbreath", sf::Style::Close);
     }
 
-    window_.setFramerateLimit(60);
+    // Apply video settings from config
+    const auto& video = config::instance().video();
+    window_.setVerticalSyncEnabled(video.vsync);
+    if (!video.vsync) {
+        window_.setFramerateLimit(video.framerate_limit);
+    }
 
     if (!window_.isOpen()) {
         spdlog::error("Failed to create window");
@@ -26,6 +33,42 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
     }
 
     spdlog::info("Renderer initialized: {}x{} {}", width, height,
+                 fullscreen ? "fullscreen" : "windowed");
+    return true;
+}
+
+bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) {
+    // Close existing window
+    if (window_.isOpen()) {
+        window_.close();
+    }
+
+    // Update dimensions
+    width_ = width;
+    height_ = height;
+
+    // Create new window with new resolution
+    sf::VideoMode mode({width, height});
+
+    if (fullscreen) {
+        window_.create(mode, "Helbreath", sf::Style::None, sf::State::Fullscreen);
+    } else {
+        window_.create(mode, "Helbreath", sf::Style::Close);
+    }
+
+    // Restore video settings from config
+    const auto& video = config::instance().video();
+    window_.setVerticalSyncEnabled(video.vsync);
+    if (!video.vsync) {
+        window_.setFramerateLimit(video.framerate_limit);
+    }
+
+    if (!window_.isOpen()) {
+        spdlog::error("Failed to recreate window at {}x{}", width, height);
+        return false;
+    }
+
+    spdlog::info("Resolution changed to {}x{} {}", width, height,
                  fullscreen ? "fullscreen" : "windowed");
     return true;
 }
@@ -135,6 +178,32 @@ void renderer::draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Col
         sf::Vertex{{static_cast<float>(x2), static_cast<float>(y2)}, color}
     };
     window_.draw(line.data(), 2, sf::PrimitiveType::Lines);
+}
+
+void renderer::push_scissor(int32_t x, int32_t y, int32_t w, int32_t h) {
+    // Flush SFML's render queue before changing OpenGL state
+    window_.setActive(true);
+
+    // OpenGL Y coordinate is flipped (0 at bottom)
+    int32_t gl_y = static_cast<int32_t>(height_) - y - h;
+
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x, gl_y, w, h);
+}
+
+void renderer::pop_scissor() {
+    glDisable(GL_SCISSOR_TEST);
+}
+
+void renderer::set_zoom_view(float zoom_level, float center_x, float center_y) {
+    sf::View view = window_.getDefaultView();
+    view.setCenter({center_x, center_y});
+    view.zoom(zoom_level);
+    window_.setView(view);
+}
+
+void renderer::reset_to_default_view() {
+    window_.setView(window_.getDefaultView());
 }
 
 } // namespace hb

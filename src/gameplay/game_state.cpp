@@ -177,6 +177,14 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     ui_.load_dialog_definitions_from_directory("assets/ui/dialogs");
 
     ui_.create_icon_panel_dialog();
+
+    // Set initial screen size for icon panel to position it correctly
+    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
+    } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
+    }
+
     ui_.create_gauge_panel_dialog();
     ui_.create_levelup_dialog();
 
@@ -195,6 +203,10 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         {
             spdlog::warn("World initialization failed - terrain rendering may not work");
         }
+
+        // Set initial screen size for camera centering
+        const auto& video = config::instance().video();
+        world_.set_screen_size(video.screen_width, video.screen_height);
     }
     else
     {
@@ -496,6 +508,20 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         icon_dlg->set_alt_held(alt_held);
     }
 
+    // Mouse wheel zoom (only when zoom mode enabled)
+    if (world_.is_zoom_mode_enabled()) {
+        int32_t wheel = inp.wheel_delta();
+        if (wheel != 0) {
+            // Scroll up = zoom in (smaller zoom_level), scroll down = zoom out
+            // Pass cursor position for zoom-to-cursor in cinematic mode
+            if (world_.is_cinematic_mode()) {
+                world_.adjust_zoom(static_cast<float>(-wheel) * 0.1f, inp.mouse_x(), inp.mouse_y());
+            } else {
+                world_.adjust_zoom(static_cast<float>(-wheel) * 0.1f);
+            }
+        }
+    }
+
     // Update world
     world_.update(delta_time);
 
@@ -645,11 +671,17 @@ void game_state_manager::render_loading(renderer& rend) {
 }
 
 void game_state_manager::render_playing(renderer& rend) {
+    // Apply zoom view for world and entity rendering
+    world_.apply_zoom_view(rend);
+
     // Render world
     world_.render(rend);
 
-    // Render entities
+    // Render entities (with zoom still applied)
     entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y());
+
+    // Reset zoom view before UI rendering
+    world_.reset_zoom_view(rend);
 
     // Render debug stats overlay (before UI so UI renders on top)
     debug::debug_stats::instance().render(rend);
@@ -830,6 +862,29 @@ void game_state_manager::handle_playing_input(const input& inp) {
         return;
     }
 
+    // Ctrl+click drag to pan in cinematic mode (if not locked)
+    if (world_.is_cinematic_mode() && !camera_drag_locked_) {
+        bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
+                         inp.is_key_down(sf::Keyboard::Key::RControl);
+
+        if (ctrl_held && inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
+            world_.start_drag(inp.mouse_x(), inp.mouse_y());
+        }
+        else if (world_.is_dragging()) {
+            if (inp.is_mouse_down(sf::Mouse::Button::Left) && ctrl_held) {
+                world_.update_drag(inp.mouse_x(), inp.mouse_y());
+            } else {
+                world_.end_drag();
+            }
+        }
+
+        // Don't process other input while dragging
+        if (world_.is_dragging()) {
+            handle_hotkey_input(inp);
+            return;
+        }
+    }
+
     handle_movement_input(inp);
     handle_combat_input(inp);
     handle_hotkey_input(inp);
@@ -911,6 +966,33 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         bool cinematic = !world_.is_cinematic_mode();
         world_.set_cinematic_mode(cinematic);
         spdlog::info("Cinematic mode: {}", cinematic ? "ON" : "OFF");
+
+        // Disable global render mode when exiting cinematic mode
+        if (!cinematic && world_.is_global_render_mode()) {
+            world_.set_global_render_mode(false);
+            entities_.set_global_render_mode(false);
+            spdlog::info("Global render mode: OFF (cinematic disabled)");
+        }
+    }
+
+    // Toggle zoom mode (Ctrl+Q)
+    if (inp.is_key_pressed(sf::Keyboard::Key::Q) &&
+        (inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl))) {
+        world_.set_zoom_mode_enabled(!world_.is_zoom_mode_enabled());
+        spdlog::info("Zoom mode: {}", world_.is_zoom_mode_enabled() ? "ON" : "OFF");
+    }
+
+    // Toggle global render mode (Ctrl+G) - only in cinematic mode
+    if (inp.is_key_pressed(sf::Keyboard::Key::G) &&
+        (inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl))) {
+        if (world_.is_cinematic_mode()) {
+            bool global = !world_.is_global_render_mode();
+            world_.set_global_render_mode(global);
+            entities_.set_global_render_mode(global);
+            spdlog::info("Global render mode: {}", global ? "ON" : "OFF");
+        } else {
+            spdlog::info("Global render mode requires cinematic mode (F5)");
+        }
     }
 
     // Camera panning with arrow keys - only in cinematic mode (Shift = 5 tiles)
@@ -1410,10 +1492,46 @@ void game_state_manager::setup_dialog_callbacks() {
 
     // Settings dialog - game configuration including UI style
     if (auto* settings_dlg = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
+        // Initialize with current config values
+        const auto& video = config::instance().video();
+        settings_dlg->set_resolution(video.screen_width, video.screen_height);
+        settings_dlg->set_fullscreen(video.fullscreen);
+        settings_dlg->set_vsync(video.vsync);
+        settings_dlg->set_framerate(video.framerate_limit);
+
         settings_dlg->set_on_style_change([this](ui_style style) {
             // Apply UI style change immediately for preview
             set_ui_style(style);
             spdlog::info("UI style preview: {}", style == ui_style::classic ? "classic" : "modern");
+        });
+
+        settings_dlg->set_on_resolution_change([this](uint32_t width, uint32_t height, bool fullscreen) {
+            spdlog::info("Resolution change requested: {}x{} {}", width, height, fullscreen ? "fullscreen" : "windowed");
+            if (change_resolution(width, height, fullscreen)) {
+                spdlog::info("Resolution changed successfully");
+            } else {
+                spdlog::warn("Failed to change resolution");
+            }
+        });
+
+        settings_dlg->set_on_framerate_change([this](uint32_t fps) {
+            spdlog::info("Framerate limit changed to: {}", fps == 0 ? "unlimited" : std::to_string(fps));
+            config::instance().video().framerate_limit = fps;
+            // Only apply framerate limit if vsync is off
+            if (renderer_ && !config::instance().video().vsync) {
+                renderer_->window().setFramerateLimit(fps);
+            }
+        });
+
+        settings_dlg->set_on_vsync_change([this](bool vsync) {
+            spdlog::info("VSync changed to: {}", vsync ? "enabled" : "disabled");
+            auto& video = config::instance().video();
+            video.vsync = vsync;
+            if (renderer_) {
+                renderer_->window().setVerticalSyncEnabled(vsync);
+                // When vsync is off, apply framerate limit; when on, disable it
+                renderer_->window().setFramerateLimit(vsync ? 0 : video.framerate_limit);
+            }
         });
 
         settings_dlg->set_on_music_volume_change([this](float volume) {
@@ -1737,12 +1855,12 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     auto& player = entities_.create_entity_with_id(ch.id, entity_type::player);
     entities_.set_local_player(ch.id);
 
-    // Set position
+    // Set position (use tile center for proper centering)
     auto& transform = player.transform();
     transform.tile_x = ch.pos_x;
     transform.tile_y = ch.pos_y;
-    transform.x = ch.pos_x * 32;  // World coords
-    transform.y = ch.pos_y * 32;
+    transform.x = ch.pos_x * 32 + 16;  // World coords (tile center)
+    transform.y = ch.pos_y * 32 + 16;
 
     // Set name
     auto& name = player.name();
@@ -1889,9 +2007,9 @@ void game_state_manager::handle_enter_game_response(const json& message) {
         world_.current_map_mut().set_name(ch.map_name);
     }
 
-    // Set player position for camera to follow (convert tile coords to world coords)
-    int32_t player_world_x = ch.pos_x * 32;
-    int32_t player_world_y = ch.pos_y * 32;
+    // Set player position for camera to follow (convert tile coords to world coords, use tile center)
+    int32_t player_world_x = ch.pos_x * 32 + 16;
+    int32_t player_world_y = ch.pos_y * 32 + 16;
     world_.set_player_position(player_world_x, player_world_y);
     spdlog::debug("Player position set at tile ({},{}) -> world ({},{})",
                   ch.pos_x, ch.pos_y, player_world_x, player_world_y);
@@ -1899,6 +2017,10 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     // Go directly to playing - no loading screen needed
     // Assets are loaded on-demand via sprite_manager
     spdlog::info("Entering game world: {}", ch.map_name);
+
+    // Notify server of our screen dimensions for view range calculation
+    send_view_range();
+
     change_state(game_state::playing);
 }
 
@@ -1957,6 +2079,87 @@ void game_state_manager::request_create_character(const character_create_data& d
         {"charisma", data.charisma}
     };
     ws_connection_.send(msg);
+}
+
+void game_state_manager::send_view_range() {
+    const auto& video = config::instance().video();
+    json msg = make_set_view_range_request(video.screen_width, video.screen_height);
+    ws_connection_.send(msg);
+    spdlog::info("Sent view range: {}x{}", video.screen_width, video.screen_height);
+}
+
+bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool fullscreen) {
+    if (!renderer_) {
+        spdlog::error("Cannot change resolution: renderer not initialized");
+        return false;
+    }
+
+    // Check if settings dialog is open before resolution change
+    bool settings_was_open = false;
+    ui_style current_style = ui_style::classic;
+    float music_vol = 1.0f;
+    float sound_vol = 1.0f;
+
+    if (auto* settings_dlg = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
+        settings_was_open = settings_dlg->visible();
+        if (settings_was_open) {
+            current_style = settings_dlg->get_ui_style();
+            music_vol = settings_dlg->get_music_volume();
+            sound_vol = settings_dlg->get_sound_volume();
+            settings_dlg->close();
+        }
+    }
+
+    if (!renderer_->set_resolution(width, height, fullscreen)) {
+        return false;
+    }
+
+    // Update config
+    auto& video = config::instance().video();
+    video.screen_width = width;
+    video.screen_height = height;
+    video.fullscreen = fullscreen;
+
+    // Update world screen size and re-center camera on player
+    world_.set_screen_size(width, height);
+
+    // Notify server if we're in the playing state
+    if (state_ == game_state::playing) {
+        send_view_range();
+    }
+
+    // Reopen settings dialog if it was open, with updated position for new resolution
+    if (settings_was_open) {
+        if (auto* settings_dlg = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options))) {
+            // Recenter dialog for new resolution
+            int32_t dlg_width = settings_dlg->bounds().width;
+            int32_t dlg_height = settings_dlg->bounds().height;
+            int32_t new_x = (static_cast<int32_t>(width) - dlg_width) / 2;
+            int32_t new_y = (static_cast<int32_t>(height) - dlg_height) / 2;
+            settings_dlg->set_position(new_x, new_y);
+
+            // Restore settings state
+            settings_dlg->set_ui_style(current_style);
+            settings_dlg->set_resolution(width, height);
+            settings_dlg->set_fullscreen(fullscreen);
+            settings_dlg->set_music_volume(music_vol);
+            settings_dlg->set_sound_volume(sound_vol);
+
+            // Tell dialog not to close when Apply handler returns
+            settings_dlg->keep_open_after_apply();
+
+            ui_.open_dialog(dialog_type::options);
+        }
+    }
+
+    // Update icon panel position to snap to bottom of new screen size
+    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        yaml_dlg->set_screen_size(width, height);
+    } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+        icon_dlg->set_screen_size(width, height);
+    }
+
+    return true;
 }
 
 } // namespace hb

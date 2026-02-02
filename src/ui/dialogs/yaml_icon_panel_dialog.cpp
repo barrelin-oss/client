@@ -580,4 +580,12 @@ void yaml_icon_panel_dialog::set_poisoned(bool poisoned) {
     is_poisoned_ = poisoned;
 }
 
+void yaml_icon_panel_dialog::set_screen_size(uint32_t width, uint32_t height) {
+    (void)width;  // Width not used - panel is full width and positioned at x=0
+
+    // Update bounds to snap to bottom of screen
+    // The panel height is defined in the YAML, so we keep the original height
+    bounds_.y = static_cast<int32_t>(height) - bounds_.height;
+}
+
 } // namespace hb

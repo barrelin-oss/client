@@ -66,6 +66,10 @@ public:
     // Render all entities
     void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y);
 
+    // Global render mode - renders all entities without distance culling
+    void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
+    bool is_global_render_mode() const { return global_render_mode_; }
+
     // Load character sprites based on appearance data in sprite_component
     void load_character_sprites(entity& ent, sprite_manager& sprites);
 
@@ -93,6 +97,9 @@ private:
 
     entity_created_callback on_created_;
     entity_removed_callback on_removed_;
+
+    // Global render mode - skip distance culling when true
+    bool global_render_mode_ = false;
 };
 
 } // namespace hb

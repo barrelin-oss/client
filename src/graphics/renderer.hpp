@@ -41,6 +41,19 @@ public:
     void draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color color, bool filled = true);
     void draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Color color);
 
+    // Scissor clipping (restricts rendering to a rectangular region)
+    void push_scissor(int32_t x, int32_t y, int32_t w, int32_t h);
+    void pop_scissor();
+
+    // Resolution change
+    bool set_resolution(uint32_t width, uint32_t height, bool fullscreen);
+
+    // View control for zoom
+    // zoom_level: 1.0 = normal, >1 = zoomed out, <1 = zoomed in
+    // anchor_x/y: screen position to zoom toward (point stays fixed on screen)
+    void set_zoom_view(float zoom_level, float anchor_x, float anchor_y);
+    void reset_to_default_view();
+
     // Accessors
     sf::RenderWindow& window() { return window_; }
     const sf::RenderWindow& window() const { return window_; }

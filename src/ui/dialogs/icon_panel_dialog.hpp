@@ -63,6 +63,9 @@ public:
     // Poisoned status (affects HP bar display)
     void set_poisoned(bool poisoned);
 
+    // Screen size (for dynamic positioning)
+    void set_screen_size(uint32_t width, uint32_t height);
+
 private:
     // === Modern style rendering ===
     void render_modern(renderer& rend);
@@ -135,10 +138,16 @@ private:
     int32_t hovered_button_ = -1;
     bool mouse_in_info_area_ = false;  // When true, show exp instead of map info
 
+    // Screen dimensions for dynamic positioning
+    uint32_t screen_width_ = 640;
+    uint32_t screen_height_ = 480;
+
     // === Layout constants ===
     // Panel is at bottom of screen, full width
     static constexpr int32_t panel_height = 46;
-    static constexpr int32_t panel_y = 434;  // 480 - 46
+
+    // Dynamic panel Y position (calculated from screen height)
+    int32_t get_panel_y() const { return static_cast<int32_t>(screen_height_) - panel_height; }
 
     // HP/MP bars (left section)
     static constexpr int32_t hp_bar_x = 23;
@@ -216,23 +225,25 @@ private:
         static constexpr uint32_t button_system = 11;        // X: 597 - System Menu (F12)
     };
 
-    // Classic UI layout positions (from legacy code)
+    // Classic UI layout - X positions and sizes are fixed, Y positions are relative to panel
     struct classic_layout {
-        // Bar positions
+        // Bar X positions and sizes (fixed)
         static constexpr int32_t hp_bar_x = 23;
-        static constexpr int32_t hp_bar_y = 437;
-        static constexpr int32_t mp_bar_y = 459;
         static constexpr int32_t sp_bar_x = 147;
-        static constexpr int32_t sp_bar_y = 435;
         static constexpr int32_t bar_max_width = 101;  // HP/MP bar width
         static constexpr int32_t sp_bar_max_width = 167;
 
-        // Combat indicator
-        static constexpr int32_t combat_x = 368;
-        static constexpr int32_t combat_y = 440;
+        // Bar Y offsets relative to panel_y
+        static constexpr int32_t hp_bar_y_offset = 3;   // panel_y + 3
+        static constexpr int32_t mp_bar_y_offset = 25;  // panel_y + 25
+        static constexpr int32_t sp_bar_y_offset = 1;   // panel_y + 1
 
-        // Button positions (Y: 434 for all, X varies)
-        static constexpr int32_t button_y = 434;
+        // Combat indicator X position (fixed)
+        static constexpr int32_t combat_x = 368;
+        static constexpr int32_t combat_y_offset = 6;  // panel_y + 6
+
+        // Button X positions (fixed)
+        static constexpr int32_t button_y_offset = 0;  // panel_y + 0
         static constexpr int32_t button_character_x = 412;
         static constexpr int32_t button_inventory_x = 449;
         static constexpr int32_t button_magic_x = 486;
@@ -242,6 +253,13 @@ private:
         static constexpr int32_t button_width = 35;
         static constexpr int32_t button_height = 41;
     };
+
+    // Helper methods to get absolute Y positions
+    int32_t get_hp_bar_y() const { return get_panel_y() + classic_layout::hp_bar_y_offset; }
+    int32_t get_mp_bar_y() const { return get_panel_y() + classic_layout::mp_bar_y_offset; }
+    int32_t get_sp_bar_y() const { return get_panel_y() + classic_layout::sp_bar_y_offset; }
+    int32_t get_combat_y() const { return get_panel_y() + classic_layout::combat_y_offset; }
+    int32_t get_button_y() const { return get_panel_y() + classic_layout::button_y_offset; }
 };
 
 } // namespace hb

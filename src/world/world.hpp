@@ -83,9 +83,21 @@ public:
     void set_camera_position(int32_t x, int32_t y);
     void move_camera(int32_t dx, int32_t dy);
 
+    // Drag-to-pan (cinematic mode only)
+    void start_drag(int32_t mouse_x, int32_t mouse_y);
+    void update_drag(int32_t mouse_x, int32_t mouse_y);
+    void end_drag();
+    bool is_dragging() const { return drag_active_; }
+
+    // Update screen dimensions (call after resolution change)
+    void set_screen_size(uint32_t width, uint32_t height);
+
+    // Force re-center camera on player (useful after resolution change)
+    void recenter_camera();
+
     // Get effective camera position (includes shake offset)
-    int32_t camera_x() const { return camera_x_ + shake_offset_x_; }
-    int32_t camera_y() const { return camera_y_ + shake_offset_y_; }
+    int32_t camera_x() const { return static_cast<int32_t>(camera_x_) + shake_offset_x_; }
+    int32_t camera_y() const { return static_cast<int32_t>(camera_y_) + shake_offset_y_; }
 
     // World state
     void set_weather(weather_type weather);
@@ -106,6 +118,21 @@ public:
     void set_render_config(const map_render_config& config) { map_renderer_.set_config(config); }
     const map_render_config& render_config() const { return map_renderer_.config(); }
 
+    // Zoom control
+    void set_zoom_mode_enabled(bool enabled);
+    bool is_zoom_mode_enabled() const { return zoom_mode_enabled_; }
+
+    // Global render mode (cinematic mode only) - renders all entities regardless of distance
+    void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
+    bool is_global_render_mode() const { return global_render_mode_; }
+    // Adjust zoom level, optionally with cursor position for zoom-to-cursor effect
+    void adjust_zoom(float delta, int32_t cursor_x = -1, int32_t cursor_y = -1);
+    float zoom_level() const { return static_cast<float>(zoom_level_); }
+
+    // View management for zoom (call before/after rendering world content)
+    void apply_zoom_view(renderer& rend);
+    void reset_zoom_view(renderer& rend);
+
 private:
     void update_camera(float delta_time);
     void update_lighting();
@@ -114,12 +141,16 @@ private:
     map current_map_;
     map_renderer map_renderer_;
 
-    // Camera - follows player unless in cinematic mode
-    int32_t camera_x_ = 0;
-    int32_t camera_y_ = 0;
+    // Camera - follows player unless in cinematic mode (doubles for precision at high zoom)
+    double camera_x_ = 0.0;
+    double camera_y_ = 0.0;
     int32_t player_world_x_ = 0;  // Player position to follow
     int32_t player_world_y_ = 0;
     bool cinematic_mode_ = false;
+
+    // Screen dimensions (updated on resolution change)
+    uint32_t screen_width_ = 640;
+    uint32_t screen_height_ = 480;
 
     // Camera shake
     int32_t shake_offset_x_ = 0;
@@ -135,6 +166,28 @@ private:
 
     // Events
     world_events events_;
+
+    // Zoom state
+    double zoom_level_ = 1.0;           // Current zoom (interpolates toward target)
+    double zoom_target_ = 1.0;          // Target zoom level
+    bool zoom_mode_enabled_ = false;    // Server-controlled flag (Ctrl+Q for testing)
+
+    // Zoom anchor - world point that stays fixed under cursor during zoom
+    double zoom_anchor_world_x_ = 0.0;
+    double zoom_anchor_world_y_ = 0.0;
+    double zoom_anchor_screen_x_ = 0.0;
+    double zoom_anchor_screen_y_ = 0.0;
+    bool has_zoom_anchor_ = false;
+
+    // Global render mode - renders all entities without distance culling (cinematic mode only)
+    bool global_render_mode_ = false;
+
+    // Drag-to-pan state (cinematic mode)
+    bool drag_active_ = false;
+    int32_t drag_start_mouse_x_ = 0;
+    int32_t drag_start_mouse_y_ = 0;
+    int32_t drag_start_camera_x_ = 0;
+    int32_t drag_start_camera_y_ = 0;
 };
 
 } // namespace hb

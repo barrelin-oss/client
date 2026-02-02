@@ -31,16 +31,63 @@ void world::update(float delta_time)
 {
     update_camera(delta_time);
     update_lighting();
+
+    // Smooth zoom interpolation (time-based)
+    if (zoom_mode_enabled_ && has_zoom_anchor_)
+    {
+        constexpr double zoom_speed = 10.0;
+        double t = 1.0 - std::exp(-zoom_speed * static_cast<double>(delta_time));
+
+        zoom_level_ += (zoom_target_ - zoom_level_) * t;
+
+        double screen_center_x = static_cast<double>(screen_width_) / 2.0;
+        double screen_center_y = static_cast<double>(screen_height_) / 2.0;
+
+        // Camera position that keeps anchor_world at anchor_screen with current zoom
+        camera_x_ = zoom_anchor_world_x_ - screen_center_x -
+                    (zoom_anchor_screen_x_ - screen_center_x) * zoom_level_;
+        camera_y_ = zoom_anchor_world_y_ - screen_center_y -
+                    (zoom_anchor_screen_y_ - screen_center_y) * zoom_level_;
+
+        // Clear anchor when close enough - no explicit snap to avoid jump
+        if (std::abs(zoom_level_ - zoom_target_) < 0.001)
+        {
+            has_zoom_anchor_ = false;
+        }
+    }
 }
 
 void world::render(renderer& rend)
 {
+    // Update map renderer with current zoom level for proper tile culling
+    map_renderer_.set_zoom_level(zoom_mode_enabled_ ? static_cast<float>(zoom_level_) : 1.0f);
+
     map_renderer_.render(rend, current_map_, camera_x_, camera_y_);
 
     // Render weather effects
     if (weather_ != weather_type::clear && weather_intensity_ > 0.0f)
     {
         // TODO: Render rain/snow particles
+    }
+}
+
+void world::apply_zoom_view(renderer& rend)
+{
+    if (zoom_mode_enabled_ && zoom_level_ != 1.0)
+    {
+        float screen_center_x = static_cast<float>(screen_width_) / 2.0f;
+        float screen_center_y = static_cast<float>(screen_height_) / 2.0f;
+
+        // View is always centered at screen center - camera position handles panning
+        rend.set_zoom_view(static_cast<float>(zoom_level_), screen_center_x, screen_center_y);
+    }
+}
+
+void world::reset_zoom_view(renderer& rend)
+{
+    if (zoom_mode_enabled_ && zoom_level_ != 1.0)
+    {
+        rend.reset_to_default_view();
     }
 }
 
@@ -110,21 +157,46 @@ void world::set_player_position(int32_t world_x, int32_t world_y)
 
 void world::center_on_player()
 {
-    // Center the camera on player position
-    int32_t target_x = player_world_x_ - static_cast<int32_t>(screen_width / 2);
-    int32_t target_y = player_world_y_ - static_cast<int32_t>(screen_height / 2);
+    // Center the camera on player position using current screen dimensions
+    double target_x = static_cast<double>(player_world_x_) - static_cast<double>(screen_width_) / 2.0;
+    double target_y = static_cast<double>(player_world_y_) - static_cast<double>(screen_height_) / 2.0;
 
     // Clamp to map bounds
     if (current_map_.is_loaded())
     {
-        int32_t max_x = current_map_.width() * tile_width - static_cast<int32_t>(screen_width);
-        int32_t max_y = current_map_.height() * tile_height - static_cast<int32_t>(screen_height);
-        target_x = std::clamp(target_x, 0, std::max(0, max_x));
-        target_y = std::clamp(target_y, 0, std::max(0, max_y));
+        double max_x = static_cast<double>(current_map_.width() * tile_width) - static_cast<double>(screen_width_);
+        double max_y = static_cast<double>(current_map_.height() * tile_height) - static_cast<double>(screen_height_);
+        target_x = std::clamp(target_x, 0.0, std::max(0.0, max_x));
+        target_y = std::clamp(target_y, 0.0, std::max(0.0, max_y));
     }
 
     camera_x_ = target_x;
     camera_y_ = target_y;
+    has_zoom_anchor_ = false;  // Clear anchor when camera is repositioned
+}
+
+void world::set_screen_size(uint32_t width, uint32_t height)
+{
+    screen_width_ = width;
+    screen_height_ = height;
+    spdlog::debug("World screen size updated: {}x{}", width, height);
+
+    // Update map renderer screen size for proper tile rendering
+    map_renderer_.set_screen_size(width, height);
+
+    // Re-center camera with new dimensions
+    if (!cinematic_mode_)
+    {
+        center_on_player();
+    }
+}
+
+void world::recenter_camera()
+{
+    if (!cinematic_mode_)
+    {
+        center_on_player();
+    }
 }
 
 void world::add_camera_shake(float intensity, float duration)
@@ -150,8 +222,9 @@ void world::set_camera_position(int32_t x, int32_t y)
     // Only allow direct camera control in cinematic mode
     if (cinematic_mode_)
     {
-        camera_x_ = x;
-        camera_y_ = y;
+        camera_x_ = static_cast<double>(x);
+        camera_y_ = static_cast<double>(y);
+        has_zoom_anchor_ = false;
     }
 }
 
@@ -160,9 +233,46 @@ void world::move_camera(int32_t dx, int32_t dy)
     // Only allow direct camera control in cinematic mode
     if (cinematic_mode_)
     {
-        camera_x_ += dx;
-        camera_y_ += dy;
+        camera_x_ += static_cast<double>(dx);
+        camera_y_ += static_cast<double>(dy);
+        has_zoom_anchor_ = false;
     }
+}
+
+void world::start_drag(int32_t mouse_x, int32_t mouse_y)
+{
+    if (!cinematic_mode_) return;
+
+    drag_active_ = true;
+    drag_start_mouse_x_ = mouse_x;
+    drag_start_mouse_y_ = mouse_y;
+    drag_start_camera_x_ = static_cast<int32_t>(camera_x_);
+    drag_start_camera_y_ = static_cast<int32_t>(camera_y_);
+}
+
+void world::update_drag(int32_t mouse_x, int32_t mouse_y)
+{
+    if (!drag_active_ || !cinematic_mode_) return;
+
+    // Calculate delta from drag start (inverted - drag right moves camera left)
+    double dx = static_cast<double>(drag_start_mouse_x_ - mouse_x);
+    double dy = static_cast<double>(drag_start_mouse_y_ - mouse_y);
+
+    // Apply zoom factor to drag distance (so dragging feels consistent at any zoom level)
+    if (zoom_mode_enabled_ && zoom_level_ != 1.0)
+    {
+        dx *= zoom_level_;
+        dy *= zoom_level_;
+    }
+
+    camera_x_ = static_cast<double>(drag_start_camera_x_) + dx;
+    camera_y_ = static_cast<double>(drag_start_camera_y_) + dy;
+    has_zoom_anchor_ = false;  // Clear anchor when panning
+}
+
+void world::end_drag()
+{
+    drag_active_ = false;
 }
 
 void world::set_weather(weather_type weather)
@@ -196,12 +306,12 @@ std::pair<int32_t, int32_t> world::screen_to_tile(int32_t screen_x, int32_t scre
 
 std::pair<int32_t, int32_t> world::screen_to_world(int32_t screen_x, int32_t screen_y) const
 {
-    return {screen_x + camera_x_, screen_y + camera_y_};
+    return {screen_x + static_cast<int32_t>(camera_x_), screen_y + static_cast<int32_t>(camera_y_)};
 }
 
 std::pair<int32_t, int32_t> world::world_to_screen(int32_t world_x, int32_t world_y) const
 {
-    return {world_x - camera_x_, world_y - camera_y_};
+    return {world_x - static_cast<int32_t>(camera_x_), world_y - static_cast<int32_t>(camera_y_)};
 }
 
 void world::update_camera(float delta_time)
@@ -273,6 +383,57 @@ void world::update_lighting()
     auto config = map_renderer_.config();
     config.light_level = light_level;
     map_renderer_.set_config(config);
+}
+
+void world::set_zoom_mode_enabled(bool enabled)
+{
+    zoom_mode_enabled_ = enabled;
+    if (!enabled)
+    {
+        // Reset zoom state
+        zoom_level_ = 1.0;
+        zoom_target_ = 1.0;
+        has_zoom_anchor_ = false;
+    }
+}
+
+void world::adjust_zoom(float delta, int32_t cursor_x, int32_t cursor_y)
+{
+    if (!zoom_mode_enabled_) return;
+
+    // Zoom limits: 0.5 = 2x zoom in, 8.0 = 8x zoom out
+    double new_zoom = std::clamp(zoom_target_ + static_cast<double>(delta), 0.5, 8.0);
+
+    if (new_zoom == zoom_target_) return;
+
+    // If cursor position provided, set up anchor to keep tile center under cursor stationary
+    if (cursor_x >= 0 && cursor_y >= 0)
+    {
+        double screen_center_x = static_cast<double>(screen_width_) / 2.0;
+        double screen_center_y = static_cast<double>(screen_height_) / 2.0;
+
+        // Calculate world point currently under cursor
+        double cursor_from_center_x = static_cast<double>(cursor_x) - screen_center_x;
+        double cursor_from_center_y = static_cast<double>(cursor_y) - screen_center_y;
+
+        double world_x = camera_x_ + screen_center_x + cursor_from_center_x * zoom_level_;
+        double world_y = camera_y_ + screen_center_y + cursor_from_center_y * zoom_level_;
+
+        // Snap to tile center for stability
+        int32_t tile_x = static_cast<int32_t>(world_x) / tile_width;
+        int32_t tile_y = static_cast<int32_t>(world_y) / tile_height;
+        zoom_anchor_world_x_ = static_cast<double>(tile_x * tile_width + tile_width / 2);
+        zoom_anchor_world_y_ = static_cast<double>(tile_y * tile_height + tile_height / 2);
+
+        // Calculate where this tile center currently appears on screen
+        // screen = screen_center + (world - camera - screen_center) / zoom
+        zoom_anchor_screen_x_ = screen_center_x + (zoom_anchor_world_x_ - camera_x_ - screen_center_x) / zoom_level_;
+        zoom_anchor_screen_y_ = screen_center_y + (zoom_anchor_world_y_ - camera_y_ - screen_center_y) / zoom_level_;
+
+        has_zoom_anchor_ = true;
+    }
+
+    zoom_target_ = new_zoom;
 }
 
 } // namespace hb

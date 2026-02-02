@@ -101,9 +101,12 @@ add_executable(helbreath_client
     # Debug
     debug/position_store.cpp
     debug/debug_overlay.cpp
+    debug/debug_stats.cpp
 )
 
 target_include_directories(helbreath_client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+find_package(OpenGL REQUIRED)
 
 target_link_libraries(helbreath_client PRIVATE
     SFML::Graphics
@@ -111,6 +114,7 @@ target_link_libraries(helbreath_client PRIVATE
     SFML::System
     SFML::Audio
     SFML::Network
+    OpenGL::GL
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     yaml-cpp::yaml-cpp
@@ -179,70 +183,3 @@ if(WIN32)
     )
 endif()
 
-# === Icon Panel Demo ===
-add_executable(icon_panel_demo
-    icon_panel_demo.cpp
-
-    # Graphics
-    graphics/renderer.cpp
-
-    # Input
-    input/input.cpp
-
-    # Assets
-    assets/pak_file.cpp
-    assets/sprite.cpp
-    assets/sprite_manager.cpp
-
-    # UI (minimal set needed for icon panel - NO ui_system)
-    ui/ui_element.cpp
-    ui/dialog_base.cpp
-    ui/dialog_builder.cpp
-    ui/render_strategy.cpp
-    ui/managed_dialog.cpp
-    ui/dialog_manager.cpp
-    ui/dialogs/yaml_icon_panel_dialog.cpp
-    ui/dialogs/yaml_help_dialog.cpp
-)
-
-target_include_directories(icon_panel_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(icon_panel_demo PRIVATE
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    yaml-cpp::yaml-cpp
-    ZLIB::ZLIB
-    lz4::lz4
-)
-
-if(WIN32)
-    target_compile_definitions(icon_panel_demo PRIVATE
-        WIN32_LEAN_AND_MEAN
-        NOMINMAX
-        _CRT_SECURE_NO_WARNINGS
-    )
-endif()
-
-if(MSVC)
-    target_compile_options(icon_panel_demo PRIVATE /W4)
-else()
-    target_compile_options(icon_panel_demo PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-# Copy DLLs for demo
-if(WIN32)
-    add_custom_command(TARGET icon_panel_demo POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:icon_panel_demo>
-            $<TARGET_FILE_DIR:icon_panel_demo>
-        COMMAND_EXPAND_LISTS
-    )
-
-    # Set Visual Studio debugger working directory to bin/
-    set_target_properties(icon_panel_demo PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-    )
-endif()

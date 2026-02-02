@@ -159,8 +159,6 @@ void application::shutdown() {
 }
 
 void application::main_loop() {
-    auto& video_cfg = config::instance().video();
-
     while (running_ && renderer_.is_open()) {
         // Calculate delta time
         auto current_time = clock::now();
@@ -208,18 +206,6 @@ void application::main_loop() {
 
         // Update audio (clean up finished sounds)
         audio_.update();
-
-        // Frame rate limiting (if vsync is off)
-        if (!video_cfg.vsync && video_cfg.framerate_limit > 0) {
-            float target_frame_time = 1.0f / static_cast<float>(video_cfg.framerate_limit);
-            auto frame_end = clock::now();
-            auto elapsed = std::chrono::duration<float>(frame_end - current_time).count();
-
-            if (elapsed < target_frame_time) {
-                auto sleep_time = std::chrono::duration<float>(target_frame_time - elapsed);
-                std::this_thread::sleep_for(std::chrono::duration_cast<std::chrono::milliseconds>(sleep_time));
-            }
-        }
     }
 }
 

@@ -7,6 +7,7 @@
 #include <string_view>
 #include <queue>
 #include <mutex>
+#include <atomic>
 #include <optional>
 #include <functional>
 
@@ -22,6 +23,9 @@ enum class ws_connection_state {
 };
 
 // Callbacks
+// WARNING: These callbacks are invoked on a background thread by ixwebsocket.
+// Do NOT modify shared state (UI, game objects, containers) from these callbacks.
+// Use the receive() polling method for thread-safe message processing on the main thread.
 using message_callback = std::function<void(const json&)>;
 using connect_callback = std::function<void()>;
 using disconnect_callback = std::function<void(const std::string& reason)>;
@@ -49,6 +53,14 @@ public:
     // Returns the next available message, or nullopt if none
     std::optional<json> receive();
 
+    // Poll for connection events (call this in update loop for thread-safe event handling)
+    // Returns true if a connect event occurred since last poll
+    bool poll_connect_event();
+
+    // Poll for disconnection events (call this in update loop for thread-safe event handling)
+    // Returns true if a disconnect event occurred, with reason in out_reason
+    bool poll_disconnect_event(std::string& out_reason);
+
     // Set callback for incoming messages (alternative to polling with receive())
     void set_message_callback(message_callback callback) { message_callback_ = std::move(callback); }
 
@@ -58,8 +70,12 @@ public:
     // Set callback for disconnection
     void set_disconnect_callback(disconnect_callback callback) { disconnect_callback_ = std::move(callback); }
 
-    // Get last error message
-    std::string_view last_error() const { return last_error_; }
+    // Get last error message (thread-safe)
+    std::string last_error() const
+    {
+        std::lock_guard<std::mutex> lock(error_mutex_);
+        return last_error_;
+    }
 
     // Statistics
     uint64_t messages_sent() const { return messages_sent_; }
@@ -69,17 +85,26 @@ private:
     void on_message(const ix::WebSocketMessagePtr& msg);
 
     ix::WebSocket websocket_;
-    ws_connection_state state_ = ws_connection_state::disconnected;
+    std::atomic<ws_connection_state> state_{ws_connection_state::disconnected};
+
+    // last_error_ is written from background thread, read from main thread
     std::string last_error_;
+    mutable std::mutex error_mutex_;
 
-    // Message queue (for polling mode)
+    // Message queue (for polling mode) - protected by mutex for thread safety
     std::queue<json> incoming_messages_;
-    std::mutex queue_mutex_;
+    mutable std::mutex queue_mutex_;
 
-    // Callback mode
+    // Callback mode (WARNING: called from background thread, prefer polling)
     message_callback message_callback_;
     connect_callback connect_callback_;
     disconnect_callback disconnect_callback_;
+
+    // Thread-safe event flags for polling (preferred over callbacks)
+    std::atomic<bool> pending_connect_{false};
+    std::atomic<bool> pending_disconnect_{false};
+    std::string pending_disconnect_reason_;
+    mutable std::mutex disconnect_reason_mutex_;
 
     // Statistics
     uint64_t messages_sent_ = 0;

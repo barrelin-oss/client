@@ -18,6 +18,8 @@
 #include "assets/sprite_manager.hpp"
 #include "assets/tile_sprite_registry.hpp"
 #include "graphics/menu_character_renderer.hpp"
+#include "audio/sound_manager.hpp"
+#include "ui/status_log.hpp"
 #include <cstdint>
 #include <string>
 #include <functional>
@@ -90,6 +92,9 @@ public:
     void attempt_login(const std::string& username, const std::string& password);
     bool is_ws_connected() const { return ws_connection_.is_connected(); }
 
+    // Player actions
+    void request_pickup(int32_t tile_x, int32_t tile_y);
+
     // Subsystems
     world& game_world() { return world_; }
     entity_manager& entities() { return entities_; }
@@ -98,10 +103,12 @@ public:
     magic_system& magic() { return magic_; }
     skills_system& skills() { return skills_; }
     combat_system& combat() { return combat_; }
+    sound_manager& sounds() { return sounds_; }
 
     // Local player
     void set_local_player_id(entity_id id);
     entity* local_player();
+    const entity* local_player() const;
 
     // Character selection
     void set_characters(std::vector<character_info> characters);
@@ -120,6 +127,9 @@ public:
     // UI style switching (modern vs classic)
     void set_ui_style(ui_style style);
     ui_style get_ui_style() const { return ui_.style(); }
+
+    // Combat mode
+    bool is_combat_mode() const { return combat_mode_; }
 
 private:
     // State handlers
@@ -166,6 +176,12 @@ private:
     void handle_get_characters_response(const json& message);
     void handle_enter_game_response(const json& message);
     void handle_create_character_response(const json& message);
+    void handle_pickup_response(const json& message);
+    void handle_ground_item_removed(const json& message);
+    void handle_player_position_update(const json& message);
+    void handle_player_stop_response(const json& message);
+    void handle_player_move_response(const json& message);
+    void handle_hunger_update(const json& message);
 
     // WebSocket requests
     void request_characters();
@@ -175,10 +191,50 @@ private:
     // View range notification
     void send_view_range();
 
+    // Clear all in-game data (map, entities, etc.) for clean re-entry
+    void clear_game_data();
+
     // State
     game_state state_ = game_state::main_menu;
     game_state pending_state_ = game_state::main_menu;
     bool state_transition_ = false;
+    bool run_mode_enabled_ = false;  // Toggle with Ctrl+R
+
+    // Movement destination for pathfinding
+    int32_t move_dest_x_ = -1;
+    int32_t move_dest_y_ = -1;
+
+    // Action queue system - actions cannot be performed until animation completes
+    enum class queued_action_type : uint8_t {
+        none = 0,
+        move,
+        attack,
+        pickup,
+        magic,
+        face_direction,  // Change facing direction (right-click)
+        stop             // Stop movement and go to idle
+    };
+
+    struct queued_action {
+        queued_action_type type = queued_action_type::none;
+        int32_t target_x = 0;      // Tile X or target entity ID (low bits)
+        int32_t target_y = 0;      // Tile Y or target entity ID (high bits)
+        uint32_t target_id = 0;    // Entity ID for attacks
+        uint16_t spell_id = 0;     // For magic actions
+        direction face_dir = direction::none;  // For face_direction actions
+    };
+
+    queued_action pending_action_;
+    bool action_in_progress_ = false;  // True while non-looping animation plays
+
+    // Check if player can perform a new action
+    bool can_perform_action() const;
+    void queue_action(queued_action action);
+    void process_queued_action();
+
+    // Mouse position for hover detection
+    int32_t mouse_x_ = 0;
+    int32_t mouse_y_ = 0;
 
     // Subsystems
     network_system network_;
@@ -196,7 +252,8 @@ private:
     std::string pending_username_;
     std::string pending_password_;
 
-    // Thread-safe pending disconnect (set by background thread, consumed by main thread)
+    // Thread-safe pending connect/disconnect (set by background thread, consumed by main thread)
+    std::atomic<bool> pending_login_on_connect_{false};  // Send login request when connected
     mutable std::mutex pending_disconnect_mutex_;
     std::string pending_disconnect_reason_;
     std::atomic<bool> has_pending_disconnect_{false};
@@ -228,9 +285,19 @@ private:
     // Audio reference
     audio* audio_ = nullptr;
 
+    // Sound manager for SFX and BGM
+    sound_manager sounds_;
+
+    // Status log for persistent status messages (hunger, etc.)
+    status_log status_log_;
+
     // Combat mode state
     bool combat_mode_ = false;      // Attack stance (Tab toggles)
     bool safe_attack_mode_ = false; // Safe attack mode (Home toggles)
+
+    // Blocked movement cooldown (prevents actions for 250ms after collision)
+    float blocked_movement_cooldown_ = 0.0f;
+    static constexpr float blocked_movement_cooldown_duration = 0.25f;
 
     // Camera drag lock (for cinematic mode)
     bool camera_drag_locked_ = false;  // When true, Ctrl+click drag is disabled

@@ -80,6 +80,7 @@ bool application::initialize() {
     } else {
         audio_.set_master_volume(audio_cfg.master_volume);
         audio_.set_music_volume(audio_cfg.music_volume);
+        audio_.set_sound_volume(audio_cfg.sfx_volume);
         audio_.set_muted(audio_cfg.muted);
     }
 
@@ -270,6 +271,7 @@ void application::apply_config() {
     auto& audio_cfg = cfg.audio();
     audio_.set_master_volume(audio_cfg.master_volume);
     audio_.set_music_volume(audio_cfg.music_volume);
+    audio_.set_sound_volume(audio_cfg.sfx_volume);
     audio_.set_muted(audio_cfg.muted);
 
     // Apply language

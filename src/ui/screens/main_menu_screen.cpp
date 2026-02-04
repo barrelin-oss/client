@@ -75,13 +75,16 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
     if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
         switch (current_focus_) {
             case 1:  // Start Game
+                play_button_sound();
                 if (on_start_) {
                     on_start_();
                 }
                 return true;
             case 2:  // Create Account / Website (skip for now)
+                play_button_sound();
                 break;
             case 3:  // Quit
+                play_button_sound();
                 if (on_quit_) {
                     on_quit_();
                 }
@@ -101,6 +104,7 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
     mouse_result result;
     int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
     if (result == mouse_result::click) {
+        play_button_sound();
         switch (button_num) {
             case 1:  // Start Game
                 if (on_start_) {

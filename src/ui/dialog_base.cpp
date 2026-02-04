@@ -112,6 +112,13 @@ bool dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
     return ui_panel::handle_mouse_down(x, y, btn);
 }
 
+bool dialog::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
+    if (btn == sf::Mouse::Button::Left) {
+        dragging_ = false;
+    }
+    return ui_panel::handle_mouse_up(x, y, btn);
+}
+
 bool dialog::handle_mouse_move(int32_t x, int32_t y) {
     if (dragging_) {
         bounds_.x = x - drag_offset_x_;

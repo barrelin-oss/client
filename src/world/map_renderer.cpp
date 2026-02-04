@@ -198,10 +198,17 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
 
                 if (!t.is_walkable())
                 {
+                    // Red tint for blocked/non-walkable tiles
                     rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(255, 0, 0, 100), true);
+                }
+                else if (t.is_teleport())
+                {
+                    // Green tint for teleport tiles
+                    rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(0, 255, 0, 100), true);
                 }
                 else if (t.is_occupied())
                 {
+                    // Yellow tint for occupied tiles
                     rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(255, 255, 0, 100), true);
                 }
             }

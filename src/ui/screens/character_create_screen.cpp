@@ -150,6 +150,7 @@ bool character_create_screen::update(float delta_time, const input& inp) {
 
     // Handle Escape key (cancel)
     if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+        play_button_sound();
         if (on_cancel_) {
             on_cancel_();
         }
@@ -159,6 +160,7 @@ bool character_create_screen::update(float delta_time, const input& inp) {
     // Handle Enter key
     if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
         if (current_focus_ == 2 && is_valid_character()) {
+            play_button_sound();
             try_create();
             return true;
         }
@@ -169,6 +171,7 @@ bool character_create_screen::update(float delta_time, const input& inp) {
     int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
 
     if (result == mouse_result::click) {
+        play_button_sound();
         switch (button_num) {
             case btn_name_field:
                 current_focus_ = 1;

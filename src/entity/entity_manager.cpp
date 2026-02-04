@@ -1,15 +1,76 @@
 #include "entity/entity_manager.hpp"
+#include "audio/sound_manager.hpp"
+#include "audio/sound_types.hpp"
 #include "graphics/renderer.hpp"
 #include "assets/sprite_manager.hpp"
 #include "world/world.hpp"
 #include "world/tile.hpp"
 #include "core/constants.hpp"
+#include "core/direction_utils.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
 namespace hb {
 
-void entity_manager::initialize() {
+namespace {
+
+// Character sprite constants (from menu_character_renderer.hpp)
+struct character_sprite_constants
+{
+    static constexpr uint16_t body_base = 500;
+    static constexpr uint16_t body_stride = 120;
+    static constexpr uint16_t male_underwear_base = 4580;
+    static constexpr uint16_t female_underwear_base = 14580;
+    static constexpr uint16_t underwear_stride = 15;
+    static constexpr uint16_t male_hair_base = 4820;
+    static constexpr uint16_t female_hair_base = 14820;
+    static constexpr uint16_t hair_stride = 15;
+};
+
+// Calculate owner type from gender and skin color
+// Returns 1-3 for male, 4-6 for female
+inline int32_t calculate_owner_type(uint8_t gender, uint8_t skin_color)
+{
+    uint8_t clamped_gender = std::clamp(gender, uint8_t(1), uint8_t(2));
+    uint8_t clamped_skin = std::clamp(skin_color, uint8_t(1), uint8_t(3));
+    bool is_female = (clamped_gender == 2);
+    return is_female ? (3 + clamped_skin) : clamped_skin;
+}
+
+// Calculate body sprite ID for a character
+inline uint16_t calculate_body_sprite_id(int32_t owner_type, int32_t action, int32_t direction)
+{
+    // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + (dir - 1)
+    return static_cast<uint16_t>(
+        character_sprite_constants::body_base +
+        (owner_type - 1) * character_sprite_constants::body_stride +
+        action * 8 + (direction - 1));
+}
+
+// Calculate underwear sprite ID for a character
+inline uint16_t calculate_underwear_sprite_id(bool is_female, uint8_t underwear_color, int32_t action)
+{
+    uint8_t clamped_color = std::clamp(underwear_color, uint8_t(0), uint8_t(7));
+    uint16_t base = is_female ?
+        character_sprite_constants::female_underwear_base :
+        character_sprite_constants::male_underwear_base;
+    return static_cast<uint16_t>(base + clamped_color * character_sprite_constants::underwear_stride + action);
+}
+
+// Calculate hair sprite ID for a character
+inline uint16_t calculate_hair_sprite_id(bool is_female, uint8_t hair_style, int32_t action)
+{
+    uint8_t clamped_style = std::clamp(hair_style, uint8_t(0), uint8_t(7));
+    uint16_t base = is_female ?
+        character_sprite_constants::female_hair_base :
+        character_sprite_constants::male_hair_base;
+    return static_cast<uint16_t>(base + clamped_style * character_sprite_constants::hair_stride + action);
+}
+
+} // anonymous namespace
+
+void entity_manager::initialize(sound_manager* sounds) {
+    sounds_ = sounds;
     spdlog::info("Entity manager initialized");
 }
 
@@ -157,6 +218,19 @@ std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_
     return result;
 }
 
+entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y) {
+    for (auto& [id, e] : entities_) {
+        if (e->should_remove()) continue;
+        if (id == local_player_id_) continue;  // Skip local player
+
+        const auto& t = e->transform();
+        if (t.tile_x == tile_x && t.tile_y == tile_y) {
+            return e.get();
+        }
+    }
+    return nullptr;
+}
+
 entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y,
                                                   int32_t camera_x, int32_t camera_y) {
     // Convert screen to world position
@@ -186,6 +260,48 @@ entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t scree
     return closest;
 }
 
+bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& sprites,
+                                                int32_t camera_x, int32_t camera_y,
+                                                int32_t mouse_x, int32_t mouse_y) const {
+    const auto& t = e.transform();
+    const auto& s = e.sprite();
+    const auto& a = e.animation();
+
+    int32_t screen_x = t.x - camera_x;
+    int32_t screen_y = t.y - camera_y;
+
+    // Get sprite bounds based on entity type
+    if (e.type() == entity_type::item) {
+        // Items use a simple 32x32 bounds centered at position
+        return (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 &&
+                mouse_y >= screen_y - 16 && mouse_y < screen_y + 16);
+    }
+    else if (e.type() == entity_type::effect) {
+        // Effects are not clickable
+        return false;
+    }
+    else {
+        // Characters, NPCs, monsters - use body sprite bounds
+        int32_t dir = direction_to_sprite_index(t.direction);
+        int32_t action = static_cast<int32_t>(e.current_action());
+        int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
+
+        uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
+        const sprite* body_spr = sprites.get_sprite_by_id(body_id);
+
+        if (body_spr && body_spr->has_metadata()) {
+            // Get actual sprite bounds for current frame
+            sf::IntRect bounds = body_spr->get_bounds(screen_x, screen_y, a.current_frame);
+            return (mouse_x >= bounds.position.x && mouse_x < bounds.position.x + bounds.size.x &&
+                    mouse_y >= bounds.position.y && mouse_y < bounds.position.y + bounds.size.y);
+        }
+
+        // Fallback to approximate 64x64 bounds if sprite not available
+        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
+                mouse_y >= screen_y - 64 && mouse_y < screen_y);
+    }
+}
+
 entity* entity_manager::local_player() {
     return get_entity(local_player_id_);
 }
@@ -194,11 +310,11 @@ const entity* entity_manager::local_player() const {
     return get_entity(local_player_id_);
 }
 
-void entity_manager::update(float delta_time, world& w) {
+void entity_manager::update(float delta_time, world& w, bool local_player_combat_mode) {
     // Update all entities
     for (auto& [id, e] : entities_) {
         if (!e->should_remove()) {
-            update_entity(*e, delta_time, w);
+            update_entity(*e, delta_time, w, local_player_combat_mode);
         }
     }
 
@@ -219,13 +335,13 @@ void entity_manager::cleanup_removed_entities() {
     }
 }
 
-void entity_manager::update_entity(entity& e, float delta_time, world& w) {
+void entity_manager::update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
     // Update animation
     update_animation(e, delta_time);
 
     // Update movement
     if (e.has_movement()) {
-        update_movement(e, delta_time, w);
+        update_movement(e, delta_time, w, local_player_combat_mode);
     }
 
     // Update combat cooldowns
@@ -308,6 +424,20 @@ void entity_manager::update_animation(entity& e, float delta_time) {
         anim.frame_timer = 0.0f;
         anim.current_frame++;
 
+        // Play footstep sounds on walk/run animations
+        // Walk: frames 1 and 3 (alternating footsteps)
+        // Run: frames 1 and 3 as well
+        if (anim.state == entity_anim_state::move) {
+            if (anim.current_frame == 1 || anim.current_frame == 3) {
+                play_footstep_sound(e, false);  // Walking
+            }
+        }
+        else if (anim.state == entity_anim_state::run) {
+            if (anim.current_frame == 1 || anim.current_frame == 3) {
+                play_footstep_sound(e, true);  // Running
+            }
+        }
+
         // Check for attack trigger frame (frame 4 for attacks)
         if (anim.state == entity_anim_state::attack ||
             anim.state == entity_anim_state::attack_move ||
@@ -329,7 +459,7 @@ void entity_manager::update_animation(entity& e, float delta_time) {
     }
 }
 
-void entity_manager::update_movement(entity& e, float delta_time, world& w) {
+void entity_manager::update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
     auto& t = e.transform();
     auto& m = e.movement();
 
@@ -337,16 +467,25 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w) {
         return;
     }
 
-    // Calculate movement speed
-    float speed = m.running ? m.run_speed : m.speed;
-    t.move_progress += speed * delta_time;
+    // Update facing direction during movement
+    if (t.dest_tile_x != t.tile_x || t.dest_tile_y != t.tile_y) {
+        t.direction = calculate_direction(t.tile_x, t.tile_y, t.dest_tile_x, t.dest_tile_y);
+    }
+
+    // Movement timing based on animation frames (legacy Helbreath system)
+    // MOVE: 8 frames @ 70ms = 560ms per tile
+    // RUN: 8 frames @ 42ms = 336ms per tile
+    float move_time_ms = m.running ? 336.0f : 560.0f;  // Total time in milliseconds
+    float move_time_sec = move_time_ms / 1000.0f;       // Convert to seconds
+
+    t.move_progress += delta_time / move_time_sec;
 
     if (t.move_progress >= 1.0f) {
         // Reached destination tile
         t.tile_x = t.dest_tile_x;
         t.tile_y = t.dest_tile_y;
-        t.x = t.tile_x * tile_width + tile_width / 2;
-        t.y = t.tile_y * tile_height + tile_height / 2;
+        t.x = t.tile_x * tile_width + 16;   // Tile center X
+        t.y = t.tile_y * tile_height + 16;  // Tile center Y (feet position)
         t.move_progress = 0.0f;
         t.moving = false;
 
@@ -360,21 +499,34 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w) {
             } else {
                 m.path.clear();
                 m.path_index = 0;
+                // Return to idle with correct combat stance for local player
+                if (e.id() == local_player_id_) {
+                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                } else {
+                    e.set_action(object_action::stop_peace);
+                }
+            }
+        } else {
+            // No more path - return to idle with correct combat stance for local player
+            if (e.id() == local_player_id_) {
+                e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+            } else {
+                e.set_action(object_action::stop_peace);
             }
         }
     } else {
-        // Interpolate position
-        int32_t start_x = t.tile_x * tile_width + tile_width / 2;
-        int32_t start_y = t.tile_y * tile_height + tile_height / 2;
-        int32_t end_x = t.dest_tile_x * tile_width + tile_width / 2;
-        int32_t end_y = t.dest_tile_y * tile_height + tile_height / 2;
+        // Interpolate position (use tile center for both X and Y - feet should be at tile center)
+        int32_t start_x = t.tile_x * tile_width + 16;
+        int32_t start_y = t.tile_y * tile_height + 16;
+        int32_t end_x = t.dest_tile_x * tile_width + 16;
+        int32_t end_y = t.dest_tile_y * tile_height + 16;
 
         t.x = start_x + static_cast<int32_t>((end_x - start_x) * t.move_progress);
         t.y = start_y + static_cast<int32_t>((end_y - start_y) * t.move_progress);
     }
 }
 
-void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y) {
+void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
     // Collect visible entities and sort by Y position for depth ordering
     std::vector<entity*> visible_entities;
 
@@ -413,17 +565,21 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
 
     // Render sorted entities
     for (entity* e : visible_entities) {
-        render_entity(rend, sprites, *e, camera_x, camera_y);
+        render_entity(rend, sprites, *e, camera_x, camera_y, mouse_x, mouse_y);
     }
 }
 
-void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y) {
+void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
     const auto& t = e.transform();
     const auto& s = e.sprite();
     const auto& a = e.animation();
 
     int32_t screen_x = t.x - camera_x;
     int32_t screen_y = t.y - camera_y;
+
+    // Check if mouse is hovering over entity using actual sprite bounds
+    bool is_hovered = is_point_in_entity_sprite(e, sprites, camera_x, camera_y, mouse_x, mouse_y);
+
 
     // Render sprite layers based on entity type
     if (e.type() == entity_type::item) {
@@ -439,92 +595,52 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
         }
     } else {
         // Characters, NPCs, monsters - layered rendering
-        // Sprite constants (from menu_character_renderer.hpp)
-        static constexpr uint16_t body_base = 500;
-        static constexpr uint16_t body_stride = 120;
-        static constexpr uint16_t male_underwear_base = 4580;
-        static constexpr uint16_t female_underwear_base = 14580;
-        static constexpr uint16_t underwear_stride = 15;
-        static constexpr uint16_t male_hair_base = 4820;
-        static constexpr uint16_t female_hair_base = 14820;
-        static constexpr uint16_t hair_stride = 15;
-
-        // Direction enum: none=0, north=1, ... north_west=8
-        // Sprite IDs use direction 1-8 (dir-1 for 0-7 index)
-        int32_t dir = (t.direction == direction::none) ? 5 : static_cast<int32_t>(t.direction);  // Default to south (5) if none
-
-        // Map animation state to action index
-        int32_t action = 0;  // Default: stop
-        switch (a.state) {
-            case entity_anim_state::stop: action = 0; break;
-            case entity_anim_state::move: action = 1; break;
-            case entity_anim_state::run: action = 2; break;
-            case entity_anim_state::attack:
-            case entity_anim_state::attack_move: action = 3; break;
-            case entity_anim_state::magic:
-            case entity_anim_state::magic_attack: action = 4; break;
-            case entity_anim_state::get_item: action = 5; break;
-            case entity_anim_state::damage:
-            case entity_anim_state::damage_move: action = 6; break;
-            case entity_anim_state::dying: action = 10; break;
-            case entity_anim_state::dead: action = 11; break;
-            default: action = 0; break;
-        }
+        int32_t dir = direction_to_sprite_index(t.direction);
+        int32_t action = static_cast<int32_t>(e.current_action());
 
         // Calculate frame index for sprites: (dir-1)*8 + current_frame
         int32_t frame_index = (dir - 1) * 8 + a.current_frame;
 
-        // Determine gender and appearance
-        uint8_t gender = std::clamp(s.gender, uint8_t(1), uint8_t(2));
-        uint8_t skin = std::clamp(s.skin_color, uint8_t(1), uint8_t(3));
-        uint8_t hair_style = std::clamp(s.hair_style, uint8_t(0), uint8_t(7));
-        uint8_t underwear_color = std::clamp(s.underwear_color, uint8_t(0), uint8_t(7));
-        bool is_female = (gender == 2);
+        // Calculate sprite IDs using helper functions
+        int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
+        bool is_female = (s.gender == 2);
 
-        // Calculate owner type: 1-3 for male (skin 1-3), 4-6 for female (skin 1-3)
-        int32_t owner_type = is_female ? (3 + skin) : skin;
-
-        // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + (dir - 1)
-        uint16_t body_id = static_cast<uint16_t>(body_base + (owner_type - 1) * body_stride + action * 8 + (dir - 1));
+        uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
         const sprite* body_spr = sprites.get_sprite_by_id(body_id);
 
-        // Underwear sprite ID: base + color * 15 + action
-        uint16_t underwear_base = is_female ? female_underwear_base : male_underwear_base;
-        uint16_t underwear_id = static_cast<uint16_t>(underwear_base + underwear_color * underwear_stride + action);
+        uint16_t underwear_id = calculate_underwear_sprite_id(is_female, s.underwear_color, action);
         const sprite* underwear_spr = sprites.get_sprite_by_id(underwear_id);
 
-        // Hair sprite ID: base + style * 15 + action
-        uint16_t hair_base = is_female ? female_hair_base : male_hair_base;
-        uint16_t hair_id = static_cast<uint16_t>(hair_base + hair_style * hair_stride + action);
+        uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action);
         const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
 
         // Draw layers: underwear, body, hair
         if (underwear_spr) {
             if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*underwear_spr, screen_x - 32, screen_y - 64, frame_index, s.alpha);
+                rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, frame_index, s.alpha);
             } else {
-                rend.draw_sprite(*underwear_spr, screen_x - 32, screen_y - 64, frame_index);
+                rend.draw_sprite(*underwear_spr, screen_x, screen_y, frame_index);
             }
         }
 
         if (body_spr) {
             if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*body_spr, screen_x - 32, screen_y - 64, a.current_frame, s.alpha);
+                rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, a.current_frame, s.alpha);
             } else {
-                rend.draw_sprite(*body_spr, screen_x - 32, screen_y - 64, a.current_frame);
+                rend.draw_sprite(*body_spr, screen_x, screen_y, a.current_frame);
             }
         }
 
         // Hair (if no helm)
         if (!s.helm_sprite && hair_spr) {
-            rend.draw_sprite(*hair_spr, screen_x - 32, screen_y - 64, frame_index);
+            rend.draw_sprite(*hair_spr, screen_x, screen_y, frame_index);
         }
 
         // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
 
         // Effect overlay (keep using pre-loaded sprite pointer)
         if (s.effect_sprite) {
-            rend.draw_sprite(*s.effect_sprite, screen_x - 32, screen_y - 64, a.current_frame);
+            rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
         }
     }
 
@@ -533,7 +649,7 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
                          e.type() == entity_type::character ||
                          e.type() == entity_type::npc ||
                          e.type() == entity_type::monster)) {
-        render_entity_name(rend, e, screen_x, screen_y);
+        render_entity_name(rend, e, screen_x, screen_y, is_hovered);
     }
 
     if (e.has_stats() && (e.type() == entity_type::character ||
@@ -542,40 +658,42 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
     }
 }
 
-void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y) {
+void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered) {
     const auto& name = e.name();
 
-    // Render name above entity
-    sf::Color name_color = sf::Color::White;
+    // Only render name if mouse is hovering
+    if (is_hovered) {
+        sf::Color name_color = sf::Color::White;
 
-    if (e.type() == entity_type::npc) {
-        name_color = sf::Color::Yellow;
-    } else if (e.type() == entity_type::monster) {
-        if (e.has_monster() && e.monster().is_boss) {
+        if (e.type() == entity_type::npc) {
+            name_color = sf::Color::Yellow;
+        } else if (e.type() == entity_type::monster) {
+            if (e.has_monster() && e.monster().is_boss) {
+                name_color = sf::Color::Red;
+            } else {
+                name_color = sf::Color(255, 128, 0); // Orange
+            }
+        } else if (e.has_combat() && e.combat().pk_count > 0) {
             name_color = sf::Color::Red;
-        } else {
-            name_color = sf::Color(255, 128, 0); // Orange
         }
-    } else if (e.has_combat() && e.combat().pk_count > 0) {
-        name_color = sf::Color::Red;
+
+        // Center name below entity feet
+        int32_t name_x = screen_x - static_cast<int32_t>(name.name.length() * 4);
+        int32_t name_y = screen_y + 10;
+
+        rend.draw_text(name.name, name_x, name_y, name_color);
+
+        // Render guild name if present (below character name)
+        if (!name.guild_name.empty()) {
+            int32_t guild_x = screen_x - static_cast<int32_t>(name.guild_name.length() * 3);
+            rend.draw_text("<" + name.guild_name + ">", guild_x, name_y + 14, sf::Color(100, 200, 100));
+        }
     }
 
-    // Center name above entity
-    int32_t name_x = screen_x - static_cast<int32_t>(name.name.length() * 4);
-    int32_t name_y = screen_y - 80;
-
-    rend.draw_text(name.name, name_x, name_y, name_color);
-
-    // Render guild name if present
-    if (!name.guild_name.empty()) {
-        int32_t guild_x = screen_x - static_cast<int32_t>(name.guild_name.length() * 3);
-        rend.draw_text("<" + name.guild_name + ">", guild_x, name_y - 14, sf::Color(100, 200, 100));
-    }
-
-    // Render chat bubble
+    // Always render chat bubble (above entity, not affected by hover)
     if (!name.chat_message.empty()) {
         int32_t chat_x = screen_x - static_cast<int32_t>(name.chat_message.length() * 3);
-        int32_t chat_y = screen_y - 100;
+        int32_t chat_y = screen_y - 80;
 
         // Background
         rend.draw_rect(chat_x - 4, chat_y - 2,
@@ -597,19 +715,21 @@ void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, i
     // Background
     rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(40, 40, 40), true);
 
-    // Health fill
-    float hp_ratio = static_cast<float>(stats.hp) / static_cast<float>(stats.max_hp);
-    int32_t fill_width = static_cast<int32_t>(bar_width * hp_ratio);
+    // Health fill (guard against division by zero)
+    if (stats.max_hp > 0) {
+        float hp_ratio = static_cast<float>(stats.hp) / static_cast<float>(stats.max_hp);
+        int32_t fill_width = static_cast<int32_t>(bar_width * hp_ratio);
 
-    sf::Color hp_color = sf::Color::Green;
-    if (hp_ratio < 0.3f) {
-        hp_color = sf::Color::Red;
-    } else if (hp_ratio < 0.6f) {
-        hp_color = sf::Color::Yellow;
-    }
+        sf::Color hp_color = sf::Color::Green;
+        if (hp_ratio < 0.3f) {
+            hp_color = sf::Color::Red;
+        } else if (hp_ratio < 0.6f) {
+            hp_color = sf::Color::Yellow;
+        }
 
-    if (fill_width > 0) {
-        rend.draw_rect(bar_x, bar_y, fill_width, bar_height, hp_color, true);
+        if (fill_width > 0) {
+            rend.draw_rect(bar_x, bar_y, fill_width, bar_height, hp_color, true);
+        }
     }
 
     // Border
@@ -619,47 +739,25 @@ void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, i
 void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites) {
     auto& s = ent.sprite();
 
-    // Sprite ID constants (from menu_character_renderer.hpp)
-    static constexpr uint16_t body_base = 500;
-    static constexpr uint16_t body_stride = 120;
-    static constexpr uint16_t male_underwear_base = 4580;
-    static constexpr uint16_t female_underwear_base = 14580;
-    static constexpr uint16_t underwear_stride = 15;
-    static constexpr uint16_t male_hair_base = 4820;
-    static constexpr uint16_t female_hair_base = 14820;
-    static constexpr uint16_t hair_stride = 15;
-
     // Action index for idle/stop (action 0)
     static constexpr int32_t action_stop = 0;
 
-    // Clamp appearance values
-    uint8_t gender = std::clamp(s.gender, uint8_t(1), uint8_t(2));
-    uint8_t skin = std::clamp(s.skin_color, uint8_t(1), uint8_t(3));
-    uint8_t hair_style = std::clamp(s.hair_style, uint8_t(0), uint8_t(7));
-    uint8_t underwear_color = std::clamp(s.underwear_color, uint8_t(0), uint8_t(7));
+    // Calculate sprite IDs using helper functions
+    int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
+    bool is_female = (s.gender == 2);
 
-    bool is_female = (gender == 2);
-
-    // Calculate owner type: 1-3 for male (skin 1-3), 4-6 for female (skin 1-3)
-    int32_t owner_type = is_female ? (3 + skin) : skin;
-
-    // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + direction
-    // For idle, we use action 0, direction will be applied during rendering
-    uint16_t body_id = static_cast<uint16_t>(body_base + (owner_type - 1) * body_stride + action_stop * 8);
+    // Body sprite ID (direction 1 = north, will be changed during rendering)
+    uint16_t body_id = calculate_body_sprite_id(owner_type, action_stop, 1);
     s.body_sprite = sprites.get_sprite_by_id(body_id);
 
-    // Underwear sprite ID: base + color * 15 + action
-    uint16_t underwear_base = is_female ? female_underwear_base : male_underwear_base;
-    uint16_t underwear_id = static_cast<uint16_t>(underwear_base + underwear_color * underwear_stride + action_stop);
+    uint16_t underwear_id = calculate_underwear_sprite_id(is_female, s.underwear_color, action_stop);
     s.underwear_sprite = sprites.get_sprite_by_id(underwear_id);
 
-    // Hair sprite ID: base + style * 15 + action
-    uint16_t hair_base = is_female ? female_hair_base : male_hair_base;
-    uint16_t hair_id = static_cast<uint16_t>(hair_base + hair_style * hair_stride + action_stop);
+    uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action_stop);
     s.hair_sprite = sprites.get_sprite_by_id(hair_id);
 
     spdlog::debug("Loaded character sprites - body:{} underwear:{} hair:{} (gender:{} skin:{} hair_style:{})",
-                  body_id, underwear_id, hair_id, gender, skin, hair_style);
+                  body_id, underwear_id, hair_id, s.gender, s.skin_color, s.hair_style);
 
     if (!s.body_sprite) {
         spdlog::warn("Failed to load body sprite ID {}", body_id);
@@ -680,6 +778,19 @@ size_t entity_manager::entity_count_of_type(entity_type type) const {
         }
     }
     return count;
+}
+
+void entity_manager::play_footstep_sound(const entity& e, bool running) {
+    if (!sounds_) return;
+
+    // Only play footsteps for players and characters
+    if (e.type() != entity_type::player && e.type() != entity_type::character) {
+        return;
+    }
+
+    const auto& t = e.transform();
+    character_sound sound = running ? character_sound::run_step : character_sound::walk_step;
+    sounds_->play_character_sound_at(sound, t.x, t.y);
 }
 
 } // namespace hb

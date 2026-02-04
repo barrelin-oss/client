@@ -335,7 +335,7 @@ void modern_render_strategy::render_slider(renderer& rend, const element_def& el
 }
 
 void modern_render_strategy::render_panel(renderer& rend, const element_def& elem,
-                                           const element_state& state,
+                                           [[maybe_unused]] const element_state& state,
                                            const ui_bounds& bounds) {
     sf::Color bg = elem.background_color.value_or(sf::Color(35, 35, 50, 200));
     sf::Color border = elem.border_color.value_or(sf::Color(60, 60, 80));

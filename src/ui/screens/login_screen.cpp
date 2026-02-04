@@ -97,9 +97,11 @@ bool login_screen::update(float delta_time, const input& inp) {
                 break;
             case 2:  // On password, try to login
             case 3:  // On connect button
+                play_button_sound();
                 try_login();
                 return true;
             case 4:  // On cancel button
+                play_button_sound();
                 if (on_cancel_) {
                     on_cancel_();
                 }
@@ -109,6 +111,7 @@ bool login_screen::update(float delta_time, const input& inp) {
 
     // Handle Escape key (cancel)
     if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+        play_button_sound();
         if (on_cancel_) {
             on_cancel_();
         }
@@ -127,9 +130,11 @@ bool login_screen::update(float delta_time, const input& inp) {
                 current_focus_ = 2;
                 break;
             case 3:  // Connect button
+                play_button_sound();
                 try_login();
                 return true;
             case 4:  // Cancel button
+                play_button_sound();
                 if (on_cancel_) {
                     on_cancel_();
                 }

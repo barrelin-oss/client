@@ -6,11 +6,14 @@
 #include "assets/tile_sprite_registry.hpp"
 #include "core/constants.hpp"
 #include "core/config.hpp"
+#include "core/direction_utils.hpp"
+#include "gameplay/pathfinding.hpp"
 #include "ui/dialog_manager.hpp"
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include <spdlog/spdlog.h>
+#include <cmath>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 #include "debug/debug_overlay.hpp"
@@ -81,7 +84,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     inventory_.initialize();
     magic_.initialize();
     skills_.initialize();
-    combat_.initialize(&entities_, &magic_, &skills_);
+    combat_.initialize(&entities_, &magic_, &skills_, &sounds_);
 
     // Setup network handlers
     setup_network_handlers();
@@ -146,9 +149,22 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         change_state(game_state::select_character);
     });
 
+    // Connection lost screen callback
+    screens_.get_connection_lost_screen().set_on_timeout([this]() {
+        spdlog::info("Connection lost timeout, returning to main menu");
+        change_state(game_state::main_menu);
+    });
+
     // Set up character renderer for menu screens
     screens_.get_character_select_screen().set_character_renderer(&menu_char_renderer_);
     screens_.get_character_create_screen().set_character_renderer(&menu_char_renderer_);
+
+    // Set up sound callbacks for all screens
+    auto play_ui_sound = [this]() { sounds_.play_ui_sound(14); };
+    screens_.get_main_menu_screen().set_on_button_sound(play_ui_sound);
+    screens_.get_login_screen().set_on_button_sound(play_ui_sound);
+    screens_.get_character_select_screen().set_on_button_sound(play_ui_sound);
+    screens_.get_character_create_screen().set_on_button_sound(play_ui_sound);
 
     // Create UI dialogs for in-game use (not for login/main menu)
     ui_.create_character_select_dialog();  // Keep for now as fallback
@@ -213,6 +229,38 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         spdlog::warn("Tile sprite registry initialization failed - terrain rendering disabled");
     }
 
+    // Initialize sound manager
+    if (sounds_.initialize(*audio_))
+    {
+        sounds_.set_sfx_enabled(config::instance().audio().sfx_enabled);
+        sounds_.set_music_enabled(config::instance().audio().music_enabled);
+        spdlog::info("Sound manager initialized with sfx={}, music={}",
+                     sounds_.is_sfx_enabled(), sounds_.is_music_enabled());
+
+        // Wire up entity manager with sound manager for footstep sounds
+        entities_.set_sound_manager(&sounds_);
+    }
+    else
+    {
+        spdlog::warn("Sound manager initialization failed - audio may not work");
+    }
+
+    // Wire up world events for automatic BGM changes
+    world_.set_events({
+        .on_map_changed = [this](std::string_view /*old_map*/, std::string_view new_map) {
+            sounds_.start_bgm(new_map, static_cast<int>(world_.weather()));
+        },
+        .on_weather_changed = [this](weather_type w) {
+            // Restart BGM if Christmas weather (types 4-6)
+            int weather_int = static_cast<int>(w);
+            if (weather_int >= 4 && weather_int <= 6)
+            {
+                sounds_.start_bgm(world_.current_map_name(), weather_int);
+            }
+        },
+        .on_time_changed = nullptr
+    });
+
     // Start at main menu - directly enter the state since it's the initial state
     enter_state(game_state::main_menu);
 
@@ -224,6 +272,7 @@ void game_state_manager::shutdown()
 {
     exit_state(state_);
 
+    sounds_.shutdown();
     screens_.shutdown();
     network_.shutdown();
     world_.shutdown();
@@ -252,18 +301,56 @@ void game_state_manager::update(float delta_time, const input& inp) {
         handle_ws_message(*msg);
     }
 
-    // Handle pending disconnect from background thread
+    // Handle pending connect event from background thread
+    if (ws_connection_.poll_connect_event()) {
+        spdlog::info("WebSocket connected (polled on main thread)");
+        // Send login request if we were waiting for connection
+        if (pending_login_on_connect_.exchange(false)) {
+            spdlog::info("Sending login request for user: {}", pending_username_);
+            json login_msg = make_login_request(pending_username_, pending_password_);
+            ws_connection_.send(login_msg);
+        }
+    }
+
+    // Handle pending disconnect event from background thread
+    std::string disconnect_reason;
+    if (ws_connection_.poll_disconnect_event(disconnect_reason)) {
+        spdlog::warn("WebSocket disconnected (polled on main thread): {}", disconnect_reason);
+        pending_login_on_connect_.store(false);  // Cancel any pending login
+
+        // Clear session state
+        session_token_.clear();
+        pending_username_.clear();
+        pending_password_.clear();
+        characters_.clear();
+
+        // Show connection lost screen if we were in an authenticated state
+        if (state_ != game_state::main_menu && state_ != game_state::connection_lost) {
+            screens_.get_connection_lost_screen().set_reason(
+                disconnect_reason.empty() ? "Server disconnected" : disconnect_reason);
+            change_state(game_state::connection_lost);
+        }
+    }
+
+    // Legacy disconnect handling (for backward compatibility with existing callback users)
     if (has_pending_disconnect_.exchange(false)) {
         std::string reason;
         {
             std::lock_guard<std::mutex> lock(pending_disconnect_mutex_);
             reason = std::move(pending_disconnect_reason_);
         }
-        // Now safe to access pending_username_ and show_error on main thread
-        if (!pending_username_.empty()) {
-            show_error("Connection lost: " + reason);
-            pending_username_.clear();
-            pending_password_.clear();
+
+        // Clear session state
+        session_token_.clear();
+        pending_username_.clear();
+        pending_password_.clear();
+        characters_.clear();
+
+        // Show connection lost screen if we were in an authenticated state
+        if (state_ != game_state::main_menu && state_ != game_state::connection_lost) {
+            screens_.get_connection_lost_screen().set_reason(
+                reason.empty() ? "Server disconnected" : reason);
+            change_state(game_state::connection_lost);
         }
     }
 
@@ -302,6 +389,9 @@ void game_state_manager::update(float delta_time, const input& inp) {
             case game_state::playing:
                 update_playing(delta_time, inp);
                 break;
+            case game_state::connection_lost:
+                screens_.update(delta_time, inp);
+                break;
             default:
                 break;
         }
@@ -330,6 +420,10 @@ void game_state_manager::render(renderer& rend) {
             break;
         case game_state::playing:
             render_playing(rend);
+            break;
+        case game_state::connection_lost:
+            screens_.render(rend, sprites_);
+            screens_.render_cursor(rend, sprites_);
             break;
         default:
             break;
@@ -422,12 +516,24 @@ void game_state_manager::enter_state(game_state state) {
         case game_state::playing:
             screens_.change_screen(screen_type::none);
             ui_.close_all_dialogs();
-            // Open HUD elements
-            ui_.open_dialog(dialog_type::chat);
+            // Open HUD elements (chat dialog is toggled via icon panel)
             ui_.open_dialog(dialog_type::icon_panel);
             // Note: gauge_panel is now integrated into icon_panel
+            // Ensure icon panel is positioned correctly for current screen size
+            if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+                yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
+            } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+                icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
+            }
             // Initialize icon panel with player data
             update_icon_panel();
+            // Start background music for the current map
+            sounds_.start_bgm(world_.current_map_name(), static_cast<int>(world_.weather()));
+            break;
+
+        case game_state::connection_lost:
+            screens_.change_screen(screen_type::connection_lost);
+            ui_.close_all_dialogs();
             break;
 
         default:
@@ -440,12 +546,47 @@ void game_state_manager::exit_state(game_state state) {
 
     switch (state) {
         case game_state::playing:
-            // Save any state if needed
+            // Stop background music when leaving game
+            sounds_.stop_bgm();
+
+            // Clear all game state to prevent stale data on re-entry
+            clear_game_data();
             break;
 
         default:
             break;
     }
+}
+
+void game_state_manager::clear_game_data() {
+    spdlog::info("Clearing game data (map, entities, combat, inventory)");
+
+    // Clear all entities (players, NPCs, monsters, items)
+    entities_.remove_all_entities();
+    entities_.set_local_player(invalid_entity_id);
+
+    // Clear map data
+    world_.unload_map();
+
+    // Reset camera state
+    world_.set_cinematic_mode(false);
+    world_.set_global_render_mode(false);
+    world_.set_zoom_mode_enabled(false);
+
+    // Reset combat state
+    combat_mode_ = false;
+    safe_attack_mode_ = false;
+
+    // Reset movement state
+    pending_action_ = queued_action{};
+    action_in_progress_ = false;
+    move_dest_x_ = -1;
+    move_dest_y_ = -1;
+    run_mode_enabled_ = false;
+    blocked_movement_cooldown_ = 0.0f;
+
+    // Clear status log
+    status_log_.clear();
 }
 
 void game_state_manager::update_main_menu(float delta_time, const input& inp) {
@@ -496,6 +637,18 @@ void game_state_manager::update_loading(float delta_time, const input& inp) {
 }
 
 void game_state_manager::update_playing(float delta_time, const input& inp) {
+    // Store mouse position for entity hover detection during rendering
+    mouse_x_ = inp.mouse_x();
+    mouse_y_ = inp.mouse_y();
+
+    // Update blocked movement cooldown
+    if (blocked_movement_cooldown_ > 0.0f) {
+        blocked_movement_cooldown_ -= delta_time;
+        if (blocked_movement_cooldown_ < 0.0f) {
+            blocked_movement_cooldown_ = 0.0f;
+        }
+    }
+
     // Handle input
     handle_playing_input(inp);
 
@@ -526,7 +679,10 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     world_.update(delta_time);
 
     // Update entities
-    entities_.update(delta_time, world_);
+    entities_.update(delta_time, world_, combat_mode_);
+
+    // Process any queued actions (executes when animation finishes)
+    process_queued_action();
 
     // Update camera to follow local player
     if (entity* player = local_player()) {
@@ -601,6 +757,9 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         debug_stats.set_game_state("Playing");
         debug_stats.set_combat_mode(combat_mode_, safe_attack_mode_);
     }
+
+    // Update status log (hunger warnings, etc.)
+    status_log_.update(delta_time);
 }
 
 void game_state_manager::render_main_menu(renderer& rend) {
@@ -678,13 +837,18 @@ void game_state_manager::render_playing(renderer& rend) {
     world_.render(rend);
 
     // Render entities (with zoom still applied)
-    entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y());
+    entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y(), mouse_x_, mouse_y_);
 
     // Reset zoom view before UI rendering
     world_.reset_zoom_view(rend);
 
     // Render debug stats overlay (before UI so UI renders on top)
     debug::debug_stats::instance().render(rend);
+
+    // Render status log (hunger warnings, etc.) above icon panel
+    // Icon panel height is approximately 70 pixels
+    status_log_.render(rend, static_cast<int32_t>(rend.width()),
+                       static_cast<int32_t>(rend.height()), 70);
 }
 
 void game_state_manager::setup_network_handlers() {
@@ -814,6 +978,10 @@ entity* game_state_manager::local_player() {
     return entities_.local_player();
 }
 
+const entity* game_state_manager::local_player() const {
+    return entities_.local_player();
+}
+
 void game_state_manager::set_characters(std::vector<character_info> characters) {
     characters_ = std::move(characters);
 }
@@ -890,21 +1058,346 @@ void game_state_manager::handle_playing_input(const input& inp) {
     handle_hotkey_input(inp);
 }
 
+bool game_state_manager::can_perform_action() const {
+    // Check blocked movement cooldown first
+    if (blocked_movement_cooldown_ > 0.0f) {
+        return false;
+    }
+
+    const entity* player = local_player();
+    if (!player) return false;
+
+    // Block actions while movement is in progress
+    if (player->transform().moving) {
+        return false;
+    }
+
+    const auto& anim = player->animation();
+
+    // Block actions while any non-looping animation is in progress
+    // (attacks, magic, damage, etc.)
+    if (!anim.looping && !anim.finished) {
+        return false;
+    }
+
+    // For movement animations (walk/run), only allow new actions when the
+    // animation cycle is complete (at last frame with timer expired, or at frame 0)
+    bool is_movement_anim = (anim.state == entity_anim_state::move ||
+                             anim.state == entity_anim_state::run);
+    if (is_movement_anim && anim.frame_count > 0) {
+        bool at_cycle_end = (anim.current_frame == anim.frame_count - 1) &&
+                           (anim.frame_timer >= anim.frame_duration);
+        bool at_cycle_start = (anim.current_frame == 0) &&
+                             (anim.frame_timer < 0.016f);  // Within ~1 frame of start
+        if (!at_cycle_end && !at_cycle_start) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void game_state_manager::queue_action(queued_action action) {
+    // Only queue if there's an action in progress
+    if (!can_perform_action()) {
+        pending_action_ = action;
+        spdlog::debug("Queued action type {}", static_cast<int>(action.type));
+    }
+}
+
+void game_state_manager::process_queued_action() {
+    if (pending_action_.type == queued_action_type::none) {
+        return;
+    }
+
+    if (!can_perform_action()) {
+        return;  // Still waiting for current action to finish
+    }
+
+    entity* player = local_player();
+    if (!player) {
+        pending_action_.type = queued_action_type::none;
+        return;
+    }
+
+    spdlog::debug("Executing queued action type {}", static_cast<int>(pending_action_.type));
+
+    switch (pending_action_.type) {
+        case queued_action_type::move:
+            // Set movement destination
+            move_dest_x_ = pending_action_.target_x;
+            move_dest_y_ = pending_action_.target_y;
+            break;
+
+        case queued_action_type::attack:
+            if (pending_action_.target_id != 0) {
+                network_.request_attack(pending_action_.target_id);
+            }
+            break;
+
+        case queued_action_type::pickup:
+            request_pickup(pending_action_.target_x, pending_action_.target_y);
+            break;
+
+        case queued_action_type::magic:
+            network_.request_magic(pending_action_.spell_id,
+                                   pending_action_.target_x, pending_action_.target_y,
+                                   pending_action_.target_id);
+            break;
+
+        case queued_action_type::face_direction:
+            if (entity* p = local_player()) {
+                auto& t = p->transform();
+                // Use the queued direction (player may have changed direction since queuing)
+                // Convert internal direction (1-8) to protocol format (0-7)
+                json msg = make_player_stop_request(t.tile_x, t.tile_y,
+                                                    static_cast<uint8_t>(direction_to_protocol(pending_action_.face_dir)));
+                ws_connection_.send(msg);
+            }
+            break;
+
+        case queued_action_type::stop:
+            // Stop movement and return to idle
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            if (entity* p = local_player()) {
+                p->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    // Clear the queued action
+    pending_action_.type = queued_action_type::none;
+}
+
 void game_state_manager::handle_movement_input(const input& inp) {
     entity* player = local_player();
     if (!player || !player->has_movement()) {
         return;
     }
 
-    // Click to move
+    // Left mouse button - movement or actions
+    // Use is_mouse_pressed for click-on-self actions (pickup, attack north)
+    // Use is_mouse_down for continuous movement destination updates
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
-        auto [tile_x, tile_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        auto [dest_x, dest_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        auto& t = player->transform();
 
-        // Check if tile is walkable
-        if (world_.current_map().is_walkable(tile_x, tile_y)) {
-            // Request movement from server
-            network_.request_move(tile_x, tile_y, 0);
+        // Check if clicking on own character's actual sprite bounds (only on initial press)
+        bool clicked_on_self = entities_.is_point_in_entity_sprite(
+            *player, sprites_, world_.camera_x(), world_.camera_y(),
+            inp.mouse_x(), inp.mouse_y());
+
+        if (clicked_on_self) {
+            bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
+                             inp.is_key_down(sf::Keyboard::Key::RControl);
+
+            if (ctrl_held) {
+                // Ctrl+click on self: attack north if enemy present
+                int32_t north_x = t.tile_x;
+                int32_t north_y = t.tile_y - 1;
+                entity* target = entities_.find_at_tile(north_x, north_y);
+
+                if (target && target->type() == entity_type::monster) {
+                    if (can_perform_action()) {
+                        spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
+                        network_.request_attack(target->id(), 0);
+                        player->transform().direction = direction::north;
+                    } else {
+                        // Queue the attack
+                        queued_action action;
+                        action.type = queued_action_type::attack;
+                        action.target_id = target->id();
+                        queue_action(action);
+                    }
+                } else {
+                    spdlog::debug("Ctrl+click on self: no enemy to north");
+                }
+            } else {
+                // Click on self without modifiers: pickup item
+                if (can_perform_action()) {
+                    spdlog::debug("Click on self: sending pickup request at ({},{})", t.tile_x, t.tile_y);
+                    request_pickup(t.tile_x, t.tile_y);
+                } else {
+                    // Queue the pickup
+                    queued_action action;
+                    action.type = queued_action_type::pickup;
+                    action.target_x = t.tile_x;
+                    action.target_y = t.tile_y;
+                    queue_action(action);
+                }
+            }
+            return;  // Don't process as movement
         }
+    }
+
+    // Continuously update movement destination while holding left mouse button
+    if (inp.is_mouse_down(sf::Mouse::Button::Left)) {
+        auto [dest_x, dest_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+
+        // Don't update movement if hovering over own sprite
+        bool hovering_self = entities_.is_point_in_entity_sprite(
+            *player, sprites_, world_.camera_x(), world_.camera_y(),
+            inp.mouse_x(), inp.mouse_y());
+        if (hovering_self) {
+            return;
+        }
+
+        // Update movement destination (continuous tracking)
+        // Never set destination to current tile - nothing to do
+        auto& t = player->transform();
+        if (dest_x == t.tile_x && dest_y == t.tile_y) {
+            return;
+        }
+
+        // Allow clicking on any tile (even blocked ones) - pathfinding will
+        // move as close as possible and stop at the last walkable tile
+        if (dest_x != move_dest_x_ || dest_y != move_dest_y_) {
+            move_dest_x_ = dest_x;
+            move_dest_y_ = dest_y;
+        }
+    }
+
+    // Right click initial press - queue stop action to cancel movement
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right)) {
+        // Queue stop action - will execute when current animation completes
+        pending_action_.type = queued_action_type::stop;
+    }
+
+    // Right click held - continuously update face direction
+    if (inp.is_mouse_down(sf::Mouse::Button::Right)) {
+        auto& t = player->transform();
+
+        // Calculate direction from player to mouse position
+        auto [click_x, click_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        int32_t dx = click_x - t.tile_x;
+        int32_t dy = click_y - t.tile_y;
+
+        // Determine cardinal/diagonal direction based on relative position
+        direction face_dir = direction::none;
+        if (dx == 0 && dy == 0) {
+            // Mouse on self - don't change direction
+        } else if (std::abs(dx) > std::abs(dy) * 2) {
+            // Mostly horizontal
+            face_dir = (dx > 0) ? direction::east : direction::west;
+        } else if (std::abs(dy) > std::abs(dx) * 2) {
+            // Mostly vertical
+            face_dir = (dy > 0) ? direction::south : direction::north;
+        } else {
+            // Diagonal
+            if (dx > 0 && dy < 0) face_dir = direction::north_east;
+            else if (dx > 0 && dy > 0) face_dir = direction::south_east;
+            else if (dx < 0 && dy > 0) face_dir = direction::south_west;
+            else if (dx < 0 && dy < 0) face_dir = direction::north_west;
+        }
+
+        if (face_dir != direction::none && t.direction != face_dir) {
+            // Update local direction immediately for visual feedback
+            t.direction = face_dir;
+
+            // Send to server only if we can perform an action, otherwise queue it
+            if (can_perform_action()) {
+                // Convert internal direction (1-8) to protocol format (0-7)
+                json msg = make_player_stop_request(t.tile_x, t.tile_y,
+                                                    static_cast<uint8_t>(direction_to_protocol(face_dir)));
+                ws_connection_.send(msg);
+            } else {
+                // Queue the direction change - will send when animation completes
+                queued_action action;
+                action.type = queued_action_type::face_direction;
+                action.face_dir = face_dir;
+                queue_action(action);
+            }
+        }
+    }
+
+    // Continue moving toward destination (pathfinding)
+    // Check cooldown - don't send movement requests during blocked movement cooldown
+    if (move_dest_x_ >= 0 && move_dest_y_ >= 0 && !player->transform().moving && can_perform_action()) {
+        auto& t = player->transform();
+
+        // Use legacy pathfinding to get next move direction
+        direction dir = get_next_move_dir(t.tile_x, t.tile_y, move_dest_x_, move_dest_y_);
+
+        if (dir == direction::none) {
+            // Reached destination or path blocked
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            return;
+        }
+
+        // Calculate next tile in the direction
+        int32_t next_x = t.tile_x;
+        int32_t next_y = t.tile_y;
+
+        switch (dir) {
+            case direction::north:      next_y -= 1; break;
+            case direction::north_east: next_x += 1; next_y -= 1; break;
+            case direction::east:       next_x += 1; break;
+            case direction::south_east: next_x += 1; next_y += 1; break;
+            case direction::south:      next_y += 1; break;
+            case direction::south_west: next_x -= 1; next_y += 1; break;
+            case direction::west:       next_x -= 1; break;
+            case direction::north_west: next_x -= 1; next_y -= 1; break;
+            default: break;
+        }
+
+        // Check if the next tile is walkable before sending movement request
+        if (!world_.current_map().is_walkable(next_x, next_y)) {
+            // Terrain blocked - we've reached as close as possible, clear destination
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            return;
+        }
+
+        // Check if a living entity is blocking the tile
+        auto entities_on_tile = entities_.get_entities_on_tile(next_x, next_y);
+        for (auto* e : entities_on_tile) {
+            if (e && e->is_alive() && e != player) {
+                // Living entity is blocking - don't move but keep destination
+                // (entity might move, allowing us to continue)
+                return;
+            }
+        }
+
+        // Never request move to the tile we're already on - just stop and idle
+        if (next_x == t.tile_x && next_y == t.tile_y) {
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+            return;
+        }
+
+        // Convert internal direction (1-8) to protocol format (0-7)
+        uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(dir));
+
+        // Determine run mode (Shift overrides toggle)
+        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
+                         inp.is_key_down(sf::Keyboard::Key::RShift) ||
+                         run_mode_enabled_;
+
+        // Client-side prediction - move to next tile
+        t.dest_tile_x = next_x;
+        t.dest_tile_y = next_y;
+        t.direction = dir;
+        t.moving = true;
+        t.move_progress = 0.0f;
+
+        if (player->has_movement()) {
+            player->movement().running = should_run;
+        }
+
+        // Set animation state with combat mode
+        object_action base_action = should_run ? object_action::run : object_action::move_peace;
+        player->set_action_with_combat_mode(base_action, combat_mode_);
+
+        // Send to server via WebSocket (server is authoritative)
+        // Protocol: send current position + direction to move
+        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol, should_run);
+        ws_connection_.send(msg);
     }
 
     // Keyboard movement
@@ -914,30 +1407,59 @@ void game_state_manager::handle_movement_input(const input& inp) {
     if (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left)) dx = -1;
     if (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right)) dx = 1;
 
-    if (dx != 0 || dy != 0) {
+    // Check cooldown before processing keyboard movement
+    if ((dx != 0 || dy != 0) && can_perform_action()) {
         auto& t = player->transform();
         int32_t target_x = t.tile_x + dx;
         int32_t target_y = t.tile_y + dy;
 
         if (world_.current_map().is_walkable(target_x, target_y)) {
-            network_.request_move(target_x, target_y, 0);
+            // Calculate direction from deltas
+            direction move_dir = direction::none;
+            if (dx == 0 && dy == -1) move_dir = direction::north;
+            else if (dx == 1 && dy == -1) move_dir = direction::north_east;
+            else if (dx == 1 && dy == 0) move_dir = direction::east;
+            else if (dx == 1 && dy == 1) move_dir = direction::south_east;
+            else if (dx == 0 && dy == 1) move_dir = direction::south;
+            else if (dx == -1 && dy == 1) move_dir = direction::south_west;
+            else if (dx == -1 && dy == 0) move_dir = direction::west;
+            else if (dx == -1 && dy == -1) move_dir = direction::north_west;
+
+            if (move_dir != direction::none) {
+                bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
+                                 inp.is_key_down(sf::Keyboard::Key::RShift) ||
+                                 run_mode_enabled_;
+                // Convert internal direction (1-8) to protocol format (0-7)
+                json msg = make_player_move_request(t.tile_x, t.tile_y,
+                                                    static_cast<uint8_t>(direction_to_protocol(move_dir)),
+                                                    should_run);
+                ws_connection_.send(msg);
+            }
         }
     }
 }
 
 void game_state_manager::handle_combat_input(const input& inp) {
-    // Right click to attack
+    // Right click on enemy to attack (movement input handles right-click for facing direction)
+    // This is checked here for attacking enemies specifically
     if (inp.is_mouse_pressed(sf::Mouse::Button::Right)) {
-        // World coordinates (for AoE spells targeting locations)
-        // int32_t world_x = inp.mouse_x() + world_.camera_x();
-        // int32_t world_y = inp.mouse_y() + world_.camera_y();
-
         entity* target = entities_.get_entity_at_screen_pos(
             inp.mouse_x(), inp.mouse_y(),
             world_.camera_x(), world_.camera_y());
 
-        if (target && target->id() != entities_.local_player_id()) {
-            network_.request_attack(target->id());
+        // Only attack if clicking directly on a hostile entity
+        if (target && target->id() != entities_.local_player_id() &&
+            (target->type() == entity_type::monster || target->type() == entity_type::character)) {
+            if (can_perform_action()) {
+                network_.request_attack(target->id());
+            } else {
+                // Queue the attack
+                queued_action action;
+                action.type = queued_action_type::attack;
+                action.target_id = target->id();
+                queue_action(action);
+            }
+            // Don't return - let movement input handle the direction facing
         }
     }
 
@@ -973,6 +1495,14 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
             entities_.set_global_render_mode(false);
             spdlog::info("Global render mode: OFF (cinematic disabled)");
         }
+    }
+
+    // Toggle tile debug overlay (F6) - shows walkability and teleport tiles
+    if (inp.is_key_pressed(sf::Keyboard::Key::F6)) {
+        auto config = world_.render_config();
+        config.show_walkability = !config.show_walkability;
+        world_.set_render_config(config);
+        spdlog::info("Tile debug overlay: {}", config.show_walkability ? "ON" : "OFF");
     }
 
     // Toggle zoom mode (Ctrl+Q)
@@ -1016,6 +1546,13 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         }
     }
 
+    // Toggle run mode with Ctrl+R
+    if ((inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl)) &&
+        inp.is_key_pressed(sf::Keyboard::Key::R)) {
+        run_mode_enabled_ = !run_mode_enabled_;
+        spdlog::debug("Run mode: {}", run_mode_enabled_ ? "enabled" : "disabled");
+    }
+
     // Toggle dialogs
     if (inp.is_key_pressed(sf::Keyboard::Key::C)) {
         ui_.toggle_dialog(dialog_type::character_info);
@@ -1053,7 +1590,12 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab)) {
         combat_mode_ = !combat_mode_;
         spdlog::debug("Combat mode toggled: {}", combat_mode_ ? "attack" : "peace");
-        // Update will push this to icon panel
+
+        // Update player action to reflect new combat stance
+        entity* player = local_player();
+        if (player && !player->transform().moving) {
+            player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+        }
     }
 
     // Toggle safe attack mode (Home)
@@ -1066,6 +1608,44 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
     // Help dialog
     if (inp.is_key_pressed(sf::Keyboard::Key::F1)) {
         ui_.toggle_dialog(dialog_type::help);
+    }
+
+    // Debug: Test event log colors with Ctrl+Number keys
+    bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
+                     inp.is_key_down(sf::Keyboard::Key::RControl);
+    if (ctrl_held)
+    {
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num1)) {
+            status_log_.add_event("White: Default message color", message_color::white);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num2)) {
+            status_log_.add_event("Green: You gained 150 experience!", message_color::green);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num3)) {
+            status_log_.add_event("Red: You took 47 damage!", message_color::red);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num4)) {
+            status_log_.add_event("Blue: Magic Missile hits for 32 damage", message_color::blue);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num5)) {
+            status_log_.add_event("Yellow: Warning - low health!", message_color::yellow);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num6)) {
+            status_log_.add_event("System: Server maintenance in 10 minutes", message_color::system);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num7)) {
+            status_log_.add_event("Rainbow cycling color effect!", message_color::rainbow);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num8)) {
+            status_log_.add_event("Special per-letter rainbow gradient!", message_color::special);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num9)) {
+            status_log_.add_event("Terror shaky bouncing text!", message_color::terror);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num0)) {
+            status_log_.clear_events();
+            spdlog::info("Status log events cleared");
+        }
     }
 }
 
@@ -1371,6 +1951,9 @@ void game_state_manager::setup_dialog_callbacks() {
             combat_mode_ = !combat_mode_;
             spdlog::debug("Combat mode toggled via click: {}", combat_mode_ ? "attack" : "peace");
         });
+
+        // Sound callback for icon panel buttons
+        yaml_dlg->set_on_button_sound([this]() { sounds_.play_ui_sound(14); });
     }
     // Fallback to code-based icon panel
     else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
@@ -1456,6 +2039,9 @@ void game_state_manager::setup_dialog_callbacks() {
             combat_mode_ = !combat_mode_;
             spdlog::debug("Combat mode toggled via click: {}", combat_mode_ ? "attack" : "peace");
         });
+
+        // Sound callback for icon panel buttons
+        icon_dlg->set_on_button_sound([this]() { sounds_.play_ui_sound(14); });
     }
 
     // Legacy system menu dialog - keep for fallback (can be removed later)
@@ -1499,6 +2085,11 @@ void game_state_manager::setup_dialog_callbacks() {
         settings_dlg->set_vsync(video.vsync);
         settings_dlg->set_framerate(video.framerate_limit);
 
+        // Initialize audio volumes from config
+        const auto& audio_cfg = config::instance().audio();
+        settings_dlg->set_music_volume(audio_cfg.music_volume);
+        settings_dlg->set_sound_volume(audio_cfg.sfx_volume);
+
         settings_dlg->set_on_style_change([this](ui_style style) {
             // Apply UI style change immediately for preview
             set_ui_style(style);
@@ -1538,19 +2129,22 @@ void game_state_manager::setup_dialog_callbacks() {
             if (audio_) {
                 audio_->set_music_volume(volume);
             }
+            // Update config so it persists
+            config::instance().audio().music_volume = volume;
         });
 
         settings_dlg->set_on_sound_volume_change([this](float volume) {
             if (audio_) {
                 audio_->set_sound_volume(volume);
             }
+            // Update config so it persists
+            config::instance().audio().sfx_volume = volume;
         });
 
         settings_dlg->set_on_apply([this]() {
             spdlog::info("Settings applied");
-            // Settings are already applied in real-time via the callbacks above
-            // This is just for confirmation/saving
-            // TODO: Save settings to config file
+            // Save config to persist all settings
+            config::instance().save();
         });
     }
 }
@@ -1681,28 +2275,13 @@ void game_state_manager::attempt_login(const std::string& username, const std::s
         return;
     }
 
-    // Set up callbacks for new connection
-    ws_connection_.set_connect_callback([this]() {
-        // Connection established - send login request
-        spdlog::info("Connected! Sending login request for user: {}", pending_username_);
-        json login_msg = make_login_request(pending_username_, pending_password_);
-        ws_connection_.send(login_msg);
-    });
+    // Set flag to send login request when connection is established
+    // We use polling instead of callbacks to avoid thread-safety issues
+    pending_login_on_connect_.store(true);
 
-    ws_connection_.set_disconnect_callback([this](const std::string& reason) {
-        spdlog::warn("Disconnected from server: {}", reason);
-        // Queue the disconnect for main thread processing (avoid race conditions)
-        // Don't access pending_username_ here - it's not thread-safe
-        {
-            std::lock_guard<std::mutex> lock(pending_disconnect_mutex_);
-            pending_disconnect_reason_ = reason;
-        }
-        has_pending_disconnect_.store(true);
-    });
-
-    // NOTE: Do NOT set message_callback here - it runs on a background thread
-    // and modifying UI from there causes race conditions. Instead, we poll
-    // for messages on the main thread in update().
+    // NOTE: We use polling (poll_connect_event, poll_disconnect_event, receive)
+    // instead of callbacks because ixwebsocket runs callbacks on a background
+    // thread, and accessing game state from there causes race conditions.
 
     // Connect to server
     if (!ws_connection_.connect(ws_url)) {
@@ -1741,6 +2320,24 @@ void game_state_manager::handle_ws_message(const json& message) {
     }
     else if (type == msg_type::create_character_response) {
         handle_create_character_response(message);
+    }
+    else if (type == msg_type::player_pickup_response) {
+        handle_pickup_response(message);
+    }
+    else if (type == msg_type::ground_item_removed) {
+        handle_ground_item_removed(message);
+    }
+    else if (type == msg_type::player_position_update) {
+        handle_player_position_update(message);
+    }
+    else if (type == msg_type::player_stop_response) {
+        handle_player_stop_response(message);
+    }
+    else if (type == msg_type::player_move_response) {
+        handle_player_move_response(message);
+    }
+    else if (type == msg_type::hunger_update) {
+        handle_hunger_update(message);
     }
     else {
         spdlog::warn("Unknown message type: {}", type);
@@ -1788,13 +2385,13 @@ void game_state_manager::handle_get_characters_response(const json& message) {
             info.id = sc.id;
             info.name = sc.name;
             info.level = static_cast<uint16_t>(sc.level);
-            info.warrior = (sc.char_class == "warrior");
-            // Appearance data
-            info.gender = sc.gender;
-            info.skin_color = sc.skin_color;
-            info.hair_style = sc.hair_style;
-            info.hair_color = sc.hair_color;
-            info.underwear_color = sc.underwear_color;
+            info.warrior = (sc.class_type == 0);  // 0=Warrior per protocol
+            // Appearance data (server sends 0=Male, 1=Female; we use 1=Male, 2=Female)
+            info.gender = static_cast<uint8_t>(sc.gender == 0 ? 1 : 2);
+            info.skin_color = static_cast<uint8_t>(sc.skin_color);
+            info.hair_style = static_cast<uint8_t>(sc.hair_style);
+            info.hair_color = static_cast<uint8_t>(sc.hair_color);
+            info.underwear_color = static_cast<uint8_t>(sc.underwear_color);
             // Equipment data
             info.body_armor = sc.body_armor;
             info.arm_armor = sc.arm_armor;
@@ -1855,12 +2452,13 @@ void game_state_manager::handle_enter_game_response(const json& message) {
     auto& player = entities_.create_entity_with_id(ch.id, entity_type::player);
     entities_.set_local_player(ch.id);
 
-    // Set position (use tile center for proper centering)
+    // Set position (feet at tile center)
     auto& transform = player.transform();
     transform.tile_x = ch.pos_x;
     transform.tile_y = ch.pos_y;
-    transform.x = ch.pos_x * 32 + 16;  // World coords (tile center)
-    transform.y = ch.pos_y * 32 + 16;
+    transform.x = ch.pos_x * 32 + 16;  // Tile center X
+    transform.y = ch.pos_y * 32 + 16;  // Tile center Y (feet position)
+    spdlog::info("PLAYER SPAWN: tile=({},{}) world=({},{})", ch.pos_x, ch.pos_y, transform.x, transform.y);
 
     // Set name
     auto& name = player.name();
@@ -1981,10 +2579,8 @@ void game_state_manager::handle_enter_game_response(const json& message) {
         ent_transform.x = ent.x * 32;
         ent_transform.y = ent.y * 32;
 
-        // Convert direction (1-8 server format)
-        if (ent.direction >= 1 && ent.direction <= 8) {
-            ent_transform.direction = static_cast<direction>(ent.direction);
-        }
+        // Convert direction from protocol (0-7) to internal enum (1-8)
+        ent_transform.direction = direction_from_protocol(ent.direction);
 
         // Set name (NPCs and characters both have name component)
         if (world_entity.has_name()) {
@@ -2039,6 +2635,229 @@ void game_state_manager::handle_create_character_response(const json& message) {
     }
 }
 
+void game_state_manager::handle_pickup_response(const json& message) {
+    auto response = player_pickup_response_data::from_json(message);
+
+    if (response.success) {
+        spdlog::info("Picked up item: {} x{} (slot {})",
+                     response.item_name, response.quantity, response.inventory_slot);
+
+        // TODO: Update inventory UI when inventory system is fully implemented
+        // inventory_.add_item(response.inventory_slot, response.item_id, response.item_name, response.quantity);
+
+        // Could show a pickup notification
+        // chat_.add_system_message("Picked up " + std::to_string(response.quantity) + " " + response.item_name);
+    } else {
+        spdlog::debug("Pickup failed: {}", response.error_message);
+        // Pickup failed - no item at location or other error
+        // This is normal when clicking on self with no items, don't show error
+    }
+
+    // Return player to idle after pickup animation
+    if (entity* player = local_player()) {
+        player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+    }
+}
+
+void game_state_manager::handle_ground_item_removed(const json& message) {
+    auto data = ground_item_removed_data::from_json(message);
+
+    spdlog::debug("Ground item removed: {} picked up {} at ({},{})",
+                  data.picker_name, data.item_name, data.x, data.y);
+
+    // Remove the item entity from the world if it exists
+    // The item_id from the server corresponds to the entity ID in our system
+    entities_.destroy(data.item_id);
+}
+
+void game_state_manager::handle_player_position_update(const json& message) {
+    auto data = player_position_update_data::from_json(message);
+
+    // Find the entity
+    entity* ent = entities_.get_entity(data.entity_id);
+    if (!ent) {
+        spdlog::debug("Position update for unknown entity {}", data.entity_id);
+        return;
+    }
+
+    auto& t = ent->transform();
+
+    // For the local player, don't teleport during movement - let interpolation run
+    if (data.entity_id == entities_.local_player_id()) {
+        if (t.moving) {
+            // Local player is mid-movement - only log, don't teleport
+            spdlog::debug("Ignoring position update for moving local player (server: {},{}, dest: {},{})",
+                          data.x, data.y, t.dest_tile_x, t.dest_tile_y);
+            return;
+        }
+    }
+
+    // Update transform
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.direction = direction_from_protocol(data.direction);
+
+    // Update world position (centered on tile)
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
+
+    // Update running state if entity has movement component
+    if (ent->has_movement()) {
+        ent->movement().running = data.is_running;
+    }
+
+    spdlog::debug("Entity {} position updated: ({},{}) dir={} running={}",
+                  data.entity_id, data.x, data.y, static_cast<int>(t.direction), data.is_running);
+}
+
+void game_state_manager::handle_player_stop_response(const json& message) {
+    auto data = player_stop_response_data::from_json(message);
+
+    if (!data.success) {
+        spdlog::debug("Player stop request rejected by server");
+        return;
+    }
+
+    // Update local player position/direction to match server's authoritative state
+    entity* player = local_player();
+    if (!player) {
+        return;
+    }
+
+    auto& t = player->transform();
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.direction = direction_from_protocol(data.direction);
+
+    // Update world position (centered on tile)
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
+
+    spdlog::debug("Player stop confirmed: ({},{}) dir={}",
+                  data.x, data.y, static_cast<int>(t.direction));
+}
+
+void game_state_manager::handle_player_move_response(const json& message) {
+    auto data = player_move_response_data::from_json(message);
+
+    entity* player = local_player();
+    if (!player) {
+        return;
+    }
+
+    if (!data.success) {
+        // Movement rejected - revert client-side prediction
+        spdlog::debug("Movement rejected: {}", data.error);
+
+        auto& t = player->transform();
+        // Stop the movement animation
+        t.moving = false;
+        t.move_progress = 0.0f;
+        t.dest_tile_x = t.tile_x;
+        t.dest_tile_y = t.tile_y;
+
+        // Correct position to server's authoritative state
+        if (data.x != 0 || data.y != 0) {
+            t.tile_x = data.x;
+            t.tile_y = data.y;
+            t.x = data.x * hb::tile_width + 16;
+            t.y = data.y * hb::tile_height + 16;
+        }
+
+        // Return to idle animation
+        player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+
+        // Handle blocked_occupied - apply cooldown and play hurt sound
+        if (data.error == "blocked_occupied") {
+            // Apply 250ms action cooldown
+            blocked_movement_cooldown_ = blocked_movement_cooldown_duration;
+
+            // Clear movement destination to stop pathfinding retry
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+
+            // Play hurt sound: C12 for male, C13 for female
+            uint8_t gender = player->sprite().gender;
+            int sound_num = (gender == 2) ? 13 : 12;
+            sounds_.play_sound('C', sound_num, 0);
+
+            spdlog::debug("Movement blocked by entity, cooldown applied, playing C{}", sound_num);
+        }
+
+        // Handle blocked_terrain - apply cooldown (no sound)
+        // Server says we're blocked, apply penalty
+        if (data.error == "blocked_terrain") {
+            blocked_movement_cooldown_ = blocked_movement_cooldown_duration;
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            spdlog::debug("Movement blocked by terrain (server), cooldown applied");
+        }
+
+        return;
+    }
+
+    // Movement confirmed by server - DON'T immediately teleport
+    // Let the client-side animation continue interpolating smoothly
+    auto& t = player->transform();
+
+    // Only correct position if there's a significant discrepancy
+    // (e.g., server correction due to lag or cheating)
+    bool position_mismatch = (t.dest_tile_x != data.x || t.dest_tile_y != data.y);
+
+    if (position_mismatch) {
+        // Server says we're at a different position - correct it
+        spdlog::warn("Movement position mismatch: client dest ({},{}) vs server ({},{})",
+                     t.dest_tile_x, t.dest_tile_y, data.x, data.y);
+        t.tile_x = data.x;
+        t.tile_y = data.y;
+        t.dest_tile_x = data.x;
+        t.dest_tile_y = data.y;
+        t.x = data.x * hb::tile_width + 16;
+        t.y = data.y * hb::tile_height + 16;
+        t.moving = false;
+        t.move_progress = 0.0f;
+        player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+
+        // Apply cooldown to prevent spam when server corrects position
+        blocked_movement_cooldown_ = blocked_movement_cooldown_duration;
+
+        // Clear movement destination to prevent retry loop
+        move_dest_x_ = -1;
+        move_dest_y_ = -1;
+    }
+    // Otherwise let the movement animation continue naturally
+    // entity_manager::update_movement() will handle interpolation and completion
+
+    spdlog::debug("Movement confirmed: ({},{}) dir={} (interpolating={})",
+                  data.x, data.y, static_cast<int>(t.direction), t.moving);
+}
+
+void game_state_manager::handle_hunger_update(const json& message) {
+    auto data = hunger_update_data::from_json(message);
+
+    entity* player = local_player();
+    if (!player) {
+        return;
+    }
+
+    player->stats().hunger = static_cast<uint8_t>(std::max(0, static_cast<int>(data.level)));
+
+    // Update status log based on hunger level
+    if (data.is_starving) {
+        status_log_.set_message("hunger", "Starving! Regeneration blocked.",
+                                status_severity::critical);
+        spdlog::warn("Player is starving! Regeneration blocked.");
+    } else if (data.level < 30) {
+        status_log_.set_message("hunger", "Hungry - regeneration delayed",
+                                status_severity::warning);
+        spdlog::debug("Hunger low: {} - regeneration delayed", data.level);
+    } else {
+        // Hunger is normal, remove any hunger warning
+        status_log_.remove_message("hunger");
+        spdlog::debug("Hunger updated: {}", data.level);
+    }
+}
+
 void game_state_manager::request_characters() {
     spdlog::info("Requesting character list");
     json msg = make_get_characters_request();
@@ -2056,6 +2875,18 @@ void game_state_manager::request_enter_game(int32_t character_id, bool force_dis
     ui_.show_connection_dialog(nullptr);
 
     json msg = make_enter_game_request(character_id, force_disconnect);
+    ws_connection_.send(msg);
+}
+
+void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y) {
+    spdlog::info("Requesting pickup at ({}, {})", tile_x, tile_y);
+
+    // Play pickup animation
+    if (entity* player = local_player()) {
+        player->set_action(object_action::get_item);
+    }
+
+    json msg = make_player_pickup_request(tile_x, tile_y);
     ws_connection_.send(msg);
 }
 

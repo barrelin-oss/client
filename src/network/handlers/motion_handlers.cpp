@@ -3,6 +3,7 @@
 #include "entity/entity_manager.hpp"
 #include "core/game_enums.hpp"
 #include <spdlog/spdlog.h>
+#include <cmath>
 
 namespace hb {
 
@@ -14,26 +15,52 @@ void motion_handler::initialize(game_state_manager& game) {
 void motion_handler::handle_motion_response(packet_reader& reader) {
     if (!game_) return;
 
-    // Response to our own motion command
     auto result = reader.read_u8();
     if (!result) return;
 
+    auto* player = game_->local_player();
+    if (!player) return;
+
     if (*result == 0) {
-        // Motion accepted
+        // Motion ACCEPTED - server confirms
         auto x = reader.read_i16();
         auto y = reader.read_i16();
         auto dir = reader.read_u8();
 
         if (x && y && dir) {
-            if (auto* player = game_->local_player()) {
-                player->transform().tile_x = *x;
-                player->transform().tile_y = *y;
-                player->transform().direction = static_cast<direction>(*dir);
+            auto& t = player->transform();
+
+            // Update destination (server is authoritative)
+            t.dest_tile_x = *x;
+            t.dest_tile_y = *y;
+            t.direction = static_cast<direction>(*dir);
+
+            // Rubber-band correction if server position differs significantly
+            int32_t dx = std::abs(t.tile_x - *x);
+            int32_t dy = std::abs(t.tile_y - *y);
+            if (dx > 1 || dy > 1) {
+                // Snap to server position
+                t.tile_x = *x;
+                t.tile_y = *y;
+                t.x = *x * 32 + 16;  // Tile center X
+                t.y = *y * 32 + 32;  // Tile bottom Y
+                t.move_progress = 0.0f;
             }
         }
     } else {
-        // Motion rejected - rubber band back
-        spdlog::debug("Motion rejected");
+        // Motion REJECTED - cancel prediction
+        spdlog::debug("Motion rejected - code: {}", *result);
+
+        auto& t = player->transform();
+
+        // Cancel predicted movement
+        t.moving = false;
+        t.move_progress = 0.0f;
+        t.dest_tile_x = t.tile_x;
+        t.dest_tile_y = t.tile_y;
+
+        // Return to idle with current combat stance
+        player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
     }
 }
 
@@ -52,26 +79,24 @@ void motion_handler::handle_motion_event(packet_reader& reader) {
     object_action action = static_cast<object_action>(*action_type);
 
     switch (action) {
-        case object_action::stop:
+        case object_action::stop_peace:
+        case object_action::stop_combat:
             process_stop(*entity_id, reader);
             break;
-        case object_action::move:
+        case object_action::move_peace:
+        case object_action::move_combat:
             process_move(*entity_id, reader);
             break;
         case object_action::run:
             process_run(*entity_id, reader);
             break;
-        case object_action::attack:
+        case object_action::attack_peace:
+        case object_action::attack_combat:
+        case object_action::attack_combat_bow:
             process_attack(*entity_id, reader);
-            break;
-        case object_action::attack_move:
-            process_attack_move(*entity_id, reader);
             break;
         case object_action::damage:
             process_damage(*entity_id, reader);
-            break;
-        case object_action::damage_move:
-            process_damage_move(*entity_id, reader);
             break;
         case object_action::magic:
             process_magic(*entity_id, reader);
@@ -80,9 +105,6 @@ void motion_handler::handle_motion_event(packet_reader& reader) {
             process_get_item(*entity_id, reader);
             break;
         case object_action::dying:
-            process_dying(*entity_id, reader);
-            break;
-        case object_action::dead:
             process_dead(*entity_id, reader);
             break;
         default:
@@ -131,10 +153,13 @@ void motion_handler::process_stop(uint32_t entity_id, packet_reader& reader) {
         ent = &game_->entities().create(entity_id);
     }
 
-    ent->transform().tile_x = *x;
-    ent->transform().tile_y = *y;
-    ent->transform().direction = static_cast<direction>(*dir);
-    ent->set_action(object_action::stop);
+    auto& t = ent->transform();
+    t.tile_x = *x;
+    t.tile_y = *y;
+    t.x = *x * 32 + 16;  // Tile center X
+    t.y = *y * 32 + 16;  // Tile center Y (feet position)
+    t.direction = static_cast<direction>(*dir);
+    ent->set_action(object_action::stop_peace);
 }
 
 void motion_handler::process_move(uint32_t entity_id, packet_reader& reader) {
@@ -150,9 +175,20 @@ void motion_handler::process_move(uint32_t entity_id, packet_reader& reader) {
         ent = &game_->entities().create(entity_id);
     }
 
+    // Initialize world coordinates if not set
+    auto& t = ent->transform();
+    if (t.x == 0 && t.y == 0 && (t.tile_x != 0 || t.tile_y != 0)) {
+        t.x = t.tile_x * 32 + 16;
+        t.y = t.tile_y * 32 + 16;
+    }
+
     ent->set_move_target(*x, *y);
-    ent->transform().direction = static_cast<direction>(*dir);
-    ent->set_action(object_action::move);
+    t.dest_tile_x = *x;
+    t.dest_tile_y = *y;
+    t.direction = static_cast<direction>(*dir);
+    t.moving = true;
+    t.move_progress = 0.0f;
+    ent->set_action(object_action::move_peace);
     if (speed) {
         ent->set_move_speed(*speed);
     }
@@ -170,8 +206,19 @@ void motion_handler::process_run(uint32_t entity_id, packet_reader& reader) {
         ent = &game_->entities().create(entity_id);
     }
 
+    // Initialize world coordinates if not set
+    auto& t = ent->transform();
+    if (t.x == 0 && t.y == 0 && (t.tile_x != 0 || t.tile_y != 0)) {
+        t.x = t.tile_x * 32 + 16;
+        t.y = t.tile_y * 32 + 16;
+    }
+
     ent->set_move_target(*x, *y);
-    ent->transform().direction = static_cast<direction>(*dir);
+    t.dest_tile_x = *x;
+    t.dest_tile_y = *y;
+    t.direction = static_cast<direction>(*dir);
+    t.moving = true;
+    t.move_progress = 0.0f;
     ent->set_action(object_action::run);
 }
 
@@ -186,7 +233,7 @@ void motion_handler::process_attack(uint32_t entity_id, packet_reader& reader) {
     if (!ent) return;
 
     ent->transform().direction = static_cast<direction>(*dir);
-    ent->set_action(object_action::attack);
+    ent->set_action(object_action::attack_peace);
     if (target_id) {
         ent->set_target(*target_id);
     }
@@ -208,7 +255,7 @@ void motion_handler::process_attack_move(uint32_t entity_id, packet_reader& read
 
     ent->set_move_target(*x, *y);
     ent->transform().direction = static_cast<direction>(*dir);
-    ent->set_action(object_action::attack_move);
+    ent->set_action(object_action::attack_peace);
     if (target_id) {
         ent->set_target(*target_id);
     }
@@ -241,7 +288,7 @@ void motion_handler::process_damage_move(uint32_t entity_id, packet_reader& read
 
     ent->set_move_target(*x, *y);
     ent->transform().direction = static_cast<direction>(*dir);
-    ent->set_action(object_action::damage_move);
+    ent->set_action(object_action::damage);
 }
 
 void motion_handler::process_magic(uint32_t entity_id, packet_reader& reader) {
@@ -292,7 +339,7 @@ void motion_handler::process_dead(uint32_t entity_id, packet_reader& reader) {
     entity* ent = game_->entities().find(entity_id);
     if (!ent) return;
 
-    ent->set_action(object_action::dead);
+    ent->set_action(object_action::dying);
     // Entity will be removed after death animation completes
 }
 
@@ -308,16 +355,21 @@ void motion_handler::process_spawn_object(packet_reader& reader) {
 
     entity& ent = game_->entities().create(*entity_id);
     ent.set_type(*entity_type);
-    ent.transform().tile_x = *x;
-    ent.transform().tile_y = *y;
+
+    auto& t = ent.transform();
+    t.tile_x = *x;
+    t.tile_y = *y;
+    t.x = *x * 32 + 16;  // Initialize world coords from tile coords
+    t.y = *y * 32 + 32;
+
     if (dir) {
-        ent.transform().direction = static_cast<direction>(*dir);
+        t.direction = static_cast<direction>(*dir);
     }
     if (name) {
         ent.set_name(*name);
     }
 
-    spdlog::debug("Spawned entity {} at ({}, {})", *entity_id, *x, *y);
+    spdlog::debug("Spawned entity {} at tile ({}, {}) -> world ({}, {})", *entity_id, *x, *y, t.x, t.y);
 }
 
 void motion_handler::process_despawn_object(packet_reader& reader) {

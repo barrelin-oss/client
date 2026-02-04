@@ -83,6 +83,12 @@ protected:
     void update_children(float delta_time, const input& inp);
     void render_children(renderer& rend);
 
+    // Get absolute screen position by traversing parent hierarchy
+    void get_absolute_position(int32_t& abs_x, int32_t& abs_y) const;
+
+    // Check if screen-space point is within this element's absolute bounds
+    bool contains_point_absolute(int32_t screen_x, int32_t screen_y) const;
+
     ui_rect bounds_;
     bool visible_ = true;
     bool enabled_ = true;
@@ -325,9 +331,6 @@ public:
     ui_rect expanded_bounds() const;
 
 protected:
-    // Get absolute screen position by traversing parent hierarchy
-    void get_absolute_position(int32_t& abs_x, int32_t& abs_y) const;
-
     // Check if point is in header (using local coordinates relative to parent)
     bool point_in_header(int32_t x, int32_t y) const;
 

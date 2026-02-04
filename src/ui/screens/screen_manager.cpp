@@ -77,6 +77,8 @@ screen_base* screen_manager::get_screen(screen_type type) {
             return &character_select_;
         case screen_type::character_create:
             return &character_create_;
+        case screen_type::connection_lost:
+            return &connection_lost_;
         default:
             return nullptr;
     }

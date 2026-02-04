@@ -19,12 +19,33 @@ websocket_connection::~websocket_connection() {
 }
 
 bool websocket_connection::connect(std::string_view url) {
-    if (state_ == ws_connection_state::connected || state_ == ws_connection_state::connecting) {
+    auto current_state = state_.load();
+    if (current_state == ws_connection_state::connected || current_state == ws_connection_state::connecting) {
         disconnect();
     }
 
-    state_ = ws_connection_state::connecting;
-    last_error_.clear();
+    // Reset all state for a fresh connection
+    state_.store(ws_connection_state::connecting);
+    {
+        std::lock_guard<std::mutex> lock(error_mutex_);
+        last_error_.clear();
+    }
+
+    // Clear any pending events from previous connections
+    pending_connect_.store(false);
+    pending_disconnect_.store(false);
+    {
+        std::lock_guard<std::mutex> lock(disconnect_reason_mutex_);
+        pending_disconnect_reason_.clear();
+    }
+
+    // Clear message queue
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        while (!incoming_messages_.empty()) {
+            incoming_messages_.pop();
+        }
+    }
 
     std::string url_str(url);
     spdlog::info("WebSocket connecting to: {}", url_str);
@@ -38,10 +59,10 @@ bool websocket_connection::connect(std::string_view url) {
 }
 
 void websocket_connection::disconnect() {
-    if (state_ != ws_connection_state::disconnected) {
+    if (state_.load() != ws_connection_state::disconnected) {
         spdlog::info("WebSocket disconnecting");
         websocket_.stop();
-        state_ = ws_connection_state::disconnected;
+        state_.store(ws_connection_state::disconnected);
 
         // Clear message queue
         std::lock_guard<std::mutex> lock(queue_mutex_);
@@ -52,7 +73,8 @@ void websocket_connection::disconnect() {
 }
 
 bool websocket_connection::send(const json& message) {
-    if (state_ != ws_connection_state::connected) {
+    if (state_.load() != ws_connection_state::connected) {
+        std::lock_guard<std::mutex> lock(error_mutex_);
         last_error_ = "Not connected";
         return false;
     }
@@ -66,7 +88,10 @@ bool websocket_connection::send(const json& message) {
         return true;
     }
 
-    last_error_ = "Failed to send message";
+    {
+        std::lock_guard<std::mutex> lock(error_mutex_);
+        last_error_ = "Failed to send message";
+    }
     return false;
 }
 
@@ -82,11 +107,29 @@ std::optional<json> websocket_connection::receive() {
     return msg;
 }
 
+bool websocket_connection::poll_connect_event() {
+    return pending_connect_.exchange(false);
+}
+
+bool websocket_connection::poll_disconnect_event(std::string& out_reason) {
+    if (pending_disconnect_.exchange(false)) {
+        std::lock_guard<std::mutex> lock(disconnect_reason_mutex_);
+        out_reason = std::move(pending_disconnect_reason_);
+        pending_disconnect_reason_.clear();
+        return true;
+    }
+    return false;
+}
+
 void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
+    // NOTE: This function runs on a background thread managed by ixwebsocket
     switch (msg->type) {
         case ix::WebSocketMessageType::Open:
             spdlog::info("WebSocket connected");
-            state_ = ws_connection_state::connected;
+            state_.store(ws_connection_state::connected);
+            // Set flag for thread-safe polling (preferred)
+            pending_connect_.store(true);
+            // Also call callback for backward compatibility (WARNING: runs on background thread!)
             if (connect_callback_) {
                 connect_callback_();
             }
@@ -94,7 +137,14 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
 
         case ix::WebSocketMessageType::Close:
             spdlog::info("WebSocket closed: {} ({})", msg->closeInfo.reason, msg->closeInfo.code);
-            state_ = ws_connection_state::disconnected;
+            state_.store(ws_connection_state::disconnected);
+            // Set flag for thread-safe polling (preferred)
+            {
+                std::lock_guard<std::mutex> lock(disconnect_reason_mutex_);
+                pending_disconnect_reason_ = msg->closeInfo.reason;
+            }
+            pending_disconnect_.store(true);
+            // Also call callback for backward compatibility (WARNING: runs on background thread!)
             if (disconnect_callback_) {
                 disconnect_callback_(msg->closeInfo.reason);
             }
@@ -102,8 +152,11 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
 
         case ix::WebSocketMessageType::Error:
             spdlog::error("WebSocket error: {}", msg->errorInfo.reason);
-            last_error_ = msg->errorInfo.reason;
-            state_ = ws_connection_state::failed;
+            {
+                std::lock_guard<std::mutex> lock(error_mutex_);
+                last_error_ = msg->errorInfo.reason;
+            }
+            state_.store(ws_connection_state::failed);
             break;
 
         case ix::WebSocketMessageType::Message:

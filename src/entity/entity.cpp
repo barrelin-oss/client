@@ -8,8 +8,69 @@ entity::entity(entity_id id, entity_type type)
 
 void entity::set_action(object_action action) {
     current_action_ = action;
-    animation_.current_frame = 0;
-    animation_.frame_timer = 0.0f;
+
+    // Map action to entity_anim_state for animation system
+    entity_anim_state new_state;
+    switch (action) {
+        case object_action::stop_peace:
+        case object_action::stop_combat:
+            new_state = entity_anim_state::stop;
+            break;
+        case object_action::move_peace:
+        case object_action::move_combat:
+            new_state = entity_anim_state::move;
+            break;
+        case object_action::run:
+            new_state = entity_anim_state::run;
+            break;
+        case object_action::attack_peace:
+        case object_action::attack_combat:
+        case object_action::attack_combat_bow:
+            new_state = entity_anim_state::attack;
+            break;
+        case object_action::magic:
+            new_state = entity_anim_state::magic;
+            break;
+        case object_action::get_item:
+            new_state = entity_anim_state::get_item;
+            break;
+        case object_action::damage:
+            new_state = entity_anim_state::damage;
+            break;
+        case object_action::dying:
+            new_state = entity_anim_state::dying;
+            break;
+        default:
+            new_state = entity_anim_state::stop;
+            break;
+    }
+
+    animation_.set_state(new_state);
+}
+
+// Add helper to apply combat mode to actions
+void entity::set_action_with_combat_mode(object_action base_action, bool combat_mode) {
+    object_action final_action = base_action;
+
+    // Apply combat variants for compatible actions
+    if (combat_mode) {
+        switch (base_action) {
+            case object_action::stop_peace:
+                final_action = object_action::stop_combat;
+                break;
+            case object_action::move_peace:
+                final_action = object_action::move_combat;
+                break;
+            case object_action::attack_peace:
+                final_action = object_action::attack_combat;
+                break;
+            default:
+                // Other actions don't have combat variants
+                break;
+        }
+    }
+
+    set_action(final_action);
 }
 
 void entity::set_move_target(int32_t x, int32_t y) {
@@ -25,16 +86,20 @@ void entity::set_move_target(int32_t x, int32_t y) {
 
 void entity::set_move_speed(uint8_t speed) {
     move_speed_ = speed;
-    if (movement_.has_value()) {
-        movement_->speed = static_cast<float>(speed);
+    // Create movement component on-demand (consistent with set_move_target)
+    if (!movement_.has_value()) {
+        add_movement();
     }
+    movement_->speed = static_cast<float>(speed);
 }
 
 void entity::set_target(entity_id target) {
     target_id_ = target;
-    if (combat_.has_value()) {
-        combat_->target_id = target;
+    // Create combat component on-demand (consistent with set_attack_type)
+    if (!combat_.has_value()) {
+        add_combat();
     }
+    combat_->target_id = target;
 }
 
 void entity::set_attack_type(uint8_t attack_type) {

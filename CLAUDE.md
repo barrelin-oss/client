@@ -41,16 +41,16 @@ The Helbreath game client - a 2D MMORPG client originally developed circa 2002-2
 ```bash
 # Configure and build (Debug)
 cmake --preset=default
-cmake --build build --config Debug
+cmake --build --preset=default
 
 # Configure and build (Release)
 cmake --preset=release
-cmake --build build --config Release
+cmake --build --preset=release
 
 # Clean rebuild
 rm -rf build
 cmake --preset=default
-cmake --build build --config Debug
+cmake --build --preset=default
 ```
 
 ### Output
@@ -147,6 +147,10 @@ The client supports two protocols:
 | `src/network/messages.h` | JSON message types |
 | `src/gameplay/game_state.cpp` | Message routing |
 
+### Protocol Documentation
+
+The JSON protocol specification for WebSocket communication is documented in `../server/docs/JSON_PROTOCOL.md`.
+
 ---
 
 ## Migration Strategy
@@ -180,3 +184,17 @@ When working on the client:
 3. **Dialog creation** - Prefer YAML definitions over C++ dialog classes
 4. **Screen rendering** - Login/menu screens use sprite-based rendering
 5. **Input routing** - Check modal dialogs before processing game input
+
+---
+
+## AI Assistant Guidelines
+
+**Ask questions frequently.** Use AskUserQuestion liberally to ensure proper guidance:
+
+- Before starting non-trivial tasks, clarify requirements and approach
+- When multiple implementation options exist, ask for preference
+- If requirements are ambiguous, ask rather than assume
+- When making architectural decisions, get confirmation first
+- If unsure about existing patterns or conventions, ask
+
+It's better to ask too many questions than to implement the wrong thing.

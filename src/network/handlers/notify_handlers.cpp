@@ -251,7 +251,7 @@ void notify_handler::handle_damage_move(packet_reader& reader) {
 
     // Apply knockback effect to entity
     if (auto* ent = game_->entities().find(*entity_id)) {
-        ent->set_action(object_action::damage_move);
+        ent->set_action(object_action::damage);
         spdlog::debug("Entity {} took {} damage, knocked back", *entity_id, *damage);
     }
 }

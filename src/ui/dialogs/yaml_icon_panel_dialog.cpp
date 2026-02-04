@@ -14,21 +14,27 @@ yaml_icon_panel_dialog::yaml_icon_panel_dialog(dialog_definition def)
 
     // Wire up button callbacks from YAML action system
     on_button_click("btn_character", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_character_) on_character_();
     });
     on_button_click("btn_inventory", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_inventory_) on_inventory_();
     });
     on_button_click("btn_magic", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_spellbook_) on_spellbook_();
     });
     on_button_click("btn_skills", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_skills_) on_skills_();
     });
     on_button_click("btn_chat", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_chat_history_) on_chat_history_();
     });
     on_button_click("btn_system", [this]() {
+        if (on_button_sound_) on_button_sound_();
         if (on_system_menu_) on_system_menu_();
     });
 }
@@ -498,6 +504,7 @@ bool yaml_icon_panel_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mous
         if (elem.id == "combat_indicator") {
             ui_bounds abs = get_absolute_bounds(elem);
             if (abs.contains(x, y)) {
+                if (on_button_sound_) on_button_sound_();
                 if (on_combat_indicator_) {
                     on_combat_indicator_();
                 }

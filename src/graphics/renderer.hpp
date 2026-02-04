@@ -37,6 +37,21 @@ public:
                             sf::Color color, sf::Color outline_color,
                             uint32_t size = 12, float outline_thickness = 1.0f);
 
+    // Animated text rendering (for rainbow effects, status messages, chat, etc.)
+    // All support optional outline for readability
+    // Rainbow: whole text cycles through hue together
+    void draw_text_rainbow(std::string_view text, int32_t x, int32_t y,
+                           float hue, uint32_t size = 14, uint8_t alpha = 255,
+                           bool outline = false, sf::Color outline_color = sf::Color::Black);
+    // Special: per-letter rainbow gradient effect
+    void draw_text_special(std::string_view text, int32_t x, int32_t y,
+                           float base_hue, uint32_t size = 14, uint8_t alpha = 255,
+                           bool outline = false, sf::Color outline_color = sf::Color::Black);
+    // Terror: per-letter vertical bouncing (shaky/trembling effect)
+    void draw_text_terror(std::string_view text, int32_t x, int32_t y,
+                          float time, sf::Color color, uint32_t size = 14, uint8_t alpha = 255,
+                          bool outline = false, sf::Color outline_color = sf::Color::Black);
+
     // Primitives
     void draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color color, bool filled = true);
     void draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Color color);

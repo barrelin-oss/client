@@ -73,6 +73,7 @@ public:
     void update(float delta_time, const input& inp) override;
     void render(renderer& rend) override;
     bool handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) override;
+    bool handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) override;
     bool handle_mouse_move(int32_t x, int32_t y) override;
 
     dialog_type type() const { return type_; }

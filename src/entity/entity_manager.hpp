@@ -12,6 +12,7 @@ namespace hb {
 class renderer;
 class world;
 class sprite_manager;
+class sound_manager;
 
 // Entity creation callbacks
 using entity_created_callback = std::function<void(entity&)>;
@@ -26,7 +27,8 @@ public:
     entity_manager& operator=(const entity_manager&) = delete;
 
     // Initialization
-    void initialize();
+    void initialize(sound_manager* sounds = nullptr);
+    void set_sound_manager(sound_manager* sounds) { sounds_ = sounds; }
     void shutdown();
 
     // Entity creation
@@ -53,6 +55,13 @@ public:
     std::vector<entity*> get_entities_in_range(int32_t x, int32_t y, int32_t range);
     std::vector<entity*> get_entities_on_tile(int32_t tile_x, int32_t tile_y);
     entity* get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y);
+    entity* find_at_tile(int32_t tile_x, int32_t tile_y);  // Returns first non-local-player entity at tile
+
+    // Sprite collision detection
+    // Checks if a screen point is within the entity's rendered sprite bounds
+    bool is_point_in_entity_sprite(const entity& e, sprite_manager& sprites,
+                                   int32_t camera_x, int32_t camera_y,
+                                   int32_t mouse_x, int32_t mouse_y) const;
 
     // Local player
     void set_local_player(entity_id id) { local_player_id_ = id; }
@@ -61,10 +70,10 @@ public:
     const entity* local_player() const;
 
     // Update all entities
-    void update(float delta_time, world& w);
+    void update(float delta_time, world& w, bool local_player_combat_mode);
 
     // Render all entities
-    void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y);
+    void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
     // Global render mode - renders all entities without distance culling
     void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
@@ -83,13 +92,16 @@ public:
 
 private:
     void cleanup_removed_entities();
-    void update_entity(entity& e, float delta_time, world& w);
+    void update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode);
     void update_animation(entity& e, float delta_time);
-    void update_movement(entity& e, float delta_time, world& w);
+    void update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode);
 
-    void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y);
-    void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
+    void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
+    void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered);
     void render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
+
+    // Play footstep sound for an entity
+    void play_footstep_sound(const entity& e, bool running);
 
     std::unordered_map<entity_id, std::unique_ptr<entity>> entities_;
     entity_id next_entity_id_ = 1;
@@ -97,6 +109,9 @@ private:
 
     entity_created_callback on_created_;
     entity_removed_callback on_removed_;
+
+    // Sound manager for footstep sounds
+    sound_manager* sounds_ = nullptr;
 
     // Global render mode - skip distance culling when true
     bool global_render_mode_ = false;

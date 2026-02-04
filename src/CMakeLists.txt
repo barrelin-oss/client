@@ -10,12 +10,14 @@ add_executable(helbreath_client
     # Graphics
     graphics/renderer.cpp
     graphics/menu_character_renderer.cpp
+    graphics/color_utils.hpp
 
     # Input
     input/input.cpp
 
     # Audio
     audio/audio.cpp
+    audio/sound_manager.cpp
 
     # Assets
     assets/pak_file.cpp
@@ -49,6 +51,7 @@ add_executable(helbreath_client
     ui/render_strategy.cpp
     ui/managed_dialog.cpp
     ui/dialog_manager.cpp
+    ui/status_log.cpp
 
     # UI Screens (sprite-based)
     ui/screens/screen_base.cpp
@@ -57,6 +60,7 @@ add_executable(helbreath_client
     ui/screens/login_screen.cpp
     ui/screens/character_select_screen.cpp
     ui/screens/character_create_screen.cpp
+    ui/screens/connection_lost_screen.cpp
 
     # UI Dialogs
     ui/dialogs/connection_dialog.cpp

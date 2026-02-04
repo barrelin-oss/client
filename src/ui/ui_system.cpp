@@ -80,10 +80,21 @@ void ui_system::update(float delta_time, const input& inp) {
         }
     }
 
-    // Route mouse release to data-driven dialogs
+    // Route mouse release to dialogs
     if (inp.is_mouse_released(sf::Mouse::Button::Left)) {
+        // First try data-driven dialogs
         if (dialog_manager_) {
             dialog_manager_->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+        }
+        // Then legacy dialogs - copy list since callbacks may modify it
+        auto dialogs_copy = dialog_order_;
+        for (auto it = dialogs_copy.rbegin(); it != dialogs_copy.rend(); ++it) {
+            if ((*it)->is_open()) {
+                (*it)->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+                if ((*it)->modal()) {
+                    break;  // Modal consumes the event
+                }
+            }
         }
     }
 
@@ -315,8 +326,19 @@ bool ui_system::is_dialog_open(dialog_type type) const {
 }
 
 void ui_system::close_all_dialogs() {
+    // Close legacy dialogs
     for (auto& [type, dlg] : dialogs_) {
         dlg->close();
+    }
+
+    // Close YAML-based icon panel if it exists
+    if (yaml_icon_panel_) {
+        yaml_icon_panel_->close();
+    }
+
+    // Close all data-driven dialogs
+    if (dialog_manager_) {
+        dialog_manager_->close_all();
     }
 }
 
@@ -469,19 +491,19 @@ void ui_system::create_message_box(std::string_view title, std::string_view mess
     auto dlg = std::make_unique<dialog>(dialog_type::message_box);
     dlg->set_title(title);
     dlg->set_bounds({static_cast<int32_t>(screen_width) / 2 - 150,
-                     static_cast<int32_t>(screen_height) / 2 - 60, 300, 120});
+                     static_cast<int32_t>(screen_height) / 2 - 75, 300, 150});
     dlg->set_modal(true);
 
-    // Message
+    // Message (positioned below title bar)
     auto msg_label = std::make_unique<ui_label>();
-    msg_label->set_bounds({20, 40, 260, 40});
+    msg_label->set_bounds({20, 35, 260, 60});
     msg_label->set_text(message);
     msg_label->set_alignment(ui_label::alignment::center);
     dlg->add_child(std::move(msg_label));
 
     // OK button
     auto ok_btn = std::make_unique<ui_button>();
-    ok_btn->set_bounds({110, 80, 80, 28});
+    ok_btn->set_bounds({110, 110, 80, 28});
     ok_btn->set_text("OK");
     ok_btn->set_on_click([this, on_ok]() {
         close_dialog(dialog_type::message_box);
@@ -510,19 +532,19 @@ void ui_system::create_confirm_box(std::string_view title, std::string_view mess
     auto dlg = std::make_unique<dialog>(dialog_type::confirm);
     dlg->set_title(title);
     dlg->set_bounds({static_cast<int32_t>(screen_width) / 2 - 150,
-                     static_cast<int32_t>(screen_height) / 2 - 60, 300, 120});
+                     static_cast<int32_t>(screen_height) / 2 - 75, 300, 150});
     dlg->set_modal(true);
 
-    // Message
+    // Message (positioned below title bar at y=24)
     auto msg_label = std::make_unique<ui_label>();
-    msg_label->set_bounds({20, 40, 260, 40});
+    msg_label->set_bounds({20, 35, 260, 60});
     msg_label->set_text(message);
     msg_label->set_alignment(ui_label::alignment::center);
     dlg->add_child(std::move(msg_label));
 
     // Yes button
     auto yes_btn = std::make_unique<ui_button>();
-    yes_btn->set_bounds({60, 80, 80, 28});
+    yes_btn->set_bounds({60, 110, 80, 28});
     yes_btn->set_text("Yes");
     yes_btn->set_on_click([this, on_result]() {
         close_dialog(dialog_type::confirm);
@@ -532,7 +554,7 @@ void ui_system::create_confirm_box(std::string_view title, std::string_view mess
 
     // No button
     auto no_btn = std::make_unique<ui_button>();
-    no_btn->set_bounds({160, 80, 80, 28});
+    no_btn->set_bounds({160, 110, 80, 28});
     no_btn->set_text("No");
     no_btn->set_on_click([this, on_result]() {
         close_dialog(dialog_type::confirm);

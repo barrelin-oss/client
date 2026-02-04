@@ -37,21 +37,32 @@ enum class server_type : uint8_t {
     log = 2
 };
 
-// Object actions
+// Object actions - values match sprite set layout (0-11)
+// Each value corresponds directly to a group of 8 direction sprites
 enum class object_action : uint8_t {
-    stop = 0,
-    move = 1,
-    run = 2,
-    attack = 3,
-    magic = 4,
-    get_item = 5,
-    damage = 6,
-    damage_move = 7,
-    attack_move = 8,
-    dying = 10,
-    null_action = 100,
-    dead = 101
+    stop_peace = 0,          // Sprites 0-7: Idle in peace mode
+    stop_combat = 1,         // Sprites 8-15: Idle in combat mode
+    move_peace = 2,          // Sprites 16-23: Walk in peace mode
+    move_combat = 3,         // Sprites 24-31: Walk in combat mode
+    run = 4,                 // Sprites 32-39: Run (shared for both modes)
+    attack_peace = 5,        // Sprites 40-47: Attack in peace mode
+    attack_combat = 6,       // Sprites 48-55: Attack in combat mode
+    attack_combat_bow = 7,   // Sprites 56-63: Bow attack in combat mode
+    magic = 8,               // Sprites 64-71: Magic casting
+    get_item = 9,            // Sprites 72-79: Pick up item
+    damage = 10,             // Sprites 80-87: Taking damage / knockback
+    dying = 11,              // Sprites 88-95: Death animation
+
+    null_action = 100
 };
+
+// Legacy action aliases for network protocol compatibility
+inline constexpr object_action legacy_stop = object_action::stop_peace;
+inline constexpr object_action legacy_move = object_action::move_peace;
+inline constexpr object_action legacy_attack = object_action::attack_peace;
+inline constexpr object_action legacy_attack_move = object_action::attack_peace;
+inline constexpr object_action legacy_damage_move = object_action::damage;
+inline constexpr object_action legacy_dead = object_action::dying;
 
 // Cursor status
 enum class cursor_status : uint8_t {

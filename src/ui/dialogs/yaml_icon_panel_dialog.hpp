@@ -17,6 +17,7 @@ public:
 
     // Button click callbacks
     using button_callback = std::function<void()>;
+    using sound_callback = std::function<void()>;
 
     void set_on_character(button_callback cb) { on_character_ = std::move(cb); }
     void set_on_inventory(button_callback cb) { on_inventory_ = std::move(cb); }
@@ -25,6 +26,9 @@ public:
     void set_on_chat_history(button_callback cb) { on_chat_history_ = std::move(cb); }
     void set_on_system_menu(button_callback cb) { on_system_menu_ = std::move(cb); }
     void set_on_combat_indicator(button_callback cb) { on_combat_indicator_ = std::move(cb); }
+
+    // Sound callback for button clicks
+    void set_on_button_sound(sound_callback cb) { on_button_sound_ = std::move(cb); }
 
     // Stats (HP/MP/SP)
     void set_hp(int32_t current, int32_t max);
@@ -82,6 +86,7 @@ private:
     button_callback on_chat_history_;
     button_callback on_system_menu_;
     button_callback on_combat_indicator_;
+    sound_callback on_button_sound_;
 
     // Stats
     int32_t hp_current_ = 100;

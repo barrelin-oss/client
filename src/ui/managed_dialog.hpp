@@ -119,17 +119,17 @@ protected:
     virtual void on_close_impl() {}
 
     // Called every frame
-    virtual void on_update_impl(float delta_time) {}
+    virtual void on_update_impl([[maybe_unused]] float delta_time) {}
 
     // Custom rendering - return true if you handled rendering, false to use default
-    virtual bool on_custom_render(renderer& rend) { return false; }
+    virtual bool on_custom_render([[maybe_unused]] renderer& rend) { return false; }
 
     // Custom input handling - return true if consumed
-    virtual bool on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) { return false; }
-    virtual bool on_custom_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) { return false; }
-    virtual bool on_custom_mouse_move(int32_t x, int32_t y) { return false; }
-    virtual bool on_custom_key_press(sf::Keyboard::Key key) { return false; }
-    virtual bool on_custom_mouse_wheel(int32_t x, int32_t y, int32_t delta) { return false; }
+    virtual bool on_custom_mouse_down([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn) { return false; }
+    virtual bool on_custom_mouse_up([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn) { return false; }
+    virtual bool on_custom_mouse_move([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y) { return false; }
+    virtual bool on_custom_key_press([[maybe_unused]] sf::Keyboard::Key key) { return false; }
+    virtual bool on_custom_mouse_wheel([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] int32_t delta) { return false; }
 
     // Access to element states for subclasses
     element_state& get_element_state(std::string_view id);

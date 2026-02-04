@@ -20,7 +20,8 @@ void ui_element::render(renderer& rend) {
 bool ui_element::handle_mouse_move(int32_t x, int32_t y) {
     if (!visible_ || !enabled_) return false;
 
-    hovered_ = contains_point(x, y);
+    // Use absolute bounds for hover detection when element has a parent
+    hovered_ = parent_ ? contains_point_absolute(x, y) : contains_point(x, y);
 
     // Check children in reverse order (top to bottom)
     for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
@@ -139,6 +140,26 @@ void ui_element::render_children(renderer& rend) {
     }
 }
 
+void ui_element::get_absolute_position(int32_t& abs_x, int32_t& abs_y) const {
+    abs_x = bounds_.x;
+    abs_y = bounds_.y;
+
+    // Traverse parent hierarchy to accumulate offsets
+    const ui_element* p = parent_;
+    while (p != nullptr) {
+        abs_x += p->bounds().x;
+        abs_y += p->bounds().y;
+        p = p->parent();
+    }
+}
+
+bool ui_element::contains_point_absolute(int32_t screen_x, int32_t screen_y) const {
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+    return screen_x >= abs_x && screen_x < abs_x + bounds_.width &&
+           screen_y >= abs_y && screen_y < abs_y + bounds_.height;
+}
+
 // ui_panel implementation
 
 void ui_panel::render(renderer& rend) {
@@ -157,14 +178,18 @@ void ui_panel::render(renderer& rend) {
 void ui_label::render(renderer& rend) {
     if (!visible_) return;
 
-    int32_t text_x = bounds_.x;
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
+    int32_t text_x = abs_x;
     if (alignment_ == alignment::center) {
-        text_x = bounds_.x + bounds_.width / 2 - static_cast<int32_t>(text_.length() * font_size_ / 4);
+        text_x = abs_x + bounds_.width / 2 - static_cast<int32_t>(text_.length() * font_size_ / 4);
     } else if (alignment_ == alignment::right) {
-        text_x = bounds_.x + bounds_.width - static_cast<int32_t>(text_.length() * font_size_ / 2);
+        text_x = abs_x + bounds_.width - static_cast<int32_t>(text_.length() * font_size_ / 2);
     }
 
-    rend.draw_text(text_, text_x, bounds_.y, text_color_, font_size_);
+    rend.draw_text(text_, text_x, abs_y, text_color_, font_size_);
     render_children(rend);
 }
 
@@ -178,6 +203,10 @@ void ui_button::update(float delta_time, const input& inp) {
 void ui_button::render(renderer& rend) {
     if (!visible_) return;
 
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
     sf::Color bg_color = normal_color_;
     if (!enabled_) {
         bg_color = disabled_color_;
@@ -187,12 +216,12 @@ void ui_button::render(renderer& rend) {
         bg_color = hover_color_;
     }
 
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, bg_color, true);
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(100, 100, 140), false);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, bg_color, true);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, sf::Color(100, 100, 140), false);
 
     // Center text
-    int32_t text_x = bounds_.x + bounds_.width / 2 - static_cast<int32_t>(text_.length() * 3);
-    int32_t text_y = bounds_.y + bounds_.height / 2 - 7;
+    int32_t text_x = abs_x + bounds_.width / 2 - static_cast<int32_t>(text_.length() * 3);
+    int32_t text_y = abs_y + bounds_.height / 2 - 7;
     rend.draw_text(text_, text_x, text_y, enabled_ ? text_color_ : sf::Color(100, 100, 100));
 
     render_children(rend);
@@ -201,7 +230,7 @@ void ui_button::render(renderer& rend) {
 bool ui_button::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
     if (!visible_ || !enabled_) return false;
 
-    if (btn == sf::Mouse::Button::Left && contains_point(x, y)) {
+    if (btn == sf::Mouse::Button::Left && contains_point_absolute(x, y)) {
         pressed_ = true;
         return true;
     }
@@ -214,7 +243,7 @@ bool ui_button::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
 
     if (btn == sf::Mouse::Button::Left && pressed_) {
         pressed_ = false;
-        if (contains_point(x, y) && on_click_) {
+        if (contains_point_absolute(x, y) && on_click_) {
             on_click_();
         }
         return true;
@@ -242,29 +271,33 @@ void ui_text_input::update(float delta_time, const input& inp) {
 void ui_text_input::render(renderer& rend) {
     if (!visible_) return;
 
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
     // Background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, bg_color_, true);
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, bg_color_, true);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height,
                    focused_ ? sf::Color(120, 120, 160) : border_color_, false);
 
     // Text
     std::string display_text;
     if (text_.empty()) {
         display_text = std::string(placeholder_);
-        rend.draw_text(display_text, bounds_.x + 4, bounds_.y + 4, placeholder_color_);
+        rend.draw_text(display_text, abs_x + 4, abs_y + 4, placeholder_color_);
     } else {
         if (password_mode_) {
             display_text = std::string(text_.length(), '*');
         } else {
             display_text = text_;
         }
-        rend.draw_text(display_text, bounds_.x + 4, bounds_.y + 4, text_color_);
+        rend.draw_text(display_text, abs_x + 4, abs_y + 4, text_color_);
     }
 
     // Cursor
     if (focused_ && cursor_visible_) {
-        int32_t cursor_x = bounds_.x + 4 + static_cast<int32_t>(cursor_pos_ * 7);
-        rend.draw_line(cursor_x, bounds_.y + 4, cursor_x, bounds_.y + bounds_.height - 4, text_color_);
+        int32_t cursor_x = abs_x + 4 + static_cast<int32_t>(cursor_pos_ * 7);
+        rend.draw_line(cursor_x, abs_y + 4, cursor_x, abs_y + bounds_.height - 4, text_color_);
     }
 
     render_children(rend);
@@ -275,7 +308,7 @@ bool ui_text_input::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
 
     if (btn == sf::Mouse::Button::Left) {
         bool was_focused = focused_;
-        focused_ = contains_point(x, y);
+        focused_ = contains_point_absolute(x, y);
 
         if (focused_ && !was_focused) {
             cursor_pos_ = text_.length();
@@ -363,23 +396,27 @@ void ui_text_input::set_text(std::string_view text) {
 void ui_progress_bar::render(renderer& rend) {
     if (!visible_) return;
 
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
     // Background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, bg_color_, true);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, bg_color_, true);
 
     // Fill
     int32_t fill_width = static_cast<int32_t>(bounds_.width * value_);
     if (fill_width > 0) {
-        rend.draw_rect(bounds_.x, bounds_.y, fill_width, bounds_.height, fill_color_, true);
+        rend.draw_rect(abs_x, abs_y, fill_width, bounds_.height, fill_color_, true);
     }
 
     // Border
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
 
     // Text
     if (show_text_) {
         std::string text = std::to_string(static_cast<int>(value_ * 100)) + "%";
-        int32_t text_x = bounds_.x + bounds_.width / 2 - static_cast<int32_t>(text.length() * 3);
-        int32_t text_y = bounds_.y + bounds_.height / 2 - 7;
+        int32_t text_x = abs_x + bounds_.width / 2 - static_cast<int32_t>(text.length() * 3);
+        int32_t text_y = abs_y + bounds_.height / 2 - 7;
         rend.draw_text(text, text_x, text_y, sf::Color::White);
     }
 
@@ -410,20 +447,24 @@ void ui_scrollbar::update(float delta_time, const input& inp) {
 void ui_scrollbar::render(renderer& rend) {
     if (!visible_) return;
 
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
     // Track
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, track_color_, true);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, track_color_, true);
 
     // Thumb
     int32_t thumb_pos, thumb_size;
     if (vertical_) {
         thumb_size = static_cast<int32_t>(bounds_.height * thumb_size_);
-        thumb_pos = bounds_.y + static_cast<int32_t>((bounds_.height - thumb_size) * value_);
-        rend.draw_rect(bounds_.x, thumb_pos, bounds_.width, thumb_size,
+        thumb_pos = abs_y + static_cast<int32_t>((bounds_.height - thumb_size) * value_);
+        rend.draw_rect(abs_x, thumb_pos, bounds_.width, thumb_size,
                        dragging_ || hovered_ ? thumb_hover_color_ : thumb_color_, true);
     } else {
         thumb_size = static_cast<int32_t>(bounds_.width * thumb_size_);
-        thumb_pos = bounds_.x + static_cast<int32_t>((bounds_.width - thumb_size) * value_);
-        rend.draw_rect(thumb_pos, bounds_.y, thumb_size, bounds_.height,
+        thumb_pos = abs_x + static_cast<int32_t>((bounds_.width - thumb_size) * value_);
+        rend.draw_rect(thumb_pos, abs_y, thumb_size, bounds_.height,
                        dragging_ || hovered_ ? thumb_hover_color_ : thumb_color_, true);
     }
 
@@ -433,17 +474,21 @@ void ui_scrollbar::render(renderer& rend) {
 bool ui_scrollbar::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
     if (!visible_ || !enabled_) return false;
 
-    if (btn == sf::Mouse::Button::Left && contains_point(x, y)) {
+    if (btn == sf::Mouse::Button::Left && contains_point_absolute(x, y)) {
         dragging_ = true;
+
+        // Get absolute position for thumb calculation
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
 
         // Calculate thumb position
         if (vertical_) {
             int32_t thumb_size = static_cast<int32_t>(bounds_.height * thumb_size_);
-            int32_t thumb_pos = bounds_.y + static_cast<int32_t>((bounds_.height - thumb_size) * value_);
+            int32_t thumb_pos = abs_y + static_cast<int32_t>((bounds_.height - thumb_size) * value_);
             drag_offset_ = y - thumb_pos;
         } else {
             int32_t thumb_size = static_cast<int32_t>(bounds_.width * thumb_size_);
-            int32_t thumb_pos = bounds_.x + static_cast<int32_t>((bounds_.width - thumb_size) * value_);
+            int32_t thumb_pos = abs_x + static_cast<int32_t>((bounds_.width - thumb_size) * value_);
             drag_offset_ = x - thumb_pos;
         }
 
@@ -464,12 +509,16 @@ bool ui_scrollbar::handle_mouse_move(int32_t x, int32_t y) {
     ui_element::handle_mouse_move(x, y);
 
     if (dragging_) {
+        // Get absolute position for drag calculation
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
+
         float new_value;
         if (vertical_) {
             int32_t thumb_size = static_cast<int32_t>(bounds_.height * thumb_size_);
             int32_t track_size = bounds_.height - thumb_size;
             if (track_size > 0) {
-                new_value = static_cast<float>(y - bounds_.y - drag_offset_) / track_size;
+                new_value = static_cast<float>(y - abs_y - drag_offset_) / track_size;
             } else {
                 new_value = 0.0f;
             }
@@ -477,7 +526,7 @@ bool ui_scrollbar::handle_mouse_move(int32_t x, int32_t y) {
             int32_t thumb_size = static_cast<int32_t>(bounds_.width * thumb_size_);
             int32_t track_size = bounds_.width - thumb_size;
             if (track_size > 0) {
-                new_value = static_cast<float>(x - bounds_.x - drag_offset_) / track_size;
+                new_value = static_cast<float>(x - abs_x - drag_offset_) / track_size;
             } else {
                 new_value = 0.0f;
             }
@@ -507,29 +556,33 @@ void ui_list_box::update(float delta_time, const input& inp) {
 void ui_list_box::render(renderer& rend) {
     if (!visible_) return;
 
+    // Get absolute screen position
+    int32_t abs_x, abs_y;
+    get_absolute_position(abs_x, abs_y);
+
     // Background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, bg_color_, true);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, bg_color_, true);
 
     // Items
     int32_t visible_items = bounds_.height / item_height_;
     for (int32_t i = 0; i < visible_items && i + scroll_offset_ < static_cast<int32_t>(items_.size()); ++i) {
         int32_t index = i + scroll_offset_;
-        int32_t item_y = bounds_.y + i * item_height_;
+        int32_t item_y = abs_y + i * item_height_;
 
         // Selection/hover highlight
         if (index == selected_index_) {
-            rend.draw_rect(bounds_.x, item_y, bounds_.width, item_height_, selected_color_, true);
+            rend.draw_rect(abs_x, item_y, bounds_.width, item_height_, selected_color_, true);
         } else if (hovered_) {
             // Check if mouse is over this item
             // (simplified - would need actual mouse position)
         }
 
         // Text
-        rend.draw_text(items_[index], bounds_.x + 4, item_y + 2, item_color_);
+        rend.draw_text(items_[index], abs_x + 4, item_y + 2, item_color_);
     }
 
     // Border
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
 
     render_children(rend);
 }
@@ -537,8 +590,12 @@ void ui_list_box::render(renderer& rend) {
 bool ui_list_box::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
     if (!visible_ || !enabled_) return false;
 
-    if (btn == sf::Mouse::Button::Left && contains_point(x, y)) {
-        int32_t clicked_item = (y - bounds_.y) / item_height_ + scroll_offset_;
+    if (btn == sf::Mouse::Button::Left && contains_point_absolute(x, y)) {
+        // Get absolute position for item calculation
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
+
+        int32_t clicked_item = (y - abs_y) / item_height_ + scroll_offset_;
         if (clicked_item >= 0 && clicked_item < static_cast<int32_t>(items_.size())) {
             set_selected_index(clicked_item);
         }
@@ -584,19 +641,6 @@ std::string_view ui_list_box::selected_text() const {
 }
 
 // ui_dropdown implementation
-
-void ui_dropdown::get_absolute_position(int32_t& abs_x, int32_t& abs_y) const {
-    abs_x = bounds_.x;
-    abs_y = bounds_.y;
-
-    // Traverse parent hierarchy to get absolute position
-    const ui_element* p = parent_;
-    while (p != nullptr) {
-        abs_x += p->bounds().x;
-        abs_y += p->bounds().y;
-        p = p->parent();
-    }
-}
 
 bool ui_dropdown::point_in_header(int32_t x, int32_t y) const {
     int32_t abs_x, abs_y;
@@ -663,9 +707,9 @@ void ui_dropdown::update(float delta_time, const input& inp) {
 void ui_dropdown::render(renderer& rend) {
     if (!visible_) return;
 
-    // Use bounds_ directly for rendering (consistent with other widgets)
-    int32_t draw_x = bounds_.x;
-    int32_t draw_y = bounds_.y;
+    // Get absolute screen position
+    int32_t draw_x, draw_y;
+    get_absolute_position(draw_x, draw_y);
 
     // Determine header color based on state
     sf::Color header_bg = header_color_;
@@ -747,9 +791,8 @@ bool ui_dropdown::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
         return ui_element::handle_mouse_down(x, y, btn);
     }
 
-    // Use bounds_ directly for hit testing (consistent with other widgets)
-    // Check if click is on the header
-    if (contains_point(x, y)) {
+    // Check if click is on the header (using absolute position)
+    if (contains_point_absolute(x, y)) {
         if (expanded_) {
             collapse();
         } else {
@@ -760,11 +803,15 @@ bool ui_dropdown::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 
     // Check if click is on the expanded list
     if (expanded_) {
+        // Get absolute position for list hit testing
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
+
         int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
-        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_y = abs_y + bounds_.height;
         int32_t list_height = visible_count * item_height_;
 
-        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+        if (x >= abs_x && x < abs_x + bounds_.width &&
             y >= list_y && y < list_y + list_height) {
             int32_t clicked_index = (y - list_y) / item_height_ + scroll_offset_;
             if (clicked_index >= 0 && clicked_index < static_cast<int32_t>(items_.size())) {
@@ -786,16 +833,20 @@ bool ui_dropdown::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
     if (!visible_ || !enabled_) return false;
 
     // Consume mouse up if we're in the header or expanded list area
-    if (contains_point(x, y)) {
+    if (contains_point_absolute(x, y)) {
         return true;
     }
 
     if (expanded_) {
+        // Get absolute position for list hit testing
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
+
         int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
-        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_y = abs_y + bounds_.height;
         int32_t list_height = visible_count * item_height_;
 
-        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+        if (x >= abs_x && x < abs_x + bounds_.width &&
             y >= list_y && y < list_y + list_height) {
             return true;
         }
@@ -807,16 +858,20 @@ bool ui_dropdown::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
 bool ui_dropdown::handle_mouse_move(int32_t x, int32_t y) {
     if (!visible_ || !enabled_) return false;
 
-    // Update header hover state using bounds_ directly
-    hovered_ = contains_point(x, y);
+    // Update header hover state using absolute position
+    hovered_ = contains_point_absolute(x, y);
 
     // Update hovered item in expanded list
     if (expanded_) {
+        // Get absolute position for list hit testing
+        int32_t abs_x, abs_y;
+        get_absolute_position(abs_x, abs_y);
+
         int32_t visible_count = std::min(max_visible_items_, static_cast<int32_t>(items_.size()));
-        int32_t list_y = bounds_.y + bounds_.height;
+        int32_t list_y = abs_y + bounds_.height;
         int32_t list_height = visible_count * item_height_;
 
-        if (x >= bounds_.x && x < bounds_.x + bounds_.width &&
+        if (x >= abs_x && x < abs_x + bounds_.width &&
             y >= list_y && y < list_y + list_height) {
             int32_t hover_index = (y - list_y) / item_height_ + scroll_offset_;
             if (hover_index >= 0 && hover_index < static_cast<int32_t>(items_.size())) {

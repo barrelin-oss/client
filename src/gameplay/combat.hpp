@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/sound_types.hpp"
 #include "core/game_enums.hpp"
 #include "entity/entity.hpp"
 #include <cstdint>
@@ -10,6 +11,7 @@ namespace hb {
 class entity_manager;
 class magic_system;
 class skills_system;
+class sound_manager;
 
 // Weapon skill types (from original game)
 enum class weapon_skill : uint8_t {
@@ -124,7 +126,8 @@ public:
     ~combat_system() = default;
 
     // Initialization
-    void initialize(entity_manager* entities, magic_system* magic, skills_system* skills);
+    void initialize(entity_manager* entities, magic_system* magic, skills_system* skills,
+                    sound_manager* sounds = nullptr);
     void update(float delta_time);
 
     // Combat actions
@@ -173,9 +176,20 @@ private:
     int32_t apply_skill_bonus(int32_t damage, weapon_skill skill, uint8_t mastery) const;
     int32_t apply_critical_bonus(int32_t damage) const;
 
+    // Sound helper - get player type from entity for gendered sounds
+    int get_player_type(entity_id id) const;
+
+    // Play combat sounds
+    void play_attack_sound(entity_id attacker, uint16_t weapon_type);
+    void play_hurt_sound(entity_id target);
+    void play_death_sound(entity_id target);
+    void play_critical_sound(entity_id attacker);
+    void play_level_up_sound(entity_id target);
+
     entity_manager* entities_ = nullptr;
     magic_system* magic_ = nullptr;
     skills_system* skills_ = nullptr;
+    sound_manager* sounds_ = nullptr;
     combat_callbacks callbacks_;
 };
 

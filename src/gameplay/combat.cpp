@@ -1,4 +1,5 @@
 #include "gameplay/combat.hpp"
+#include "audio/sound_manager.hpp"
 #include "entity/entity_manager.hpp"
 #include "gameplay/magic.hpp"
 #include "gameplay/skills.hpp"
@@ -23,10 +24,12 @@ namespace {
     }
 }
 
-void combat_system::initialize(entity_manager* entities, magic_system* magic, skills_system* skills) {
+void combat_system::initialize(entity_manager* entities, magic_system* magic, skills_system* skills,
+                               sound_manager* sounds) {
     entities_ = entities;
     magic_ = magic;
     skills_ = skills;
+    sounds_ = sounds;
     spdlog::info("Combat system initialized");
 }
 
@@ -64,7 +67,10 @@ damage_result combat_system::calculate_damage(const attack_params& params) {
     // Apply super attack multiplier
     if (params.type >= attack_type::super_1 && params.type <= attack_type::super_8) {
         int super_level = static_cast<int>(params.type) - static_cast<int>(attack_type::super_1) + 1;
-        base_damage = static_cast<int32_t>(base_damage * (1.0f + super_level * 0.3f));
+        float multiplier = 1.0f + super_level * 0.3f;
+        float scaled_damage = static_cast<float>(base_damage) * multiplier;
+        // Saturate to prevent overflow (max reasonable damage is INT32_MAX)
+        base_damage = static_cast<int32_t>(std::min(scaled_damage, static_cast<float>(INT32_MAX)));
     }
 
     // Minimum damage of 1
@@ -127,7 +133,17 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
     att->combat().attack_type = static_cast<uint8_t>(type);
 
     // Set animation
-    att->set_action(object_action::attack);
+    att->set_action(object_action::attack_peace);
+
+    // Play weapon swing sound
+    // TODO: Get actual equipped weapon type from inventory
+    uint16_t weapon_type = 0;  // Default to unarmed
+    play_attack_sound(attacker, weapon_type);
+
+    // Play critical sound for super attacks
+    if (type >= attack_type::super_1 && type <= attack_type::super_8) {
+        play_critical_sound(attacker);
+    }
 
     // Trigger attack start callback
     if (callbacks_.on_attack_start) {
@@ -334,6 +350,9 @@ void combat_system::apply_damage(entity_id target, int32_t damage) {
     // Set damage animation
     tgt->set_action(object_action::damage);
 
+    // Play hurt sound for players/characters
+    play_hurt_sound(target);
+
     spdlog::debug("Entity {} took {} damage, HP: {}/{}", target, damage, stats.hp, stats.max_hp);
 }
 
@@ -380,6 +399,9 @@ void combat_system::kill_entity(entity_id entity) {
     if (ent->has_stats()) {
         ent->stats().hp = 0;
     }
+
+    // Play death sound for players/characters
+    play_death_sound(entity);
 
     // Trigger death callback
     if (callbacks_.on_death) {
@@ -447,6 +469,9 @@ bool combat_system::check_level_up(entity_id entity) {
         stats.mp = stats.max_mp;
         stats.sp = stats.max_sp;
 
+        // Play level up sound
+        play_level_up_sound(entity);
+
         spdlog::info("Entity {} leveled up to level {}", entity, stats.level);
         return true;
     }
@@ -494,12 +519,113 @@ int32_t combat_system::apply_skill_bonus(int32_t damage, weapon_skill skill, uin
     (void)skill;  // All skills apply similar bonus
     // Each 10% mastery adds 5% damage
     float bonus = 1.0f + (mastery / 20.0f);
-    return static_cast<int32_t>(damage * bonus);
+    float result = static_cast<float>(damage) * bonus;
+    // Saturate to prevent overflow
+    return static_cast<int32_t>(std::min(result, static_cast<float>(INT32_MAX)));
 }
 
 int32_t combat_system::apply_critical_bonus(int32_t damage) const {
     // Critical hits deal 150% damage
-    return static_cast<int32_t>(damage * 1.5f);
+    float result = static_cast<float>(damage) * 1.5f;
+    // Saturate to prevent overflow
+    return static_cast<int32_t>(std::min(result, static_cast<float>(INT32_MAX)));
+}
+
+int combat_system::get_player_type(entity_id id) const {
+    if (!entities_) return 1;
+
+    entity* ent = entities_->get_entity(id);
+    if (!ent) return 1;
+
+    // For players/characters, use sprite.gender (1=male, 2=female)
+    // Convert to player_type: 1-3 = male, 4-6 = female
+    if (ent->type() == entity_type::player || ent->type() == entity_type::character) {
+        return ent->sprite().gender <= 1 ? 1 : 4;  // 1 for male, 4 for female
+    }
+
+    // Default to male for other entity types
+    return 1;
+}
+
+void combat_system::play_attack_sound(entity_id attacker, uint16_t weapon_type) {
+    if (!sounds_ || !entities_) return;
+
+    entity* att = entities_->get_entity(attacker);
+    if (!att) return;
+
+    // Get sound based on weapon type
+    character_sound sound = get_weapon_swing_sound(weapon_type);
+
+    // Play at entity position
+    const auto& t = att->transform();
+    sounds_->play_character_sound_at(sound, t.x, t.y);
+}
+
+void combat_system::play_hurt_sound(entity_id target) {
+    if (!sounds_ || !entities_) return;
+
+    entity* tgt = entities_->get_entity(target);
+    if (!tgt) return;
+
+    // Only play for players/characters, not monsters
+    if (tgt->type() != entity_type::player && tgt->type() != entity_type::character) {
+        return;
+    }
+
+    int player_type = get_player_type(target);
+    character_sound sound = get_hurt_sound(player_type);
+
+    const auto& t = tgt->transform();
+    sounds_->play_character_sound_at(sound, t.x, t.y);
+}
+
+void combat_system::play_death_sound(entity_id target) {
+    if (!sounds_ || !entities_) return;
+
+    entity* tgt = entities_->get_entity(target);
+    if (!tgt) return;
+
+    // Only play for players/characters, not monsters
+    if (tgt->type() != entity_type::player && tgt->type() != entity_type::character) {
+        return;
+    }
+
+    int player_type = get_player_type(target);
+    character_sound sound = get_death_sound(player_type);
+
+    const auto& t = tgt->transform();
+    sounds_->play_character_sound_at(sound, t.x, t.y);
+}
+
+void combat_system::play_critical_sound(entity_id attacker) {
+    if (!sounds_ || !entities_) return;
+
+    entity* att = entities_->get_entity(attacker);
+    if (!att) return;
+
+    // Only play for players/characters
+    if (att->type() != entity_type::player && att->type() != entity_type::character) {
+        return;
+    }
+
+    int player_type = get_player_type(attacker);
+    character_sound sound = get_critical_sound(player_type);
+
+    const auto& t = att->transform();
+    sounds_->play_character_sound_at(sound, t.x, t.y);
+}
+
+void combat_system::play_level_up_sound(entity_id target) {
+    if (!sounds_ || !entities_) return;
+
+    entity* tgt = entities_->get_entity(target);
+    if (!tgt) return;
+
+    int player_type = get_player_type(target);
+    character_sound sound = get_level_up_sound(player_type);
+
+    const auto& t = tgt->transform();
+    sounds_->play_character_sound_at(sound, t.x, t.y);
 }
 
 } // namespace hb

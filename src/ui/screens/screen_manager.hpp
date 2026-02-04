@@ -5,6 +5,7 @@
 #include "ui/screens/login_screen.hpp"
 #include "ui/screens/character_select_screen.hpp"
 #include "ui/screens/character_create_screen.hpp"
+#include "ui/screens/connection_lost_screen.hpp"
 #include <memory>
 #include <functional>
 
@@ -22,7 +23,8 @@ enum class screen_type {
     character_select,
     character_create,
     loading,
-    playing
+    playing,
+    connection_lost
 };
 
 // Manages screen transitions and updates
@@ -61,6 +63,7 @@ public:
     login_screen& get_login_screen() { return login_; }
     character_select_screen& get_character_select_screen() { return character_select_; }
     character_create_screen& get_character_create_screen() { return character_create_; }
+    connection_lost_screen& get_connection_lost_screen() { return connection_lost_; }
 
     // Callbacks for state changes (so game_state can react)
     void set_on_state_change(state_change_callback callback) { on_state_change_ = std::move(callback); }
@@ -72,6 +75,7 @@ private:
     login_screen login_;
     character_select_screen character_select_;
     character_create_screen character_create_;
+    connection_lost_screen connection_lost_;
 
     screen_type current_type_ = screen_type::none;
     screen_base* current_screen_ = nullptr;

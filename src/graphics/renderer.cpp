@@ -1,4 +1,5 @@
 #include "graphics/renderer.hpp"
+#include "graphics/color_utils.hpp"
 #include "assets/sprite.hpp"
 #include "core/config.hpp"
 #include <SFML/OpenGL.hpp>
@@ -204,6 +205,115 @@ void renderer::set_zoom_view(float zoom_level, float center_x, float center_y) {
 
 void renderer::reset_to_default_view() {
     window_.setView(window_.getDefaultView());
+}
+
+void renderer::draw_text_rainbow(std::string_view text, int32_t x, int32_t y,
+                                  float hue, uint32_t size, uint8_t alpha,
+                                  bool outline, sf::Color outline_color)
+{
+    if (!font_loaded_)
+    {
+        return;
+    }
+
+    sf::Color color = hue_to_rgb(hue);
+    color.a = alpha;
+
+    if (outline)
+    {
+        outline_color.a = alpha;
+        draw_text_outlined(text, x, y, color, outline_color, size, 1.0f);
+    }
+    else
+    {
+        draw_text(text, x, y, color, size);
+    }
+}
+
+void renderer::draw_text_special(std::string_view text, int32_t x, int32_t y,
+                                  float base_hue, uint32_t size, uint8_t alpha,
+                                  bool outline, sf::Color outline_color)
+{
+    if (!font_loaded_)
+    {
+        return;
+    }
+
+    float char_x = static_cast<float>(x);
+    constexpr float hue_step = 0.08f;
+
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        if (text[i] == ' ')
+        {
+            auto glyph = font_.getGlyph(' ', size, false);
+            char_x += glyph.advance;
+            continue;
+        }
+
+        sf::Color color = hue_to_rgb(base_hue + i * hue_step);
+        color.a = alpha;
+
+        sf::Text sf_text(font_, std::string(1, text[i]), size);
+        sf_text.setFillColor(color);
+        if (outline)
+        {
+            outline_color.a = alpha;
+            sf_text.setOutlineColor(outline_color);
+            sf_text.setOutlineThickness(1.0f);
+        }
+        sf_text.setPosition({char_x, static_cast<float>(y)});
+        window_.draw(sf_text);
+
+        // Advance by glyph width for accurate spacing
+        auto glyph = font_.getGlyph(text[i], size, false);
+        char_x += glyph.advance;
+    }
+}
+
+void renderer::draw_text_terror(std::string_view text, int32_t x, int32_t y,
+                                 float time, sf::Color color, uint32_t size, uint8_t alpha,
+                                 bool outline, sf::Color outline_color)
+{
+    if (!font_loaded_)
+    {
+        return;
+    }
+
+    color.a = alpha;
+    float char_x = static_cast<float>(x);
+    constexpr float bounce_amplitude = 2.0f;   // Max pixels up/down
+    constexpr float bounce_freq = 12.0f;       // Oscillations per second
+    constexpr float phase_offset = 0.7f;       // Phase difference per letter
+
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        if (text[i] == ' ')
+        {
+            auto glyph = font_.getGlyph(' ', size, false);
+            char_x += glyph.advance;
+            continue;
+        }
+
+        // Each letter gets different phase for desynchronized bouncing
+        float phase = time * bounce_freq + i * phase_offset;
+        float y_offset = std::sin(phase) * bounce_amplitude;
+
+        sf::Text sf_text(font_, std::string(1, text[i]), size);
+        sf_text.setFillColor(color);
+        if (outline)
+        {
+            outline_color.a = alpha;
+            sf_text.setOutlineColor(outline_color);
+            sf_text.setOutlineThickness(1.0f);
+        }
+        sf_text.setPosition({char_x, static_cast<float>(y) + y_offset});
+        window_.draw(sf_text);
+
+        // Advance by glyph width for accurate spacing
+        auto glyph = font_.getGlyph(text[i], size, false);
+        char_x += glyph.advance;
+    }
 }
 
 } // namespace hb

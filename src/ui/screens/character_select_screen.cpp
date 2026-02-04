@@ -98,6 +98,7 @@ bool character_select_screen::update(float delta_time, const input& inp) {
 
     // Handle Escape key (logout)
     if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+        play_button_sound();
         logout();
         return true;
     }
@@ -106,6 +107,7 @@ bool character_select_screen::update(float delta_time, const input& inp) {
     if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
         int32_t slot_index = current_focus_ - 1;
         if (slot_index >= 0 && slot_index < 4) {
+            play_button_sound();
             if (characters_[slot_index].has_character) {
                 // Enter game with selected character
                 enter_game();
@@ -122,6 +124,7 @@ bool character_select_screen::update(float delta_time, const input& inp) {
     int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
 
     if (result == mouse_result::click) {
+        play_button_sound();
         switch (button_num) {
             case btn_char1:
             case btn_char2:

@@ -82,9 +82,9 @@ struct animation_component {
     anim_type current_anim = anim_type::idle;
     entity_anim_state state = entity_anim_state::stop;
     uint8_t current_frame = 0;
-    uint8_t frame_count = 4;
+    uint8_t frame_count = 8;       // Default to idle: 8 frames
     float frame_timer = 0.0f;
-    float frame_duration = 0.1f;  // Seconds per frame
+    float frame_duration = 0.115f;  // Default to idle: 115ms per frame
     bool looping = true;
     bool finished = false;
 
@@ -92,15 +92,18 @@ struct animation_component {
     uint8_t attack_frame = 0;     // Frame when attack damage is dealt
     bool attack_triggered = false;
 
-    // Frame data per state (direction * frame_count + current_frame)
-    static constexpr uint8_t frames_idle = 1;
-    static constexpr uint8_t frames_walk = 4;
-    static constexpr uint8_t frames_run = 4;
-    static constexpr uint8_t frames_attack = 8;
-    static constexpr uint8_t frames_damage = 2;
-    static constexpr uint8_t frames_dying = 4;
+    // Frame data per state (matching legacy Helbreath - maxFrame=N means N+1 frames: 0 to N)
+    static constexpr uint8_t frames_idle = 8;        // Legacy DEF_OBJECTSTOP maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_walk = 8;        // Legacy DEF_OBJECTMOVE maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_run = 8;         // Legacy DEF_OBJECTRUN maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_attack = 8;      // Legacy DEF_OBJECTATTACK maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_attack_move = 13; // Legacy DEF_OBJECTATTACKMOVE maxFrame=12 → 13 frames
+    static constexpr uint8_t frames_damage = 8;      // Legacy DEF_OBJECTDAMAGE maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_damage_move = 4; // Legacy DEF_OBJECTDAMAGEMOVE maxFrame=3 → 4 frames
+    static constexpr uint8_t frames_dying = 13;      // Legacy DEF_OBJECTDYING maxFrame=12 → 13 frames
     static constexpr uint8_t frames_dead = 1;
-    static constexpr uint8_t frames_magic = 4;
+    static constexpr uint8_t frames_magic = 16;      // Legacy DEF_OBJECTMAGIC maxFrame=15 → 16 frames
+    static constexpr uint8_t frames_get_item = 4;    // Legacy DEF_OBJECTGETITEM maxFrame=3 → 4 frames
 
     // Get frame count for current state
     uint8_t get_state_frame_count() const {
@@ -108,36 +111,43 @@ struct animation_component {
             case entity_anim_state::stop: return frames_idle;
             case entity_anim_state::move: return frames_walk;
             case entity_anim_state::run: return frames_run;
-            case entity_anim_state::attack:
-            case entity_anim_state::attack_move: return frames_attack;
-            case entity_anim_state::damage:
-            case entity_anim_state::damage_move: return frames_damage;
+            case entity_anim_state::attack: return frames_attack;
+            case entity_anim_state::attack_move: return frames_attack_move;
+            case entity_anim_state::damage: return frames_damage;
+            case entity_anim_state::damage_move: return frames_damage_move;
             case entity_anim_state::dying: return frames_dying;
             case entity_anim_state::dead: return frames_dead;
             case entity_anim_state::magic:
             case entity_anim_state::magic_attack: return frames_magic;
-            case entity_anim_state::get_item: return 2;
+            case entity_anim_state::get_item: return frames_get_item;
             default: return frames_idle;
         }
     }
 
-    // Get frame duration for current state
+    // Get frame duration for current state (in seconds, matching legacy frame times)
     float get_state_frame_duration() const {
         switch (state) {
+            case entity_anim_state::stop:
+                return 0.115f;  // 115ms per frame
+            case entity_anim_state::move:
+            case entity_anim_state::damage_move:
+                return 0.070f;  // 70ms per frame (legacy DEF_OBJECTMOVE)
+            case entity_anim_state::run:
+                return 0.042f;  // 42ms per frame (legacy DEF_OBJECTRUN)
             case entity_anim_state::attack:
             case entity_anim_state::attack_move:
-                return 0.05f;  // Fast attack animation
-            case entity_anim_state::run:
-                return 0.08f;
-            case entity_anim_state::move:
-                return 0.12f;
-            case entity_anim_state::dying:
-                return 0.15f;
+                return 0.078f;  // 78ms per frame (legacy DEF_OBJECTATTACK)
             case entity_anim_state::magic:
             case entity_anim_state::magic_attack:
-                return 0.1f;
+                return 0.088f;  // 88ms per frame (legacy DEF_OBJECTMAGIC)
+            case entity_anim_state::damage:
+                return 0.070f;  // 70ms per frame (legacy DEF_OBJECTDAMAGE)
+            case entity_anim_state::dying:
+                return 0.080f;  // 80ms per frame (legacy DEF_OBJECTDYING)
+            case entity_anim_state::get_item:
+                return 0.150f;  // 150ms per frame (legacy DEF_OBJECTGETITEM)
             default:
-                return 0.1f;
+                return 0.060f;  // Default to idle timing
         }
     }
 

@@ -590,12 +590,16 @@ bool icon_panel_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Butto
     int32_t combat_screen_y = get_combat_y();
     if (x >= combat_screen_x && x < combat_screen_x + 36 &&
         y >= combat_screen_y && y < combat_screen_y + 36) {
+        if (on_button_sound_) on_button_sound_();
         if (on_combat_indicator_) on_combat_indicator_();
         return true;
     }
 
     int32_t clicked_button = get_hovered_button(x, y);
     if (clicked_button < 0) return false;
+
+    // Play button sound
+    if (on_button_sound_) on_button_sound_();
 
     // Invoke callback for clicked button
     switch (clicked_button) {

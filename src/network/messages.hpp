@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <chrono>
 
 namespace hb {
 
@@ -20,21 +21,37 @@ namespace msg_type {
     inline constexpr const char* create_character_request = "create_character_request";
     inline constexpr const char* create_character_response = "create_character_response";
     inline constexpr const char* set_view_range = "set_view_range";
+
+    // Item pickup
+    inline constexpr const char* player_pickup_request = "player_pickup_request";
+    inline constexpr const char* player_pickup_response = "player_pickup_response";
+    inline constexpr const char* ground_item_removed = "ground_item_removed";
+
+    // Player actions
+    inline constexpr const char* player_move_request = "player_move_request";
+    inline constexpr const char* player_move_response = "player_move_response";
+    inline constexpr const char* player_stop_request = "player_stop_request";
+    inline constexpr const char* player_stop_response = "player_stop_response";
+    inline constexpr const char* player_position_update = "player_position_update";
+
+    // Player state updates
+    inline constexpr const char* hunger_update = "hunger_update";
 }
 
-// Character info from server
+// Character info from server (used in get_characters_response)
 struct server_character {
     int32_t id = 0;
     std::string name;
-    int32_t level = 0;
-    std::string char_class;
+    int16_t level = 0;
+    int16_t class_type = 0;     // 0=Warrior, 1=Mage, 2=Archer, etc.
+    int16_t nation = 0;         // 1=Aresden, 2=Elvine
 
     // Appearance data
-    uint8_t gender = 1;         // 1 = male, 2 = female
-    uint8_t skin_color = 1;     // 1-3
-    uint8_t hair_style = 0;     // 0-7
-    uint8_t hair_color = 0;     // 0-15
-    uint8_t underwear_color = 0; // 0-7
+    int16_t gender = 0;         // 0=Male, 1=Female
+    int16_t skin_color = 0;     // 0-3
+    int16_t hair_style = 0;     // 0-7
+    int16_t hair_color = 0;     // 0-15
+    int16_t underwear_color = 0; // 0-7
 
     // Equipment (0 = not equipped)
     uint8_t body_armor = 0;
@@ -50,14 +67,15 @@ struct server_character {
         server_character c;
         if (j.contains("id")) c.id = j["id"].get<int32_t>();
         if (j.contains("name")) c.name = j["name"].get<std::string>();
-        if (j.contains("level")) c.level = j["level"].get<int32_t>();
-        if (j.contains("class")) c.char_class = j["class"].get<std::string>();
+        if (j.contains("level")) c.level = j["level"].get<int16_t>();
+        if (j.contains("class_type")) c.class_type = j["class_type"].get<int16_t>();
+        if (j.contains("nation")) c.nation = j["nation"].get<int16_t>();
         // Appearance data (optional - use defaults if not provided)
-        if (j.contains("gender")) c.gender = j["gender"].get<uint8_t>();
-        if (j.contains("skin_color")) c.skin_color = j["skin_color"].get<uint8_t>();
-        if (j.contains("hair_style")) c.hair_style = j["hair_style"].get<uint8_t>();
-        if (j.contains("hair_color")) c.hair_color = j["hair_color"].get<uint8_t>();
-        if (j.contains("underwear_color")) c.underwear_color = j["underwear_color"].get<uint8_t>();
+        if (j.contains("gender")) c.gender = j["gender"].get<int16_t>();
+        if (j.contains("skin_color")) c.skin_color = j["skin_color"].get<int16_t>();
+        if (j.contains("hair_style")) c.hair_style = j["hair_style"].get<int16_t>();
+        if (j.contains("hair_color")) c.hair_color = j["hair_color"].get<int16_t>();
+        if (j.contains("underwear_color")) c.underwear_color = j["underwear_color"].get<int16_t>();
         // Equipment data (optional - use defaults if not provided)
         if (j.contains("body_armor")) c.body_armor = j["body_armor"].get<uint8_t>();
         if (j.contains("arm_armor")) c.arm_armor = j["arm_armor"].get<uint8_t>();
@@ -271,7 +289,7 @@ struct enter_game_visible_entity {
     int16_t x = 0;
     int16_t y = 0;
     int16_t hp_percent = 100;
-    int16_t direction = 5;       // Facing direction (1-8, 0=none)
+    int16_t direction = 4;       // Facing direction (0-7: N,NE,E,SE,S,SW,W,NW)
 
     static enter_game_visible_entity from_json(const json& j) {
         enter_game_visible_entity ent;
@@ -434,5 +452,169 @@ inline json make_set_view_range_request(uint32_t width, uint32_t height) {
         .set("screen_height", height)
         .build();
 }
+
+inline json make_player_pickup_request(int32_t x, int32_t y, uint32_t item_id = 0) {
+    return message_builder(msg_type::player_pickup_request)
+        .set("x", x)
+        .set("y", y)
+        .set("item_id", item_id)
+        .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()))
+        .build();
+}
+
+inline json make_player_move_request(int32_t x, int32_t y, uint8_t direction, bool is_running = false) {
+    return message_builder(msg_type::player_move_request)
+        .set("x", x)
+        .set("y", y)
+        .set("direction", direction)
+        .set("is_running", is_running)
+        .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()))
+        .build();
+}
+
+inline json make_player_stop_request(int32_t x, int32_t y, uint8_t direction) {
+    return message_builder(msg_type::player_stop_request)
+        .set("x", x)
+        .set("y", y)
+        .set("direction", direction)
+        .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()))
+        .build();
+}
+
+// Pickup response data
+struct player_pickup_response_data {
+    bool success = false;
+    uint32_t item_id = 0;
+    std::string item_name;
+    int16_t quantity = 0;
+    uint8_t inventory_slot = 0;
+    std::string error_message;
+
+    static player_pickup_response_data from_json(const json& j) {
+        player_pickup_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error_message = d["error"].get<std::string>();
+
+            // Success data is nested in "result" object per protocol
+            if (data.success && d.contains("result")) {
+                const auto& r = d["result"];
+                if (r.contains("item_id")) data.item_id = r["item_id"].get<uint32_t>();
+                if (r.contains("item_name")) data.item_name = r["item_name"].get<std::string>();
+                if (r.contains("quantity")) data.quantity = r["quantity"].get<int16_t>();
+                if (r.contains("inventory_slot")) data.inventory_slot = r["inventory_slot"].get<uint8_t>();
+            }
+        }
+        return data;
+    }
+};
+
+// Ground item removed broadcast data
+struct ground_item_removed_data {
+    uint32_t picker_id = 0;
+    std::string picker_name;
+    uint32_t item_id = 0;
+    std::string item_name;
+    int32_t x = 0;
+    int32_t y = 0;
+
+    static ground_item_removed_data from_json(const json& j) {
+        ground_item_removed_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("picker_id")) data.picker_id = d["picker_id"].get<uint32_t>();
+            if (d.contains("picker_name")) data.picker_name = d["picker_name"].get<std::string>();
+            if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
+            if (d.contains("item_name")) data.item_name = d["item_name"].get<std::string>();
+            if (d.contains("x")) data.x = d["x"].get<int32_t>();
+            if (d.contains("y")) data.y = d["y"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Player move response data (movement confirmation)
+struct player_move_response_data {
+    bool success = false;
+    int32_t x = 0;
+    int32_t y = 0;
+    uint8_t direction = 0;
+    std::string error;
+
+    static player_move_response_data from_json(const json& j) {
+        player_move_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("x")) data.x = d["x"].get<int32_t>();
+            if (d.contains("y")) data.y = d["y"].get<int32_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Player position update broadcast data
+struct player_position_update_data {
+    uint32_t entity_id = 0;
+    int32_t x = 0;
+    int32_t y = 0;
+    uint8_t direction = 0;
+    bool is_running = false;
+
+    static player_position_update_data from_json(const json& j) {
+        player_position_update_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("x")) data.x = d["x"].get<int32_t>();
+            if (d.contains("y")) data.y = d["y"].get<int32_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
+            if (d.contains("is_running")) data.is_running = d["is_running"].get<bool>();
+        }
+        return data;
+    }
+};
+
+// Player stop response data (direction change confirmation)
+struct player_stop_response_data {
+    bool success = false;
+    int32_t x = 0;
+    int32_t y = 0;
+    uint8_t direction = 0;
+
+    static player_stop_response_data from_json(const json& j) {
+        player_stop_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("x")) data.x = d["x"].get<int32_t>();
+            if (d.contains("y")) data.y = d["y"].get<int32_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
+        }
+        return data;
+    }
+};
+
+// Hunger update broadcast data
+struct hunger_update_data {
+    int8_t level = 100;       // Hunger level (0-100)
+    bool is_starving = false; // True if level <= 0
+
+    static hunger_update_data from_json(const json& j) {
+        hunger_update_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("level")) data.level = d["level"].get<int8_t>();
+            if (d.contains("is_starving")) data.is_starving = d["is_starving"].get<bool>();
+        }
+        return data;
+    }
+};
 
 } // namespace hb

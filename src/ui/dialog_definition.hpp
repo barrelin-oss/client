@@ -162,18 +162,18 @@ struct dialog_definition {
     std::vector<element_def> elements;
 
     // Find element by ID
-    const element_def* find_element(std::string_view id) const {
+    const element_def* find_element(std::string_view element_id) const {
         for (const auto& elem : elements) {
-            if (elem.id == id) {
+            if (elem.id == element_id) {
                 return &elem;
             }
         }
         return nullptr;
     }
 
-    element_def* find_element(std::string_view id) {
+    element_def* find_element(std::string_view element_id) {
         for (auto& elem : elements) {
-            if (elem.id == id) {
+            if (elem.id == element_id) {
                 return &elem;
             }
         }

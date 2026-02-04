@@ -2,6 +2,7 @@
 
 #include "ui/mouse_interface.hpp"
 #include <cstdint>
+#include <functional>
 #include <string>
 
 namespace hb {
@@ -14,6 +15,8 @@ class sprite_manager;
 // This is the modern equivalent of the original UpdateScreen_OnXXX pattern
 class screen_base {
 public:
+    using sound_callback = std::function<void()>;
+
     screen_base() = default;
     virtual ~screen_base() = default;
 
@@ -41,7 +44,12 @@ public:
     // Render just the mouse cursor (called last, after dialogs)
     virtual void render_cursor(renderer& rend, sprite_manager& sprites) = 0;
 
+    // Set sound callback for button clicks
+    void set_on_button_sound(sound_callback cb) { on_button_sound_ = std::move(cb); }
+
 protected:
+    // Play button click sound (call when any button is clicked)
+    void play_button_sound() { if (on_button_sound_) on_button_sound_(); }
     // Helper to draw a sprite from the sprite manager (with color key transparency)
     void draw_sprite(renderer& rend, sprite_manager& sprites,
                     uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame = 0);
@@ -80,6 +88,9 @@ protected:
     // Mouse position (stored during update for render)
     int32_t mouse_x_ = 0;
     int32_t mouse_y_ = 0;
+
+    // Sound callback for button clicks
+    sound_callback on_button_sound_;
 };
 
 } // namespace hb

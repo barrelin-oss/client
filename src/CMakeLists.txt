@@ -12,6 +12,7 @@ add_executable(helbreath_client
     graphics/text_renderer.cpp
     graphics/text_shader_cache.cpp
     graphics/menu_character_renderer.cpp
+    graphics/screen_transition.cpp
     graphics/color_utils.hpp
 
     # Input
@@ -93,6 +94,8 @@ add_executable(helbreath_client
 
     # Gameplay
     gameplay/combat.cpp
+    gameplay/effect_definition.cpp
+    gameplay/effect_system.cpp
     gameplay/floating_text.cpp
     gameplay/inventory.cpp
     gameplay/magic.cpp

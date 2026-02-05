@@ -20,20 +20,64 @@
 #include "graphics/menu_character_renderer.hpp"
 #include "audio/sound_manager.hpp"
 #include "gameplay/floating_text.hpp"
+#include "gameplay/effect_system.hpp"
+#include "graphics/screen_transition.hpp"
 #include "ui/status_log.hpp"
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
-#include <string>
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <atomic>
 #include <optional>
+#include <string>
 
 namespace hb {
 
 class renderer;
 class input;
 class audio;
+
+// Quest objective progress
+struct quest_objective {
+    uint16_t id = 0;
+    uint8_t status = 0;          // 0=incomplete, 1=complete, 2=failed
+    int32_t current = 0;
+    int32_t required = 0;
+};
+
+// Active quest state
+struct active_quest {
+    uint16_t quest_id = 0;
+    uint8_t status = 0;          // 0=available, 1=active, 2=complete, 3=turned_in, 4=failed, 5=abandoned
+    std::vector<quest_objective> objectives;
+};
+
+// Quest log holding active and completed quests
+struct quest_log {
+    std::vector<active_quest> active;
+    std::vector<uint16_t> completed;
+
+    void clear()
+    {
+        active.clear();
+        completed.clear();
+    }
+
+    bool is_quest_completed(uint16_t quest_id) const
+    {
+        return std::find(completed.begin(), completed.end(), quest_id) != completed.end();
+    }
+
+    const active_quest* find_active(uint16_t quest_id) const
+    {
+        for (const auto& q : active)
+        {
+            if (q.quest_id == quest_id) return &q;
+        }
+        return nullptr;
+    }
+};
 
 // Character data for character select
 struct character_info {
@@ -106,6 +150,9 @@ public:
     skills_system& skills() { return skills_; }
     combat_system& combat() { return combat_; }
     sound_manager& sounds() { return sounds_; }
+    effect_system& effects() { return effects_; }
+    quest_log& quests() { return quests_; }
+    const quest_log& quests() const { return quests_; }
 
     // Local player
     void set_local_player_id(entity_id id);
@@ -261,6 +308,7 @@ private:
     inventory_system inventory_;
     magic_system magic_;
     skills_system skills_;
+    quest_log quests_;
 
     // WebSocket state
     std::string session_token_;
@@ -306,6 +354,12 @@ private:
     // Status log for persistent status messages (hunger, etc.)
     status_log status_log_;
 
+    // Screen transition overlay (diamond wave dissolve)
+    screen_transition transition_;
+
+    // Visual effects (spell explosions, projectiles, particles)
+    effect_system effects_;
+
     // Floating text for damage numbers, heals, etc.
     floating_text_manager floating_text_;
 
@@ -324,6 +378,12 @@ public:
     // Camera drag lock control (for cinematic sequences)
     void set_camera_drag_locked(bool locked) { camera_drag_locked_ = locked; }
     bool is_camera_drag_locked() const { return camera_drag_locked_; }
+
+    // Screen transition for map teleports. The midpoint callback fires when
+    // the screen is fully covered - load the new map there.
+    void start_map_transition(std::function<void()> on_midpoint);
+    bool is_transitioning() const { return transition_.is_active(); }
+    void cancel_transition() { transition_.cancel(); }
     // Resolution change API
     bool change_resolution(uint32_t width, uint32_t height, bool fullscreen);
 };

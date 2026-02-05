@@ -1,4 +1,5 @@
 #include "gameplay/magic.hpp"
+#include "gameplay/effect_system.hpp"
 #include "gameplay/combat.hpp"
 #include "entity/entity_manager.hpp"
 #include <spdlog/spdlog.h>
@@ -445,6 +446,13 @@ void magic_system::set_spell_mastery(uint16_t spell_id, uint8_t level) {
     }
 }
 
+void magic_system::set_spell_total_casts(uint16_t spell_id, int32_t total_casts) {
+    auto it = spells_.find(spell_id);
+    if (it != spells_.end()) {
+        it->second.total_casts = total_casts;
+    }
+}
+
 uint8_t magic_system::get_mastery_level(uint16_t spell_id) const {
     auto it = spells_.find(spell_id);
     if (it != spells_.end()) {
@@ -524,8 +532,14 @@ bool magic_system::has_effect(uint32_t target_id, uint16_t spell_id) const {
 }
 
 void magic_system::create_effect(uint16_t effect_id, int32_t x, int32_t y) {
-    spdlog::debug("Creating visual effect {} at ({}, {})", effect_id, x, y);
-    // TODO: Create effect entity in entity_manager
+    if (effects_)
+    {
+        effects_->add_effect_at(static_cast<effect_type_id>(effect_id), x, y);
+    }
+    else
+    {
+        spdlog::debug("Creating visual effect {} at ({}, {}) - no effect system", effect_id, x, y);
+    }
 }
 
 void magic_system::add_active_effect(uint16_t effect_id, uint32_t duration) {

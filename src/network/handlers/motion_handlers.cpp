@@ -1,5 +1,6 @@
 #include "network/handlers/motion_handlers.hpp"
 #include "gameplay/game_state.hpp"
+#include "gameplay/effect_types.hpp"
 #include "entity/entity_manager.hpp"
 #include "core/game_enums.hpp"
 #include <spdlog/spdlog.h>
@@ -397,8 +398,8 @@ void motion_handler::process_effect(packet_reader& reader) {
 
     if (!effect_type || !x || !y) return;
 
-    // Generic visual effect
-    spdlog::debug("Effect {} at ({}, {})", *effect_type, *x, *y);
+    game_->effects().add_effect(
+        static_cast<effect_type_id>(*effect_type), *x, *y, *x, *y);
 }
 
 } // namespace hb

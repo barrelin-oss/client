@@ -288,6 +288,78 @@ struct enter_game_skill {
     }
 };
 
+// Known spell entry from enter_game_response
+struct enter_game_spell {
+    uint16_t spell_id = 0;
+    int16_t level = 0;           // Spell mastery level
+    int32_t total_casts = 0;     // Lifetime cast count
+
+    static enter_game_spell from_json(const json& j) {
+        enter_game_spell sp;
+        if (j.contains("spell_id")) sp.spell_id = j["spell_id"].get<uint16_t>();
+        if (j.contains("level")) sp.level = j["level"].get<int16_t>();
+        if (j.contains("total_casts")) sp.total_casts = j["total_casts"].get<int32_t>();
+        return sp;
+    }
+};
+
+// Quest objective from enter_game_response
+struct enter_game_quest_objective {
+    uint16_t id = 0;
+    uint8_t status = 0;          // 0=incomplete, 1=complete, 2=failed
+    int32_t current = 0;
+    int32_t required = 0;
+
+    static enter_game_quest_objective from_json(const json& j) {
+        enter_game_quest_objective obj;
+        if (j.contains("id")) obj.id = j["id"].get<uint16_t>();
+        if (j.contains("status")) obj.status = j["status"].get<uint8_t>();
+        if (j.contains("current")) obj.current = j["current"].get<int32_t>();
+        if (j.contains("required")) obj.required = j["required"].get<int32_t>();
+        return obj;
+    }
+};
+
+// Active quest from enter_game_response
+struct enter_game_active_quest {
+    uint16_t quest_id = 0;
+    uint8_t status = 0;          // 0=available, 1=active, 2=complete, 3=turned_in, 4=failed, 5=abandoned
+    std::vector<enter_game_quest_objective> objectives;
+
+    static enter_game_active_quest from_json(const json& j) {
+        enter_game_active_quest quest;
+        if (j.contains("quest_id")) quest.quest_id = j["quest_id"].get<uint16_t>();
+        if (j.contains("status")) quest.status = j["status"].get<uint8_t>();
+        if (j.contains("objectives") && j["objectives"].is_array()) {
+            for (const auto& obj : j["objectives"]) {
+                quest.objectives.push_back(enter_game_quest_objective::from_json(obj));
+            }
+        }
+        return quest;
+    }
+};
+
+// Quest data from enter_game_response
+struct enter_game_quests {
+    std::vector<enter_game_active_quest> active;
+    std::vector<uint16_t> completed;
+
+    static enter_game_quests from_json(const json& j) {
+        enter_game_quests quests;
+        if (j.contains("active") && j["active"].is_array()) {
+            for (const auto& q : j["active"]) {
+                quests.active.push_back(enter_game_active_quest::from_json(q));
+            }
+        }
+        if (j.contains("completed") && j["completed"].is_array()) {
+            for (const auto& id : j["completed"]) {
+                quests.completed.push_back(id.get<uint16_t>());
+            }
+        }
+        return quests;
+    }
+};
+
 // Visible entity from enter_game_response world data
 struct enter_game_visible_entity {
     uint32_t entity_id = 0;
@@ -338,6 +410,8 @@ struct enter_game_response_data {
     enter_game_inventory inventory;
     std::vector<enter_game_equipment_item> equipment;
     std::vector<enter_game_skill> skills;
+    std::vector<enter_game_spell> spells;
+    enter_game_quests quests;
     enter_game_world world;
 
     static enter_game_response_data from_json(const json& j) {
@@ -372,6 +446,18 @@ struct enter_game_response_data {
                     for (const auto& sk : d["skills"]) {
                         data.skills.push_back(enter_game_skill::from_json(sk));
                     }
+                }
+
+                // Parse spells array
+                if (d.contains("spells") && d["spells"].is_array()) {
+                    for (const auto& sp : d["spells"]) {
+                        data.spells.push_back(enter_game_spell::from_json(sp));
+                    }
+                }
+
+                // Parse quest data
+                if (d.contains("quests")) {
+                    data.quests = enter_game_quests::from_json(d["quests"]);
                 }
 
                 // Parse world data

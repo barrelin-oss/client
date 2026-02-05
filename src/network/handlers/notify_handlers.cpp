@@ -166,7 +166,15 @@ void notify_handler::handle_hp(packet_reader& reader) {
     if (!hp || !game_) return;
 
     if (auto* player = game_->local_player()) {
+        int32_t old_hp = player->stats().hp;
         player->stats().hp = *hp;
+
+        // Cancel screen transition if player took damage
+        if (*hp < old_hp && game_->is_transitioning())
+        {
+            game_->cancel_transition();
+        }
+
         spdlog::debug("HP updated: {}", *hp);
     }
 }

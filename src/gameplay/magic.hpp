@@ -12,6 +12,7 @@ namespace hb {
 
 class entity_manager;
 class combat_system;
+class effect_system;
 
 // Element types
 enum class magic_element : uint8_t {
@@ -94,6 +95,7 @@ struct spell {
     bool learned = false;
     uint8_t mastery_level = 0;   // 0-20
     uint32_t experience = 0;
+    int32_t total_casts = 0;     // Lifetime cast count from server
 
     // Calculate actual mana cost based on intelligence and mastery
     int32_t calculate_mp_cost(uint16_t intelligence) const {
@@ -188,6 +190,7 @@ public:
     // Mastery
     void add_spell_experience(uint16_t spell_id, uint32_t exp);
     void set_spell_mastery(uint16_t spell_id, uint8_t level);
+    void set_spell_total_casts(uint16_t spell_id, int32_t total_casts);
     uint8_t get_mastery_level(uint16_t spell_id) const;
 
     // Active effects
@@ -196,6 +199,9 @@ public:
     void update_effects(float delta_time);
     std::vector<spell_effect> get_effects_on_target(uint32_t target_id) const;
     bool has_effect(uint32_t target_id, uint16_t spell_id) const;
+
+    // Set the effect system for visual effect delegation
+    void set_effect_system(effect_system* effects) { effects_ = effects; }
 
     // Visual effects (for rendering spell animations)
     void create_effect(uint16_t effect_id, int32_t x, int32_t y);
@@ -242,6 +248,7 @@ private:
 
     entity_manager* entities_ = nullptr;
     combat_system* combat_ = nullptr;
+    effect_system* effects_ = nullptr;
 
     effect_expired_callback on_effect_expired_;
     spell_cast_callback on_spell_cast_;

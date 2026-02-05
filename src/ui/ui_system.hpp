@@ -118,6 +118,15 @@ public:
     // Check if any dialog is blocking input
     bool is_modal_open() const;
 
+    // Check if a screen point is over any open dialog
+    bool is_point_over_dialog(int32_t x, int32_t y) const;
+
+    // Track whether a mouse button press was consumed by the UI.
+    // Returns true from press until release, preventing held-button
+    // game world actions after closing a dialog with a click.
+    bool is_mouse_consumed(sf::Mouse::Button btn) const;
+    void update_mouse_consumed(const input& inp);
+
     // === Data-driven dialog manager ===
     // Provides access to the new YAML/JSON-based dialog system
 
@@ -150,6 +159,10 @@ private:
 
     // YAML-based icon panel (managed by dialog_manager, we just hold a pointer)
     yaml_icon_panel_dialog* yaml_icon_panel_ = nullptr;
+
+    // Track which mouse buttons had their press consumed by the UI
+    bool mouse_consumed_left_ = false;
+    bool mouse_consumed_right_ = false;
 };
 
 } // namespace hb

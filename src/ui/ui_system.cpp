@@ -675,6 +675,45 @@ bool ui_system::is_modal_open() const {
     return false;
 }
 
+bool ui_system::is_point_over_dialog(int32_t x, int32_t y) const {
+    // Check data-driven dialogs
+    if (dialog_manager_ && dialog_manager_->is_point_over_dialog(x, y)) {
+        return true;
+    }
+
+    // Check legacy dialogs
+    for (const auto& [type, dlg] : dialogs_) {
+        if (dlg->is_open() && dlg->bounds().contains(x, y)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ui_system::is_mouse_consumed(sf::Mouse::Button btn) const {
+    if (btn == sf::Mouse::Button::Left) return mouse_consumed_left_;
+    if (btn == sf::Mouse::Button::Right) return mouse_consumed_right_;
+    return false;
+}
+
+void ui_system::update_mouse_consumed(const input& inp) {
+    // On press: mark consumed if over a dialog
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
+        mouse_consumed_left_ = is_point_over_dialog(inp.mouse_x(), inp.mouse_y());
+    }
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right)) {
+        mouse_consumed_right_ = is_point_over_dialog(inp.mouse_x(), inp.mouse_y());
+    }
+
+    // On release: clear consumed flag
+    if (inp.is_mouse_released(sf::Mouse::Button::Left)) {
+        mouse_consumed_left_ = false;
+    }
+    if (inp.is_mouse_released(sf::Mouse::Button::Right)) {
+        mouse_consumed_right_ = false;
+    }
+}
+
 void ui_system::bring_to_front(dialog* dlg) {
     auto it = std::find(dialog_order_.begin(), dialog_order_.end(), dlg);
     if (it != dialog_order_.end()) {

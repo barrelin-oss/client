@@ -109,6 +109,9 @@ public:
     // Check if any modal dialog is open
     bool is_modal_open() const;
 
+    // Check if a screen point is over any open dialog
+    bool is_point_over_dialog(int32_t x, int32_t y) const;
+
     // === Development/hot reload ===
 
     // Enable/disable automatic hot-reload (polls for file changes)

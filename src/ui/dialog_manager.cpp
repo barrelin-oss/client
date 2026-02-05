@@ -769,6 +769,15 @@ bool dialog_manager::is_modal_open() const {
     return false;
 }
 
+bool dialog_manager::is_point_over_dialog(int32_t x, int32_t y) const {
+    for (const auto& [id, dlg] : dialogs_) {
+        if (dlg->is_open() && dlg->bounds().contains(x, y)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void dialog_manager::reload_definitions() {
     // Clear only definitions, keep dialogs and their state
     definitions_.clear();

@@ -86,6 +86,12 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     skills_.initialize();
     combat_.initialize(&entities_, &magic_, &skills_, &sounds_, &inventory_);
 
+    // Initialize visual effects system
+    effects_.initialize(sprites_, sounds_, world_);
+
+    // Wire effect system into magic system
+    magic_.set_effect_system(&effects_);
+
     // Setup network handlers
     setup_network_handlers();
 
@@ -245,10 +251,17 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         spdlog::warn("Sound manager initialization failed - audio may not work");
     }
 
-    // Wire up world events for automatic BGM changes
+    // Wire up world events for automatic BGM changes and map transitions
     world_.set_events({
         .on_map_changed = [this](std::string_view /*old_map*/, std::string_view new_map) {
             sounds_.start_bgm(new_map, static_cast<int>(world_.weather()));
+            // Trigger reveal transition when map changes during gameplay (teleport)
+            if (state_ == game_state::playing && renderer_)
+            {
+                transition_.set_show_label(false);
+                transition_.randomize_type();
+                transition_.start_reveal(renderer_->width(), renderer_->height());
+            }
         },
         .on_weather_changed = [this](weather_type w) {
             // Restart BGM if Christmas weather (types 4-6)
@@ -399,6 +412,9 @@ void game_state_manager::update(float delta_time, const input& inp) {
         // Update UI
         ui_.update(delta_time, inp);
     }
+
+    // Update screen transition (always, regardless of debug overlay)
+    transition_.update(delta_time);
 }
 
 void game_state_manager::render(renderer& rend) {
@@ -436,6 +452,9 @@ void game_state_manager::render(renderer& rend) {
     // Render debug overlay (draws outlines, selection, status bar)
     debug::debug_overlay::instance().render(rend);
 #endif
+
+    // Render screen transition overlay (on top of UI, under cursor)
+    transition_.render(rend);
 
     // Render cursor last (on top of everything including dialogs)
     screens_.render_cursor(rend, sprites_);
@@ -517,6 +536,10 @@ void game_state_manager::enter_state(game_state state) {
         case game_state::playing:
             screens_.change_screen(screen_type::none);
             ui_.close_all_dialogs();
+            // Start reveal transition with a random style
+            transition_.set_show_label(false);
+            transition_.randomize_type();
+            transition_.start_reveal(renderer_->width(), renderer_->height());
             // Open HUD elements (chat dialog is toggled via icon panel)
             ui_.open_dialog(dialog_type::icon_panel);
             // Note: gauge_panel is now integrated into icon_panel
@@ -586,9 +609,21 @@ void game_state_manager::clear_game_data() {
     run_mode_enabled_ = false;
     blocked_movement_cooldown_ = 0.0f;
 
-    // Clear status log and floating text
+    // Clear visual effects, status log, and floating text
+    effects_.clear();
     status_log_.clear();
     floating_text_.clear();
+
+    // Clear quest log
+    quests_.clear();
+}
+
+void game_state_manager::start_map_transition(std::function<void()> on_midpoint)
+{
+    if (renderer_)
+    {
+        transition_.start_full(renderer_->width(), renderer_->height(), std::move(on_midpoint));
+    }
 }
 
 void game_state_manager::update_main_menu(float delta_time, const input& inp) {
@@ -702,6 +737,9 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update magic effects
     magic_.update_effects(delta_time);
+
+    // Update visual effects (spell explosions, projectiles, particles)
+    effects_.update(delta_time);
 
     // Update skill cooldowns
     skills_.update_cooldowns(delta_time);
@@ -846,6 +884,9 @@ void game_state_manager::render_playing(renderer& rend) {
 
     // Render entities (with zoom still applied)
     entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y(), mouse_x_, mouse_y_);
+
+    // Render visual effects (within zoom bracket so they scale with the world)
+    effects_.render(rend, world_.camera_x(), world_.camera_y());
 
     // Reset zoom view before UI rendering
     world_.reset_zoom_view(rend);
@@ -1036,8 +1077,21 @@ void game_state_manager::show_error(std::string_view error) {
 }
 
 void game_state_manager::handle_playing_input(const input& inp) {
+    // Update UI mouse consumed tracking (must run every frame before checks)
+    ui_.update_mouse_consumed(inp);
+
     // Check if UI is handling input
     if (ui_.is_modal_open()) {
+        return;
+    }
+
+    // Block game world clicks when the mouse was pressed over a dialog.
+    // This persists until release so held-button actions (is_mouse_down)
+    // don't leak through after a dialog closes from being clicked.
+    if (ui_.is_mouse_consumed(sf::Mouse::Button::Left) ||
+        ui_.is_mouse_consumed(sf::Mouse::Button::Right)) {
+        // Still allow hotkeys while UI has consumed mouse input
+        handle_hotkey_input(inp);
         return;
     }
 
@@ -1665,6 +1719,15 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         config.show_grid = !config.show_grid;
         world_.set_render_config(config);
         spdlog::info("Tile grid: {}", config.show_grid ? "ON" : "OFF");
+    }
+
+    // Cycle screen transition type and preview (F9)
+    if (inp.is_key_pressed(sf::Keyboard::Key::F9))
+    {
+        auto new_type = transition_.next_type();
+        transition_.set_show_label(true);
+        transition_.start_reveal(renderer_->width(), renderer_->height());
+        spdlog::info("Transition preview: {}", transition_type_name(new_type));
     }
 
     // Toggle zoom mode (Ctrl+Q)
@@ -2781,6 +2844,29 @@ void game_state_manager::handle_enter_game_response(const json& message) {
         skills_.set_mastery(sk.skill_id, mastery);
     }
     spdlog::debug("Loaded {} skills", response.skills.size());
+
+    // === Set known spells ===
+    for (const auto& sp : response.spells) {
+        magic_.learn_spell(sp.spell_id);
+        magic_.set_spell_mastery(sp.spell_id, static_cast<uint8_t>(sp.level));
+        magic_.set_spell_total_casts(sp.spell_id, sp.total_casts);
+    }
+    spdlog::debug("Loaded {} spells", response.spells.size());
+
+    // === Load quest data ===
+    quests_.clear();
+    for (const auto& aq : response.quests.active) {
+        active_quest quest;
+        quest.quest_id = aq.quest_id;
+        quest.status = aq.status;
+        for (const auto& obj : aq.objectives) {
+            quest.objectives.push_back({obj.id, obj.status, obj.current, obj.required});
+        }
+        quests_.active.push_back(std::move(quest));
+    }
+    quests_.completed = response.quests.completed;
+    spdlog::debug("Loaded {} active quests, {} completed quests",
+                  quests_.active.size(), quests_.completed.size());
 
     // === Spawn nearby entities ===
     for (const auto& ent : response.world.entities) {

@@ -53,6 +53,13 @@ void ui_system::update(float delta_time, const input& inp) {
         dialog_manager_->handle_mouse_move(mx, my);
     }
 
+    // Route mouse move to legacy dialogs (for drag and hover states)
+    for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+        if ((*it)->is_open() && (*it)->handle_mouse_move(mx, my)) {
+            break;
+        }
+    }
+
     // Route mouse clicks to open dialogs (front to back)
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
         // First check data-driven dialogs (they render on top)

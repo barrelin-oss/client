@@ -16,12 +16,8 @@ enum class transition_type : uint8_t
     circle_expand,      // Euclidean distance from center - smooth radial
     horizontal_blinds,  // Horizontal strips retract alternating up/down
     vertical_blinds,    // Vertical strips retract alternating left/right
-    random_scatter,     // Random delays for a dissolve effect
-    spiral,             // Cells follow a spiral pattern from center
     diagonal_wipe,      // Diagonal line sweeps corner to corner
     rain,               // Cells fall away top-to-bottom in staggered columns
-    checkerboard,       // Even/odd cells in two quick phases
-    vortex,             // Swirling whirlpool pattern
 
     count               // Number of transition types
 };
@@ -41,7 +37,6 @@ enum class transition_phase : uint8_t
 enum class cell_anim : uint8_t
 {
     shrink,         // Shrink toward center while fading
-    expand_pop,     // Expand outward while fading (pop/burst)
     slide,          // Slide in a direction while fading
 };
 

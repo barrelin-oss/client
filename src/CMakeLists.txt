@@ -93,13 +93,17 @@ add_executable(helbreath_client
     ui/dialogs/system_menu_dialog.cpp
 
     # Gameplay
+    gameplay/action_queue.cpp
     gameplay/combat.cpp
+    gameplay/dialog_callbacks.cpp
     gameplay/effect_definition.cpp
     gameplay/effect_system.cpp
     gameplay/floating_text.cpp
+    gameplay/input_handler.cpp
     gameplay/inventory.cpp
     gameplay/magic.cpp
     gameplay/skills.cpp
+    gameplay/ws_message_handler.cpp
     gameplay/game_state.cpp
 
     # Chat

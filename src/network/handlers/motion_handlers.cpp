@@ -307,9 +307,42 @@ void motion_handler::process_magic(uint32_t entity_id, packet_reader& reader) {
     ent->set_action(object_action::magic);
     ent->set_casting_spell(*spell_id);
 
-    // Create magic effect at target location
-    if (target_x && target_y) {
-        game_->magic().create_effect(*spell_id, *target_x, *target_y);
+    // Look up spell definition for proper effect chain
+    const auto* sp = game_->magic().get_spell(*spell_id);
+
+    // Caster position in tile coordinates
+    const auto& caster_t = ent->transform();
+    int32_t caster_tx = caster_t.tile_x;
+    int32_t caster_ty = caster_t.tile_y;
+
+    // Spawn casting effect on caster
+    if (sp && sp->cast_sprite != 0)
+    {
+        game_->effects().add_effect_at(
+            static_cast<effect_type_id>(sp->cast_sprite), caster_tx, caster_ty);
+    }
+
+    if (target_x && target_y)
+    {
+        // Spawn projectile from caster to target (if applicable)
+        if (sp && sp->projectile_effect != 0)
+        {
+            game_->effects().add_effect(
+                static_cast<effect_type_id>(sp->projectile_effect),
+                caster_tx, caster_ty, *target_x, *target_y);
+        }
+
+        // Spawn impact effect at target
+        if (sp && sp->effect_sprite != 0)
+        {
+            game_->effects().add_effect_at(
+                static_cast<effect_type_id>(sp->effect_sprite), *target_x, *target_y);
+        }
+        else if (!sp)
+        {
+            // Fallback: no spell definition, use raw spell_id as before
+            game_->magic().create_effect(*spell_id, *target_x, *target_y);
+        }
     }
 }
 

@@ -14,6 +14,7 @@ character_dialog::character_dialog()
     set_draggable(true);
     set_closeable(true);
     set_visible(false);
+    set_drag_clamp(drag_clamp::partial);
     create_ui();
 }
 

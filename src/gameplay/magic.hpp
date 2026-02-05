@@ -88,8 +88,9 @@ struct spell {
 
     // Animation
     uint16_t cast_sprite = 0;
-    uint16_t effect_sprite = 0;
-    float cast_time = 1.0f;      // Seconds
+    uint16_t projectile_effect = 0;  // Projectile from caster to target (0 = none)
+    uint16_t effect_sprite = 0;      // Impact effect at target
+    float cast_time = 1.0f;          // Seconds
 
     // Learning
     bool learned = false;
@@ -184,6 +185,7 @@ public:
     const spell* get_spell(uint16_t spell_id) const;
     spell* get_spell_mut(uint16_t spell_id);
     const std::vector<const spell*> get_learned_spells() const;
+    std::vector<const spell*> get_all_spells() const;
     const std::vector<const spell*> get_spells_by_category(spell_category category) const;
     std::vector<const spell*> get_spells_by_circle(uint8_t circle) const;
 
@@ -256,49 +258,90 @@ private:
     casting_interrupted_callback on_casting_interrupted_;
 };
 
-// Spell ID constants (partial list)
+// Spell ID constants matching server magic.yaml
 namespace spell_id {
-    // Attack spells (Circle 1-6)
-    inline constexpr uint16_t energy_bolt = 1;
-    inline constexpr uint16_t magic_missile = 2;
-    inline constexpr uint16_t fire_ball = 3;
-    inline constexpr uint16_t fire_strike = 4;
-    inline constexpr uint16_t ice_bolt = 5;
-    inline constexpr uint16_t lightning = 6;
-    inline constexpr uint16_t mass_fire_strike = 7;
-    inline constexpr uint16_t blizzard = 8;
-    inline constexpr uint16_t meteor_strike = 9;
+    // Level 1 (IDs 0-9)
+    inline constexpr uint16_t magic_missile = 0;
+    inline constexpr uint16_t heal = 1;
+    inline constexpr uint16_t create_food = 2;
 
-    // Healing spells
-    inline constexpr uint16_t healing = 20;
-    inline constexpr uint16_t greater_healing = 21;
-    inline constexpr uint16_t complete_healing = 22;
-    inline constexpr uint16_t cure = 23;
-    inline constexpr uint16_t resurrection = 24;
+    // Level 2 (IDs 10-19)
+    inline constexpr uint16_t energy_bolt = 10;
+    inline constexpr uint16_t staminar_drain = 11;
+    inline constexpr uint16_t recall = 12;
+    inline constexpr uint16_t defense_shield = 13;
+    inline constexpr uint16_t celebrating_light = 14;
 
-    // Buff spells
-    inline constexpr uint16_t protection = 40;
-    inline constexpr uint16_t shield = 41;
-    inline constexpr uint16_t haste = 42;
-    inline constexpr uint16_t strength = 43;
-    inline constexpr uint16_t magic_shield = 44;
-    inline constexpr uint16_t invisibility = 45;
+    // Level 3 (IDs 20-29)
+    inline constexpr uint16_t fire_ball = 20;
+    inline constexpr uint16_t great_heal = 21;
+    inline constexpr uint16_t staminar_recovery = 23;
+    inline constexpr uint16_t protection_from_arrow = 24;
+    inline constexpr uint16_t hold_person = 25;
+    inline constexpr uint16_t possession = 26;
+    inline constexpr uint16_t poison = 27;
+    inline constexpr uint16_t great_staminar_recovery = 28;
 
-    // Debuff spells
-    inline constexpr uint16_t poison = 60;
-    inline constexpr uint16_t paralyze = 61;
-    inline constexpr uint16_t slow = 62;
-    inline constexpr uint16_t weaken = 63;
+    // Level 4 (IDs 30-39)
+    inline constexpr uint16_t fire_strike = 30;
+    inline constexpr uint16_t summon_creature = 31;
+    inline constexpr uint16_t invisibility = 32;
+    inline constexpr uint16_t protection_from_magic = 33;
+    inline constexpr uint16_t detect_invisibility = 34;
+    inline constexpr uint16_t paralyze = 35;
+    inline constexpr uint16_t cure = 36;
+    inline constexpr uint16_t lightning_arrow = 37;
+    inline constexpr uint16_t tremor = 38;
 
-    // Summon spells
-    inline constexpr uint16_t summon_creature = 80;
-    inline constexpr uint16_t summon_demon = 81;
+    // Level 5 (IDs 40-49)
+    inline constexpr uint16_t fire_wall = 40;
+    inline constexpr uint16_t fire_field = 41;
+    inline constexpr uint16_t confuse_language = 42;
+    inline constexpr uint16_t lightning = 43;
+    inline constexpr uint16_t great_defense_shield = 44;
+    inline constexpr uint16_t chill_wind = 45;
+    inline constexpr uint16_t poison_cloud = 46;
+    inline constexpr uint16_t triple_energy_bolt = 47;
 
-    // Utility spells
-    inline constexpr uint16_t recall = 90;
-    inline constexpr uint16_t create_food = 91;
-    inline constexpr uint16_t detect_monster = 92;
-    inline constexpr uint16_t sense_enemy = 93;
+    // Level 6 (IDs 50-59)
+    inline constexpr uint16_t berserk = 50;
+    inline constexpr uint16_t lightning_bolt = 51;
+    inline constexpr uint16_t mass_poison = 53;
+    inline constexpr uint16_t spike_field = 54;
+    inline constexpr uint16_t ice_storm = 55;
+    inline constexpr uint16_t mass_lightning_arrow = 56;
+    inline constexpr uint16_t ice_strike = 57;
+
+    // Level 7 (IDs 60-69)
+    inline constexpr uint16_t energy_strike = 60;
+    inline constexpr uint16_t mass_fire_strike = 61;
+    inline constexpr uint16_t confusion = 62;
+    inline constexpr uint16_t mass_chill_wind = 63;
+    inline constexpr uint16_t earthworm_strike = 64;
+    inline constexpr uint16_t absolute_magic_protection = 65;
+    inline constexpr uint16_t armor_break = 66;
+
+    // Level 8 (IDs 70-79)
+    inline constexpr uint16_t bloody_shock_wave = 70;
+    inline constexpr uint16_t mass_confusion = 71;
+    inline constexpr uint16_t mass_ice_strike = 72;
+    inline constexpr uint16_t cloud_kill = 73;
+    inline constexpr uint16_t lightning_strike = 74;
+    inline constexpr uint16_t cancellation = 76;
+    inline constexpr uint16_t illusion_movement = 77;
+
+    // Level 9 (IDs 80-89)
+    inline constexpr uint16_t illusion = 80;
+    inline constexpr uint16_t meteor_strike = 81;
+    inline constexpr uint16_t mass_magic_missile = 82;
+    inline constexpr uint16_t inhibition_casting = 83;
+
+    // Level 10 (IDs 90-99)
+    inline constexpr uint16_t mass_illusion = 90;
+    inline constexpr uint16_t blizzard = 91;
+    inline constexpr uint16_t resurrection = 94;
+    inline constexpr uint16_t mass_illusion_movement = 95;
+    inline constexpr uint16_t earth_shock_wave = 96;
 }
 
 } // namespace hb

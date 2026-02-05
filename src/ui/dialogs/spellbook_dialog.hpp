@@ -8,12 +8,17 @@
 
 namespace hb {
 
-// Spellbook dialog - displays known spells organized by circle
+enum class spellbook_view_mode : uint8_t
+{
+    classic,  // Organized by level (id / 10 + 1)
+    type      // Organized by spell_category
+};
+
+// Spellbook dialog - displays known spells organized by level or type
 class spellbook_dialog : public dialog {
 public:
-    static constexpr int32_t spells_per_row = 5;
-    static constexpr int32_t spell_slot_size = 40;
-    static constexpr int32_t slot_padding = 4;
+    static constexpr int32_t row_height = 22;
+    static constexpr int32_t icon_size = 14;
 
     spellbook_dialog();
     ~spellbook_dialog() override = default;
@@ -32,37 +37,60 @@ public:
     void set_selected_spell(uint16_t id) { selected_spell_ = id; }
     std::optional<uint16_t> selected_spell() const { return selected_spell_; }
 
-    // Current circle (page)
-    void set_current_circle(uint8_t circle);
-    uint8_t current_circle() const { return current_circle_; }
+    // View mode
+    void set_view_mode(spellbook_view_mode mode);
+    spellbook_view_mode view_mode() const { return view_mode_; }
+    void toggle_view_mode();
+
+    // Current level tab (classic mode)
+    void set_current_level(uint8_t level);
+    uint8_t current_level() const { return current_level_; }
+
+    // Current category tab (type mode)
+    void set_current_category(spell_category cat);
+    spell_category current_category() const { return current_category_; }
 
     // Callbacks
     using spell_callback = std::function<void(uint16_t)>;
     void set_on_spell_click(spell_callback callback) { on_spell_click_ = std::move(callback); }
-    void set_on_spell_double_click(spell_callback callback) { on_spell_double_click_ = std::move(callback); }
 
 private:
-    void render_spell_slot(renderer& rend, const spell& sp, int32_t x, int32_t y, bool selected);
+    void render_spell_row(renderer& rend, const spell& sp, int32_t x, int32_t y,
+                          int32_t width, bool selected, bool hovered);
     std::optional<size_t> spell_index_at(int32_t x, int32_t y) const;
 
-    std::vector<spell> spells_;
-    std::vector<spell> current_circle_spells_;
+    void rebuild_filtered_spells();
+    void render_classic_tabs(renderer& rend, int32_t x, int32_t& y);
+    void render_type_tabs(renderer& rend, int32_t x, int32_t& y);
 
-    uint8_t current_circle_ = 1;  // 1-10
-    static constexpr uint8_t max_circles = 10;
+    sf::Color spell_type_color(magic_type type) const;
+
+    // Compute display level from spell ID: id / 10 + 1
+    static uint8_t spell_level(uint16_t id) { return static_cast<uint8_t>(id / 10 + 1); }
+    static const char* category_label(spell_category cat);
+
+    std::vector<spell> spells_;
+    std::vector<spell> filtered_spells_;
+    bool filter_dirty_ = true;
+
+    // View mode
+    spellbook_view_mode view_mode_ = spellbook_view_mode::classic;
+
+    // Classic mode state
+    uint8_t current_level_ = 1;  // 1-10
+    static constexpr uint8_t max_levels = 10;
+
+    // Type mode state
+    spell_category current_category_ = spell_category::attack;
 
     std::optional<uint16_t> selected_spell_;
     std::optional<size_t> hovered_index_;
 
     spell_callback on_spell_click_;
-    spell_callback on_spell_double_click_;
-
-    // Double-click tracking
-    size_t last_click_index_ = SIZE_MAX;
-    float click_timer_ = 0.0f;
-    static constexpr float double_click_time = 0.3f;
 
     int32_t content_start_y_ = 0;
+    int32_t content_width_ = 0;
+    int32_t tabs_y_ = 0;  // Y position of tabs row for hit-testing
 };
 
 } // namespace hb

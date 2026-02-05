@@ -26,6 +26,7 @@ inventory_dialog::inventory_dialog()
     set_draggable(true);
     set_closeable(true);
     set_visible(false);
+    set_drag_clamp(drag_clamp::partial);
 }
 
 void inventory_dialog::update(float delta_time, const input& inp) {

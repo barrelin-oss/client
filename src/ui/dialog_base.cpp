@@ -1,7 +1,7 @@
 #include "ui/dialog_base.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
-#include "core/constants.hpp"
+#include "core/config.hpp"
 #include <algorithm>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
@@ -123,15 +123,32 @@ bool dialog::handle_mouse_move(int32_t x, int32_t y) {
     if (dragging_) {
         bounds_.x = x - drag_offset_x_;
         bounds_.y = y - drag_offset_y_;
-
-        // Clamp to screen
-        bounds_.x = std::clamp(bounds_.x, 0, static_cast<int32_t>(screen_width) - bounds_.width);
-        bounds_.y = std::clamp(bounds_.y, 0, static_cast<int32_t>(screen_height) - bounds_.height);
-
+        clamp_to_screen();
         return true;
     }
 
     return ui_panel::handle_mouse_move(x, y);
+}
+
+void dialog::clamp_to_screen()
+{
+    const auto& video = config::instance().video();
+    auto sw = static_cast<int32_t>(video.screen_width);
+    auto sh = static_cast<int32_t>(video.screen_height);
+
+    if (drag_clamp_ == drag_clamp::partial)
+    {
+        // Title bar must stay reachable: keep min_visible_width on-screen horizontally,
+        // and title bar visible vertically
+        bounds_.x = std::clamp(bounds_.x, -bounds_.width + min_visible_width, sw - min_visible_width);
+        bounds_.y = std::clamp(bounds_.y, 0, sh - title_bar_height);
+    }
+    else
+    {
+        // Entire dialog stays on screen
+        bounds_.x = std::clamp(bounds_.x, 0, std::max(0, sw - bounds_.width));
+        bounds_.y = std::clamp(bounds_.y, 0, std::max(0, sh - bounds_.height));
+    }
 }
 
 void dialog::open() {

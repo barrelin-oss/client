@@ -17,6 +17,7 @@ chat_dialog::chat_dialog()
     set_visible(true);
     set_has_border(false);
     set_background_color(sf::Color(0, 0, 0, 150));
+    set_drag_clamp(drag_clamp::partial);
 }
 
 void chat_dialog::update(float delta_time, const input& inp) {

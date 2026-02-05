@@ -60,6 +60,13 @@ enum class dialog_type {
     levelup,
 };
 
+// Controls how a dialog is clamped to the screen during dragging
+enum class drag_clamp : uint8_t
+{
+    on_screen,  // Entire dialog must stay within screen bounds (default)
+    partial     // Dialog can be dragged partially off-screen; title bar stays reachable
+};
+
 // Dialog base class
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 class dialog : public ui_panel, public debug::positionable {
@@ -97,6 +104,9 @@ public:
     void set_always_on_top(bool always_on_top) { always_on_top_ = always_on_top; }
     bool always_on_top() const { return always_on_top_; }
 
+    void set_drag_clamp(drag_clamp mode) { drag_clamp_ = mode; }
+    drag_clamp get_drag_clamp() const { return drag_clamp_; }
+
     // Callbacks
     using close_callback = std::function<void()>;
     void set_on_close(close_callback callback) { on_close_ = std::move(callback); }
@@ -113,6 +123,7 @@ public:
 
 protected:
     void render_title_bar(renderer& rend);
+    void clamp_to_screen();
 
     dialog_type type_;
     std::string title_;
@@ -122,12 +133,15 @@ protected:
     bool modal_ = false;
     bool always_on_top_ = false;
     bool dragging_ = false;
+    drag_clamp drag_clamp_ = drag_clamp::on_screen;
     int32_t drag_offset_x_ = 0;
     int32_t drag_offset_y_ = 0;
 
     close_callback on_close_;
 
     static constexpr int32_t title_bar_height = 24;
+    // Minimum visible pixels when using partial drag clamp
+    static constexpr int32_t min_visible_width = 60;
 };
 
 } // namespace hb

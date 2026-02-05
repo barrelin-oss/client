@@ -134,10 +134,19 @@ enum class magic_type : uint8_t {
     confuse = 16,
     poison = 17,
     berserk = 18,
+    bloody_shock_wave = 19,
     polymorph = 20,
     damage_area_no_spot = 21,
     tremor = 22,
-    ice = 23
+    ice = 23,
+    earthworm_strike = 25,
+    armor_break = 26,
+    blizzard = 27,
+    cancellation = 28,
+    inhibition_casting = 29,
+    earth_shock_wave = 30,
+    mass_magic_missile = 31,
+    resurrection = 32
 };
 
 // Direction (8-way, values 1-8 matching legacy code)

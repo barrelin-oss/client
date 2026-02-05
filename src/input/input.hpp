@@ -25,10 +25,14 @@ public:
     bool is_mouse_pressed(sf::Mouse::Button btn) const;
     bool is_mouse_released(sf::Mouse::Button btn) const;
 
-    // Keyboard state
+    // Keyboard state (by key code - layout-dependent)
     bool is_key_down(sf::Keyboard::Key key) const;
     bool is_key_pressed(sf::Keyboard::Key key) const;
     bool is_key_released(sf::Keyboard::Key key) const;
+
+    // Keyboard state (by scancode - physical key, modifier-independent)
+    bool is_scan_down(sf::Keyboard::Scancode scan) const;
+    bool is_scan_pressed(sf::Keyboard::Scancode scan) const;
 
     // Text input (accumulated during frame)
     std::string_view text_input() const { return text_input_; }
@@ -41,6 +45,7 @@ public:
 private:
     static constexpr size_t max_mouse_buttons = 5;
     static constexpr size_t max_keys = 256;
+    static constexpr size_t max_scancodes = sf::Keyboard::ScancodeCount;
 
     int32_t mouse_x_ = 0;
     int32_t mouse_y_ = 0;
@@ -53,6 +58,9 @@ private:
     std::array<bool, max_keys> key_down_{};
     std::array<bool, max_keys> key_pressed_{};
     std::array<bool, max_keys> key_released_{};
+
+    std::array<bool, max_scancodes> scan_down_{};
+    std::array<bool, max_scancodes> scan_pressed_{};
 
     std::string text_input_;
 

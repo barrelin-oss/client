@@ -42,12 +42,21 @@ void input::process_event(const sf::Event& event) {
             key_down_[key] = true;
             key_pressed_[key] = true;
         }
+        auto scan = static_cast<size_t>(key_pressed->scancode);
+        if (scan < max_scancodes) {
+            scan_down_[scan] = true;
+            scan_pressed_[scan] = true;
+        }
     }
     else if (const auto* key_released = event.getIf<sf::Event::KeyReleased>()) {
         auto key = static_cast<size_t>(key_released->code);
         if (key < max_keys) {
             key_down_[key] = false;
             key_released_[key] = true;
+        }
+        auto scan = static_cast<size_t>(key_released->scancode);
+        if (scan < max_scancodes) {
+            scan_down_[scan] = false;
         }
     }
     else if (const auto* text = event.getIf<sf::Event::TextEntered>()) {
@@ -74,6 +83,7 @@ void input::end_frame() {
     mouse_released_.fill(false);
     key_pressed_.fill(false);
     key_released_.fill(false);
+    scan_pressed_.fill(false);
     wheel_delta_ = 0;
     text_input_.clear();
 }
@@ -122,6 +132,22 @@ bool input::is_key_released(sf::Keyboard::Key key) const {
     auto idx = static_cast<size_t>(key);
     if (idx < max_keys) {
         return key_released_[idx];
+    }
+    return false;
+}
+
+bool input::is_scan_down(sf::Keyboard::Scancode scan) const {
+    auto idx = static_cast<size_t>(scan);
+    if (idx < max_scancodes) {
+        return scan_down_[idx];
+    }
+    return false;
+}
+
+bool input::is_scan_pressed(sf::Keyboard::Scancode scan) const {
+    auto idx = static_cast<size_t>(scan);
+    if (idx < max_scancodes) {
+        return scan_pressed_[idx];
     }
     return false;
 }

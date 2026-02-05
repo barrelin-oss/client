@@ -131,6 +131,22 @@ The UI uses a hybrid approach:
 
 ---
 
+## System Documentation
+
+| System | Documentation |
+|--------|--------------|
+| Character Movement | `docs/character_movement.md` |
+| Character Animation | `docs/character_animation.md` |
+| Character Rendering | `docs/character_rendering.md` |
+| Sound & Music | `docs/sound_system.md` |
+| Map Rendering | `docs/map_rendering.md` |
+| Camera & Zoom | `docs/camera_system.md` |
+| Character Sounds | `docs/character_sounds.md` |
+| Dialog System | `docs/dialog_system.md` |
+| AMD File Format | `docs/amd_file_format.md` |
+
+---
+
 ## Network Protocol
 
 The client supports two protocols:

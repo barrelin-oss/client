@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace hb {
 
@@ -38,7 +40,6 @@ public:
 
     // Render map
     void render(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y);
-    void render_layer(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y, int layer);
 
     // Configuration
     void set_config(const map_render_config& config) { config_ = config; }
@@ -51,6 +52,13 @@ public:
     void set_zoom_level(float level) {
         zoom_level_ = level;
     }
+
+    // Pathfinding debug trace (rendered as cyan tiles when show_walkability is on)
+    void set_pathfinding_trace(std::vector<std::pair<int32_t, int32_t>> trace)
+    {
+        pathfinding_trace_ = std::move(trace);
+    }
+    void clear_pathfinding_trace() { pathfinding_trace_.clear(); }
 
     // Invalidate all chunk caches (call when map changes)
     void invalidate_chunks();
@@ -75,7 +83,6 @@ private:
 
     // Chunk-based rendering
     static constexpr int32_t chunk_size_ = 16;  // 16x16 tiles per chunk
-    static constexpr float chunk_zoom_threshold_ = 2.0f;  // Use chunks when zoomed out beyond this
 
     struct chunk_key {
         int32_t cx, cy;
@@ -93,11 +100,14 @@ private:
     std::unordered_map<chunk_key, chunk_data, chunk_key_hash> chunks_;
 
     void render_chunk(const map& m, int32_t chunk_x, int32_t chunk_y);
-    bool should_use_chunks() const;
     chunk_data& get_or_create_chunk(int32_t chunk_x, int32_t chunk_y);
+
+    // Render objects tile-by-tile (always on top of chunk terrain)
+    void render_objects(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y);
 
     tile_sprite_registry* registry_ = nullptr;
     map_render_config config_;
+    std::vector<std::pair<int32_t, int32_t>> pathfinding_trace_;
 
     // Screen dimensions for calculating visible tile range
     uint32_t screen_width_ = 640;

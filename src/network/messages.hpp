@@ -36,6 +36,13 @@ namespace msg_type {
 
     // Player state updates
     inline constexpr const char* hunger_update = "hunger_update";
+
+    // NPC messages
+    inline constexpr const char* npc_move = "npc_move";
+
+    // Entity info request/response (for when we receive updates for unknown entities)
+    inline constexpr const char* entity_info_request = "entity_info_request";
+    inline constexpr const char* entity_info_response = "entity_info_response";
 }
 
 // Character info from server (used in get_characters_response)
@@ -290,6 +297,7 @@ struct enter_game_visible_entity {
     int16_t y = 0;
     int16_t hp_percent = 100;
     int16_t direction = 4;       // Facing direction (0-7: N,NE,E,SE,S,SW,W,NW)
+    uint16_t visual_type = 0;    // NPC/monster type for sprite selection (10=Slime, 11=Skeleton, etc.)
 
     static enter_game_visible_entity from_json(const json& j) {
         enter_game_visible_entity ent;
@@ -300,6 +308,7 @@ struct enter_game_visible_entity {
         if (j.contains("y")) ent.y = j["y"].get<int16_t>();
         if (j.contains("hp_percent")) ent.hp_percent = j["hp_percent"].get<int16_t>();
         if (j.contains("direction")) ent.direction = j["direction"].get<int16_t>();
+        if (j.contains("visual_type")) ent.visual_type = j["visual_type"].get<uint16_t>();
         return ent;
     }
 };
@@ -463,15 +472,23 @@ inline json make_player_pickup_request(int32_t x, int32_t y, uint32_t item_id = 
         .build();
 }
 
-inline json make_player_move_request(int32_t x, int32_t y, uint8_t direction, bool is_running = false) {
-    return message_builder(msg_type::player_move_request)
+inline json make_player_move_request(int32_t x, int32_t y, uint8_t direction, bool is_running = false,
+                                     int32_t dest_x = -1, int32_t dest_y = -1) {
+    auto builder = message_builder(msg_type::player_move_request)
         .set("x", x)
         .set("y", y)
         .set("direction", direction)
         .set("is_running", is_running)
         .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count()))
-        .build();
+            std::chrono::system_clock::now().time_since_epoch()).count()));
+
+    // Include destination coordinates if provided (for pathfinding)
+    if (dest_x >= 0 && dest_y >= 0) {
+        builder.set("dest_x", dest_x);
+        builder.set("dest_y", dest_y);
+    }
+
+    return builder.build();
 }
 
 inline json make_player_stop_request(int32_t x, int32_t y, uint8_t direction) {
@@ -481,6 +498,12 @@ inline json make_player_stop_request(int32_t x, int32_t y, uint8_t direction) {
         .set("direction", direction)
         .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count()))
+        .build();
+}
+
+inline json make_entity_info_request(uint32_t entity_id) {
+    return message_builder(msg_type::entity_info_request)
+        .set("entity_id", entity_id)
         .build();
 }
 
@@ -566,6 +589,8 @@ struct player_position_update_data {
     int32_t y = 0;
     uint8_t direction = 0;
     bool is_running = false;
+    int32_t dest_x = -1;  // Movement destination (-1 if not provided)
+    int32_t dest_y = -1;
 
     static player_position_update_data from_json(const json& j) {
         player_position_update_data data;
@@ -576,6 +601,8 @@ struct player_position_update_data {
             if (d.contains("y")) data.y = d["y"].get<int32_t>();
             if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
             if (d.contains("is_running")) data.is_running = d["is_running"].get<bool>();
+            if (d.contains("dest_x")) data.dest_x = d["dest_x"].get<int32_t>();
+            if (d.contains("dest_y")) data.dest_y = d["dest_y"].get<int32_t>();
         }
         return data;
     }
@@ -612,6 +639,84 @@ struct hunger_update_data {
             const auto& d = j["data"];
             if (d.contains("level")) data.level = d["level"].get<int8_t>();
             if (d.contains("is_starving")) data.is_starving = d["is_starving"].get<bool>();
+        }
+        return data;
+    }
+};
+
+// NPC move broadcast data
+struct npc_move_data {
+    uint32_t entity_id = 0;
+    int16_t x = 0;
+    int16_t y = 0;
+    uint8_t direction = 0;
+
+    static npc_move_data from_json(const json& j) {
+        npc_move_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("x")) data.x = d["x"].get<int16_t>();
+            if (d.contains("y")) data.y = d["y"].get<int16_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
+        }
+        return data;
+    }
+};
+
+// Entity info response data (for both players and NPCs)
+struct entity_info_response_data {
+    bool success = false;
+    std::string error;
+
+    // Common fields
+    uint32_t entity_id = 0;
+    std::string entity_type;  // "player" or "npc"
+    std::string name;
+    int16_t level = 1;
+    int32_t hp = 0;
+    int32_t hp_max = 100;
+    int16_t x = 0;
+    int16_t y = 0;
+    uint8_t direction = 0;
+
+    // Player-specific fields
+    std::string faction;      // "aresden", "elvine", etc.
+    int16_t class_type = 0;   // 0=Warrior, 1=Mage, etc.
+    int32_t pk_count = 0;
+    std::string guild_name;
+
+    // NPC-specific fields
+    uint32_t template_id = 0;
+
+    static entity_info_response_data from_json(const json& j) {
+        entity_info_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+
+            if (data.success && d.contains("entity")) {
+                const auto& e = d["entity"];
+                if (e.contains("entity_id")) data.entity_id = e["entity_id"].get<uint32_t>();
+                if (e.contains("entity_type")) data.entity_type = e["entity_type"].get<std::string>();
+                if (e.contains("name")) data.name = e["name"].get<std::string>();
+                if (e.contains("level")) data.level = e["level"].get<int16_t>();
+                if (e.contains("hp")) data.hp = e["hp"].get<int32_t>();
+                if (e.contains("hp_max")) data.hp_max = e["hp_max"].get<int32_t>();
+                if (e.contains("x")) data.x = e["x"].get<int16_t>();
+                if (e.contains("y")) data.y = e["y"].get<int16_t>();
+                if (e.contains("direction")) data.direction = e["direction"].get<uint8_t>();
+
+                // Player-specific
+                if (e.contains("faction")) data.faction = e["faction"].get<std::string>();
+                if (e.contains("class_type")) data.class_type = e["class_type"].get<int16_t>();
+                if (e.contains("pk_count")) data.pk_count = e["pk_count"].get<int32_t>();
+                if (e.contains("guild_name")) data.guild_name = e["guild_name"].get<std::string>();
+
+                // NPC-specific
+                if (e.contains("template_id")) data.template_id = e["template_id"].get<uint32_t>();
+            }
         }
         return data;
     }

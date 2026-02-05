@@ -118,6 +118,13 @@ public:
     void set_render_config(const map_render_config& config) { map_renderer_.set_config(config); }
     const map_render_config& render_config() const { return map_renderer_.config(); }
 
+    // Pathfinding debug trace
+    void set_pathfinding_trace(std::vector<std::pair<int32_t, int32_t>> trace)
+    {
+        map_renderer_.set_pathfinding_trace(std::move(trace));
+    }
+    void clear_pathfinding_trace() { map_renderer_.clear_pathfinding_trace(); }
+
     // Zoom control
     void set_zoom_mode_enabled(bool enabled);
     bool is_zoom_mode_enabled() const { return zoom_mode_enabled_; }

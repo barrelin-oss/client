@@ -14,13 +14,6 @@ void status_log::update(float delta_time)
         flash_timer_ -= 1.0f;
     }
 
-    rainbow_time_ += delta_time;
-    // Keep rainbow_time_ from growing unbounded
-    if (rainbow_time_ > 100.0f)
-    {
-        rainbow_time_ -= 100.0f;
-    }
-
     // Update keyed message timers and remove expired ones
     for (auto& msg : messages_)
     {
@@ -59,8 +52,7 @@ void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen
     // Position: bottom-left, above the icon panel
     constexpr int32_t padding_left = 8;
     constexpr int32_t padding_bottom = 4;
-    constexpr int32_t line_height = 20;
-    constexpr uint32_t font_size = 14;
+    constexpr int32_t line_height = 24;
     const sf::Color outline_color = sf::Color::Black;
 
     // Start y position (bottom of all messages)
@@ -89,39 +81,17 @@ void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen
         y -= line_height;
 
         uint8_t alpha = calc_fade_alpha(evt.elapsed, evt.lifetime);
-        sf::Color outline_with_alpha = outline_color;
-        outline_with_alpha.a = alpha;
 
-        // Determine rendering method based on color type
-        if (evt.color == message_color::rainbow)
-        {
-            // Rainbow text with outline (whole text same color, cycling)
-            rend.draw_text_rainbow(evt.text, x, y, rainbow_time_, font_size, alpha,
-                                   true, outline_color);
-        }
-        else if (evt.color == message_color::special)
-        {
-            // Per-letter rainbow gradient with outline
-            rend.draw_text_special(evt.text, x, y, rainbow_time_, font_size, alpha,
-                                   true, outline_color);
-        }
-        else if (evt.color == message_color::terror)
-        {
-            // Terror text with outline (bouncing letters)
-            sf::Color terror_color = message_color_to_sfml(message_color::red);
-            rend.draw_text_terror(evt.text, x, y, rainbow_time_, terror_color, font_size, alpha,
-                                  true, outline_color);
-        }
-        else
-        {
-            // Static color with outline
-            sf::Color color = message_color_to_sfml(evt.color);
-            color.a = alpha;
-            rend.draw_text_outlined(evt.text, x, y, color, outline_with_alpha, font_size, 1.0f);
-        }
+        // Get the text_style from the message color
+        text_style style = style_from_message_color(evt.color);
+        style.color.a = alpha;
+        style.outline_color.a = alpha;
+
+        rend.text().draw(evt.text, x, y, style, evt.elapsed);
     }
 
     // Render keyed status messages above events (newest at bottom)
+    constexpr uint32_t font_size = 18;
     for (auto it = messages_.rbegin(); it != messages_.rend(); ++it)
     {
         const auto& msg = *it;

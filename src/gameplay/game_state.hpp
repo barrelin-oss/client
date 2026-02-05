@@ -19,6 +19,7 @@
 #include "assets/tile_sprite_registry.hpp"
 #include "graphics/menu_character_renderer.hpp"
 #include "audio/sound_manager.hpp"
+#include "gameplay/floating_text.hpp"
 #include "ui/status_log.hpp"
 #include <cstdint>
 #include <string>
@@ -26,6 +27,7 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <optional>
 
 namespace hb {
 
@@ -164,6 +166,9 @@ private:
     void handle_combat_input(const input& inp);
     void handle_hotkey_input(const input& inp);
 
+    // Pathfinding debug trace
+    void update_pathfinding_trace();
+
     // Dialog callbacks
     void setup_dialog_callbacks();
 
@@ -182,11 +187,14 @@ private:
     void handle_player_stop_response(const json& message);
     void handle_player_move_response(const json& message);
     void handle_hunger_update(const json& message);
+    void handle_npc_move(const json& message);
+    void handle_entity_info_response(const json& message);
 
     // WebSocket requests
     void request_characters();
     void request_enter_game(int32_t character_id, bool force_disconnect = false);
     void request_create_character(const character_create_data& data);
+    void request_entity_info(uint32_t entity_id);
 
     // View range notification
     void send_view_range();
@@ -203,6 +211,13 @@ private:
     // Movement destination for pathfinding
     int32_t move_dest_x_ = -1;
     int32_t move_dest_y_ = -1;
+
+    // Alternates CW/CCW obstacle avoidance each step (legacy m_cPlayerTurn)
+    bool player_turn_ = false;
+
+    // Previous tile position for doubleback detection (prevents oscillating between two tiles)
+    int32_t prev_tile_x_ = -1;
+    int32_t prev_tile_y_ = -1;
 
     // Action queue system - actions cannot be performed until animation completes
     enum class queued_action_type : uint8_t {
@@ -221,7 +236,7 @@ private:
         int32_t target_y = 0;      // Tile Y or target entity ID (high bits)
         uint32_t target_id = 0;    // Entity ID for attacks
         uint16_t spell_id = 0;     // For magic actions
-        direction face_dir = direction::none;  // For face_direction actions
+        std::optional<direction> face_dir;  // For face_direction actions
     };
 
     queued_action pending_action_;
@@ -290,6 +305,9 @@ private:
 
     // Status log for persistent status messages (hunger, etc.)
     status_log status_log_;
+
+    // Floating text for damage numbers, heals, etc.
+    floating_text_manager floating_text_;
 
     // Combat mode state
     bool combat_mode_ = false;      // Attack stance (Tab toggles)

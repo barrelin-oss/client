@@ -1,6 +1,7 @@
 #include "gameplay/combat.hpp"
 #include "audio/sound_manager.hpp"
 #include "entity/entity_manager.hpp"
+#include "gameplay/inventory.hpp"
 #include "gameplay/magic.hpp"
 #include "gameplay/skills.hpp"
 #include <spdlog/spdlog.h>
@@ -25,11 +26,12 @@ namespace {
 }
 
 void combat_system::initialize(entity_manager* entities, magic_system* magic, skills_system* skills,
-                               sound_manager* sounds) {
+                               sound_manager* sounds, inventory_system* inventory) {
     entities_ = entities;
     magic_ = magic;
     skills_ = skills;
     sounds_ = sounds;
+    inventory_ = inventory;
     spdlog::info("Combat system initialized");
 }
 
@@ -135,9 +137,13 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
     // Set animation
     att->set_action(object_action::attack_peace);
 
-    // Play weapon swing sound
-    // TODO: Get actual equipped weapon type from inventory
-    uint16_t weapon_type = 0;  // Default to unarmed
+    // Get equipped weapon type for sound selection
+    uint16_t weapon_type = 0;
+    if (inventory_) {
+        if (const auto* weapon = inventory_->get_equipped(equip_slot::right_hand)) {
+            weapon_type = weapon->type_id;
+        }
+    }
     play_attack_sound(attacker, weapon_type);
 
     // Play critical sound for super attacks

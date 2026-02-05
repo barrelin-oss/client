@@ -84,7 +84,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     inventory_.initialize();
     magic_.initialize();
     skills_.initialize();
-    combat_.initialize(&entities_, &magic_, &skills_, &sounds_);
+    combat_.initialize(&entities_, &magic_, &skills_, &sounds_, &inventory_);
 
     // Setup network handlers
     setup_network_handlers();
@@ -458,6 +458,7 @@ void game_state_manager::enter_state(game_state state) {
         case game_state::main_menu:
             ui_.close_all_dialogs();
             screens_.change_screen(screen_type::main_menu);
+            sounds_.play_bgm_track("title-screen.ogg");
             break;
 
         case game_state::login:
@@ -585,8 +586,9 @@ void game_state_manager::clear_game_data() {
     run_mode_enabled_ = false;
     blocked_movement_cooldown_ = 0.0f;
 
-    // Clear status log
+    // Clear status log and floating text
     status_log_.clear();
+    floating_text_.clear();
 }
 
 void game_state_manager::update_main_menu(float delta_time, const input& inp) {
@@ -637,9 +639,12 @@ void game_state_manager::update_loading(float delta_time, const input& inp) {
 }
 
 void game_state_manager::update_playing(float delta_time, const input& inp) {
-    // Store mouse position for entity hover detection during rendering
-    mouse_x_ = inp.mouse_x();
-    mouse_y_ = inp.mouse_y();
+    // Store mouse position in view coordinates for entity hover detection during rendering.
+    // When zoomed, screen pixels and view coordinates diverge from screen center.
+    // Entity positions are in view space (world - camera), so mouse must be converted to match.
+    auto [mouse_world_x, mouse_world_y] = world_.screen_to_world(inp.mouse_x(), inp.mouse_y());
+    mouse_x_ = mouse_world_x - world_.camera_x();
+    mouse_y_ = mouse_world_y - world_.camera_y();
 
     // Update blocked movement cooldown
     if (blocked_movement_cooldown_ > 0.0f) {
@@ -689,6 +694,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         const auto& transform = player->transform();
         // Use pixel position for smooth following
         world_.set_player_position(transform.x, transform.y);
+        sounds_.set_listener_position(transform.x, transform.y);
     }
 
     // Update combat
@@ -738,15 +744,14 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
         // Update mouse position
         debug_stats.set_mouse_screen_pos(inp.mouse_x(), inp.mouse_y());
-        int32_t mouse_world_x = inp.mouse_x() + cam_x;
-        int32_t mouse_world_y = inp.mouse_y() + cam_y;
-        debug_stats.set_mouse_world_pos(mouse_world_x, mouse_world_y);
+        auto [dbg_world_x, dbg_world_y] = world_.screen_to_world(inp.mouse_x(), inp.mouse_y());
+        debug_stats.set_mouse_world_pos(dbg_world_x, dbg_world_y);
         auto [tile_x, tile_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
         debug_stats.set_mouse_tile_pos(tile_x, tile_y);
 
         // Update hovered entity info
         entity* hovered = entities_.get_entity_at_screen_pos(
-            inp.mouse_x(), inp.mouse_y(), cam_x, cam_y);
+            mouse_x_, mouse_y_, cam_x, cam_y);
         if (hovered && hovered->has_name()) {
             debug_stats.set_hovered_entity(hovered->name().name + " (ID:" + std::to_string(hovered->id()) + ")");
         } else {
@@ -760,6 +765,9 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update status log (hunger warnings, etc.)
     status_log_.update(delta_time);
+
+    // Update floating text (damage numbers, etc.)
+    floating_text_.update(delta_time);
 }
 
 void game_state_manager::render_main_menu(renderer& rend) {
@@ -841,6 +849,9 @@ void game_state_manager::render_playing(renderer& rend) {
 
     // Reset zoom view before UI rendering
     world_.reset_zoom_view(rend);
+
+    // Render floating text (after zoom reset - it does its own world-to-screen conversion)
+    floating_text_.render(rend, world_.camera_x(), world_.camera_y());
 
     // Render debug stats overlay (before UI so UI renders on top)
     debug::debug_stats::instance().render(rend);
@@ -1054,6 +1065,7 @@ void game_state_manager::handle_playing_input(const input& inp) {
     }
 
     handle_movement_input(inp);
+    update_pathfinding_trace();
     handle_combat_input(inp);
     handle_hotkey_input(inp);
 }
@@ -1080,19 +1092,9 @@ bool game_state_manager::can_perform_action() const {
         return false;
     }
 
-    // For movement animations (walk/run), only allow new actions when the
-    // animation cycle is complete (at last frame with timer expired, or at frame 0)
-    bool is_movement_anim = (anim.state == entity_anim_state::move ||
-                             anim.state == entity_anim_state::run);
-    if (is_movement_anim && anim.frame_count > 0) {
-        bool at_cycle_end = (anim.current_frame == anim.frame_count - 1) &&
-                           (anim.frame_timer >= anim.frame_duration);
-        bool at_cycle_start = (anim.current_frame == 0) &&
-                             (anim.frame_timer < 0.016f);  // Within ~1 frame of start
-        if (!at_cycle_end && !at_cycle_start) {
-            return false;
-        }
-    }
+    // Movement animations (walk/run) are looping and don't block new actions.
+    // set_state() already handles continuity - if the new action is the same
+    // movement state, the animation continues seamlessly without resetting.
 
     return true;
 }
@@ -1100,8 +1102,16 @@ bool game_state_manager::can_perform_action() const {
 void game_state_manager::queue_action(queued_action action) {
     // Only queue if there's an action in progress
     if (!can_perform_action()) {
+        // Only log if this is a different action than what's already queued
+        bool same_action = (pending_action_.type == action.type &&
+                           pending_action_.target_id == action.target_id &&
+                           pending_action_.target_x == action.target_x &&
+                           pending_action_.target_y == action.target_y &&
+                           pending_action_.face_dir == action.face_dir);
         pending_action_ = action;
-        spdlog::debug("Queued action type {}", static_cast<int>(action.type));
+        if (!same_action) {
+            spdlog::debug("Queued action type {}", static_cast<int>(action.type));
+        }
     }
 }
 
@@ -1127,6 +1137,8 @@ void game_state_manager::process_queued_action() {
             // Set movement destination
             move_dest_x_ = pending_action_.target_x;
             move_dest_y_ = pending_action_.target_y;
+            prev_tile_x_ = -1;
+            prev_tile_y_ = -1;
             break;
 
         case queued_action_type::attack:
@@ -1146,13 +1158,18 @@ void game_state_manager::process_queued_action() {
             break;
 
         case queued_action_type::face_direction:
-            if (entity* p = local_player()) {
+            // Stop movement and face the specified direction
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            if (entity* p = local_player(); p && pending_action_.face_dir) {
                 auto& t = p->transform();
-                // Use the queued direction (player may have changed direction since queuing)
-                // Convert internal direction (1-8) to protocol format (0-7)
+                // Send stop request with new direction
                 json msg = make_player_stop_request(t.tile_x, t.tile_y,
-                                                    static_cast<uint8_t>(direction_to_protocol(pending_action_.face_dir)));
+                                                    static_cast<uint8_t>(direction_to_protocol(*pending_action_.face_dir)));
                 ws_connection_.send(msg);
+                t.moving = false;
+                t.direction = *pending_action_.face_dir;
+                p->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
             }
             break;
 
@@ -1161,6 +1178,14 @@ void game_state_manager::process_queued_action() {
             move_dest_x_ = -1;
             move_dest_y_ = -1;
             if (entity* p = local_player()) {
+                auto& t = p->transform();
+                // Only send to server if we were moving
+                if (t.moving) {
+                    json msg = make_player_stop_request(t.tile_x, t.tile_y,
+                                                        static_cast<uint8_t>(direction_to_protocol(t.direction)));
+                    ws_connection_.send(msg);
+                }
+                t.moving = false;
                 p->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
             }
             break;
@@ -1189,7 +1214,7 @@ void game_state_manager::handle_movement_input(const input& inp) {
         // Check if clicking on own character's actual sprite bounds (only on initial press)
         bool clicked_on_self = entities_.is_point_in_entity_sprite(
             *player, sprites_, world_.camera_x(), world_.camera_y(),
-            inp.mouse_x(), inp.mouse_y());
+            mouse_x_, mouse_y_);
 
         if (clicked_on_self) {
             bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
@@ -1241,7 +1266,7 @@ void game_state_manager::handle_movement_input(const input& inp) {
         // Don't update movement if hovering over own sprite
         bool hovering_self = entities_.is_point_in_entity_sprite(
             *player, sprites_, world_.camera_x(), world_.camera_y(),
-            inp.mouse_x(), inp.mouse_y());
+            mouse_x_, mouse_y_);
         if (hovering_self) {
             return;
         }
@@ -1258,6 +1283,9 @@ void game_state_manager::handle_movement_input(const input& inp) {
         if (dest_x != move_dest_x_ || dest_y != move_dest_y_) {
             move_dest_x_ = dest_x;
             move_dest_y_ = dest_y;
+            // Reset doubleback tracking so direction changes aren't blocked
+            prev_tile_x_ = -1;
+            prev_tile_y_ = -1;
         }
     }
 
@@ -1277,9 +1305,12 @@ void game_state_manager::handle_movement_input(const input& inp) {
         int32_t dy = click_y - t.tile_y;
 
         // Determine cardinal/diagonal direction based on relative position
-        direction face_dir = direction::none;
+        std::optional<direction> face_dir;
         if (dx == 0 && dy == 0) {
-            // Mouse on self - don't change direction
+            // Mouse on self - use current direction to stop in place
+            if (t.moving) {
+                face_dir = t.direction;
+            }
         } else if (std::abs(dx) > std::abs(dy) * 2) {
             // Mostly horizontal
             face_dir = (dx > 0) ? direction::east : direction::west;
@@ -1294,15 +1325,17 @@ void game_state_manager::handle_movement_input(const input& inp) {
             else if (dx < 0 && dy < 0) face_dir = direction::north_west;
         }
 
-        if (face_dir != direction::none && t.direction != face_dir) {
+        // Send stop request if: moving (to stop), or facing different direction
+        // Skip if already stopped and facing the same direction
+        if (face_dir && (t.moving || t.direction != *face_dir)) {
             // Update local direction immediately for visual feedback
-            t.direction = face_dir;
+            t.direction = *face_dir;
 
             // Send to server only if we can perform an action, otherwise queue it
             if (can_perform_action()) {
                 // Convert internal direction (1-8) to protocol format (0-7)
                 json msg = make_player_stop_request(t.tile_x, t.tile_y,
-                                                    static_cast<uint8_t>(direction_to_protocol(face_dir)));
+                                                    static_cast<uint8_t>(direction_to_protocol(*face_dir)));
                 ws_connection_.send(msg);
             } else {
                 // Queue the direction change - will send when animation completes
@@ -1315,64 +1348,90 @@ void game_state_manager::handle_movement_input(const input& inp) {
     }
 
     // Continue moving toward destination (pathfinding)
+    // Right-click held interrupts pathfinding - clear destination and set to idle
+    if (inp.is_mouse_down(sf::Mouse::Button::Right) && move_dest_x_ >= 0) {
+        move_dest_x_ = -1;
+        move_dest_y_ = -1;
+        // Also clear the movement component's target
+        if (player->has_movement()) {
+            player->movement().target_x = -1;
+            player->movement().target_y = -1;
+        }
+        // Set player to idle state when not mid-movement
+        if (!player->transform().moving) {
+            player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+        }
+    }
+
     // Check cooldown - don't send movement requests during blocked movement cooldown
     if (move_dest_x_ >= 0 && move_dest_y_ >= 0 && !player->transform().moving && can_perform_action()) {
         auto& t = player->transform();
 
-        // Use legacy pathfinding to get next move direction
-        direction dir = get_next_move_dir(t.tile_x, t.tile_y, move_dest_x_, move_dest_y_);
+        // Passability predicate: checks terrain walkability and entity occupation
+        auto is_passable = [&](int32_t x, int32_t y) -> bool
+        {
+            if (!world_.current_map().is_walkable(x, y))
+                return false;
 
-        if (dir == direction::none) {
-            // Reached destination or path blocked
-            move_dest_x_ = -1;
-            move_dest_y_ = -1;
-            return;
-        }
-
-        // Calculate next tile in the direction
-        int32_t next_x = t.tile_x;
-        int32_t next_y = t.tile_y;
-
-        switch (dir) {
-            case direction::north:      next_y -= 1; break;
-            case direction::north_east: next_x += 1; next_y -= 1; break;
-            case direction::east:       next_x += 1; break;
-            case direction::south_east: next_x += 1; next_y += 1; break;
-            case direction::south:      next_y += 1; break;
-            case direction::south_west: next_x -= 1; next_y += 1; break;
-            case direction::west:       next_x -= 1; break;
-            case direction::north_west: next_x -= 1; next_y -= 1; break;
-            default: break;
-        }
-
-        // Check if the next tile is walkable before sending movement request
-        if (!world_.current_map().is_walkable(next_x, next_y)) {
-            // Terrain blocked - we've reached as close as possible, clear destination
-            move_dest_x_ = -1;
-            move_dest_y_ = -1;
-            return;
-        }
-
-        // Check if a living entity is blocking the tile
-        auto entities_on_tile = entities_.get_entities_on_tile(next_x, next_y);
-        for (auto* e : entities_on_tile) {
-            if (e && e->is_alive() && e != player) {
-                // Living entity is blocking - don't move but keep destination
-                // (entity might move, allowing us to continue)
-                return;
+            // Check if a living entity is blocking the tile
+            for (auto* e : entities_.get_entities_on_tile(x, y))
+            {
+                if (e && e->is_alive() && e != player)
+                    return false;
             }
-        }
+            return true;
+        };
 
-        // Never request move to the tile we're already on - just stop and idle
-        if (next_x == t.tile_x && next_y == t.tile_y) {
+        // Obstacle-avoiding pathfinding: tries direct direction + 2 adjacent,
+        // alternating CW/CCW each step to zigzag around obstacles
+        auto dir = get_next_walkable_dir(
+            t.tile_x, t.tile_y, move_dest_x_, move_dest_y_,
+            player_turn_, is_passable);
+
+        if (!dir) {
+            // Completely blocked or reached destination - return to idle
             move_dest_x_ = -1;
             move_dest_y_ = -1;
             player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
             return;
         }
 
+        // Alternate CW/CCW search for next step
+        player_turn_ = !player_turn_;
+
+        auto [dx, dy] = direction_offset(*dir);
+        int32_t next_x = t.tile_x + dx;
+        int32_t next_y = t.tile_y + dy;
+
+        // Doubleback detection: if the next tile is where we just came from,
+        // stop to prevent oscillating between two tiles. Only applies when
+        // the user is NOT actively holding the mouse button or movement keys.
+        if (next_x == prev_tile_x_ && next_y == prev_tile_y_)
+        {
+            bool actively_moving = inp.is_mouse_down(sf::Mouse::Button::Left) ||
+                                   inp.is_key_down(sf::Keyboard::Key::W) ||
+                                   inp.is_key_down(sf::Keyboard::Key::A) ||
+                                   inp.is_key_down(sf::Keyboard::Key::S) ||
+                                   inp.is_key_down(sf::Keyboard::Key::D) ||
+                                   inp.is_key_down(sf::Keyboard::Key::Up) ||
+                                   inp.is_key_down(sf::Keyboard::Key::Down) ||
+                                   inp.is_key_down(sf::Keyboard::Key::Left) ||
+                                   inp.is_key_down(sf::Keyboard::Key::Right);
+            if (!actively_moving)
+            {
+                move_dest_x_ = -1;
+                move_dest_y_ = -1;
+                player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+                return;
+            }
+        }
+
+        // Track previous tile for doubleback detection
+        prev_tile_x_ = t.tile_x;
+        prev_tile_y_ = t.tile_y;
+
         // Convert internal direction (1-8) to protocol format (0-7)
-        uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(dir));
+        uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*dir));
 
         // Determine run mode (Shift overrides toggle)
         bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
@@ -1382,12 +1441,14 @@ void game_state_manager::handle_movement_input(const input& inp) {
         // Client-side prediction - move to next tile
         t.dest_tile_x = next_x;
         t.dest_tile_y = next_y;
-        t.direction = dir;
+        t.direction = *dir;
         t.moving = true;
         t.move_progress = 0.0f;
 
         if (player->has_movement()) {
             player->movement().running = should_run;
+            player->movement().target_x = move_dest_x_;
+            player->movement().target_y = move_dest_y_;
         }
 
         // Set animation state with combat mode
@@ -1395,8 +1456,9 @@ void game_state_manager::handle_movement_input(const input& inp) {
         player->set_action_with_combat_mode(base_action, combat_mode_);
 
         // Send to server via WebSocket (server is authoritative)
-        // Protocol: send current position + direction to move
-        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol, should_run);
+        // Protocol: send current position + direction to move + destination
+        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol, should_run,
+                                            move_dest_x_, move_dest_y_);
         ws_connection_.send(msg);
     }
 
@@ -1407,36 +1469,128 @@ void game_state_manager::handle_movement_input(const input& inp) {
     if (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left)) dx = -1;
     if (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right)) dx = 1;
 
-    // Check cooldown before processing keyboard movement
-    if ((dx != 0 || dy != 0) && can_perform_action()) {
+    // Keyboard movement immediately cancels any mouse movement destination
+    if (dx != 0 || dy != 0) {
+        move_dest_x_ = -1;
+        move_dest_y_ = -1;
+    }
+
+    // Process keyboard movement using the same tile-by-tile system as mouse movement
+    if ((dx != 0 || dy != 0) && !player->transform().moving && can_perform_action()) {
         auto& t = player->transform();
-        int32_t target_x = t.tile_x + dx;
-        int32_t target_y = t.tile_y + dy;
+        int32_t next_x = t.tile_x + dx;
+        int32_t next_y = t.tile_y + dy;
 
-        if (world_.current_map().is_walkable(target_x, target_y)) {
-            // Calculate direction from deltas
-            direction move_dir = direction::none;
-            if (dx == 0 && dy == -1) move_dir = direction::north;
-            else if (dx == 1 && dy == -1) move_dir = direction::north_east;
-            else if (dx == 1 && dy == 0) move_dir = direction::east;
-            else if (dx == 1 && dy == 1) move_dir = direction::south_east;
-            else if (dx == 0 && dy == 1) move_dir = direction::south;
-            else if (dx == -1 && dy == 1) move_dir = direction::south_west;
-            else if (dx == -1 && dy == 0) move_dir = direction::west;
-            else if (dx == -1 && dy == -1) move_dir = direction::north_west;
+        // Calculate direction from deltas
+        auto move_dir = calculate_direction(t.tile_x, t.tile_y, next_x, next_y);
+        if (!move_dir) {
+            return;
+        }
 
-            if (move_dir != direction::none) {
-                bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                                 inp.is_key_down(sf::Keyboard::Key::RShift) ||
-                                 run_mode_enabled_;
-                // Convert internal direction (1-8) to protocol format (0-7)
-                json msg = make_player_move_request(t.tile_x, t.tile_y,
-                                                    static_cast<uint8_t>(direction_to_protocol(move_dir)),
-                                                    should_run);
-                ws_connection_.send(msg);
+        // Check if the next tile is walkable
+        if (!world_.current_map().is_walkable(next_x, next_y)) {
+            return;
+        }
+
+        // Check if a living entity is blocking the tile
+        auto entities_on_tile = entities_.get_entities_on_tile(next_x, next_y);
+        for (auto* e : entities_on_tile) {
+            if (e && e->is_alive() && e != player) {
+                return;
             }
         }
+
+        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
+                         inp.is_key_down(sf::Keyboard::Key::RShift) ||
+                         run_mode_enabled_;
+
+        // Client-side prediction - animate toward next tile
+        t.dest_tile_x = next_x;
+        t.dest_tile_y = next_y;
+        t.direction = *move_dir;
+        t.moving = true;
+        t.move_progress = 0.0f;
+
+        if (player->has_movement()) {
+            player->movement().running = should_run;
+            player->movement().target_x = next_x;
+            player->movement().target_y = next_y;
+        }
+
+        // Set animation state
+        object_action base_action = should_run ? object_action::run : object_action::move_peace;
+        player->set_action_with_combat_mode(base_action, combat_mode_);
+
+        // Send to server
+        uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*move_dir));
+        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol,
+                                            should_run, next_x, next_y);
+        ws_connection_.send(msg);
     }
+}
+
+void game_state_manager::update_pathfinding_trace()
+{
+    // Only compute when walkability overlay is active
+    if (!world_.render_config().show_walkability)
+    {
+        world_.clear_pathfinding_trace();
+        return;
+    }
+
+    entity* player = local_player();
+    if (!player || move_dest_x_ < 0 || move_dest_y_ < 0)
+    {
+        world_.clear_pathfinding_trace();
+        return;
+    }
+
+    auto& t = player->transform();
+    int32_t cur_x = t.tile_x;
+    int32_t cur_y = t.tile_y;
+
+    const auto& m = world_.current_map();
+    std::vector<std::pair<int32_t, int32_t>> trace;
+
+    // If currently moving, include the tile being walked to and start trace from there
+    if (t.moving)
+    {
+        cur_x = t.dest_tile_x;
+        cur_y = t.dest_tile_y;
+        trace.emplace_back(cur_x, cur_y);
+    }
+    bool turn = player_turn_;
+
+    static constexpr int32_t max_trace_steps = 200;
+
+    for (int32_t step = 0; step < max_trace_steps; ++step)
+    {
+        if (cur_x == move_dest_x_ && cur_y == move_dest_y_)
+            break;
+
+        auto dir = get_next_walkable_dir(
+            cur_x, cur_y, move_dest_x_, move_dest_y_, turn,
+            [&](int32_t x, int32_t y) { return m.is_walkable(x, y); });
+
+        if (!dir)
+            break;
+
+        turn = !turn;
+
+        auto [dx, dy] = direction_offset(*dir);
+        int32_t next_x = cur_x + dx;
+        int32_t next_y = cur_y + dy;
+
+        // Detect cycle (would step back to previous tile)
+        if (!trace.empty() && next_x == trace.back().first && next_y == trace.back().second)
+            break;
+
+        trace.emplace_back(next_x, next_y);
+        cur_x = next_x;
+        cur_y = next_y;
+    }
+
+    world_.set_pathfinding_trace(std::move(trace));
 }
 
 void game_state_manager::handle_combat_input(const input& inp) {
@@ -1503,6 +1657,14 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         config.show_walkability = !config.show_walkability;
         world_.set_render_config(config);
         spdlog::info("Tile debug overlay: {}", config.show_walkability ? "ON" : "OFF");
+    }
+
+    // Toggle tile grid (F7) - shows tile boundaries
+    if (inp.is_key_pressed(sf::Keyboard::Key::F7)) {
+        auto config = world_.render_config();
+        config.show_grid = !config.show_grid;
+        world_.set_render_config(config);
+        spdlog::info("Tile grid: {}", config.show_grid ? "ON" : "OFF");
     }
 
     // Toggle zoom mode (Ctrl+Q)
@@ -1613,7 +1775,9 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
     // Debug: Test event log colors with Ctrl+Number keys
     bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
                      inp.is_key_down(sf::Keyboard::Key::RControl);
-    if (ctrl_held)
+    bool shift_held = inp.is_key_down(sf::Keyboard::Key::LShift) ||
+                      inp.is_key_down(sf::Keyboard::Key::RShift);
+    if (ctrl_held && !shift_held)
     {
         if (inp.is_key_pressed(sf::Keyboard::Key::Num1)) {
             status_log_.add_event("White: Default message color", message_color::white);
@@ -1645,6 +1809,56 @@ void game_state_manager::handle_hotkey_input(const input& inp) {
         if (inp.is_key_pressed(sf::Keyboard::Key::Num0)) {
             status_log_.clear_events();
             spdlog::info("Status log events cleared");
+        }
+    }
+
+    // Additional effects on Ctrl+Shift+Number
+    if (ctrl_held && shift_held)
+    {
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num1)) {
+            status_log_.add_event("Pulsing alert - look at me!", message_color::pulsing);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num2)) {
+            status_log_.add_event("Wave ripple flowing text!", message_color::wave);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num3)) {
+            status_log_.add_event("Gl1tch c0rrupt3d d4ta str3am!", message_color::glitch);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num4)) {
+            status_log_.add_event("Typewriter: a message from the ancients...", message_color::typewriter);
+        }
+        // Shader effects (Ctrl+Shift+5-9)
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num5)) {
+            status_log_.add_event("Dissolve burning away into nothing...", message_color::dissolve);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num6)) {
+            status_log_.add_event("Chromatic aberration interference!", message_color::chromatic);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num7)) {
+            status_log_.add_event("Glowing ethereal magic text!", message_color::glow);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num8)) {
+            status_log_.add_event("Heat distortion shimmer effect!", message_color::distortion);
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Num9)) {
+            status_log_.add_event("Retro CRT scanline display!", message_color::scanlines);
+        }
+        // Floating text test (Ctrl+Shift+F)
+        if (inp.is_key_pressed(sf::Keyboard::Key::F)) {
+            // Use player position if available, otherwise use screen center in world space
+            float wx, wy;
+            if (auto* player = local_player()) {
+                auto& t = player->transform();
+                wx = static_cast<float>(t.x);
+                wy = static_cast<float>(t.y);
+            } else {
+                wx = static_cast<float>(world_.camera_x() + static_cast<int32_t>(renderer_->width()) / 2);
+                wy = static_cast<float>(world_.camera_y() + static_cast<int32_t>(renderer_->height()) / 2);
+            }
+            floating_text_.add_damage(47, wx, wy - 20.0f);
+            floating_text_.add_heal(25, wx + 30.0f, wy - 10.0f);
+            floating_text_.add_critical(128, wx - 20.0f, wy - 30.0f);
+            status_log_.add_event("Floating text spawned!", message_color::yellow);
         }
     }
 }
@@ -2300,8 +2514,6 @@ void game_state_manager::attempt_login(const std::string& username, const std::s
 }
 
 void game_state_manager::handle_ws_message(const json& message) {
-    spdlog::debug("Received WebSocket message: {}", message.dump());
-
     if (!message.contains("type")) {
         spdlog::warn("Received message without type field");
         return;
@@ -2338,6 +2550,12 @@ void game_state_manager::handle_ws_message(const json& message) {
     }
     else if (type == msg_type::hunger_update) {
         handle_hunger_update(message);
+    }
+    else if (type == msg_type::npc_move) {
+        handle_npc_move(message);
+    }
+    else if (type == msg_type::entity_info_response) {
+        handle_entity_info_response(message);
     }
     else {
         spdlog::warn("Unknown message type: {}", type);
@@ -2569,6 +2787,8 @@ void game_state_manager::handle_enter_game_response(const json& message) {
         entity_type type = entity_type::character;
         if (ent.type == "npc") {
             type = entity_type::npc;
+        } else if (ent.type == "monster") {
+            type = entity_type::monster;
         }
 
         auto& world_entity = entities_.create_entity_with_id(ent.entity_id, type);
@@ -2580,11 +2800,23 @@ void game_state_manager::handle_enter_game_response(const json& message) {
         ent_transform.y = ent.y * 32;
 
         // Convert direction from protocol (0-7) to internal enum (1-8)
-        ent_transform.direction = direction_from_protocol(ent.direction);
+        ent_transform.direction = direction_from_protocol(ent.direction).value_or(direction::south);
 
-        // Set name (NPCs and characters both have name component)
+        // Set name (NPCs, monsters, and characters all have name component)
         if (world_entity.has_name()) {
             world_entity.name().name = ent.name;
+        }
+
+        // Set visual type for NPC/monster sprite selection
+        if (ent.visual_type > 0) {
+            world_entity.set_type(ent.visual_type);
+
+            // Also set the component-specific type
+            if (world_entity.has_npc()) {
+                world_entity.npc().npc_type = ent.visual_type;
+            } else if (world_entity.has_monster()) {
+                world_entity.monster().monster_type = ent.visual_type;
+            }
         }
 
         // Set HP from percentage (only for entities with stats component)
@@ -2695,19 +2927,24 @@ void game_state_manager::handle_player_position_update(const json& message) {
     // Update transform
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.direction = direction_from_protocol(data.direction);
+    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
 
     // Update world position (centered on tile)
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
 
-    // Update running state if entity has movement component
+    // Update running state and destination if entity has movement component
     if (ent->has_movement()) {
         ent->movement().running = data.is_running;
+        if (data.dest_x >= 0 && data.dest_y >= 0) {
+            ent->movement().target_x = data.dest_x;
+            ent->movement().target_y = data.dest_y;
+        }
     }
 
-    spdlog::debug("Entity {} position updated: ({},{}) dir={} running={}",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.direction), data.is_running);
+    spdlog::debug("Entity {} position updated: ({},{}) dir={} running={} dest=({},{})",
+                  data.entity_id, data.x, data.y, static_cast<int>(t.direction), data.is_running,
+                  data.dest_x, data.dest_y);
 }
 
 void game_state_manager::handle_player_stop_response(const json& message) {
@@ -2727,7 +2964,7 @@ void game_state_manager::handle_player_stop_response(const json& message) {
     auto& t = player->transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.direction = direction_from_protocol(data.direction);
+    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
 
     // Update world position (centered on tile)
     t.x = data.x * hb::tile_width + 16;
@@ -2858,6 +3095,94 @@ void game_state_manager::handle_hunger_update(const json& message) {
     }
 }
 
+void game_state_manager::handle_npc_move(const json& message) {
+    auto data = npc_move_data::from_json(message);
+
+    // Find the entity
+    entity* ent = entities_.get_entity(data.entity_id);
+    if (!ent) {
+        // NPC not in our entity cache - request info from server
+        spdlog::debug("NPC move for unknown entity {}, requesting info", data.entity_id);
+        request_entity_info(data.entity_id);
+        return;
+    }
+
+    auto& t = ent->transform();
+
+    // Update transform
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+
+    // Update world position (centered on tile)
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
+
+    spdlog::debug("NPC {} moved: ({},{}) dir={}",
+                  data.entity_id, data.x, data.y, static_cast<int>(t.direction));
+}
+
+void game_state_manager::handle_entity_info_response(const json& message) {
+    auto data = entity_info_response_data::from_json(message);
+
+    if (!data.success) {
+        spdlog::debug("Entity info request failed: {}", data.error);
+        return;
+    }
+
+    // Check if entity already exists (might have been spawned while request was in flight)
+    if (entities_.get_entity(data.entity_id)) {
+        spdlog::debug("Entity {} already exists, ignoring info response", data.entity_id);
+        return;
+    }
+
+    // Determine entity type
+    entity_type type = entity_type::character;
+    if (data.entity_type == "npc") {
+        type = entity_type::npc;
+    } else if (data.entity_type == "monster") {
+        type = entity_type::monster;
+    }
+
+    // Create the entity
+    auto& ent = entities_.create_entity_with_id(data.entity_id, type);
+
+    // Set transform
+    auto& t = ent.transform();
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
+    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+
+    // Set name
+    if (ent.has_name()) {
+        ent.name().name = data.name;
+    }
+
+    // Set visual type for NPC/monster sprite selection (template_id from server)
+    if (data.template_id > 0) {
+        ent.set_type(static_cast<uint16_t>(data.template_id));
+
+        if (ent.has_npc()) {
+            ent.npc().npc_type = static_cast<uint16_t>(data.template_id);
+        } else if (ent.has_monster()) {
+            ent.monster().monster_type = static_cast<uint16_t>(data.template_id);
+        }
+    }
+
+    // Set stats
+    if (ent.has_stats()) {
+        auto& stats = ent.stats();
+        stats.hp = data.hp;
+        stats.max_hp = data.hp_max;
+        stats.level = static_cast<uint16_t>(data.level);
+    }
+
+    spdlog::info("Created entity {} ({}) '{}' at ({},{}) from info response",
+                 data.entity_id, data.entity_type, data.name, data.x, data.y);
+}
+
 void game_state_manager::request_characters() {
     spdlog::info("Requesting character list");
     json msg = make_get_characters_request();
@@ -2909,6 +3234,12 @@ void game_state_manager::request_create_character(const character_create_data& d
         {"magic", data.magic},
         {"charisma", data.charisma}
     };
+    ws_connection_.send(msg);
+}
+
+void game_state_manager::request_entity_info(uint32_t entity_id) {
+    spdlog::debug("Requesting entity info for entity {}", entity_id);
+    json msg = make_entity_info_request(entity_id);
     ws_connection_.send(msg);
 }
 

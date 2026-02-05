@@ -140,9 +140,9 @@ enum class magic_type : uint8_t {
     ice = 23
 };
 
-// Direction (8-way + none)
+// Direction (8-way, values 1-8 matching legacy code)
+// Use std::optional<direction> where "no direction" is needed
 enum class direction : uint8_t {
-    none = 0,
     north = 1,
     north_east = 2,
     east = 3,

@@ -95,7 +95,6 @@ private:
 
     // Animation state
     float flash_timer_ = 0.0f;     // For critical message flashing
-    float rainbow_time_ = 0.0f;   // For rainbow color animation
 
     // Constants
     static constexpr size_t max_events = 6;

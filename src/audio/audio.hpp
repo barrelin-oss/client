@@ -18,8 +18,8 @@ public:
     bool initialize();
     void shutdown();
 
-    // Call each frame to clean up finished sounds
-    void update();
+    // Call each frame to clean up finished sounds and process fades
+    void update(float delta_time);
 
     // Sound effects
     sound_id load_sound(std::string_view path);
@@ -36,6 +36,9 @@ public:
     bool is_music_playing() const;
     void set_music_volume(float volume);
 
+    // Crossfade to a new music track
+    void crossfade_music(std::string_view path, bool loop = true, float fade_duration = 1.0f);
+
     // Global volume control (0.0 to 1.0)
     void set_master_volume(float volume);
     float master_volume() const { return master_volume_; }
@@ -49,14 +52,28 @@ public:
 private:
     float effective_volume(float base_volume) const;
 
+    struct active_sound
+    {
+        std::unique_ptr<sf::Sound> sound;
+        float intended_volume = 1.0f;
+    };
+
     std::unordered_map<sound_id, sf::SoundBuffer> buffers_;
-    std::vector<std::unique_ptr<sf::Sound>> active_sounds_;
+    std::vector<active_sound> active_sounds_;
     sf::Music music_;
 
     float master_volume_ = 1.0f;
     float sound_volume_ = 1.0f;
     float music_volume_ = 1.0f;
     bool muted_ = false;
+
+    // Music fade state
+    enum class fade_state : uint8_t { none, fading_out, fading_in };
+    fade_state fade_state_ = fade_state::none;
+    float fade_timer_ = 0.0f;
+    float fade_duration_ = 1.0f;
+    std::string pending_music_path_;
+    bool pending_music_loop_ = true;
 
     sound_id next_id_ = 1;
 };

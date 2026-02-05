@@ -339,23 +339,29 @@ void sound_manager::start_bgm(std::string_view map_name, int weather_type)
         return;
     }
 
-    // Stop current music first
-    audio_->stop_music();
-
-    // Build full path
+    // Build full path and crossfade to new track
     std::string path = music_dir_ + track;
+    audio_->crossfade_music(path, true);
+    current_bgm_track_ = track;
+    spdlog::info("Started BGM: {} (map: {})", track, map_name);
+}
 
-    // Try to play the music
-    if (audio_->play_music(path, true))
+void sound_manager::play_bgm_track(std::string_view track, bool loop)
+{
+    if (!music_enabled_ || !audio_) return;
+
+    std::string track_str(track);
+
+    // Don't restart if same track already playing
+    if (track_str == current_bgm_track_ && audio_->is_music_playing())
     {
-        current_bgm_track_ = track;
-        spdlog::info("Started BGM: {} (map: {})", track, map_name);
+        return;
     }
-    else
-    {
-        spdlog::warn("Failed to start BGM: {}", path);
-        current_bgm_track_.clear();
-    }
+
+    std::string path = music_dir_ + track_str;
+    audio_->crossfade_music(path, loop);
+    current_bgm_track_ = track_str;
+    spdlog::info("Started BGM track: {}", track);
 }
 
 void sound_manager::stop_bgm()

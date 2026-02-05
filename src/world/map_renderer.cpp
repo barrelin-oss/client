@@ -28,10 +28,6 @@ void map_renderer::invalidate_chunks()
     }
 }
 
-bool map_renderer::should_use_chunks() const
-{
-    return zoom_level_ >= chunk_zoom_threshold_;
-}
 
 map_renderer::chunk_data& map_renderer::get_or_create_chunk(int32_t chunk_x, int32_t chunk_y)
 {
@@ -76,24 +72,27 @@ void map_renderer::render_chunk(const map& m, int32_t chunk_x, int32_t chunk_y)
             for (int32_t x = start_tile_x; x < end_tile_x; ++x)
             {
                 const auto& t = m.get_tile(x, y);
-                if (t.terrain_id != 0)
+                // Note: terrain_id=0 is valid (first sprite in maptiles1.pak)
+                const sprite* spr = get_tile_sprite(t.terrain_id);
+                if (spr)
                 {
-                    const sprite* spr = get_tile_sprite(t.terrain_id);
-                    if (spr)
+                    uint32_t frame = static_cast<uint32_t>(t.terrain_frame);
+                    if (frame >= spr->frame_count())
                     {
-                        int32_t local_x = (x - start_tile_x) * tile_width;
-                        int32_t local_y = (y - start_tile_y) * tile_height;
-                        uint32_t frame = static_cast<uint32_t>(t.terrain_frame);
+                        continue;  // Skip if frame index is out of range
+                    }
 
-                        float alpha = config_.light_level * (t.light_level / 255.0f);
-                        if (alpha >= 1.0f)
-                        {
-                            spr->draw_no_color_key(*chunk.texture, local_x, local_y, frame);
-                        }
-                        else
-                        {
-                            spr->draw_alpha_no_color_key(*chunk.texture, local_x, local_y, frame, alpha);
-                        }
+                    int32_t local_x = (x - start_tile_x) * tile_width;
+                    int32_t local_y = (y - start_tile_y) * tile_height;
+
+                    float alpha = config_.light_level * (t.light_level / 255.0f);
+                    if (alpha >= 1.0f)
+                    {
+                        spr->draw_no_color_key(*chunk.texture, local_x, local_y, frame);
+                    }
+                    else
+                    {
+                        spr->draw_alpha_no_color_key(*chunk.texture, local_x, local_y, frame, alpha);
                     }
                 }
             }
@@ -119,29 +118,25 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
 
     auto range = calculate_visible_range(m, camera_x, camera_y);
 
-    // Use chunk-based rendering when zoomed out
-    if (should_use_chunks())
+    // Chunk-based terrain rendering at all zoom levels
+    if (config_.show_terrain)
     {
-        // Calculate visible chunk range
         int32_t chunk_start_x = range.start_x / chunk_size_;
         int32_t chunk_start_y = range.start_y / chunk_size_;
         int32_t chunk_end_x = (range.end_x + chunk_size_ - 1) / chunk_size_;
         int32_t chunk_end_y = (range.end_y + chunk_size_ - 1) / chunk_size_;
 
-        // Render and draw visible chunks (terrain only)
         for (int32_t cy = chunk_start_y; cy <= chunk_end_y; ++cy)
         {
             for (int32_t cx = chunk_start_x; cx <= chunk_end_x; ++cx)
             {
                 auto& chunk = get_or_create_chunk(cx, cy);
 
-                // Render chunk if not valid
                 if (!chunk.valid)
                 {
                     render_chunk(m, cx, cy);
                 }
 
-                // Draw chunk at correct screen position
                 if (chunk.texture && chunk.valid)
                 {
                     int32_t world_x = cx * chunk_size_ * tile_width;
@@ -153,37 +148,34 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
                 }
             }
         }
-
-        // Render objects separately on top of all chunks for proper layering
-        if (config_.show_objects)
-        {
-            render_layer(rend, m, camera_x, camera_y, 1);
-        }
     }
-    else
-    {
-        // Normal tile-by-tile rendering
-        if (config_.show_terrain)
-        {
-            render_layer(rend, m, camera_x, camera_y, 0);
-        }
 
-        if (config_.show_objects)
-        {
-            render_layer(rend, m, camera_x, camera_y, 1);
-        }
+    // Objects rendered tile-by-tile on top for proper layering
+    if (config_.show_objects)
+    {
+        render_objects(rend, m, camera_x, camera_y);
     }
 
     // Debug overlays (always drawn directly)
     if (config_.show_grid)
     {
-        for (int32_t y = range.start_y; y < range.end_y; ++y)
+        constexpr int32_t line_thickness = 2;
+        sf::Color grid_color(0, 0, 0, 200);  // Black with high visibility
+
+        // Draw horizontal lines
+        for (int32_t y = range.start_y; y <= range.end_y; ++y)
         {
-            for (int32_t x = range.start_x; x < range.end_x; ++x)
-            {
-                auto [sx, sy] = tile_to_screen(x, y, camera_x, camera_y);
-                rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(100, 100, 100, 50), false);
-            }
+            auto [sx_start, sy] = tile_to_screen(range.start_x, y, camera_x, camera_y);
+            auto [sx_end, sy2] = tile_to_screen(range.end_x, y, camera_x, camera_y);
+            rend.draw_rect(sx_start, sy, sx_end - sx_start, line_thickness, grid_color, true);
+        }
+
+        // Draw vertical lines
+        for (int32_t x = range.start_x; x <= range.end_x; ++x)
+        {
+            auto [sx, sy_start] = tile_to_screen(x, range.start_y, camera_x, camera_y);
+            auto [sx2, sy_end] = tile_to_screen(x, range.end_y, camera_x, camera_y);
+            rend.draw_rect(sx, sy_start, line_thickness, sy_end - sy_start, grid_color, true);
         }
     }
 
@@ -213,81 +205,36 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
                 }
             }
         }
+
+        // Pathfinding trace overlay (cyan)
+        for (const auto& [tx, ty] : pathfinding_trace_)
+        {
+            if (tx >= range.start_x && tx < range.end_x &&
+                ty >= range.start_y && ty < range.end_y)
+            {
+                auto [sx, sy] = tile_to_screen(tx, ty, camera_x, camera_y);
+                rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(0, 255, 255, 100), true);
+            }
+        }
     }
 }
 
-void map_renderer::render_layer(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y, int layer)
+void map_renderer::render_objects(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y)
 {
     auto range = calculate_visible_range(m, camera_x, camera_y);
-
-    static bool logged_once = false;
-    if (!logged_once && layer == 0)
-    {
-        spdlog::info("map_renderer: rendering layer 0, visible range ({},{}) to ({},{})",
-                     range.start_x, range.start_y, range.end_x, range.end_y);
-        // Log first few terrain IDs
-        for (int32_t y = range.start_y; y < std::min(range.start_y + 3, range.end_y); ++y)
-        {
-            for (int32_t x = range.start_x; x < std::min(range.start_x + 3, range.end_x); ++x)
-            {
-                const auto& t = m.get_tile(x, y);
-                spdlog::info("  Tile ({},{}) terrain_id={} object_id={}", x, y, t.terrain_id, t.object_id);
-            }
-        }
-        logged_once = true;
-    }
 
     for (int32_t y = range.start_y; y < range.end_y; ++y)
     {
         for (int32_t x = range.start_x; x < range.end_x; ++x)
         {
             const auto& t = m.get_tile(x, y);
-            auto [sx, sy] = tile_to_screen(x, y, camera_x, camera_y);
-
-            if (layer == 0)
+            if (t.object_id != 0)
             {
-                // Terrain layer - use no color key (solid background tiles)
-                if (t.terrain_id != 0)
+                auto [sx, sy] = tile_to_screen(x, y, camera_x, camera_y);
+                const sprite* spr = get_tile_sprite(t.object_id);
+                if (spr)
                 {
-                    const sprite* spr = get_tile_sprite(t.terrain_id);
-                    if (spr)
-                    {
-                        // Use terrain_frame for animation frame
-                        uint32_t frame = static_cast<uint32_t>(t.terrain_frame);
-
-                        // Debug: log first sprite render
-                        static bool logged_render = false;
-                        if (!logged_render)
-                        {
-                            spdlog::info("Rendering first tile: id={} frame={} at screen ({},{}) sprite has {} frames, bitmap {}x{}",
-                                         t.terrain_id, frame, sx, sy, spr->frame_count(),
-                                         spr->bitmap_width(), spr->bitmap_height());
-                            logged_render = true;
-                        }
-
-                        // Apply lighting
-                        float alpha = config_.light_level * (t.light_level / 255.0f);
-                        if (alpha >= 1.0f)
-                        {
-                            rend.draw_sprite_no_color_key(*spr, sx, sy, frame);
-                        }
-                        else
-                        {
-                            rend.draw_sprite_alpha_no_color_key(*spr, sx, sy, frame, alpha);
-                        }
-                    }
-                }
-            }
-            else if (layer == 1)
-            {
-                // Object layer
-                if (t.object_id != 0)
-                {
-                    const sprite* spr = get_tile_sprite(t.object_id);
-                    if (spr)
-                    {
-                        rend.draw_sprite(*spr, sx, sy, 0);
-                    }
+                    rend.draw_sprite(*spr, sx, sy, 0);
                 }
             }
         }

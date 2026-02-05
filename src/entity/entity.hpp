@@ -111,6 +111,9 @@ public:
     void set_type(uint16_t visual_type);
     void set_name(const std::string& name);
 
+    // Visual type for NPC/monster sprite selection
+    uint16_t visual_type() const { return visual_type_; }
+
 private:
     entity_id id_ = invalid_entity_id;
     entity_type type_ = entity_type::none;

@@ -205,8 +205,8 @@ void application::main_loop() {
         // Reset per-frame input state
         input_.end_frame();
 
-        // Update audio (clean up finished sounds)
-        audio_.update();
+        // Update audio (clean up finished sounds, process fades)
+        audio_.update(delta_time);
     }
 }
 

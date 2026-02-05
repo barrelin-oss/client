@@ -27,6 +27,17 @@ struct character_sprite_constants
     static constexpr uint16_t hair_stride = 15;
 };
 
+// NPC/Monster sprite constants
+// Legacy formula: 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+// Each NPC/monster type has 56 frames: 7 actions × 8 directions
+struct npc_sprite_constants
+{
+    static constexpr uint16_t npc_base = 1220;
+    static constexpr uint16_t npc_type_offset = 10;
+    static constexpr uint16_t frames_per_type = 56;  // 7 actions * 8 directions
+    static constexpr uint16_t directions_per_action = 8;
+};
+
 // Calculate owner type from gender and skin color
 // Returns 1-3 for male, 4-6 for female
 inline int32_t calculate_owner_type(uint8_t gender, uint8_t skin_color)
@@ -65,6 +76,50 @@ inline uint16_t calculate_hair_sprite_id(bool is_female, uint8_t hair_style, int
         character_sprite_constants::female_hair_base :
         character_sprite_constants::male_hair_base;
     return static_cast<uint16_t>(base + clamped_style * character_sprite_constants::hair_stride + action);
+}
+
+// Map object_action to NPC action index (0-6)
+// NPC actions: 0=stop, 1=move, 2=attack, 3=damage, 4=dying, 5=dead, 6=magic
+inline int32_t action_to_npc_action_index(object_action action)
+{
+    switch (action)
+    {
+        case object_action::stop_peace:
+        case object_action::stop_combat:
+            return 0;  // Stop/idle
+        case object_action::move_peace:
+        case object_action::move_combat:
+        case object_action::run:
+            return 1;  // Move
+        case object_action::attack_peace:
+        case object_action::attack_combat:
+        case object_action::attack_combat_bow:
+            return 2;  // Attack
+        case object_action::damage:
+            return 3;  // Damage
+        case object_action::dying:
+            return 4;  // Dying
+        case object_action::magic:
+            return 6;  // Magic
+        case object_action::get_item:
+        default:
+            return 0;  // Default to stop
+    }
+}
+
+// Calculate NPC/monster sprite ID
+// Formula: 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+inline uint16_t calculate_npc_sprite_id(uint16_t npc_type, int32_t action, int32_t dir)
+{
+    // npc_type is already the visual type (10=Slime, 11=Skeleton, etc.)
+    // Clamp direction to valid range (1-8)
+    dir = std::clamp(dir, 1, 8);
+
+    return static_cast<uint16_t>(
+        npc_sprite_constants::npc_base +
+        (npc_type - npc_sprite_constants::npc_type_offset) * npc_sprite_constants::frames_per_type +
+        action * npc_sprite_constants::directions_per_action +
+        (dir - 1));
 }
 
 } // anonymous namespace
@@ -280,8 +335,41 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         // Effects are not clickable
         return false;
     }
+    else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+        // NPCs and monsters - use NPC sprite bounds
+        int32_t dir = direction_to_sprite_index(t.direction);
+        int32_t npc_action = action_to_npc_action_index(e.current_action());
+
+        // Get visual type from component or entity
+        uint16_t visual_type = e.visual_type();
+        if (visual_type == 0) {
+            if (e.has_npc()) {
+                visual_type = e.npc().npc_type;
+            } else if (e.has_monster()) {
+                visual_type = e.monster().monster_type;
+            }
+        }
+
+        // Default to type 10 (Slime) if no visual type is set
+        if (visual_type < 10) {
+            visual_type = 10;
+        }
+
+        uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
+        const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
+
+        if (npc_spr && npc_spr->has_metadata()) {
+            sf::IntRect bounds = npc_spr->get_bounds(screen_x, screen_y, a.current_frame);
+            return (mouse_x >= bounds.position.x && mouse_x < bounds.position.x + bounds.size.x &&
+                    mouse_y >= bounds.position.y && mouse_y < bounds.position.y + bounds.size.y);
+        }
+
+        // Fallback to approximate bounds
+        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
+                mouse_y >= screen_y - 48 && mouse_y < screen_y + 16);
+    }
     else {
-        // Characters, NPCs, monsters - use body sprite bounds
+        // Player characters - use body sprite bounds
         int32_t dir = direction_to_sprite_index(t.direction);
         int32_t action = static_cast<int32_t>(e.current_action());
         int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
@@ -421,7 +509,7 @@ void entity_manager::update_animation(entity& e, float delta_time) {
 
     anim.frame_timer += delta_time;
     if (anim.frame_timer >= anim.frame_duration) {
-        anim.frame_timer = 0.0f;
+        anim.frame_timer -= anim.frame_duration;
         anim.current_frame++;
 
         // Play footstep sounds on walk/run animations
@@ -469,7 +557,9 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
 
     // Update facing direction during movement
     if (t.dest_tile_x != t.tile_x || t.dest_tile_y != t.tile_y) {
-        t.direction = calculate_direction(t.tile_x, t.tile_y, t.dest_tile_x, t.dest_tile_y);
+        if (auto dir = calculate_direction(t.tile_x, t.tile_y, t.dest_tile_x, t.dest_tile_y)) {
+            t.direction = *dir;
+        }
     }
 
     // Movement timing based on animation frames (legacy Helbreath system)
@@ -507,12 +597,24 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
                 }
             }
         } else {
-            // No more path - return to idle with correct combat stance for local player
-            if (e.id() == local_player_id_) {
-                e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
-            } else {
-                e.set_action(object_action::stop_peace);
+            // No more path - check if we've reached the final destination
+            // For other players/NPCs, destination is stored in movement component from server broadcasts
+            bool reached_destination = (m.target_x < 0 || m.target_y < 0) ||
+                                       (t.tile_x == m.target_x && t.tile_y == m.target_y);
+
+            if (reached_destination) {
+                // Clear the destination
+                m.target_x = -1;
+                m.target_y = -1;
+                // Return to idle with correct combat stance for local player
+                if (e.id() == local_player_id_) {
+                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                } else {
+                    e.set_action(object_action::stop_peace);
+                }
             }
+            // Otherwise, keep moving flag false but don't change animation state
+            // The animation will continue looping until next position update arrives
         }
     } else {
         // Interpolate position (use tile center for both X and Y - feet should be at tile center)
@@ -593,55 +695,12 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
             const auto& eff = e.effect();
             rend.draw_sprite(*eff.effect_sprite, screen_x + eff.offset_x, screen_y + eff.offset_y, eff.effect_frame);
         }
+    } else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+        // NPCs and monsters - single sprite rendering
+        render_npc_or_monster(rend, sprites, e, screen_x, screen_y, a);
     } else {
-        // Characters, NPCs, monsters - layered rendering
-        int32_t dir = direction_to_sprite_index(t.direction);
-        int32_t action = static_cast<int32_t>(e.current_action());
-
-        // Calculate frame index for sprites: (dir-1)*8 + current_frame
-        int32_t frame_index = (dir - 1) * 8 + a.current_frame;
-
-        // Calculate sprite IDs using helper functions
-        int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
-        bool is_female = (s.gender == 2);
-
-        uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
-        const sprite* body_spr = sprites.get_sprite_by_id(body_id);
-
-        uint16_t underwear_id = calculate_underwear_sprite_id(is_female, s.underwear_color, action);
-        const sprite* underwear_spr = sprites.get_sprite_by_id(underwear_id);
-
-        uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action);
-        const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
-
-        // Draw layers: underwear, body, hair
-        if (underwear_spr) {
-            if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, frame_index, s.alpha);
-            } else {
-                rend.draw_sprite(*underwear_spr, screen_x, screen_y, frame_index);
-            }
-        }
-
-        if (body_spr) {
-            if (s.alpha < 1.0f) {
-                rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, a.current_frame, s.alpha);
-            } else {
-                rend.draw_sprite(*body_spr, screen_x, screen_y, a.current_frame);
-            }
-        }
-
-        // Hair (if no helm)
-        if (!s.helm_sprite && hair_spr) {
-            rend.draw_sprite(*hair_spr, screen_x, screen_y, frame_index);
-        }
-
-        // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
-
-        // Effect overlay (keep using pre-loaded sprite pointer)
-        if (s.effect_sprite) {
-            rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
-        }
+        // Player characters - layered rendering
+        render_player_character(rend, sprites, e, screen_x, screen_y, a);
     }
 
     // Render name and health bar for characters/monsters
@@ -655,6 +714,102 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
     if (e.has_stats() && (e.type() == entity_type::character ||
                           e.type() == entity_type::monster)) {
         render_entity_health_bar(rend, e, screen_x, screen_y);
+    }
+}
+
+void entity_manager::render_player_character(renderer& rend, sprite_manager& sprites, const entity& e,
+                                              int32_t screen_x, int32_t screen_y, const animation_component& a)
+{
+    const auto& t = e.transform();
+    const auto& s = e.sprite();
+
+    int32_t dir = direction_to_sprite_index(t.direction);
+    int32_t action = static_cast<int32_t>(e.current_action());
+
+    // Calculate frame index for sprites: (dir-1)*8 + current_frame
+    int32_t frame_index = (dir - 1) * 8 + a.current_frame;
+
+    // Calculate sprite IDs using helper functions
+    int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
+    bool is_female = (s.gender == 2);
+
+    uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
+    const sprite* body_spr = sprites.get_sprite_by_id(body_id);
+
+    uint16_t underwear_id = calculate_underwear_sprite_id(is_female, s.underwear_color, action);
+    const sprite* underwear_spr = sprites.get_sprite_by_id(underwear_id);
+
+    uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action);
+    const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
+
+    // Draw layers: underwear, body, hair
+    if (underwear_spr) {
+        if (s.alpha < 1.0f) {
+            rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, frame_index, s.alpha);
+        } else {
+            rend.draw_sprite(*underwear_spr, screen_x, screen_y, frame_index);
+        }
+    }
+
+    if (body_spr) {
+        if (s.alpha < 1.0f) {
+            rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, a.current_frame, s.alpha);
+        } else {
+            rend.draw_sprite(*body_spr, screen_x, screen_y, a.current_frame);
+        }
+    }
+
+    // Hair (if no helm)
+    if (!s.helm_sprite && hair_spr) {
+        rend.draw_sprite(*hair_spr, screen_x, screen_y, frame_index);
+    }
+
+    // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
+
+    // Effect overlay (keep using pre-loaded sprite pointer)
+    if (s.effect_sprite) {
+        rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
+    }
+}
+
+void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprites, const entity& e,
+                                            int32_t screen_x, int32_t screen_y, const animation_component& a)
+{
+    const auto& t = e.transform();
+    const auto& s = e.sprite();
+
+    int32_t dir = direction_to_sprite_index(t.direction);
+    int32_t npc_action = action_to_npc_action_index(e.current_action());
+
+    // Get visual type from component or entity
+    uint16_t visual_type = e.visual_type();
+    if (visual_type == 0) {
+        if (e.has_npc()) {
+            visual_type = e.npc().npc_type;
+        } else if (e.has_monster()) {
+            visual_type = e.monster().monster_type;
+        }
+    }
+
+    // Default to type 10 (Slime) if no visual type is set
+    if (visual_type < 10) {
+        visual_type = 10;
+    }
+
+    uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
+    const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
+
+    if (npc_spr) {
+        if (s.alpha < 1.0f) {
+            rend.draw_sprite_alpha(*npc_spr, screen_x, screen_y, a.current_frame, s.alpha);
+        } else {
+            rend.draw_sprite(*npc_spr, screen_x, screen_y, a.current_frame);
+        }
+    }
+
+    // Effect overlay
+    if (s.effect_sprite) {
+        rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
     }
 }
 

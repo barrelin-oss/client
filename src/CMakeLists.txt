@@ -9,6 +9,8 @@ add_executable(helbreath_client
 
     # Graphics
     graphics/renderer.cpp
+    graphics/text_renderer.cpp
+    graphics/text_shader_cache.cpp
     graphics/menu_character_renderer.cpp
     graphics/color_utils.hpp
 
@@ -91,6 +93,7 @@ add_executable(helbreath_client
 
     # Gameplay
     gameplay/combat.cpp
+    gameplay/floating_text.cpp
     gameplay/inventory.cpp
     gameplay/magic.cpp
     gameplay/skills.cpp
@@ -143,7 +146,7 @@ endif()
 
 # Compiler warnings
 if(MSVC)
-    target_compile_options(helbreath_client PRIVATE /W4)
+    target_compile_options(helbreath_client PRIVATE /W4 /MP)
 else()
     target_compile_options(helbreath_client PRIVATE -Wall -Wextra -Wpedantic)
 endif()

@@ -97,6 +97,8 @@ private:
     void update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode);
 
     void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
+    void render_player_character(renderer& rend, sprite_manager& sprites, const entity& e, int32_t screen_x, int32_t screen_y, const animation_component& a);
+    void render_npc_or_monster(renderer& rend, sprite_manager& sprites, const entity& e, int32_t screen_x, int32_t screen_y, const animation_component& a);
     void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered);
     void render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
 

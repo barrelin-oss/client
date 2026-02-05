@@ -9,6 +9,7 @@
 namespace hb {
 
 class entity_manager;
+class inventory_system;
 class magic_system;
 class skills_system;
 class sound_manager;
@@ -127,7 +128,7 @@ public:
 
     // Initialization
     void initialize(entity_manager* entities, magic_system* magic, skills_system* skills,
-                    sound_manager* sounds = nullptr);
+                    sound_manager* sounds = nullptr, inventory_system* inventory = nullptr);
     void update(float delta_time);
 
     // Combat actions
@@ -190,6 +191,7 @@ private:
     magic_system* magic_ = nullptr;
     skills_system* skills_ = nullptr;
     sound_manager* sounds_ = nullptr;
+    inventory_system* inventory_ = nullptr;
     combat_callbacks callbacks_;
 };
 

@@ -52,6 +52,7 @@ public:
 
     // Background music
     void start_bgm(std::string_view map_name, int weather_type = 0);
+    void play_bgm_track(std::string_view track, bool loop = true);
     void stop_bgm();
     bool is_bgm_playing() const;
 

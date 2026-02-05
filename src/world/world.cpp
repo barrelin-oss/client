@@ -301,16 +301,37 @@ void world::set_time(time_of_day time)
 
 std::pair<int32_t, int32_t> world::screen_to_tile(int32_t screen_x, int32_t screen_y) const
 {
-    return map_renderer_.screen_to_tile(screen_x, screen_y, camera_x_, camera_y_);
+    auto [wx, wy] = screen_to_world(screen_x, screen_y);
+    return {wx / tile_width, wy / tile_height};
 }
 
 std::pair<int32_t, int32_t> world::screen_to_world(int32_t screen_x, int32_t screen_y) const
 {
+    // When zoomed, the SFML view scales around screen center.
+    // A screen pixel at offset (dx, dy) from center maps to (dx * zoom, dy * zoom) in view space.
+    if (zoom_mode_enabled_ && zoom_level_ != 1.0)
+    {
+        double cx = static_cast<double>(screen_width_) / 2.0;
+        double cy = static_cast<double>(screen_height_) / 2.0;
+        return {
+            static_cast<int32_t>(camera_x_ + cx + (static_cast<double>(screen_x) - cx) * zoom_level_),
+            static_cast<int32_t>(camera_y_ + cy + (static_cast<double>(screen_y) - cy) * zoom_level_)
+        };
+    }
     return {screen_x + static_cast<int32_t>(camera_x_), screen_y + static_cast<int32_t>(camera_y_)};
 }
 
 std::pair<int32_t, int32_t> world::world_to_screen(int32_t world_x, int32_t world_y) const
 {
+    if (zoom_mode_enabled_ && zoom_level_ != 1.0)
+    {
+        double cx = static_cast<double>(screen_width_) / 2.0;
+        double cy = static_cast<double>(screen_height_) / 2.0;
+        return {
+            static_cast<int32_t>(cx + (static_cast<double>(world_x) - camera_x_ - cx) / zoom_level_),
+            static_cast<int32_t>(cy + (static_cast<double>(world_y) - camera_y_ - cy) / zoom_level_)
+        };
+    }
     return {world_x - static_cast<int32_t>(camera_x_), world_y - static_cast<int32_t>(camera_y_)};
 }
 

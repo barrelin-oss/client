@@ -50,7 +50,7 @@ JSON/Schemas/Catalog/
 Res/
 enc_temp_folder/
 hbio/x64/
-assets/
+/assets/
 build/
 node_modules/
 /.claude

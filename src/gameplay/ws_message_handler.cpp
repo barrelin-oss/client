@@ -889,17 +889,15 @@ void ws_message_handler::handle_view_range_update(const json& message)
 {
     const auto& d = message["data"];
 
-    spdlog::debug("view_range_update raw: {}", d.dump());
-
     int16_t radius_x = d.value("radius_x", static_cast<int16_t>(40));
     int16_t radius_y = d.value("radius_y", static_cast<int16_t>(40));
     bool sees_all = d.value("sees_all", false);
 
+    // Store visibility radii — these control how far the server streams entities,
+    // NOT the fair zone size (that comes from set_render_mode).
     game_->set_view_radius(radius_x, radius_y, sees_all);
 
-    spdlog::info("View range update: radius={}x{} tiles, sees_all={}, internal={}x{}",
-                 radius_x, radius_y, sees_all,
-                 radius_x * 2 * 32, radius_y * 2 * 32);
+    spdlog::info("View range update: radius={}x{} tiles, sees_all={}", radius_x, radius_y, sees_all);
 }
 
 void ws_message_handler::handle_command_response(const json& message)
@@ -919,11 +917,10 @@ void ws_message_handler::handle_command_response(const json& message)
 
 void ws_message_handler::send_view_range()
 {
-    // Send the interaction area (what the player can see/target).
-    // Special: display resolution. Scaled/Extended: fair zone (internal resolution).
+    // Send actual screen resolution so the server can compute visibility radii.
     auto* rend = game_->get_renderer();
-    uint32_t w = rend ? rend->interaction_width() : config::instance().video().screen_width;
-    uint32_t h = rend ? rend->interaction_height() : config::instance().video().screen_height;
+    uint32_t w = rend ? rend->display_width() : config::instance().video().screen_width;
+    uint32_t h = rend ? rend->display_height() : config::instance().video().screen_height;
     json msg = make_set_view_range_request(w, h);
     game_->ws_connection().send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);

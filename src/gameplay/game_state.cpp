@@ -1445,30 +1445,14 @@ void game_state_manager::set_view_radius(int16_t radius_x, int16_t radius_y, boo
     view_radius_x_ = radius_x;
     view_radius_y_ = radius_y;
     sees_all_ = sees_all;
-
-    if (!renderer_) return;
-
-    if (sees_all)
-    {
-        // Player sees everything - use full display as fair zone
-        renderer_->set_internal_resolution(renderer_->display_width(), renderer_->display_height());
-    }
-    else
-    {
-        // Convert tile radius to pixel dimensions: diameter * tile_size
-        uint32_t w = static_cast<uint32_t>(radius_x) * 2 * tile_width;
-        uint32_t h = static_cast<uint32_t>(radius_y) * 2 * tile_width;
-        renderer_->set_internal_resolution(w, h);
-    }
-
-    world_.set_screen_size(renderer_->scene_width(), renderer_->scene_height());
+    // These radii control how far the server streams entities to us.
+    // The fair zone (fog, culling, targeting) is set separately via set_render_mode.
 }
 
 void game_state_manager::send_view_range() {
-    // Send the interaction area (what the player can see/target).
-    // Special: display resolution. Scaled/Extended: fair zone (internal resolution).
-    uint32_t w = renderer_ ? renderer_->interaction_width() : config::instance().video().screen_width;
-    uint32_t h = renderer_ ? renderer_->interaction_height() : config::instance().video().screen_height;
+    // Send actual screen resolution so the server can compute visibility radii.
+    uint32_t w = renderer_ ? renderer_->display_width() : config::instance().video().screen_width;
+    uint32_t h = renderer_ ? renderer_->display_height() : config::instance().video().screen_height;
     json msg = make_set_view_range_request(w, h);
     ws_connection_.send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);

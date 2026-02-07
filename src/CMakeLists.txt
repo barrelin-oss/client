@@ -54,6 +54,7 @@ add_executable(helbreath_client
     ui/render_strategy.cpp
     ui/managed_dialog.cpp
     ui/dialog_manager.cpp
+    ui/cursor.cpp
     ui/status_log.cpp
 
     # UI Screens (sprite-based)

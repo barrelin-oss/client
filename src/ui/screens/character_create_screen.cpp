@@ -300,7 +300,7 @@ bool character_create_screen::update(float delta_time, const input& inp) {
 }
 
 void character_create_screen::render(renderer& rend, sprite_manager& sprites) {
-    draw(rend, sprites, mouse_x_, mouse_y_);
+    draw(rend, sprites);
 }
 
 void character_create_screen::handle_text_input(const input& inp) {
@@ -394,7 +394,7 @@ bool character_create_screen::is_valid_character() const {
     return true;
 }
 
-void character_create_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y) {
+void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
     // Draw background (frame 0) - NO color key for full-screen background
     draw_sprite_no_color_key(rend, sprites, charcreate_sprites::new_char, 0, 0, 0);
 
@@ -532,11 +532,6 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites, int3
         draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 63);  // Normal
     }
 
-    // Mouse cursor is drawn separately via render_cursor()
-}
-
-void character_create_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
-    draw_sprite(rend, sprites, charcreate_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 } // namespace hb

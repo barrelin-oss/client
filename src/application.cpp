@@ -113,6 +113,9 @@ bool application::initialize() {
         return false;
     }
 
+    // Wire up software cursor to game sprites
+    cursor_.set_sprite_manager(&game_state_->sprites());
+
 #ifdef HB_DEBUG_OVERLAY_ENABLED
     // Initialize debug overlay for UI positioning
     debug::debug_overlay::instance().initialize("config/ui_positions.json");
@@ -243,6 +246,7 @@ void application::update(float delta_time) {
 
 void application::render() {
     renderer_.begin_frame();
+    cursor_.begin_frame();
 
     // Render game state
     if (game_state_) {
@@ -254,6 +258,9 @@ void application::render() {
         std::string fps_text = "FPS: " + std::to_string(static_cast<int>(fps_));
         renderer_.draw_text(fps_text, 5, 5, sf::Color::Yellow);
     }
+
+    // Software cursor - always drawn last to guarantee visibility on top of everything
+    cursor_.render(renderer_, input_.mouse_x(), input_.mouse_y());
 
     renderer_.end_frame();
 }

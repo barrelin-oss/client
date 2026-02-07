@@ -150,7 +150,7 @@ bool login_screen::update(float delta_time, const input& inp) {
 }
 
 void login_screen::render(renderer& rend, sprite_manager& sprites) {
-    draw(rend, sprites, mouse_x_, mouse_y_);
+    draw(rend, sprites);
 }
 
 void login_screen::handle_text_input(const input& inp) {
@@ -199,7 +199,7 @@ void login_screen::try_login() {
     }
 }
 
-void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y) {
+void login_screen::draw(renderer& rend, sprite_manager& sprites) {
     // Draw background (frame 0)
     draw_sprite(rend, sprites, login_sprites::background, 0, 0, 0);
 
@@ -259,11 +259,6 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x
         rend.draw_text(masked_password, password_text_x, password_text_y, sf::Color::Black);
     }
 
-    // Mouse cursor is drawn separately via render_cursor()
-}
-
-void login_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
-    draw_sprite(rend, sprites, login_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED

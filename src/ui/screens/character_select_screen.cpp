@@ -263,11 +263,6 @@ void character_select_screen::draw(renderer& rend, sprite_manager& sprites, int3
         rend.draw_text("Click 'New Character' to create one.", 120, 310, sf::Color(180, 180, 180));
     }
 
-    // Mouse cursor is drawn separately via render_cursor()
-}
-
-void character_select_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
-    draw_sprite(rend, sprites, charselect_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
 }
 
 void character_select_screen::enter_game() {

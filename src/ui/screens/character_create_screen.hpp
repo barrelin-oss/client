@@ -45,7 +45,6 @@ public:
     void on_exit() override;
     bool update(float delta_time, const input& inp) override;
     void render(renderer& rend, sprite_manager& sprites) override;
-    void render_cursor(renderer& rend, sprite_manager& sprites) override;
 
     // Set callbacks
     void set_on_create(create_callback callback) { on_create_ = std::move(callback); }
@@ -55,7 +54,7 @@ public:
     void set_character_renderer(menu_character_renderer* renderer) { char_renderer_ = renderer; }
 
 private:
-    void draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y);
+    void draw(renderer& rend, sprite_manager& sprites);
     void handle_text_input(const input& inp);
     void try_create();
     void apply_warrior_preset();

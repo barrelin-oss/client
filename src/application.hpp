@@ -9,6 +9,7 @@
 #include "gameplay/game_state.hpp"
 #include "localization/localization.hpp"
 #include "chat/chat_system.hpp"
+#include "ui/cursor.hpp"
 
 #include <chrono>
 #include <memory>
@@ -46,6 +47,7 @@ private:
     audio audio_;
     localization localization_;
     chat_system chat_;
+    cursor_manager cursor_;
     std::unique_ptr<game_state_manager> game_state_;
 
     // State

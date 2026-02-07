@@ -41,9 +41,6 @@ public:
     // Render the screen (sprite drawing)
     virtual void render(renderer& rend, sprite_manager& sprites) = 0;
 
-    // Render just the mouse cursor (called last, after dialogs)
-    virtual void render_cursor(renderer& rend, sprite_manager& sprites) = 0;
-
     // Set sound callback for button clicks
     void set_on_button_sound(sound_callback cb) { on_button_sound_ = std::move(cb); }
 

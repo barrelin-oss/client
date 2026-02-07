@@ -61,12 +61,6 @@ void screen_manager::render(renderer& rend, sprite_manager& sprites) {
     }
 }
 
-void screen_manager::render_cursor(renderer& rend, sprite_manager& sprites) {
-    if (current_screen_) {
-        current_screen_->render_cursor(rend, sprites);
-    }
-}
-
 screen_base* screen_manager::get_screen(screen_type type) {
     switch (type) {
         case screen_type::main_menu:

@@ -515,7 +515,6 @@ void game_state_manager::render(renderer& rend) {
             break;
         case game_state::connection_lost:
             screens_.render(rend, sprites_);
-            screens_.render_cursor(rend, sprites_);
             break;
         default:
             break;
@@ -528,7 +527,6 @@ void game_state_manager::render(renderer& rend) {
 #endif
 
     transition_.render(rend);
-    screens_.render_cursor(rend, sprites_);
 }
 
 void game_state_manager::change_state(game_state new_state) {

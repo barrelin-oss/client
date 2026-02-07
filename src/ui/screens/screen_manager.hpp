@@ -55,9 +55,6 @@ public:
     // Render current screen (sprite drawing)
     void render(renderer& rend, sprite_manager& sprites);
 
-    // Render just the mouse cursor (call after dialogs)
-    void render_cursor(renderer& rend, sprite_manager& sprites);
-
     // Get specific screens for setup
     main_menu_screen& get_main_menu_screen() { return main_menu_; }
     login_screen& get_login_screen() { return login_; }

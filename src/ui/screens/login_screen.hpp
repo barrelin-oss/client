@@ -40,7 +40,6 @@ public:
     void on_exit() override;
     bool update(float delta_time, const input& inp) override;
     void render(renderer& rend, sprite_manager& sprites) override;
-    void render_cursor(renderer& rend, sprite_manager& sprites) override;
 
     // Set callbacks
     void set_on_login(login_callback callback) { on_login_ = std::move(callback); }
@@ -51,7 +50,7 @@ public:
     const std::string& password() const { return password_; }
 
 private:
-    void draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y);
+    void draw(renderer& rend, sprite_manager& sprites);
     void handle_text_input(const input& inp);
     void try_login();
 

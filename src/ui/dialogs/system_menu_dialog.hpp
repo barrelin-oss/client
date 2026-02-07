@@ -101,6 +101,9 @@ public:
     void set_remember_position(bool remember) { remember_position_ = remember; }
     bool get_remember_position() const { return remember_position_; }
 
+    void set_show_debug_stats(bool show) { show_debug_stats_ = show; }
+    bool get_show_debug_stats() const { return show_debug_stats_; }
+
     void set_framerate(uint32_t fps);
     uint32_t get_framerate() const;
 
@@ -126,6 +129,7 @@ public:
     void set_on_framerate_change(framerate_callback cb) { on_framerate_change_ = std::move(cb); }
     void set_on_vsync_change(bool_callback cb) { on_vsync_change_ = std::move(cb); }
     void set_on_remember_position_change(bool_callback cb) { on_remember_position_change_ = std::move(cb); }
+    void set_on_show_debug_stats_change(bool_callback cb) { on_show_debug_stats_change_ = std::move(cb); }
     void set_on_music_volume_change(volume_callback cb) { on_music_volume_change_ = std::move(cb); }
     void set_on_sound_volume_change(volume_callback cb) { on_sound_volume_change_ = std::move(cb); }
     void set_on_apply(callback cb) { on_apply_ = std::move(cb); }
@@ -175,6 +179,7 @@ private:
     bool applied_fullscreen_ = false;  // Last applied fullscreen state
     bool vsync_ = true;
     bool remember_position_ = false;
+    bool show_debug_stats_ = false;
     bool skip_close_after_apply_ = false;  // Set by resolution callback to keep dialog open
 
     // Framerate settings
@@ -194,6 +199,7 @@ private:
     framerate_callback on_framerate_change_;
     bool_callback on_vsync_change_;
     bool_callback on_remember_position_change_;
+    bool_callback on_show_debug_stats_change_;
     volume_callback on_music_volume_change_;
     volume_callback on_sound_volume_change_;
     callback on_apply_;
@@ -222,7 +228,7 @@ private:
 
     // Layout
     static constexpr int32_t dialog_width = 300;
-    static constexpr int32_t dialog_height = 540;
+    static constexpr int32_t dialog_height = 568;
 
     // Element indices for hit testing
     static constexpr int32_t elem_style_classic = 0;
@@ -235,9 +241,10 @@ private:
     static constexpr int32_t elem_music_slider = 7;
     static constexpr int32_t elem_sound_slider = 8;
     static constexpr int32_t elem_remember_position_checkbox = 9;
-    static constexpr int32_t elem_apply_button = 10;
-    static constexpr int32_t elem_keep_changes_button = 11;
-    static constexpr int32_t elem_revert_button = 12;
+    static constexpr int32_t elem_show_debug_stats_checkbox = 10;
+    static constexpr int32_t elem_apply_button = 11;
+    static constexpr int32_t elem_keep_changes_button = 12;
+    static constexpr int32_t elem_revert_button = 13;
     // Dropdown item base indices
     static constexpr int32_t elem_monitor_item_base = 100;
     static constexpr int32_t elem_display_mode_item_base = 150;

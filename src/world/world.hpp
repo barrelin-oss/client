@@ -64,7 +64,9 @@ public:
     void render_terrain(renderer& rend);
 
     // Render objects for a single tile row
-    void render_objects_row(renderer& rend, int32_t row_y);
+    // If player_bounds is provided, objects overlapping it are drawn semi-transparently
+    void render_objects_row(renderer& rend, int32_t row_y,
+                            const sf::IntRect* player_bounds = nullptr);
 
     // Get visible tile range for current camera position
     map_renderer::visible_range get_visible_tile_range() const;
@@ -126,6 +128,13 @@ public:
     // Renderer configuration
     void set_render_config(const map_render_config& config) { map_renderer_.set_config(config); }
     const map_render_config& render_config() const { return map_renderer_.config(); }
+
+    // Per-frame object render count
+    int32_t objects_rendered() const { return map_renderer_.objects_rendered(); }
+    void reset_objects_rendered() { map_renderer_.reset_objects_rendered(); }
+
+    // Debug stats
+    size_t chunk_count() const { return map_renderer_.chunk_count(); }
 
     // Pathfinding debug trace
     void set_pathfinding_trace(std::vector<std::pair<int32_t, int32_t>> trace)

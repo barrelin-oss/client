@@ -1,8 +1,10 @@
 #pragma once
 
 #include "entity/entity.hpp"
+#include <SFML/Graphics/Rect.hpp>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 #include <functional>
@@ -84,6 +86,11 @@ public:
     // Global render mode - renders all entities without distance culling
     void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
     bool is_global_render_mode() const { return global_render_mode_; }
+
+    // Get an entity's screen bounding rect (for overlap checks)
+    // Returns nullopt if the sprite can't be resolved
+    std::optional<sf::IntRect> get_entity_screen_bounds(const entity& e, sprite_manager& sprites,
+                                                        int32_t camera_x, int32_t camera_y) const;
 
     // Load character sprites based on appearance data in sprite_component
     void load_character_sprites(entity& ent, sprite_manager& sprites);

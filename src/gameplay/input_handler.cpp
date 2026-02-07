@@ -3,7 +3,6 @@
 #include "input/input.hpp"
 #include "core/direction_utils.hpp"
 #include "gameplay/pathfinding.hpp"
-#include "debug/debug_stats.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -672,14 +671,6 @@ void input_handler::handle_hotkey_input(const input& inp)
     auto& status_log = game_->get_status_log();
     auto& floating_text = game_->floating_text();
     auto* rend = game_->get_renderer();
-
-    // Toggle debug stats (Alt+`)
-    if (inp.is_key_pressed(sf::Keyboard::Key::Grave) &&
-        (inp.is_key_down(sf::Keyboard::Key::LAlt) || inp.is_key_down(sf::Keyboard::Key::RAlt)))
-    {
-        debug::debug_stats::instance().toggle();
-        spdlog::info("Debug stats: {}", debug::debug_stats::instance().visible() ? "ON" : "OFF");
-    }
 
     // Toggle cinematic mode (F5)
     if (inp.is_key_pressed(sf::Keyboard::Key::F5))

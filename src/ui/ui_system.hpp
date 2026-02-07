@@ -115,6 +115,9 @@ public:
     void set_focus(ui_element* element);
     ui_element* focused_element() const { return focused_; }
 
+    // Debug stats
+    size_t open_dialog_count() const { return dialog_order_.size(); }
+
     // Check if any dialog is blocking input
     bool is_modal_open() const;
 

@@ -49,6 +49,9 @@ public:
     void set_muted(bool muted);
     bool is_muted() const { return muted_; }
 
+    // Debug stats
+    size_t active_sound_count() const { return active_sounds_.size(); }
+
 private:
     float effective_volume(float base_volume) const;
 

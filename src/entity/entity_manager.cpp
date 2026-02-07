@@ -912,6 +912,47 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
     }
 }
 
+std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity& e, sprite_manager& sprites,
+                                                                    int32_t camera_x, int32_t camera_y) const
+{
+    const auto& t = e.transform();
+    const auto& s = e.sprite();
+    const auto& a = e.animation();
+
+    int32_t screen_x = t.x - camera_x;
+    int32_t screen_y = t.y - camera_y;
+
+    if (e.type() == entity_type::npc || e.type() == entity_type::monster)
+    {
+        int32_t dir = direction_to_sprite_index(t.facing);
+        int32_t npc_action = action_to_npc_action_index(e.current_action());
+        uint16_t visual_type = get_entity_visual_type(e);
+
+        if (visual_type < npc_sprite_constants::npc_type_offset)
+            return std::nullopt;
+
+        uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
+        const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
+
+        if (npc_spr && npc_spr->has_metadata())
+            return npc_spr->get_bounds(screen_x, screen_y, a.current_frame);
+    }
+    else if (e.type() == entity_type::player || e.type() == entity_type::character)
+    {
+        int32_t dir = direction_to_sprite_index(t.facing);
+        int32_t action = static_cast<int32_t>(e.current_action());
+        int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
+
+        uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
+        const sprite* body_spr = sprites.get_sprite_by_id(body_id);
+
+        if (body_spr && body_spr->has_metadata())
+            return body_spr->get_bounds(screen_x, screen_y, a.current_frame);
+    }
+
+    return std::nullopt;
+}
+
 entity* entity_manager::local_player() {
     return get_entity(local_player_id_);
 }

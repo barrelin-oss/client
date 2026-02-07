@@ -593,6 +593,12 @@ void settings_dialog::render(renderer& rend) {
     render_checkbox(rend, y, "Remember Window Position",
                     remember_position_,
                     hovered_element_ == elem_remember_position_checkbox);
+    y += 28;
+
+    // Debug stats checkbox
+    render_checkbox(rend, y, "Show Debug Stats",
+                    show_debug_stats_,
+                    hovered_element_ == elem_show_debug_stats_checkbox);
     y += 40;
 
     // Audio section
@@ -946,6 +952,12 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
     if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
         return elem_remember_position_checkbox;
     }
+    y += 28;
+
+    // Debug stats checkbox
+    if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
+        return elem_show_debug_stats_checkbox;
+    }
     y += 40;  // Skip to audio section
     y += 25;  // Audio section header
 
@@ -1149,6 +1161,12 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 close_all_dropdowns();
                 remember_position_ = !remember_position_;
                 if (on_remember_position_change_) on_remember_position_change_(remember_position_);
+                return true;
+
+            case elem_show_debug_stats_checkbox:
+                close_all_dropdowns();
+                show_debug_stats_ = !show_debug_stats_;
+                if (on_show_debug_stats_change_) on_show_debug_stats_change_(show_debug_stats_);
                 return true;
 
             case elem_music_slider:

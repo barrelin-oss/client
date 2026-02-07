@@ -52,7 +52,9 @@ public:
     void render_terrain(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y);
 
     // Render objects for a single tile row
-    void render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y);
+    // If player_bounds is provided, objects overlapping it are drawn semi-transparently
+    void render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y,
+                            const sf::IntRect* player_bounds = nullptr);
 
     // Get visible tile range for current camera position
     visible_range get_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const;
@@ -68,6 +70,13 @@ public:
     void set_zoom_level(float level) {
         zoom_level_ = level;
     }
+
+    // Per-frame object render count (reset each frame by caller)
+    int32_t objects_rendered() const { return objects_rendered_; }
+    void reset_objects_rendered() { objects_rendered_ = 0; }
+
+    // Debug stats
+    size_t chunk_count() const { return chunks_.size(); }
 
     // Pathfinding debug trace (rendered as cyan tiles when show_walkability is on)
     void set_pathfinding_trace(std::vector<std::pair<int32_t, int32_t>> trace)
@@ -119,6 +128,7 @@ private:
     tile_sprite_registry* registry_ = nullptr;
     map_render_config config_;
     std::vector<std::pair<int32_t, int32_t>> pathfinding_trace_;
+    int32_t objects_rendered_ = 0;
 
     // Screen dimensions for calculating visible tile range
     uint32_t screen_width_ = 640;

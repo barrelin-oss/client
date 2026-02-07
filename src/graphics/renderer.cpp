@@ -156,6 +156,7 @@ void renderer::shutdown() {
 
 void renderer::begin_frame() {
     window_.clear(sf::Color::Black);
+    draw_call_count_ = 0;
 }
 
 void renderer::end_frame() {
@@ -164,30 +165,36 @@ void renderer::end_frame() {
 
 void renderer::draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame) {
     spr.draw(window_, x, y, frame);
+    ++draw_call_count_;
 }
 
 void renderer::draw_sprite_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha) {
     spr.draw_alpha(window_, x, y, frame, alpha);
+    ++draw_call_count_;
 }
 
 void renderer::draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame) {
     spr.draw_no_color_key(window_, x, y, frame);
+    ++draw_call_count_;
 }
 
 void renderer::draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha) {
     spr.draw_alpha_no_color_key(window_, x, y, frame, alpha);
+    ++draw_call_count_;
 }
 
 void renderer::draw_texture(const sf::Texture& texture, int32_t x, int32_t y) {
     sf::Sprite spr(texture);
     spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
     window_.draw(spr);
+    ++draw_call_count_;
 }
 
 void renderer::draw_texture(const sf::Texture& texture, int32_t x, int32_t y, const sf::IntRect& rect) {
     sf::Sprite spr(texture, rect);
     spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
     window_.draw(spr);
+    ++draw_call_count_;
 }
 
 bool renderer::load_font(std::string_view path) {

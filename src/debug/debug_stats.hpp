@@ -10,7 +10,7 @@ class renderer;
 namespace debug {
 
 // Debug statistics overlay - displays FPS, camera info, and other debug data
-// Toggle with Alt+`
+// Toggle via Settings dialog
 class debug_stats
 {
 public:
@@ -36,19 +36,28 @@ public:
     void set_player_position(int32_t tile_x, int32_t tile_y, int32_t world_x, int32_t world_y);
     void set_entity_count(int32_t count) { entity_count_ = count; }
     void set_map_name(const std::string& name) { map_name_ = name; }
+    void set_zoom_level(float level) { zoom_level_ = level; }
+    void set_chunk_count(int32_t count) { chunk_count_ = count; }
+    void set_weather(const std::string& weather) { weather_ = weather; }
+    void set_time_of_day(const std::string& time) { time_of_day_ = time; }
 
     // === Network Stats ===
     void set_network_connected(bool connected) { network_connected_ = connected; }
     void set_ping(int32_t ping_ms) { ping_ms_ = ping_ms; }
-    void increment_messages_received() { messages_received_++; }
-    void increment_messages_sent() { messages_sent_++; }
+    void set_network_message_totals(uint64_t total_received, uint64_t total_sent)
+    {
+        net_total_received_ = total_received;
+        net_total_sent_ = total_sent;
+    }
 
     // === Rendering Stats ===
     void set_sprites_rendered(int32_t count) { sprites_rendered_ = count; }
     void set_tiles_rendered(int32_t count) { tiles_rendered_ = count; }
+    void set_objects_rendered(int32_t count) { objects_rendered_ = count; }
+    void set_draw_calls(uint32_t count) { draw_calls_ = count; }
     void add_sprites_rendered(int32_t count) { sprites_rendered_ += count; }
     void add_tiles_rendered(int32_t count) { tiles_rendered_ += count; }
-    void reset_frame_counters() { sprites_rendered_ = 0; tiles_rendered_ = 0; }
+    void reset_frame_counters() { sprites_rendered_ = 0; tiles_rendered_ = 0; objects_rendered_ = 0; }
 
     // === Memory/Assets ===
     void set_sprite_cache_count(int32_t count) { sprite_cache_count_ = count; }
@@ -63,6 +72,17 @@ public:
     // === Game State ===
     void set_game_state(const std::string& state) { game_state_ = state; }
     void set_combat_mode(bool attack_mode, bool safe_mode);
+
+    // === Player Stats ===
+    void set_player_stats(int32_t hp, int32_t max_hp, int32_t mp, int32_t max_mp, uint16_t level);
+    void set_player_movement(const std::string& direction, bool moving, float progress, bool running);
+
+    // === UI ===
+    void set_open_dialog_count(int32_t count) { open_dialog_count_ = count; }
+
+    // === Audio ===
+    void set_active_sounds(int32_t count) { active_sounds_ = count; }
+    void set_bgm_track(const std::string& track) { bgm_track_ = track; }
 
 private:
     debug_stats() = default;
@@ -92,21 +112,27 @@ private:
     // Entity/map info
     int32_t entity_count_ = 0;
     std::string map_name_;
+    float zoom_level_ = 1.0f;
+    int32_t chunk_count_ = 0;
+    std::string weather_;
+    std::string time_of_day_;
 
     // Network stats
     bool network_connected_ = false;
     int32_t ping_ms_ = 0;
-    int32_t messages_received_ = 0;
-    int32_t messages_sent_ = 0;
     int32_t messages_received_per_sec_ = 0;
     int32_t messages_sent_per_sec_ = 0;
-    int32_t messages_received_counter_ = 0;
-    int32_t messages_sent_counter_ = 0;
+    uint64_t net_total_received_ = 0;
+    uint64_t net_total_sent_ = 0;
+    uint64_t net_prev_received_ = 0;
+    uint64_t net_prev_sent_ = 0;
     float network_stats_timer_ = 0.0f;
 
     // Rendering stats
     int32_t sprites_rendered_ = 0;
     int32_t tiles_rendered_ = 0;
+    int32_t objects_rendered_ = 0;
+    uint32_t draw_calls_ = 0;
 
     // Memory/Assets
     int32_t sprite_cache_count_ = 0;
@@ -125,6 +151,24 @@ private:
     std::string game_state_;
     bool combat_mode_ = false;
     bool safe_attack_mode_ = false;
+
+    // Player stats
+    int32_t player_hp_ = 0;
+    int32_t player_max_hp_ = 0;
+    int32_t player_mp_ = 0;
+    int32_t player_max_mp_ = 0;
+    uint16_t player_level_ = 0;
+    std::string player_direction_;
+    bool player_moving_ = false;
+    bool player_running_ = false;
+    float player_move_progress_ = 0.0f;
+
+    // UI
+    int32_t open_dialog_count_ = 0;
+
+    // Audio
+    int32_t active_sounds_ = 0;
+    std::string bgm_track_;
 
     // Layout
     static constexpr int32_t padding_ = 10;

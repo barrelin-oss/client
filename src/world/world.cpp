@@ -77,9 +77,9 @@ void world::render_terrain(renderer& rend)
     map_renderer_.render_terrain(rend, current_map_, camera_x_, camera_y_);
 }
 
-void world::render_objects_row(renderer& rend, int32_t row_y)
+void world::render_objects_row(renderer& rend, int32_t row_y, const sf::IntRect* player_bounds)
 {
-    map_renderer_.render_objects_row(rend, current_map_, row_y, camera_x_, camera_y_);
+    map_renderer_.render_objects_row(rend, current_map_, row_y, camera_x_, camera_y_, player_bounds);
 }
 
 map_renderer::visible_range world::get_visible_tile_range() const

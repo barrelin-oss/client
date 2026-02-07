@@ -69,6 +69,10 @@ public:
     uint32_t width() const { return width_; }
     uint32_t height() const { return height_; }
 
+    // Draw call tracking
+    uint32_t draw_call_count() const { return draw_call_count_; }
+    void reset_draw_call_count() { draw_call_count_ = 0; }
+
     // Borderless topmost management
     bool is_borderless() const { return borderless_; }
     void set_topmost(bool topmost);
@@ -84,6 +88,7 @@ private:
     uint32_t width_ = 0;
     uint32_t height_ = 0;
     bool borderless_ = false;
+    uint32_t draw_call_count_ = 0;
 
     text_renderer text_renderer_;
 };

@@ -228,7 +228,8 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
     }
 }
 
-void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y)
+void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y,
+                                      const sf::IntRect* player_bounds)
 {
     if (!config_.show_objects) return;
     if (row_y < 0 || row_y >= m.height()) return;
@@ -246,7 +247,19 @@ void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_
             const sprite* spr = get_tile_sprite(t.object_id);
             if (spr)
             {
+                // If the local player's bounds overlap this object, draw it semi-transparently
+                if (player_bounds && spr->has_metadata())
+                {
+                    sf::IntRect obj_bounds = spr->get_bounds(sx, sy, 0);
+                    if (player_bounds->findIntersection(obj_bounds))
+                    {
+                        rend.draw_sprite_alpha(*spr, sx, sy, 0, 0.45f);
+                        ++objects_rendered_;
+                        continue;
+                    }
+                }
                 rend.draw_sprite(*spr, sx, sy, 0);
+                ++objects_rendered_;
             }
         }
     }

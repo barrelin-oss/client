@@ -120,6 +120,9 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     entities_.initialize();
     sprites_.initialize("assets/");
 
+    // Apply debug stats visibility from config
+    debug::debug_stats::instance().set_visible(config::instance().video().show_debug_stats);
+
     // Queue async initialization steps
     init_steps_.clear();
     init_step_index_ = 0;
@@ -447,6 +450,7 @@ void game_state_manager::update(float delta_time, const input& inp) {
 
     // Update network
     network_.update();
+    ws_connection_.update(delta_time);
 
     // Poll for WebSocket messages on main thread
     while (auto msg = ws_connection_.receive()) {
@@ -788,14 +792,81 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
                 transform.tile_x, transform.tile_y,
                 transform.x, transform.y
             );
+
+            // Player movement state
+            auto dir_to_str = [](direction d) -> const char* {
+                switch (d) {
+                    case direction::north:      return "N";
+                    case direction::north_east:  return "NE";
+                    case direction::east:        return "E";
+                    case direction::south_east:  return "SE";
+                    case direction::south:       return "S";
+                    case direction::south_west:  return "SW";
+                    case direction::west:        return "W";
+                    case direction::north_west:  return "NW";
+                    default:                     return "?";
+                }
+            };
+            bool running = player->has_movement() && player->movement().running;
+            debug_stats.set_player_movement(
+                dir_to_str(transform.facing),
+                transform.moving,
+                transform.move_progress,
+                running
+            );
+
+            // Player stats
+            if (player->has_stats()) {
+                const auto& stats = player->stats();
+                debug_stats.set_player_stats(
+                    stats.hp, stats.max_hp,
+                    stats.mp, stats.max_mp,
+                    stats.level
+                );
+            }
         }
 
         debug_stats.set_entity_count(static_cast<int32_t>(entities_.entity_count()));
         debug_stats.set_map_name(std::string(world_.current_map_name()));
         debug_stats.set_network_connected(ws_connection_.is_connected());
+        debug_stats.set_ping(ws_connection_.ping_ms());
+        debug_stats.set_network_message_totals(
+            ws_connection_.messages_received(), ws_connection_.messages_sent());
         debug_stats.set_sprite_cache_count(static_cast<int32_t>(sprites_.cached_sprite_count()));
         debug_stats.set_pak_files_loaded(static_cast<int32_t>(sprites_.loaded_pak_count()));
 
+        // World state
+        debug_stats.set_zoom_level(world_.zoom_level());
+        debug_stats.set_chunk_count(static_cast<int32_t>(world_.chunk_count()));
+
+        auto weather_to_str = [](weather_type w) -> const char* {
+            switch (w) {
+                case weather_type::clear: return "Clear";
+                case weather_type::rain:  return "Rain";
+                case weather_type::snow:  return "Snow";
+                case weather_type::storm: return "Storm";
+                default:                  return "Unknown";
+            }
+        };
+        auto time_to_str = [](time_of_day t) -> const char* {
+            switch (t) {
+                case time_of_day::dawn:      return "Dawn";
+                case time_of_day::morning:   return "Morning";
+                case time_of_day::noon:      return "Noon";
+                case time_of_day::afternoon: return "Afternoon";
+                case time_of_day::dusk:      return "Dusk";
+                case time_of_day::night:     return "Night";
+                case time_of_day::midnight:  return "Midnight";
+                default:                     return "Unknown";
+            }
+        };
+        debug_stats.set_weather(weather_to_str(world_.weather()));
+        debug_stats.set_time_of_day(time_to_str(world_.time()));
+
+        // Draw calls (from previous frame)
+        debug_stats.set_draw_calls(renderer_->draw_call_count());
+
+        // Input
         debug_stats.set_mouse_screen_pos(inp.mouse_x(), inp.mouse_y());
         auto [dbg_world_x, dbg_world_y] = world_.screen_to_world(inp.mouse_x(), inp.mouse_y());
         debug_stats.set_mouse_world_pos(dbg_world_x, dbg_world_y);
@@ -809,6 +880,15 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         } else {
             debug_stats.set_hovered_entity("");
         }
+
+        // Audio
+        if (audio_) {
+            debug_stats.set_active_sounds(static_cast<int32_t>(audio_->active_sound_count()));
+        }
+        debug_stats.set_bgm_track(std::string(sounds_.current_bgm_track()));
+
+        // UI
+        debug_stats.set_open_dialog_count(static_cast<int32_t>(ui_.open_dialog_count()));
 
         debug_stats.set_game_state("Playing");
         debug_stats.set_combat_mode(input_handler_.is_combat_mode(), input_handler_.is_safe_attack_mode());
@@ -879,6 +959,7 @@ void game_state_manager::render_playing(renderer& rend) {
 
     // Render terrain chunks and debug overlays (no objects)
     world_.render_terrain(rend);
+    world_.reset_objects_rendered();
 
     // Row-interleaved rendering: for each tile row, draw entities then objects.
     // A tree at row N (drawn after entities at row N) extends upward, covering
@@ -891,6 +972,22 @@ void game_state_manager::render_playing(renderer& rend) {
     int32_t mouse_y = input_handler_.mouse_y();
 
     auto sorted = entities_.get_visible_entities_sorted(rend, cam_x, cam_y);
+
+    // Compute local player's screen bounds for tree transparency.
+    // Only apply when the player is on the same row or north of the tree,
+    // so trees south of the player render at full opacity.
+    sf::IntRect player_bounds;
+    bool have_player_bounds = false;
+    int32_t player_tile_y = 0;
+    if (auto* lp = entities_.local_player())
+    {
+        if (auto bounds = entities_.get_entity_screen_bounds(*lp, sprites_, cam_x, cam_y))
+        {
+            player_bounds = *bounds;
+            have_player_bounds = true;
+            player_tile_y = lp->transform().y / tile_height;
+        }
+    }
 
     size_t idx = 0;
     for (int32_t row = range.start_y; row < range.end_y; ++row)
@@ -905,8 +1002,11 @@ void game_state_manager::render_playing(renderer& rend) {
             ++idx;
         }
 
-        // Draw objects on this row (trees paint over entities at higher rows)
-        world_.render_objects_row(rend, row);
+        // Draw objects on this row (trees paint over entities at higher rows).
+        // Only make trees transparent when the player is on this row or north of it.
+        const sf::IntRect* bounds_for_row = (have_player_bounds && player_tile_y <= row)
+            ? &player_bounds : nullptr;
+        world_.render_objects_row(rend, row, bounds_for_row);
     }
 
     // Draw any remaining entities past the last visible row
@@ -919,8 +1019,15 @@ void game_state_manager::render_playing(renderer& rend) {
     effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);
 
+    // Update rendering stats
+    auto& ds = debug::debug_stats::instance();
+    int32_t visible_tiles = (range.end_x - range.start_x) * (range.end_y - range.start_y);
+    ds.set_tiles_rendered(visible_tiles);
+    ds.set_sprites_rendered(static_cast<int32_t>(sorted.size()));
+    ds.set_objects_rendered(world_.objects_rendered());
+
     floating_text_.render(rend, cam_x, cam_y);
-    debug::debug_stats::instance().render(rend);
+    ds.render(rend);
     status_log_.render(rend, static_cast<int32_t>(rend.width()),
                        static_cast<int32_t>(rend.height()), 70);
 }

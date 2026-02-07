@@ -5,6 +5,7 @@
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include "core/config.hpp"
+#include "debug/debug_stats.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -417,6 +418,7 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_vsync(video.vsync);
         settings_dlg->set_framerate(video.framerate_limit);
         settings_dlg->set_remember_position(video.remember_position);
+        settings_dlg->set_show_debug_stats(video.show_debug_stats);
 
         const auto& audio_cfg = config::instance().audio();
         settings_dlg->set_music_volume(audio_cfg.music_volume);
@@ -465,6 +467,12 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_on_remember_position_change([](bool remember) {
             spdlog::info("Remember window position: {}", remember ? "enabled" : "disabled");
             config::instance().video().remember_position = remember;
+        });
+
+        settings_dlg->set_on_show_debug_stats_change([](bool show) {
+            spdlog::info("Debug stats: {}", show ? "ON" : "OFF");
+            config::instance().video().show_debug_stats = show;
+            debug::debug_stats::instance().set_visible(show);
         });
 
         settings_dlg->set_on_music_volume_change([this](float volume) {

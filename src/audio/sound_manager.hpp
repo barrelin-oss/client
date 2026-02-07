@@ -62,6 +62,9 @@ public:
     bool is_sfx_enabled() const { return sfx_enabled_; }
     bool is_music_enabled() const { return music_enabled_; }
 
+    // Debug stats
+    std::string_view current_bgm_track() const { return current_bgm_track_; }
+
 private:
     // Load sounds from directory
     void load_sounds();

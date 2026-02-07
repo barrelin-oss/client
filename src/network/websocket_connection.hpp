@@ -2,6 +2,7 @@
 
 #include <ixwebsocket/IXWebSocket.h>
 #include <nlohmann/json.hpp>
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -77,9 +78,13 @@ public:
         return last_error_;
     }
 
+    // Update (call from main loop for ping measurement)
+    void update(float delta_time);
+
     // Statistics
     uint64_t messages_sent() const { return messages_sent_; }
     uint64_t messages_received() const { return messages_received_; }
+    int32_t ping_ms() const { return ping_ms_.load(std::memory_order_relaxed); }
 
 private:
     void on_message(const ix::WebSocketMessagePtr& msg);
@@ -109,6 +114,13 @@ private:
     // Statistics
     uint64_t messages_sent_ = 0;
     uint64_t messages_received_ = 0;
+
+    // Ping measurement
+    std::atomic<int32_t> ping_ms_{0};
+    std::chrono::steady_clock::time_point ping_sent_time_;
+    std::atomic<bool> ping_pending_{false};
+    float ping_timer_ = 0.0f;
+    static constexpr float ping_interval_ = 3.0f;  // seconds between pings
 };
 
 } // namespace hb

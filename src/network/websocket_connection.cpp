@@ -74,6 +74,20 @@ void websocket_connection::disconnect() {
     }
 }
 
+void websocket_connection::update(float delta_time) {
+    if (state_.load() != ws_connection_state::connected) {
+        return;
+    }
+
+    ping_timer_ += delta_time;
+    if (ping_timer_ >= ping_interval_ && !ping_pending_.load(std::memory_order_relaxed)) {
+        ping_sent_time_ = std::chrono::steady_clock::now();
+        ping_pending_.store(true, std::memory_order_relaxed);
+        websocket_.ping("");
+        ping_timer_ = 0.0f;
+    }
+}
+
 bool websocket_connection::send(const json& message) {
     if (state_.load() != ws_connection_state::connected) {
         std::lock_guard<std::mutex> lock(error_mutex_);
@@ -129,6 +143,9 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
         case ix::WebSocketMessageType::Open:
             spdlog::info("WebSocket connected");
             state_.store(ws_connection_state::connected);
+            ping_ms_.store(0, std::memory_order_relaxed);
+            ping_pending_.store(false, std::memory_order_relaxed);
+            ping_timer_ = 0.0f;
             // Set flag for thread-safe polling (preferred)
             pending_connect_.store(true);
             // Also call callback for backward compatibility (WARNING: runs on background thread!)
@@ -184,7 +201,13 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
             break;
 
         case ix::WebSocketMessageType::Pong:
-            spdlog::trace("WebSocket pong received");
+            if (ping_pending_.load(std::memory_order_relaxed)) {
+                auto rtt = std::chrono::steady_clock::now() - ping_sent_time_;
+                auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(rtt).count();
+                ping_ms_.store(static_cast<int32_t>(ms), std::memory_order_relaxed);
+                ping_pending_.store(false, std::memory_order_relaxed);
+                spdlog::trace("WebSocket pong: {} ms", ms);
+            }
             break;
 
         default:

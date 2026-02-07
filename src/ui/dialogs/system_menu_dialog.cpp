@@ -2,7 +2,9 @@
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "core/constants.hpp"
+#include "core/config.hpp"
 #include <algorithm>
+#include <format>
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -162,6 +164,9 @@ settings_dialog::settings_dialog()
 
     init_resolution_options();
     init_framerate_options();
+
+    // Enumerate monitors on construction
+    set_monitors(enumerate_monitors());
 }
 
 void settings_dialog::init_resolution_options() {
@@ -173,9 +178,72 @@ void settings_dialog::init_resolution_options() {
         {1280, 1024, "1280x1024"},
         {1366, 768, "1366x768"},
         {1600, 900, "1600x900"},
-        {1920, 1080, "1920x1080 (Full HD)"}
+        {1920, 1080, "1920x1080 (Full HD)"},
+        {2560, 1440, "2560x1440 (QHD)"},
+        {3840, 2160, "3840x2160 (4K)"}
     };
     selected_resolution_ = 0;  // Default to 640x480
+}
+
+void settings_dialog::rebuild_resolution_options() {
+    // Get the selected monitor's native resolution
+    int32_t max_w = 1920;
+    int32_t max_h = 1080;
+    if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size())) {
+        max_w = monitor_options_[selected_monitor_].width;
+        max_h = monitor_options_[selected_monitor_].height;
+    }
+
+    // Standard resolutions to offer
+    struct standard_res { uint32_t w, h; const char* suffix; };
+    static constexpr standard_res all_resolutions[] = {
+        {640, 480, ""},
+        {800, 600, ""},
+        {1024, 768, ""},
+        {1280, 720, " (HD)"},
+        {1280, 1024, ""},
+        {1366, 768, ""},
+        {1600, 900, ""},
+        {1920, 1080, " (Full HD)"},
+        {2560, 1440, " (QHD)"},
+        {3840, 2160, " (4K)"},
+    };
+
+    // Save current selection to try to preserve it
+    uint32_t prev_w = 640, prev_h = 480;
+    if (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size())) {
+        prev_w = resolution_options_[selected_resolution_].width;
+        prev_h = resolution_options_[selected_resolution_].height;
+    }
+
+    resolution_options_.clear();
+
+    bool native_included = false;
+    for (const auto& r : all_resolutions) {
+        if (static_cast<int32_t>(r.w) <= max_w && static_cast<int32_t>(r.h) <= max_h) {
+            std::string label = std::to_string(r.w) + "x" + std::to_string(r.h) + r.suffix;
+            resolution_options_.push_back({r.w, r.h, std::move(label)});
+            if (static_cast<int32_t>(r.w) == max_w && static_cast<int32_t>(r.h) == max_h) {
+                native_included = true;
+            }
+        }
+    }
+
+    // Add the monitor's native resolution if not already in the list
+    if (!native_included && max_w > 0 && max_h > 0) {
+        std::string label = std::to_string(max_w) + "x" + std::to_string(max_h) + " (Native)";
+        resolution_options_.push_back({static_cast<uint32_t>(max_w), static_cast<uint32_t>(max_h), std::move(label)});
+    }
+
+    // Restore previous selection if still valid
+    selected_resolution_ = 0;
+    for (size_t i = 0; i < resolution_options_.size(); ++i) {
+        if (resolution_options_[i].width == prev_w && resolution_options_[i].height == prev_h) {
+            selected_resolution_ = static_cast<int32_t>(i);
+            break;
+        }
+    }
+    applied_resolution_ = selected_resolution_;
 }
 
 void settings_dialog::init_framerate_options() {
@@ -232,28 +300,131 @@ void settings_dialog::get_resolution(uint32_t& width, uint32_t& height) const {
     }
 }
 
+void settings_dialog::set_monitors(std::vector<monitor_info> monitors) {
+    monitors_ = std::move(monitors);
+    monitor_options_.clear();
+
+    for (size_t i = 0; i < monitors_.size(); ++i) {
+        const auto& m = monitors_[i];
+        monitor_option opt;
+        opt.index = m.index;
+        opt.x = m.x;
+        opt.y = m.y;
+        opt.width = m.width;
+        opt.height = m.height;
+
+        // Format: "Monitor 1 - 1920x1080 (primary)" or "Monitor 1 - 1920x1080 (0,0)"
+        std::string label = "Monitor " + std::to_string(i + 1) + " - "
+            + std::to_string(m.width) + "x" + std::to_string(m.height);
+        if (m.primary) {
+            label += " (primary)";
+        } else {
+            label += " (" + std::to_string(m.x) + "," + std::to_string(m.y) + ")";
+        }
+        opt.label = std::move(label);
+        monitor_options_.push_back(std::move(opt));
+    }
+
+    if (monitor_options_.empty()) {
+        // Fallback: create a single "unknown" monitor entry
+        monitor_options_.push_back({0, "Monitor 1 - Unknown", 0, 0, 1920, 1080});
+    }
+
+    // Default to the primary monitor, not index 0
+    selected_monitor_ = 0;
+    for (size_t i = 0; i < monitors_.size(); ++i) {
+        if (monitors_[i].primary) {
+            selected_monitor_ = static_cast<int32_t>(i);
+            break;
+        }
+    }
+    applied_monitor_ = selected_monitor_;
+
+    rebuild_resolution_options();
+}
+
+void settings_dialog::set_monitor_index(int32_t index) {
+    for (size_t i = 0; i < monitor_options_.size(); ++i) {
+        if (monitor_options_[i].index == index) {
+            selected_monitor_ = static_cast<int32_t>(i);
+            applied_monitor_ = selected_monitor_;
+            rebuild_resolution_options();
+            return;
+        }
+    }
+    // Fall back to primary
+    for (size_t i = 0; i < monitors_.size(); ++i) {
+        if (monitors_[i].primary) {
+            selected_monitor_ = static_cast<int32_t>(i);
+            applied_monitor_ = selected_monitor_;
+            rebuild_resolution_options();
+            return;
+        }
+    }
+    selected_monitor_ = 0;
+    applied_monitor_ = 0;
+    rebuild_resolution_options();
+}
+
+void settings_dialog::set_display_mode(bool fullscreen, bool borderless) {
+    if (borderless) {
+        selected_display_mode_ = 1;
+    } else if (fullscreen) {
+        selected_display_mode_ = 2;
+    } else {
+        selected_display_mode_ = 0;
+    }
+    applied_display_mode_ = selected_display_mode_;
+
+    // Keep fullscreen_ in sync for backward compat
+    fullscreen_ = fullscreen;
+    applied_fullscreen_ = fullscreen;
+}
+
 void settings_dialog::update(float delta_time, const input& inp) {
     if (!visible_) return;
 
     dialog::update(delta_time, inp);
 
-    // Animate resolution dropdown
-    if (resolution_dropdown_expanded_) {
-        resolution_dropdown_animation_ += delta_time * dropdown_animation_speed_;
-        if (resolution_dropdown_animation_ > 1.0f) resolution_dropdown_animation_ = 1.0f;
-    } else {
-        resolution_dropdown_animation_ -= delta_time * dropdown_animation_speed_;
-        if (resolution_dropdown_animation_ < 0.0f) resolution_dropdown_animation_ = 0.0f;
+    // Revert countdown timer
+    if (revert_countdown_active_) {
+        revert_countdown_timer_ -= delta_time;
+        if (revert_countdown_timer_ <= 0.0f) {
+            // Timer expired - revert to previous display settings
+            revert_countdown_active_ = false;
+            selected_resolution_ = revert_state_.resolution_index;
+            selected_display_mode_ = revert_state_.display_mode_index;
+            selected_monitor_ = revert_state_.monitor_index;
+            fullscreen_ = revert_state_.fullscreen;
+
+            if (on_resolution_change_) {
+                on_resolution_change_(revert_state_.width, revert_state_.height,
+                                      revert_state_.fullscreen, revert_state_.borderless,
+                                      revert_state_.monitor_x, revert_state_.monitor_y);
+            }
+            applied_resolution_ = selected_resolution_;
+            applied_display_mode_ = selected_display_mode_;
+            applied_monitor_ = selected_monitor_;
+            applied_fullscreen_ = fullscreen_;
+            spdlog::info("Display settings reverted (timeout)");
+        }
     }
 
-    // Animate framerate dropdown
-    if (framerate_dropdown_expanded_) {
-        framerate_dropdown_animation_ += delta_time * dropdown_animation_speed_;
-        if (framerate_dropdown_animation_ > 1.0f) framerate_dropdown_animation_ = 1.0f;
-    } else {
-        framerate_dropdown_animation_ -= delta_time * dropdown_animation_speed_;
-        if (framerate_dropdown_animation_ < 0.0f) framerate_dropdown_animation_ = 0.0f;
-    }
+    // Animate all dropdowns
+    auto animate = [&](bool expanded, float& animation) {
+        if (expanded) {
+            animation += delta_time * dropdown_animation_speed_;
+            if (animation > 1.0f) animation = 1.0f;
+        } else {
+            animation -= delta_time * dropdown_animation_speed_;
+            if (animation < 0.0f) animation = 0.0f;
+        }
+    };
+
+    animate(monitor_dropdown_expanded_, monitor_dropdown_animation_);
+    animate(display_mode_dropdown_expanded_, display_mode_dropdown_animation_);
+    animate(resolution_dropdown_expanded_, resolution_dropdown_animation_);
+    animate(framerate_dropdown_expanded_, framerate_dropdown_animation_);
 
     // Handle slider dragging
     if (dragging_slider_ && inp.is_mouse_down(sf::Mouse::Button::Left)) {
@@ -277,45 +448,46 @@ void settings_dialog::update(float delta_time, const input& inp) {
 
     hovered_element_ = get_hovered_element(inp.mouse_x(), inp.mouse_y());
 
-    // Update resolution dropdown hover state
-    if (resolution_dropdown_expanded_) {
-        int32_t dropdown_y = bounds_.y + 40 + 25 + 28 + 40 + 25;  // Match render position
+    // Helper for dropdown hover
+    auto update_dropdown_hover = [&](bool expanded, int32_t dropdown_y, int32_t count, int32_t& hovered) {
+        if (!expanded) return;
         int32_t dropdown_x = bounds_.x + 100;
         int32_t dropdown_width = 170;
         int32_t item_height = 22;
         int32_t list_y = dropdown_y + 24;
 
-        resolution_dropdown_hovered_ = -1;
+        hovered = -1;
         if (inp.mouse_x() >= dropdown_x && inp.mouse_x() < dropdown_x + dropdown_width) {
-            int32_t mouse_y = inp.mouse_y();
-            if (mouse_y >= list_y) {
-                int32_t item_index = (mouse_y - list_y) / item_height;
-                if (item_index >= 0 && item_index < static_cast<int32_t>(resolution_options_.size())) {
-                    resolution_dropdown_hovered_ = item_index;
+            int32_t my = inp.mouse_y();
+            if (my >= list_y) {
+                int32_t idx = (my - list_y) / item_height;
+                if (idx >= 0 && idx < count) {
+                    hovered = idx;
                 }
             }
         }
-    }
+    };
 
-    // Update framerate dropdown hover state
-    if (framerate_dropdown_expanded_) {
-        int32_t dropdown_y = bounds_.y + 40 + 25 + 28 + 40 + 25 + 32;  // After resolution dropdown
-        int32_t dropdown_x = bounds_.x + 100;
-        int32_t dropdown_width = 170;
-        int32_t item_height = 22;
-        int32_t list_y = dropdown_y + 24;
+    // Compute Y positions for dropdown hover tracking
+    // These must match the render layout exactly:
+    // y starts at bounds_.y + 40
+    // UI section: header(+25), classic(+28), modern(+40) = 93
+    // Video section: header(+25), display_mode(+32), monitor(+32), resolution(+32), framerate(+32)
+    int32_t video_y = bounds_.y + 40 + 25 + 28 + 40 + 25;  // First dropdown (display mode)
+    update_dropdown_hover(display_mode_dropdown_expanded_, video_y,
+                          display_mode_count_, display_mode_dropdown_hovered_);
 
-        framerate_dropdown_hovered_ = -1;
-        if (inp.mouse_x() >= dropdown_x && inp.mouse_x() < dropdown_x + dropdown_width) {
-            int32_t mouse_y = inp.mouse_y();
-            if (mouse_y >= list_y) {
-                int32_t item_index = (mouse_y - list_y) / item_height;
-                if (item_index >= 0 && item_index < static_cast<int32_t>(framerate_options_.size())) {
-                    framerate_dropdown_hovered_ = item_index;
-                }
-            }
-        }
-    }
+    int32_t monitor_y = video_y + 32;
+    update_dropdown_hover(monitor_dropdown_expanded_, monitor_y,
+                          static_cast<int32_t>(monitor_options_.size()), monitor_dropdown_hovered_);
+
+    int32_t resolution_y = monitor_y + 32;
+    update_dropdown_hover(resolution_dropdown_expanded_, resolution_y,
+                          static_cast<int32_t>(resolution_options_.size()), resolution_dropdown_hovered_);
+
+    int32_t framerate_y = resolution_y + 32;
+    update_dropdown_hover(framerate_dropdown_expanded_, framerate_y,
+                          static_cast<int32_t>(framerate_options_.size()), framerate_dropdown_hovered_);
 }
 
 void settings_dialog::render(renderer& rend) {
@@ -346,13 +518,11 @@ void settings_dialog::render(renderer& rend) {
     render_section_header(rend, y, "User Interface");
     y += 25;
 
-    // Classic option
     render_toggle_option(rend, y, "Classic (Original)",
                          current_style_ == ui_style::classic,
                          hovered_element_ == elem_style_classic);
     y += 28;
 
-    // Modern option
     render_toggle_option(rend, y, "Modern",
                          current_style_ == ui_style::modern,
                          hovered_element_ == elem_style_modern);
@@ -362,27 +532,56 @@ void settings_dialog::render(renderer& rend) {
     render_section_header(rend, y, "Video");
     y += 25;
 
-    // Resolution dropdown
-    std::string res_text = selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size())
-        ? resolution_options_[selected_resolution_].label : "Select...";
+    // Display mode dropdown (first)
+    std::string mode_text = (selected_display_mode_ >= 0 && selected_display_mode_ < display_mode_count_)
+        ? display_mode_labels_[selected_display_mode_] : "Select...";
+    render_dropdown(rend, y, "Mode", mode_text,
+                    hovered_element_ == elem_display_mode_dropdown,
+                    display_mode_dropdown_animation_);
+    y += 32;
+
+    // Monitor dropdown (disabled when windowed - only relevant for borderless/fullscreen)
+    bool mon_disabled = (selected_display_mode_ == 0);  // Windowed
+    std::string mon_text = (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
+        ? monitor_options_[selected_monitor_].label : "Select...";
+    render_dropdown(rend, y, "Monitor", mon_text,
+                    !mon_disabled && hovered_element_ == elem_monitor_dropdown,
+                    monitor_dropdown_animation_);
+    if (mon_disabled) {
+        rend.draw_rect(bounds_.x + 100, y, 170, 24, sf::Color(30, 30, 45, 150), true);
+    }
+    y += 32;
+
+    // Resolution dropdown (disabled when borderless)
+    bool res_disabled = (selected_display_mode_ == 1);  // Borderless
+    std::string res_text;
+    if (res_disabled) {
+        // Show native resolution of selected monitor
+        if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size())) {
+            const auto& mon = monitor_options_[selected_monitor_];
+            res_text = std::to_string(mon.width) + "x" + std::to_string(mon.height) + " (Native)";
+        } else {
+            res_text = "Native";
+        }
+    } else {
+        res_text = (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size()))
+            ? resolution_options_[selected_resolution_].label : "Select...";
+    }
     render_dropdown(rend, y, "Resolution", res_text,
-                    hovered_element_ == elem_resolution_dropdown,
+                    !res_disabled && hovered_element_ == elem_resolution_dropdown,
                     resolution_dropdown_animation_);
+    if (res_disabled) {
+        rend.draw_rect(bounds_.x + 100, y, 170, 24, sf::Color(30, 30, 45, 150), true);
+    }
     y += 32;
 
     // Framerate dropdown
-    std::string fps_text = selected_framerate_ >= 0 && selected_framerate_ < static_cast<int32_t>(framerate_options_.size())
+    std::string fps_text = (selected_framerate_ >= 0 && selected_framerate_ < static_cast<int32_t>(framerate_options_.size()))
         ? framerate_options_[selected_framerate_].label : "Select...";
     render_dropdown(rend, y, "Framerate", fps_text,
                     hovered_element_ == elem_framerate_dropdown,
                     framerate_dropdown_animation_);
     y += 32;
-
-    // Fullscreen checkbox
-    render_checkbox(rend, y, "Fullscreen",
-                    fullscreen_,
-                    hovered_element_ == elem_fullscreen_checkbox);
-    y += 28;
 
     // VSync checkbox
     render_checkbox(rend, y, "VSync",
@@ -400,11 +599,9 @@ void settings_dialog::render(renderer& rend) {
     render_section_header(rend, y, "Audio");
     y += 25;
 
-    // Music volume
     render_slider(rend, y, "Music", music_volume_, hovered_element_ == elem_music_slider);
     y += 35;
 
-    // Sound volume
     render_slider(rend, y, "Sound", sound_volume_, hovered_element_ == elem_sound_slider);
     y += 45;
 
@@ -418,90 +615,112 @@ void settings_dialog::render(renderer& rend) {
     sf::Color btn_bg = btn_hovered ? sf::Color(70, 100, 70) : sf::Color(50, 80, 50);
     rend.draw_rect(btn_x, btn_y, btn_width, btn_height, btn_bg, true);
     rend.draw_rect(btn_x, btn_y, btn_width, btn_height, sf::Color(100, 140, 100), false);
-
     rend.draw_text("Apply", btn_x + 32, btn_y + 8, btn_hovered ? sf::Color(200, 255, 200) : sf::Color::White, 12);
 
-    // Render resolution dropdown list on top if expanded or animating
-    if (resolution_dropdown_animation_ > 0.0f) {
-        int32_t dropdown_y = bounds_.y + 40 + 25 + 28 + 40 + 25;  // Match render position
+    // Revert countdown overlay
+    if (revert_countdown_active_) {
+        // Semi-transparent overlay covering the dialog
+        rend.draw_rect(bounds_.x + 1, bounds_.y + 29, bounds_.width - 2, bounds_.height - 30,
+                       sf::Color(0, 0, 0, 180), true);
+
+        // Countdown text
+        int32_t countdown_secs = static_cast<int32_t>(revert_countdown_timer_) + 1;
+        std::string countdown_text = "Keep these display settings?";
+        std::string timer_text = "Reverting in " + std::to_string(countdown_secs) + "s...";
+
+        int32_t center_x = bounds_.x + dialog_width / 2;
+        int32_t center_y = bounds_.y + dialog_height / 2 - 40;
+
+        // Center the text
+        int32_t text1_w = static_cast<int32_t>(countdown_text.size()) * 7;
+        int32_t text2_w = static_cast<int32_t>(timer_text.size()) * 6;
+        rend.draw_text(countdown_text, center_x - text1_w / 2, center_y, sf::Color::White, 13);
+        rend.draw_text(timer_text, center_x - text2_w / 2, center_y + 22, sf::Color(255, 200, 100), 11);
+
+        // Keep Changes button
+        int32_t keep_w = 120, keep_h = 30;
+        int32_t keep_x = center_x - keep_w - 10;
+        int32_t keep_y = center_y + 55;
+        bool keep_hovered = hovered_element_ == elem_keep_changes_button;
+        sf::Color keep_bg = keep_hovered ? sf::Color(70, 120, 70) : sf::Color(50, 90, 50);
+        rend.draw_rect(keep_x, keep_y, keep_w, keep_h, keep_bg, true);
+        rend.draw_rect(keep_x, keep_y, keep_w, keep_h, sf::Color(100, 160, 100), false);
+        rend.draw_text("Keep Changes", keep_x + 14, keep_y + 8,
+                       keep_hovered ? sf::Color(200, 255, 200) : sf::Color::White, 12);
+
+        // Revert button
+        int32_t rev_w = 120, rev_h = 30;
+        int32_t rev_x = center_x + 10;
+        int32_t rev_y = center_y + 55;
+        bool rev_hovered = hovered_element_ == elem_revert_button;
+        sf::Color rev_bg = rev_hovered ? sf::Color(120, 60, 60) : sf::Color(90, 50, 50);
+        rend.draw_rect(rev_x, rev_y, rev_w, rev_h, rev_bg, true);
+        rend.draw_rect(rev_x, rev_y, rev_w, rev_h, sf::Color(160, 100, 100), false);
+        rend.draw_text("Revert", rev_x + 36, rev_y + 8,
+                       rev_hovered ? sf::Color(255, 200, 200) : sf::Color::White, 12);
+    }
+
+    // Helper to render dropdown list overlay
+    auto render_dropdown_list = [&](float animation, int32_t dropdown_y, int32_t count,
+                                    auto& options, int32_t hovered, int32_t selected,
+                                    auto get_label) {
+        if (animation <= 0.0f) return;
+
         int32_t dropdown_x = bounds_.x + 100;
         int32_t dropdown_width = 170;
         int32_t item_height = 22;
         int32_t list_y = dropdown_y + 24;
-        int32_t full_list_height = static_cast<int32_t>(resolution_options_.size()) * item_height;
+        int32_t full_list_height = count * item_height;
 
-        // Apply ease-out for smooth deceleration
-        float eased = 1.0f - (1.0f - resolution_dropdown_animation_) * (1.0f - resolution_dropdown_animation_);
+        float eased = 1.0f - (1.0f - animation) * (1.0f - animation);
         int32_t current_height = static_cast<int32_t>(full_list_height * eased);
 
         if (current_height > 0) {
-            // List background at animated height
             rend.draw_rect(dropdown_x, list_y, dropdown_width, current_height, sf::Color(35, 35, 50), true);
-
-            // Scissor clip for items
             rend.push_scissor(dropdown_x, list_y, dropdown_width, current_height);
 
-            // List items
-            for (size_t i = 0; i < resolution_options_.size(); ++i) {
-                int32_t item_y = list_y + static_cast<int32_t>(i) * item_height;
-
-                // Highlight hovered or selected item
-                if (static_cast<int32_t>(i) == resolution_dropdown_hovered_) {
+            for (int32_t i = 0; i < count; ++i) {
+                int32_t item_y = list_y + i * item_height;
+                if (i == hovered) {
                     rend.draw_rect(dropdown_x + 1, item_y, dropdown_width - 2, item_height, sf::Color(60, 80, 120), true);
-                } else if (static_cast<int32_t>(i) == selected_resolution_) {
+                } else if (i == selected) {
                     rend.draw_rect(dropdown_x + 1, item_y, dropdown_width - 2, item_height, sf::Color(50, 100, 160), true);
                 }
-
-                rend.draw_text(resolution_options_[i].label, dropdown_x + 8, item_y + 4, sf::Color::White, 11);
+                rend.draw_text(get_label(i), dropdown_x + 8, item_y + 4, sf::Color::White, 11);
             }
 
             rend.pop_scissor();
-
-            // Border at animated height (after scissor so not clipped)
             rend.draw_rect(dropdown_x, list_y, dropdown_width, current_height, sf::Color(80, 80, 100), false);
         }
-    }
+    };
 
-    // Render framerate dropdown list on top if expanded or animating
-    if (framerate_dropdown_animation_ > 0.0f) {
-        int32_t dropdown_y = bounds_.y + 40 + 25 + 28 + 40 + 25 + 32;  // After resolution dropdown
-        int32_t dropdown_x = bounds_.x + 100;
-        int32_t dropdown_width = 170;
-        int32_t item_height = 22;
-        int32_t list_y = dropdown_y + 24;
-        int32_t full_list_height = static_cast<int32_t>(framerate_options_.size()) * item_height;
+    // Y positions for each dropdown overlay (must match render layout above)
+    // Order: display_mode, monitor, resolution, framerate
+    int32_t video_start_y = bounds_.y + 40 + 25 + 28 + 40 + 25;
 
-        // Apply ease-out for smooth deceleration
-        float eased = 1.0f - (1.0f - framerate_dropdown_animation_) * (1.0f - framerate_dropdown_animation_);
-        int32_t current_height = static_cast<int32_t>(full_list_height * eased);
+    // Display mode dropdown list (first)
+    render_dropdown_list(display_mode_dropdown_animation_, video_start_y,
+        display_mode_count_, display_mode_labels_,
+        display_mode_dropdown_hovered_, selected_display_mode_,
+        [](int32_t i) -> const char* { return display_mode_labels_[i]; });
 
-        if (current_height > 0) {
-            // List background at animated height
-            rend.draw_rect(dropdown_x, list_y, dropdown_width, current_height, sf::Color(35, 35, 50), true);
+    // Monitor dropdown list (second)
+    render_dropdown_list(monitor_dropdown_animation_, video_start_y + 32,
+        static_cast<int32_t>(monitor_options_.size()), monitor_options_,
+        monitor_dropdown_hovered_, selected_monitor_,
+        [&](int32_t i) -> const std::string& { return monitor_options_[i].label; });
 
-            // Scissor clip for items
-            rend.push_scissor(dropdown_x, list_y, dropdown_width, current_height);
+    // Resolution dropdown list (third)
+    render_dropdown_list(resolution_dropdown_animation_, video_start_y + 64,
+        static_cast<int32_t>(resolution_options_.size()), resolution_options_,
+        resolution_dropdown_hovered_, selected_resolution_,
+        [&](int32_t i) -> const std::string& { return resolution_options_[i].label; });
 
-            // List items
-            for (size_t i = 0; i < framerate_options_.size(); ++i) {
-                int32_t item_y = list_y + static_cast<int32_t>(i) * item_height;
-
-                // Highlight hovered or selected item
-                if (static_cast<int32_t>(i) == framerate_dropdown_hovered_) {
-                    rend.draw_rect(dropdown_x + 1, item_y, dropdown_width - 2, item_height, sf::Color(60, 80, 120), true);
-                } else if (static_cast<int32_t>(i) == selected_framerate_) {
-                    rend.draw_rect(dropdown_x + 1, item_y, dropdown_width - 2, item_height, sf::Color(50, 100, 160), true);
-                }
-
-                rend.draw_text(framerate_options_[i].label, dropdown_x + 8, item_y + 4, sf::Color::White, 11);
-            }
-
-            rend.pop_scissor();
-
-            // Border at animated height (after scissor so not clipped)
-            rend.draw_rect(dropdown_x, list_y, dropdown_width, current_height, sf::Color(80, 80, 100), false);
-        }
-    }
+    // Framerate dropdown list (fourth)
+    render_dropdown_list(framerate_dropdown_animation_, video_start_y + 96,
+        static_cast<int32_t>(framerate_options_.size()), framerate_options_,
+        framerate_dropdown_hovered_, selected_framerate_,
+        [&](int32_t i) -> const std::string& { return framerate_options_[i].label; });
 }
 
 void settings_dialog::render_section_header(renderer& rend, int32_t y, const char* text) {
@@ -621,9 +840,47 @@ void settings_dialog::render_checkbox(renderer& rend, int32_t y, const char* lab
 }
 
 int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) const {
-    // Check UI style options
+    // When revert countdown is active, only the Keep/Revert buttons are interactive
+    if (revert_countdown_active_) {
+        int32_t center_x = bounds_.x + dialog_width / 2;
+        int32_t center_y = bounds_.y + dialog_height / 2 - 40;
+        int32_t btn_w = 120, btn_h = 30;
+        int32_t btn_y = center_y + 55;
+
+        // Keep Changes button
+        int32_t keep_x = center_x - btn_w - 10;
+        if (mouse_x >= keep_x && mouse_x < keep_x + btn_w &&
+            mouse_y >= btn_y && mouse_y < btn_y + btn_h) {
+            return elem_keep_changes_button;
+        }
+
+        // Revert button
+        int32_t rev_x = center_x + 10;
+        if (mouse_x >= rev_x && mouse_x < rev_x + btn_w &&
+            mouse_y >= btn_y && mouse_y < btn_y + btn_h) {
+            return elem_revert_button;
+        }
+
+        return -1;
+    }
+
     int32_t y = bounds_.y + 65;
     int32_t x = bounds_.x + 25;
+    int32_t dropdown_x = bounds_.x + 100;
+    int32_t dropdown_width = 170;
+
+    // Helper to check dropdown items
+    auto check_dropdown_items = [&](bool expanded, int32_t dd_y, int32_t count, int32_t base) -> int32_t {
+        if (!expanded) return -1;
+        int32_t list_y = dd_y + 24;
+        int32_t item_height = 22;
+        int32_t list_height = count * item_height;
+        if (mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width &&
+            mouse_y >= list_y && mouse_y < list_y + list_height) {
+            return base + (mouse_y - list_y) / item_height;
+        }
+        return -1;
+    };
 
     // Classic option
     if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
@@ -636,28 +893,37 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
         return elem_style_modern;
     }
     y += 40;  // Skip to video section
+    y += 25;  // Video section header
 
-    // Video section header at y, then +25 for content
-    y += 25;
-
-    // Resolution dropdown
-    int32_t dropdown_x = bounds_.x + 100;
-    int32_t dropdown_width = 170;
+    // Display mode dropdown (first in video section)
     if (mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width && mouse_y >= y && mouse_y < y + 24) {
+        return elem_display_mode_dropdown;
+    }
+    int32_t item = check_dropdown_items(display_mode_dropdown_expanded_, y, display_mode_count_, elem_display_mode_item_base);
+    if (item >= 0) return item;
+    y += 32;
+
+    // Monitor dropdown (disabled when windowed)
+    bool mon_disabled = (selected_display_mode_ == 0);
+    if (!mon_disabled && mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width && mouse_y >= y && mouse_y < y + 24) {
+        return elem_monitor_dropdown;
+    }
+    if (!mon_disabled) {
+        item = check_dropdown_items(monitor_dropdown_expanded_, y,
+                                     static_cast<int32_t>(monitor_options_.size()), elem_monitor_item_base);
+        if (item >= 0) return item;
+    }
+    y += 32;
+
+    // Resolution dropdown (disabled when borderless)
+    bool res_disabled = (selected_display_mode_ == 1);
+    if (!res_disabled && mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width && mouse_y >= y && mouse_y < y + 24) {
         return elem_resolution_dropdown;
     }
-
-    // If resolution dropdown is expanded, check for item clicks
-    if (resolution_dropdown_expanded_) {
-        int32_t list_y = y + 24;
-        int32_t item_height = 22;
-        int32_t list_height = static_cast<int32_t>(resolution_options_.size()) * item_height;
-
-        if (mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width &&
-            mouse_y >= list_y && mouse_y < list_y + list_height) {
-            int32_t item_index = (mouse_y - list_y) / item_height;
-            return elem_resolution_item_base + item_index;
-        }
+    if (!res_disabled) {
+        item = check_dropdown_items(resolution_dropdown_expanded_, y,
+                                     static_cast<int32_t>(resolution_options_.size()), elem_resolution_item_base);
+        if (item >= 0) return item;
     }
     y += 32;
 
@@ -665,26 +931,10 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
     if (mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width && mouse_y >= y && mouse_y < y + 24) {
         return elem_framerate_dropdown;
     }
-
-    // If framerate dropdown is expanded, check for item clicks
-    if (framerate_dropdown_expanded_) {
-        int32_t list_y = y + 24;
-        int32_t item_height = 22;
-        int32_t list_height = static_cast<int32_t>(framerate_options_.size()) * item_height;
-
-        if (mouse_x >= dropdown_x && mouse_x < dropdown_x + dropdown_width &&
-            mouse_y >= list_y && mouse_y < list_y + list_height) {
-            int32_t item_index = (mouse_y - list_y) / item_height;
-            return elem_framerate_item_base + item_index;
-        }
-    }
+    item = check_dropdown_items(framerate_dropdown_expanded_, y,
+                                 static_cast<int32_t>(framerate_options_.size()), elem_framerate_item_base);
+    if (item >= 0) return item;
     y += 32;
-
-    // Fullscreen checkbox
-    if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
-        return elem_fullscreen_checkbox;
-    }
-    y += 28;
 
     // VSync checkbox
     if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
@@ -697,9 +947,7 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
         return elem_remember_position_checkbox;
     }
     y += 40;  // Skip to audio section
-
-    // Audio section header at y, then +25 for content
-    y += 25;
+    y += 25;  // Audio section header
 
     // Music slider
     int32_t slider_x = bounds_.x + 120;
@@ -731,16 +979,15 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
 bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
     if (!visible_) return false;
 
-    // Helper to close all dropdowns
     auto close_all_dropdowns = [this]() {
+        monitor_dropdown_expanded_ = false;
+        display_mode_dropdown_expanded_ = false;
         resolution_dropdown_expanded_ = false;
         framerate_dropdown_expanded_ = false;
     };
 
-    // Check title bar for dragging and close button (delegate to base class)
-    // Title bar is the first 28 pixels
+    // Check title bar for dragging and close button
     if (btn == sf::Mouse::Button::Left && y >= bounds_.y && y < bounds_.y + 28) {
-        // Check close button first
         if (closeable_) {
             int32_t close_x = bounds_.x + bounds_.width - 24;
             int32_t close_y = bounds_.y + 4;
@@ -752,7 +999,6 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
             }
         }
 
-        // Start dragging if in title bar area
         if (draggable_ && x >= bounds_.x && x < bounds_.x + bounds_.width) {
             dragging_ = true;
             drag_offset_x_ = x - bounds_.x;
@@ -764,6 +1010,36 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
     if (btn == sf::Mouse::Button::Left) {
         int32_t clicked = get_hovered_element(x, y);
 
+        // Handle revert countdown buttons first
+        if (revert_countdown_active_) {
+            if (clicked == elem_keep_changes_button) {
+                revert_countdown_active_ = false;
+                spdlog::info("Display settings kept");
+                return true;
+            }
+            if (clicked == elem_revert_button) {
+                revert_countdown_active_ = false;
+                selected_resolution_ = revert_state_.resolution_index;
+                selected_display_mode_ = revert_state_.display_mode_index;
+                selected_monitor_ = revert_state_.monitor_index;
+                fullscreen_ = revert_state_.fullscreen;
+
+                if (on_resolution_change_) {
+                    on_resolution_change_(revert_state_.width, revert_state_.height,
+                                          revert_state_.fullscreen, revert_state_.borderless,
+                                          revert_state_.monitor_x, revert_state_.monitor_y);
+                }
+                applied_resolution_ = selected_resolution_;
+                applied_display_mode_ = selected_display_mode_;
+                applied_monitor_ = selected_monitor_;
+                applied_fullscreen_ = fullscreen_;
+                spdlog::info("Display settings reverted (user)");
+                return true;
+            }
+            // Block all other clicks during countdown
+            return true;
+        }
+
         // Handle framerate dropdown item selection
         if (clicked >= elem_framerate_item_base) {
             int32_t item_index = clicked - elem_framerate_item_base;
@@ -771,7 +1047,6 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 selected_framerate_ = item_index;
                 framerate_dropdown_expanded_ = false;
                 spdlog::debug("Framerate selected: {}", framerate_options_[item_index].label);
-                // Apply framerate change immediately
                 if (on_framerate_change_) {
                     on_framerate_change_(framerate_options_[item_index].fps);
                 }
@@ -790,6 +1065,39 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
             return true;
         }
 
+        // Handle display mode dropdown item selection
+        if (clicked >= elem_display_mode_item_base && clicked < elem_resolution_item_base) {
+            int32_t item_index = clicked - elem_display_mode_item_base;
+            if (item_index >= 0 && item_index < display_mode_count_) {
+                selected_display_mode_ = item_index;
+                display_mode_dropdown_expanded_ = false;
+                // Close monitor dropdown if switching to windowed (monitor is disabled)
+                if (item_index == 0) {
+                    monitor_dropdown_expanded_ = false;
+                }
+                // Close resolution dropdown if switching to borderless (resolution is disabled)
+                if (item_index == 1) {
+                    resolution_dropdown_expanded_ = false;
+                }
+                // Update fullscreen_ for backward compat
+                fullscreen_ = (item_index == 2);
+                spdlog::debug("Display mode selected: {}", display_mode_labels_[item_index]);
+            }
+            return true;
+        }
+
+        // Handle monitor dropdown item selection
+        if (clicked >= elem_monitor_item_base && clicked < elem_display_mode_item_base) {
+            int32_t item_index = clicked - elem_monitor_item_base;
+            if (item_index >= 0 && item_index < static_cast<int32_t>(monitor_options_.size())) {
+                selected_monitor_ = item_index;
+                monitor_dropdown_expanded_ = false;
+                spdlog::debug("Monitor selected: {}", monitor_options_[item_index].label);
+                rebuild_resolution_options();
+            }
+            return true;
+        }
+
         switch (clicked) {
             case elem_style_classic:
                 close_all_dropdowns();
@@ -803,19 +1111,32 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 if (on_style_change_) on_style_change_(current_style_);
                 return true;
 
+            case elem_monitor_dropdown:
+                display_mode_dropdown_expanded_ = false;
+                resolution_dropdown_expanded_ = false;
+                framerate_dropdown_expanded_ = false;
+                monitor_dropdown_expanded_ = !monitor_dropdown_expanded_;
+                return true;
+
+            case elem_display_mode_dropdown:
+                monitor_dropdown_expanded_ = false;
+                resolution_dropdown_expanded_ = false;
+                framerate_dropdown_expanded_ = false;
+                display_mode_dropdown_expanded_ = !display_mode_dropdown_expanded_;
+                return true;
+
             case elem_resolution_dropdown:
-                framerate_dropdown_expanded_ = false;  // Close other dropdown
+                monitor_dropdown_expanded_ = false;
+                display_mode_dropdown_expanded_ = false;
+                framerate_dropdown_expanded_ = false;
                 resolution_dropdown_expanded_ = !resolution_dropdown_expanded_;
                 return true;
 
             case elem_framerate_dropdown:
-                resolution_dropdown_expanded_ = false;  // Close other dropdown
+                monitor_dropdown_expanded_ = false;
+                display_mode_dropdown_expanded_ = false;
+                resolution_dropdown_expanded_ = false;
                 framerate_dropdown_expanded_ = !framerate_dropdown_expanded_;
-                return true;
-
-            case elem_fullscreen_checkbox:
-                close_all_dropdowns();
-                fullscreen_ = !fullscreen_;
                 return true;
 
             case elem_vsync_checkbox:
@@ -842,30 +1163,109 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 dragging_slider_index_ = elem_sound_slider;
                 return true;
 
-            case elem_apply_button:
+            case elem_apply_button: {
                 close_all_dropdowns();
-                skip_close_after_apply_ = false;  // Reset flag
-                // Only apply resolution change if settings actually changed
-                if (on_resolution_change_ && selected_resolution_ >= 0 &&
-                    selected_resolution_ < static_cast<int32_t>(resolution_options_.size()) &&
-                    (selected_resolution_ != applied_resolution_ || fullscreen_ != applied_fullscreen_)) {
-                    const auto& res = resolution_options_[selected_resolution_];
-                    on_resolution_change_(res.width, res.height, fullscreen_);
-                    // Update applied values
-                    applied_resolution_ = selected_resolution_;
-                    applied_fullscreen_ = fullscreen_;
+                skip_close_after_apply_ = false;
+
+                if (on_resolution_change_) {
+                    bool is_borderless = (selected_display_mode_ == 1);
+                    bool is_fullscreen = (selected_display_mode_ == 2);
+
+                    // Determine new resolution and monitor position
+                    uint32_t res_w = 640, res_h = 480;
+                    int32_t mon_x = 0, mon_y = 0;
+
+                    if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size())) {
+                        mon_x = monitor_options_[selected_monitor_].x;
+                        mon_y = monitor_options_[selected_monitor_].y;
+                    }
+
+                    if (is_borderless) {
+                        if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size())) {
+                            res_w = static_cast<uint32_t>(monitor_options_[selected_monitor_].width);
+                            res_h = static_cast<uint32_t>(monitor_options_[selected_monitor_].height);
+                        }
+                    } else if (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size())) {
+                        res_w = resolution_options_[selected_resolution_].width;
+                        res_h = resolution_options_[selected_resolution_].height;
+                    }
+
+                    bool changed = (selected_resolution_ != applied_resolution_ ||
+                                    selected_display_mode_ != applied_display_mode_ ||
+                                    selected_monitor_ != applied_monitor_);
+
+                    if (changed) {
+                        // Save current state for potential revert
+                        bool old_borderless = (applied_display_mode_ == 1);
+                        bool old_fullscreen = (applied_display_mode_ == 2);
+                        uint32_t old_w = 640, old_h = 480;
+                        int32_t old_mon_x = 0, old_mon_y = 0;
+
+                        // Look up old resolution from applied index
+                        if (old_borderless) {
+                            // Was borderless - use the monitor's native res
+                            // (applied_resolution_ index may not be valid for this)
+                            auto& video = config::instance().video();
+                            old_w = video.screen_width;
+                            old_h = video.screen_height;
+                        } else if (applied_resolution_ >= 0 && applied_resolution_ < static_cast<int32_t>(resolution_options_.size())) {
+                            old_w = resolution_options_[applied_resolution_].width;
+                            old_h = resolution_options_[applied_resolution_].height;
+                        } else {
+                            auto& video = config::instance().video();
+                            old_w = video.screen_width;
+                            old_h = video.screen_height;
+                        }
+
+                        // Look up old monitor position from config
+                        auto& video = config::instance().video();
+                        for (const auto& m : monitors_) {
+                            if (m.index == video.monitor_index) {
+                                old_mon_x = m.x;
+                                old_mon_y = m.y;
+                                break;
+                            }
+                        }
+
+                        // Find the old monitor's option index
+                        int32_t old_monitor_option_idx = 0;
+                        for (size_t i = 0; i < monitor_options_.size(); ++i) {
+                            if (monitor_options_[i].index == video.monitor_index) {
+                                old_monitor_option_idx = static_cast<int32_t>(i);
+                                break;
+                            }
+                        }
+
+                        revert_state_ = {
+                            old_w, old_h, old_fullscreen, old_borderless,
+                            old_mon_x, old_mon_y,
+                            applied_resolution_, applied_display_mode_, old_monitor_option_idx
+                        };
+
+                        // Apply the new settings
+                        on_resolution_change_(res_w, res_h, is_fullscreen, is_borderless, mon_x, mon_y);
+                        applied_resolution_ = selected_resolution_;
+                        applied_display_mode_ = selected_display_mode_;
+                        applied_monitor_ = selected_monitor_;
+                        applied_fullscreen_ = is_fullscreen;
+
+                        // Start revert countdown
+                        revert_countdown_active_ = true;
+                        revert_countdown_timer_ = revert_countdown_duration_;
+                    }
                 }
+
                 if (on_apply_) on_apply_();
-                // Only close if resolution callback didn't request to keep open
-                if (!skip_close_after_apply_) {
+                if (!skip_close_after_apply_ && !revert_countdown_active_) {
                     close();
                 }
-                skip_close_after_apply_ = false;  // Reset for next time
+                skip_close_after_apply_ = false;
                 return true;
+            }
 
             default:
-                // Click outside dropdown - close all
-                if (resolution_dropdown_expanded_ || framerate_dropdown_expanded_) {
+                if (monitor_dropdown_expanded_ || display_mode_dropdown_expanded_ ||
+                    resolution_dropdown_expanded_ || framerate_dropdown_expanded_) {
                     close_all_dropdowns();
                     return true;
                 }

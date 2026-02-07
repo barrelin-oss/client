@@ -1206,7 +1206,8 @@ void game_state_manager::send_view_range() {
     spdlog::info("Sent view range: {}x{}", video.screen_width, video.screen_height);
 }
 
-bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool fullscreen) {
+bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool fullscreen,
+                                           bool borderless, int32_t monitor_x, int32_t monitor_y) {
     if (!renderer_) {
         spdlog::error("Cannot change resolution: renderer not initialized");
         return false;
@@ -1227,7 +1228,7 @@ bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool
         }
     }
 
-    if (!renderer_->set_resolution(width, height, fullscreen)) {
+    if (!renderer_->set_resolution(width, height, fullscreen, borderless, monitor_x, monitor_y)) {
         return false;
     }
 
@@ -1235,6 +1236,7 @@ bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool
     video.screen_width = width;
     video.screen_height = height;
     video.fullscreen = fullscreen;
+    video.borderless = borderless;
 
     world_.set_screen_size(width, height);
 
@@ -1251,7 +1253,7 @@ bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool
             settings_dlg->set_position(new_x, new_y);
             settings_dlg->set_ui_style(current_style);
             settings_dlg->set_resolution(width, height);
-            settings_dlg->set_fullscreen(fullscreen);
+            settings_dlg->set_display_mode(fullscreen, borderless);
             settings_dlg->set_music_volume(music_vol);
             settings_dlg->set_sound_volume(sound_vol);
             settings_dlg->keep_open_after_apply();

@@ -370,6 +370,15 @@ void dialog_callbacks::setup_callbacks()
             if (auto* settings = dynamic_cast<settings_dialog*>(game_->ui().get_dialog(dialog_type::options)))
             {
                 settings->set_ui_style(game_->ui().style());
+
+                // Center the dialog based on current renderer dimensions
+                if (auto* rend = game_->get_renderer())
+                {
+                    auto b = settings->bounds();
+                    int32_t new_x = (static_cast<int32_t>(rend->width()) - b.width) / 2;
+                    int32_t new_y = (static_cast<int32_t>(rend->height()) - b.height) / 2;
+                    settings->set_position(new_x, new_y);
+                }
             }
             game_->ui().open_dialog(dialog_type::options);
         });
@@ -403,7 +412,8 @@ void dialog_callbacks::setup_callbacks()
     {
         const auto& video = config::instance().video();
         settings_dlg->set_resolution(video.screen_width, video.screen_height);
-        settings_dlg->set_fullscreen(video.fullscreen);
+        settings_dlg->set_display_mode(video.fullscreen, video.borderless);
+        settings_dlg->set_monitor_index(video.monitor_index);
         settings_dlg->set_vsync(video.vsync);
         settings_dlg->set_framerate(video.framerate_limit);
         settings_dlg->set_remember_position(video.remember_position);
@@ -417,9 +427,12 @@ void dialog_callbacks::setup_callbacks()
             spdlog::info("UI style preview: {}", style == ui_style::classic ? "classic" : "modern");
         });
 
-        settings_dlg->set_on_resolution_change([this](uint32_t width, uint32_t height, bool fullscreen) {
-            spdlog::info("Resolution change requested: {}x{} {}", width, height, fullscreen ? "fullscreen" : "windowed");
-            if (game_->change_resolution(width, height, fullscreen))
+        settings_dlg->set_on_resolution_change([this](uint32_t width, uint32_t height,
+                                                       bool fullscreen, bool borderless,
+                                                       int32_t monitor_x, int32_t monitor_y) {
+            const char* mode = fullscreen ? "fullscreen" : (borderless ? "borderless" : "windowed");
+            spdlog::info("Resolution change requested: {}x{} {}", width, height, mode);
+            if (game_->change_resolution(width, height, fullscreen, borderless, monitor_x, monitor_y))
             {
                 spdlog::info("Resolution changed successfully");
             }
@@ -484,6 +497,15 @@ void dialog_callbacks::setup_system_menu_buttons(managed_dialog* sys_menu)
         if (auto* settings = dynamic_cast<settings_dialog*>(game_->ui().get_dialog(dialog_type::options)))
         {
             settings->set_ui_style(game_->ui().style());
+
+            // Center the dialog based on current renderer dimensions
+            if (auto* rend = game_->get_renderer())
+            {
+                auto b = settings->bounds();
+                int32_t new_x = (static_cast<int32_t>(rend->width()) - b.width) / 2;
+                int32_t new_y = (static_cast<int32_t>(rend->height()) - b.height) / 2;
+                settings->set_position(new_x, new_y);
+            }
         }
         game_->ui().open_dialog(dialog_type::options);
     });

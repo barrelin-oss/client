@@ -52,6 +52,7 @@ private:
 
     // State
     bool running_ = false;
+    bool had_focus_ = true;  // Track focus changes for borderless topmost
 
     // Timing
     using clock = std::chrono::high_resolution_clock;

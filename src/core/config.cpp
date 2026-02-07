@@ -65,6 +65,8 @@ bool config::load(std::string_view path) {
             if (v.contains("screen_width")) video_.screen_width = v["screen_width"].get<uint32_t>();
             if (v.contains("screen_height")) video_.screen_height = v["screen_height"].get<uint32_t>();
             if (v.contains("fullscreen")) video_.fullscreen = v["fullscreen"].get<bool>();
+            if (v.contains("borderless")) video_.borderless = v["borderless"].get<bool>();
+            if (v.contains("monitor_index")) video_.monitor_index = v["monitor_index"].get<int32_t>();
             if (v.contains("vsync")) video_.vsync = v["vsync"].get<bool>();
             if (v.contains("framerate_limit")) video_.framerate_limit = v["framerate_limit"].get<uint32_t>();
             if (v.contains("show_fps")) video_.show_fps = v["show_fps"].get<bool>();
@@ -169,6 +171,8 @@ bool config::save(std::string_view path) const {
         {"screen_width", video_.screen_width},
         {"screen_height", video_.screen_height},
         {"fullscreen", video_.fullscreen},
+        {"borderless", video_.borderless},
+        {"monitor_index", video_.monitor_index},
         {"vsync", video_.vsync},
         {"framerate_limit", video_.framerate_limit},
         {"show_fps", video_.show_fps},

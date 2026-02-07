@@ -205,7 +205,8 @@ public:
     void cancel_transition() { transition_.cancel(); }
 
     // Resolution change API
-    bool change_resolution(uint32_t width, uint32_t height, bool fullscreen);
+    bool change_resolution(uint32_t width, uint32_t height, bool fullscreen,
+                           bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
 
     // Spell hotbar
     void set_spell_hotbar_slot(size_t slot, uint16_t spell_id);

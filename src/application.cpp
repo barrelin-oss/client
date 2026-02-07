@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "platform/monitor.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -63,7 +64,23 @@ bool application::initialize() {
 
     // Initialize renderer
     auto& video_cfg = config::instance().video();
-    if (!renderer_.initialize(video_cfg.screen_width, video_cfg.screen_height, video_cfg.fullscreen)) {
+    int32_t monitor_x = 0, monitor_y = 0;
+    if (video_cfg.borderless) {
+        // Find the target monitor's position for borderless mode
+        auto monitors = hb::enumerate_monitors();
+        for (const auto& m : monitors) {
+            if (m.index == video_cfg.monitor_index) {
+                monitor_x = m.x;
+                monitor_y = m.y;
+                // Override resolution to match monitor native res
+                video_cfg.screen_width = static_cast<uint32_t>(m.width);
+                video_cfg.screen_height = static_cast<uint32_t>(m.height);
+                break;
+            }
+        }
+    }
+    if (!renderer_.initialize(video_cfg.screen_width, video_cfg.screen_height,
+                              video_cfg.fullscreen, video_cfg.borderless, monitor_x, monitor_y)) {
         spdlog::error("Failed to initialize renderer");
         return false;
     }
@@ -224,6 +241,13 @@ void application::main_loop() {
 void application::process_events() {
     while (auto event = renderer_.window().pollEvent()) {
         input_.process_event(*event);
+    }
+
+    // Track focus changes for borderless topmost management
+    bool has_focus = input_.has_focus();
+    if (has_focus != had_focus_) {
+        had_focus_ = has_focus;
+        renderer_.on_focus_changed(has_focus);
     }
 
     // Handle global hotkeys

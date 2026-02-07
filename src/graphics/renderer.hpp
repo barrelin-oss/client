@@ -12,7 +12,8 @@ class sprite;
 
 class renderer {
 public:
-    bool initialize(uint32_t width, uint32_t height, bool fullscreen);
+    bool initialize(uint32_t width, uint32_t height, bool fullscreen,
+                    bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
     void shutdown();
 
     void begin_frame();
@@ -51,7 +52,8 @@ public:
     void pop_scissor();
 
     // Resolution change
-    bool set_resolution(uint32_t width, uint32_t height, bool fullscreen);
+    bool set_resolution(uint32_t width, uint32_t height, bool fullscreen,
+                        bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
 
     // View control for zoom
     // zoom_level: 1.0 = normal, >1 = zoomed out, <1 = zoomed in
@@ -67,6 +69,13 @@ public:
     uint32_t width() const { return width_; }
     uint32_t height() const { return height_; }
 
+    // Borderless topmost management
+    bool is_borderless() const { return borderless_; }
+    void set_topmost(bool topmost);
+
+    // Call when window gains/loses focus to toggle topmost for borderless windows
+    void on_focus_changed(bool has_focus);
+
 private:
     sf::RenderWindow window_;
     sf::Font font_;
@@ -74,6 +83,7 @@ private:
 
     uint32_t width_ = 0;
     uint32_t height_ = 0;
+    bool borderless_ = false;
 
     text_renderer text_renderer_;
 };

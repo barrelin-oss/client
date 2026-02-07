@@ -361,6 +361,9 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     // Spawn nearby entities
     for (const auto& ent : response.world.entities)
     {
+        // Skip entities that already exist (handles self + ID collisions)
+        if (entities.get_entity(ent.entity_id)) continue;
+
         entity_type type = entity_type::character;
         if (ent.type == "npc") type = entity_type::npc;
         else if (ent.type == "monster") type = entity_type::monster;
@@ -659,6 +662,9 @@ void ws_message_handler::handle_hunger_update(const json& message)
 void ws_message_handler::handle_npc_move(const json& message)
 {
     auto data = npc_move_data::from_json(message);
+
+    // Never apply NPC moves to the local player (guards against server ID collisions)
+    if (data.entity_id == game_->entities().local_player_id()) return;
 
     entity* ent = game_->entities().get_entity(data.entity_id);
     if (!ent)

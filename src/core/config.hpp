@@ -14,6 +14,8 @@ struct video_config {
     uint32_t screen_width = 640;
     uint32_t screen_height = 480;
     bool fullscreen = false;
+    bool borderless = false;        // borderless windowed mode
+    int32_t monitor_index = 0;      // which monitor to use (0 = primary)
     bool vsync = true;
     uint32_t framerate_limit = 60;  // 0 = unlimited
     bool show_fps = false;

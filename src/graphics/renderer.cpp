@@ -6,18 +6,34 @@
 #include <SFML/OpenGL.hpp>
 #include <spdlog/spdlog.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+// X11 defines None as a macro (0L) which conflicts with sf::Style::None
+#undef None
+#endif
+
 namespace hb {
 
-bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
+bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen,
+                          bool borderless, int32_t monitor_x, int32_t monitor_y) {
     width_ = width;
     height_ = height;
+    borderless_ = borderless;
 
     // SFML 3.0 uses sf::VideoMode with Vector2u
     sf::VideoMode mode({width, height});
 
-    // SFML 3.0 uses sf::State for fullscreen
     if (fullscreen) {
+        // True exclusive fullscreen
         window_.create(mode, "Helbreath", sf::Style::None, sf::State::Fullscreen);
+    } else if (borderless) {
+        // Borderless windowed: no titlebar, no display mode change
+        window_.create(mode, "Helbreath", sf::Style::None, sf::State::Windowed);
     } else {
         window_.create(mode, "Helbreath", sf::Style::Close);
     }
@@ -34,8 +50,13 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
         return false;
     }
 
-    // Position the window on the primary monitor
-    if (!fullscreen) {
+    // Position the window
+    if (borderless) {
+        // Place borderless window at the target monitor's origin
+        window_.setPosition({monitor_x, monitor_y});
+        // Set topmost so the window renders above the OS taskbar
+        set_topmost(true);
+    } else if (!fullscreen) {
         if (video.remember_position && video.window_x >= 0 && video.window_y >= 0) {
             window_.setPosition({video.window_x, video.window_y});
             spdlog::info("Restored window position: {}, {}", video.window_x, video.window_y);
@@ -50,12 +71,13 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
     // SFML automatically restores the OS cursor when the mouse leaves the window.
     window_.setMouseCursorVisible(false);
 
-    spdlog::info("Renderer initialized: {}x{} {}", width, height,
-                 fullscreen ? "fullscreen" : "windowed");
+    const char* mode_str = fullscreen ? "fullscreen" : (borderless ? "borderless" : "windowed");
+    spdlog::info("Renderer initialized: {}x{} {}", width, height, mode_str);
     return true;
 }
 
-bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) {
+bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen,
+                              bool borderless, int32_t monitor_x, int32_t monitor_y) {
     // Capture the current window center before destroying it so we can
     // place the new window on the same monitor.
     std::optional<sf::Vector2i> prev_center;
@@ -77,6 +99,8 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) 
 
     if (fullscreen) {
         window_.create(mode, "Helbreath", sf::Style::None, sf::State::Fullscreen);
+    } else if (borderless) {
+        window_.create(mode, "Helbreath", sf::Style::None, sf::State::Windowed);
     } else {
         window_.create(mode, "Helbreath", sf::Style::Close);
     }
@@ -93,9 +117,14 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) 
         return false;
     }
 
-    // Re-center the window around where the old window was, keeping it
-    // on the same monitor. Use the same logic as initial window creation.
-    if (!fullscreen) {
+    // Update borderless state
+    borderless_ = borderless;
+
+    // Position the window
+    if (borderless) {
+        window_.setPosition({monitor_x, monitor_y});
+        set_topmost(true);
+    } else if (!fullscreen) {
         if (video.remember_position && video.window_x >= 0 && video.window_y >= 0) {
             window_.setPosition({video.window_x, video.window_y});
         } else if (prev_center) {
@@ -112,8 +141,8 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) 
     // Hide the system cursor (window was recreated)
     window_.setMouseCursorVisible(false);
 
-    spdlog::info("Resolution changed to {}x{} {}", width, height,
-                 fullscreen ? "fullscreen" : "windowed");
+    const char* mode_str = fullscreen ? "fullscreen" : (borderless ? "borderless" : "windowed");
+    spdlog::info("Resolution changed to {}x{} {}", width, height, mode_str);
     return true;
 }
 
@@ -253,6 +282,47 @@ void renderer::set_zoom_view(float zoom_level, float center_x, float center_y) {
 
 void renderer::reset_to_default_view() {
     window_.setView(window_.getDefaultView());
+}
+
+void renderer::set_topmost(bool topmost) {
+    if (!window_.isOpen()) return;
+
+#ifdef _WIN32
+    auto hwnd = reinterpret_cast<HWND>(window_.getNativeHandle());
+    SetWindowPos(hwnd, topmost ? HWND_TOPMOST : HWND_NOTOPMOST,
+                 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+#else
+    auto xwindow = static_cast<Window>(window_.getNativeHandle());
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) return;
+
+    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom wm_above = XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
+
+    XEvent event{};
+    event.xclient.type = ClientMessage;
+    event.xclient.window = xwindow;
+    event.xclient.message_type = wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = topmost ? 1 : 0;  // _NET_WM_STATE_ADD or _NET_WM_STATE_REMOVE
+    event.xclient.data.l[1] = static_cast<long>(wm_above);
+    event.xclient.data.l[2] = 0;
+
+    XSendEvent(display, DefaultRootWindow(display), False,
+               SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display);
+    XCloseDisplay(display);
+#endif
+
+    spdlog::debug("Window topmost: {}", topmost);
+}
+
+void renderer::on_focus_changed(bool has_focus) {
+    if (!borderless_) return;
+
+    // When a borderless window loses focus, remove topmost so the user can
+    // interact with other windows. Restore topmost when focus returns.
+    set_topmost(has_focus);
 }
 
 } // namespace hb

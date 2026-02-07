@@ -4,6 +4,7 @@
 #include "core/constants.hpp"
 #include <format>
 #include <algorithm>
+#include <cstring>
 
 namespace hb {
 

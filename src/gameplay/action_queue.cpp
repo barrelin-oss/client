@@ -126,7 +126,7 @@ void action_queue::process_pending()
                                                     static_cast<uint8_t>(direction_to_protocol(*pending_action_.face_dir)));
                 game_->ws_connection().send(msg);
                 t.moving = false;
-                t.direction = *pending_action_.face_dir;
+                t.facing = *pending_action_.face_dir;
                 p->set_action_with_combat_mode(object_action::stop_peace, combat_mode);
             }
             break;
@@ -141,7 +141,7 @@ void action_queue::process_pending()
                 if (t.moving)
                 {
                     json msg = make_player_stop_request(t.tile_x, t.tile_y,
-                                                        static_cast<uint8_t>(direction_to_protocol(t.direction)));
+                                                        static_cast<uint8_t>(direction_to_protocol(t.facing)));
                     game_->ws_connection().send(msg);
                 }
                 t.moving = false;

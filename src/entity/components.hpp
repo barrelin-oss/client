@@ -15,7 +15,7 @@ struct transform_component {
     int32_t y = 0;              // World Y position
     int32_t tile_x = 0;         // Tile X coordinate
     int32_t tile_y = 0;         // Tile Y coordinate
-    direction direction = direction::south;  // Facing direction
+    direction facing = direction::south;  // Facing direction
     float move_progress = 0.0f; // 0.0 to 1.0 for smooth movement
     int32_t dest_tile_x = 0;    // Movement destination
     int32_t dest_tile_y = 0;

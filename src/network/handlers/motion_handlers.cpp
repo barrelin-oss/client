@@ -34,7 +34,7 @@ void motion_handler::handle_motion_response(packet_reader& reader) {
             // Update destination (server is authoritative)
             t.dest_tile_x = *x;
             t.dest_tile_y = *y;
-            t.direction = static_cast<direction>(*dir);
+            t.facing = static_cast<direction>(*dir);
 
             // Rubber-band correction if server position differs significantly
             int32_t dx = std::abs(t.tile_x - *x);
@@ -159,7 +159,7 @@ void motion_handler::process_stop(uint32_t entity_id, packet_reader& reader) {
     t.tile_y = *y;
     t.x = *x * 32 + 16;  // Tile center X
     t.y = *y * 32 + 16;  // Tile center Y (feet position)
-    t.direction = static_cast<direction>(*dir);
+    t.facing = static_cast<direction>(*dir);
     ent->set_action(object_action::stop_peace);
 }
 
@@ -186,7 +186,7 @@ void motion_handler::process_move(uint32_t entity_id, packet_reader& reader) {
     ent->set_move_target(*x, *y);
     t.dest_tile_x = *x;
     t.dest_tile_y = *y;
-    t.direction = static_cast<direction>(*dir);
+    t.facing = static_cast<direction>(*dir);
     t.moving = true;
     t.move_progress = 0.0f;
     ent->set_action(object_action::move_peace);
@@ -217,7 +217,7 @@ void motion_handler::process_run(uint32_t entity_id, packet_reader& reader) {
     ent->set_move_target(*x, *y);
     t.dest_tile_x = *x;
     t.dest_tile_y = *y;
-    t.direction = static_cast<direction>(*dir);
+    t.facing = static_cast<direction>(*dir);
     t.moving = true;
     t.move_progress = 0.0f;
     ent->set_action(object_action::run);
@@ -233,7 +233,7 @@ void motion_handler::process_attack(uint32_t entity_id, packet_reader& reader) {
     entity* ent = game_->entities().find(entity_id);
     if (!ent) return;
 
-    ent->transform().direction = static_cast<direction>(*dir);
+    ent->transform().facing = static_cast<direction>(*dir);
     ent->set_action(object_action::attack_peace);
     if (target_id) {
         ent->set_target(*target_id);
@@ -255,7 +255,7 @@ void motion_handler::process_attack_move(uint32_t entity_id, packet_reader& read
     if (!ent) return;
 
     ent->set_move_target(*x, *y);
-    ent->transform().direction = static_cast<direction>(*dir);
+    ent->transform().facing = static_cast<direction>(*dir);
     ent->set_action(object_action::attack_peace);
     if (target_id) {
         ent->set_target(*target_id);
@@ -288,7 +288,7 @@ void motion_handler::process_damage_move(uint32_t entity_id, packet_reader& read
     if (!ent) return;
 
     ent->set_move_target(*x, *y);
-    ent->transform().direction = static_cast<direction>(*dir);
+    ent->transform().facing = static_cast<direction>(*dir);
     ent->set_action(object_action::damage);
 }
 
@@ -303,7 +303,7 @@ void motion_handler::process_magic(uint32_t entity_id, packet_reader& reader) {
     entity* ent = game_->entities().find(entity_id);
     if (!ent) return;
 
-    ent->transform().direction = static_cast<direction>(*dir);
+    ent->transform().facing = static_cast<direction>(*dir);
     ent->set_action(object_action::magic);
     ent->set_casting_spell(*spell_id);
 
@@ -362,7 +362,7 @@ void motion_handler::process_dying(uint32_t entity_id, packet_reader& reader) {
     if (!ent) return;
 
     if (dir) {
-        ent->transform().direction = static_cast<direction>(*dir);
+        ent->transform().facing = static_cast<direction>(*dir);
     }
     ent->set_action(object_action::dying);
 }
@@ -397,7 +397,7 @@ void motion_handler::process_spawn_object(packet_reader& reader) {
     t.y = *y * 32 + 32;
 
     if (dir) {
-        t.direction = static_cast<direction>(*dir);
+        t.facing = static_cast<direction>(*dir);
     }
     if (name) {
         ent.set_name(*name);

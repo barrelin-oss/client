@@ -32,7 +32,7 @@ void inventory_system::initialize() {
 
 void inventory_system::clear() {
     for (auto& slot : slots_) {
-        slot.item.reset();
+        slot.held_item.reset();
         slot.locked = false;
     }
     equipped_ = {};
@@ -44,10 +44,10 @@ bool inventory_system::add_item(const item& itm, size_t preferred_slot) {
     // Try to stack with existing items first
     if (itm.is_stackable()) {
         for (size_t i = 0; i < inventory_size; ++i) {
-            if (slots_[i].item && slots_[i].item->type_id == itm.type_id) {
-                uint32_t can_add = slots_[i].item->max_stack - slots_[i].item->amount;
+            if (slots_[i].held_item && slots_[i].held_item->type_id == itm.type_id) {
+                uint32_t can_add = slots_[i].held_item->max_stack - slots_[i].held_item->amount;
                 if (can_add > 0) {
-                    slots_[i].item->amount += std::min(can_add, itm.amount);
+                    slots_[i].held_item->amount += std::min(can_add, itm.amount);
                     notify_item_changed(i);
                     recalculate_weight();
                     return true;
@@ -58,7 +58,7 @@ bool inventory_system::add_item(const item& itm, size_t preferred_slot) {
 
     // Find empty slot
     size_t slot = SIZE_MAX;
-    if (preferred_slot < inventory_size && !slots_[preferred_slot].item) {
+    if (preferred_slot < inventory_size && !slots_[preferred_slot].held_item) {
         slot = preferred_slot;
     } else {
         slot = find_empty_slot();
@@ -69,20 +69,20 @@ bool inventory_system::add_item(const item& itm, size_t preferred_slot) {
         return false;
     }
 
-    slots_[slot].item = itm;
+    slots_[slot].held_item = itm;
     notify_item_changed(slot);
     recalculate_weight();
     return true;
 }
 
 bool inventory_system::remove_item(size_t slot, uint32_t amount) {
-    if (slot >= inventory_size || !slots_[slot].item) {
+    if (slot >= inventory_size || !slots_[slot].held_item) {
         return false;
     }
 
-    auto& itm = *slots_[slot].item;
+    auto& itm = *slots_[slot].held_item;
     if (itm.amount <= amount) {
-        slots_[slot].item.reset();
+        slots_[slot].held_item.reset();
     } else {
         itm.amount -= amount;
     }
@@ -101,17 +101,17 @@ bool inventory_system::move_item(size_t from_slot, size_t to_slot) {
         return true;
     }
 
-    if (!slots_[from_slot].item) {
+    if (!slots_[from_slot].held_item) {
         return false;
     }
 
     // Try to stack if possible
-    if (slots_[to_slot].item &&
-        slots_[from_slot].item->type_id == slots_[to_slot].item->type_id &&
-        slots_[from_slot].item->is_stackable()) {
+    if (slots_[to_slot].held_item &&
+        slots_[from_slot].held_item->type_id == slots_[to_slot].held_item->type_id &&
+        slots_[from_slot].held_item->is_stackable()) {
 
-        auto& from = *slots_[from_slot].item;
-        auto& to = *slots_[to_slot].item;
+        auto& from = *slots_[from_slot].held_item;
+        auto& to = *slots_[to_slot].held_item;
 
         uint32_t can_add = to.max_stack - to.amount;
         uint32_t to_add = std::min(can_add, from.amount);
@@ -120,11 +120,11 @@ bool inventory_system::move_item(size_t from_slot, size_t to_slot) {
         from.amount -= to_add;
 
         if (from.amount == 0) {
-            slots_[from_slot].item.reset();
+            slots_[from_slot].held_item.reset();
         }
     } else {
         // Swap items
-        std::swap(slots_[from_slot].item, slots_[to_slot].item);
+        std::swap(slots_[from_slot].held_item, slots_[to_slot].held_item);
     }
 
     notify_item_changed(from_slot);
@@ -133,11 +133,11 @@ bool inventory_system::move_item(size_t from_slot, size_t to_slot) {
 }
 
 bool inventory_system::split_stack(size_t slot, uint32_t amount) {
-    if (slot >= inventory_size || !slots_[slot].item) {
+    if (slot >= inventory_size || !slots_[slot].held_item) {
         return false;
     }
 
-    auto& itm = *slots_[slot].item;
+    auto& itm = *slots_[slot].held_item;
     if (!itm.is_stackable() || itm.amount <= amount) {
         return false;
     }
@@ -151,7 +151,7 @@ bool inventory_system::split_stack(size_t slot, uint32_t amount) {
     new_item.amount = amount;
     itm.amount -= amount;
 
-    slots_[empty_slot].item = new_item;
+    slots_[empty_slot].held_item = new_item;
 
     notify_item_changed(slot);
     notify_item_changed(empty_slot);
@@ -159,11 +159,11 @@ bool inventory_system::split_stack(size_t slot, uint32_t amount) {
 }
 
 bool inventory_system::equip_item(size_t inventory_slot) {
-    if (inventory_slot >= inventory_size || !slots_[inventory_slot].item) {
+    if (inventory_slot >= inventory_size || !slots_[inventory_slot].held_item) {
         return false;
     }
 
-    const auto& itm = *slots_[inventory_slot].item;
+    const auto& itm = *slots_[inventory_slot].held_item;
     if (itm.slot == equip_slot::none) {
         spdlog::warn("Item {} cannot be equipped", itm.name);
         return false;
@@ -175,7 +175,7 @@ bool inventory_system::equip_item(size_t inventory_slot) {
     }
 
     // Swap equipped item with inventory item
-    std::swap(*eq_slot, slots_[inventory_slot].item);
+    std::swap(*eq_slot, slots_[inventory_slot].held_item);
 
     notify_item_changed(inventory_slot);
     notify_equipment_changed(itm.slot);
@@ -195,7 +195,7 @@ bool inventory_system::unequip_item(equip_slot slot) {
         return false;
     }
 
-    slots_[inv_slot].item = std::move(*eq_slot);
+    slots_[inv_slot].held_item = std::move(*eq_slot);
     eq_slot->reset();
 
     notify_item_changed(inv_slot);
@@ -214,7 +214,7 @@ bool inventory_system::swap_equipment(equip_slot slot, size_t inventory_slot) {
         return false;
     }
 
-    std::swap(*eq_slot, slots_[inventory_slot].item);
+    std::swap(*eq_slot, slots_[inventory_slot].held_item);
 
     notify_item_changed(inventory_slot);
     notify_equipment_changed(slot);
@@ -239,10 +239,10 @@ inventory_slot& inventory_system::get_slot_mut(size_t index) {
 }
 
 const item* inventory_system::get_item(size_t slot) const {
-    if (slot >= inventory_size || !slots_[slot].item) {
+    if (slot >= inventory_size || !slots_[slot].held_item) {
         return nullptr;
     }
-    return &(*slots_[slot].item);
+    return &(*slots_[slot].held_item);
 }
 
 const item* inventory_system::get_equipped(equip_slot slot) const {
@@ -280,7 +280,7 @@ void inventory_system::add_gold(uint32_t amount) {
 
 size_t inventory_system::find_item_by_type(uint16_t type_id) const {
     for (size_t i = 0; i < inventory_size; ++i) {
-        if (slots_[i].item && slots_[i].item->type_id == type_id) {
+        if (slots_[i].held_item && slots_[i].held_item->type_id == type_id) {
             return i;
         }
     }
@@ -289,7 +289,7 @@ size_t inventory_system::find_item_by_type(uint16_t type_id) const {
 
 size_t inventory_system::find_empty_slot() const {
     for (size_t i = 0; i < inventory_size; ++i) {
-        if (!slots_[i].item) {
+        if (!slots_[i].held_item) {
             return i;
         }
     }
@@ -299,7 +299,7 @@ size_t inventory_system::find_empty_slot() const {
 size_t inventory_system::count_items() const {
     size_t count = 0;
     for (const auto& slot : slots_) {
-        if (slot.item) {
+        if (slot.held_item) {
             ++count;
         }
     }
@@ -309,8 +309,8 @@ size_t inventory_system::count_items() const {
 size_t inventory_system::count_item_type(uint16_t type_id) const {
     size_t count = 0;
     for (const auto& slot : slots_) {
-        if (slot.item && slot.item->type_id == type_id) {
-            count += slot.item->amount;
+        if (slot.held_item && slot.held_item->type_id == type_id) {
+            count += slot.held_item->amount;
         }
     }
     return count;
@@ -584,14 +584,14 @@ inventory_system::equipment_effects inventory_system::get_equipment_effects() co
 
 void inventory_system::set_item_at(size_t slot, const item& itm) {
     if (slot >= inventory_size) return;
-    slots_[slot].item = itm;
+    slots_[slot].held_item = itm;
     notify_item_changed(slot);
     recalculate_weight();
 }
 
 void inventory_system::clear_slot(size_t slot) {
     if (slot >= inventory_size) return;
-    slots_[slot].item.reset();
+    slots_[slot].held_item.reset();
     notify_item_changed(slot);
     recalculate_weight();
 }
@@ -615,20 +615,20 @@ void inventory_system::clear_equipped(equip_slot slot) {
 }
 
 void inventory_system::set_item_count(size_t slot, uint32_t count) {
-    if (slot >= inventory_size || !slots_[slot].item) return;
-    slots_[slot].item->amount = count;
+    if (slot >= inventory_size || !slots_[slot].held_item) return;
+    slots_[slot].held_item->amount = count;
     notify_item_changed(slot);
 }
 
 void inventory_system::set_item_color(size_t slot, uint8_t color) {
-    if (slot >= inventory_size || !slots_[slot].item) return;
-    slots_[slot].item->color = color;
+    if (slot >= inventory_size || !slots_[slot].held_item) return;
+    slots_[slot].held_item->color = color;
     notify_item_changed(slot);
 }
 
 void inventory_system::set_item_attribute(size_t slot, uint32_t attribute) {
-    if (slot >= inventory_size || !slots_[slot].item) return;
-    slots_[slot].item->attribute = attribute;
+    if (slot >= inventory_size || !slots_[slot].held_item) return;
+    slots_[slot].held_item->attribute = attribute;
     notify_item_changed(slot);
 }
 
@@ -636,8 +636,8 @@ void inventory_system::recalculate_weight() {
     current_weight_ = 0;
 
     for (const auto& slot : slots_) {
-        if (slot.item) {
-            current_weight_ += slot.item->weight * slot.item->amount;
+        if (slot.held_item) {
+            current_weight_ += slot.held_item->weight * slot.held_item->amount;
         }
     }
 

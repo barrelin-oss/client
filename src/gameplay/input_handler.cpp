@@ -166,7 +166,7 @@ void input_handler::handle_movement_input(const input& inp)
                     {
                         spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
                         game_->network().request_attack(target->id(), 0);
-                        player->transform().direction = direction::north;
+                        player->transform().facing = direction::north;
                     }
                     else
                     {
@@ -246,7 +246,7 @@ void input_handler::handle_movement_input(const input& inp)
         {
             if (t.moving)
             {
-                face_dir = t.direction;
+                face_dir = t.facing;
             }
         }
         else if (std::abs(dx) > std::abs(dy) * 2)
@@ -265,9 +265,9 @@ void input_handler::handle_movement_input(const input& inp)
             else if (dx < 0 && dy < 0) face_dir = direction::north_west;
         }
 
-        if (face_dir && (t.moving || t.direction != *face_dir))
+        if (face_dir && (t.moving || t.facing != *face_dir))
         {
-            t.direction = *face_dir;
+            t.facing = *face_dir;
 
             if (action_q.can_perform_action())
             {
@@ -367,7 +367,7 @@ void input_handler::handle_movement_input(const input& inp)
 
         t.dest_tile_x = next_x;
         t.dest_tile_y = next_y;
-        t.direction = *dir;
+        t.facing = *dir;
         t.moving = true;
         t.move_progress = 0.0f;
 
@@ -433,7 +433,7 @@ void input_handler::handle_movement_input(const input& inp)
 
         t.dest_tile_x = next_x;
         t.dest_tile_y = next_y;
-        t.direction = *move_dir;
+        t.facing = *move_dir;
         t.moving = true;
         t.move_progress = 0.0f;
 

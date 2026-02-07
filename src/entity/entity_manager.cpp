@@ -337,7 +337,7 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
     }
     else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
         // NPCs and monsters - use NPC sprite bounds
-        int32_t dir = direction_to_sprite_index(t.direction);
+        int32_t dir = direction_to_sprite_index(t.facing);
         int32_t npc_action = action_to_npc_action_index(e.current_action());
 
         // Get visual type from component or entity
@@ -370,7 +370,7 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
     }
     else {
         // Player characters - use body sprite bounds
-        int32_t dir = direction_to_sprite_index(t.direction);
+        int32_t dir = direction_to_sprite_index(t.facing);
         int32_t action = static_cast<int32_t>(e.current_action());
         int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
 
@@ -558,7 +558,7 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
     // Update facing direction during movement
     if (t.dest_tile_x != t.tile_x || t.dest_tile_y != t.tile_y) {
         if (auto dir = calculate_direction(t.tile_x, t.tile_y, t.dest_tile_x, t.dest_tile_y)) {
-            t.direction = *dir;
+            t.facing = *dir;
         }
     }
 
@@ -723,7 +723,7 @@ void entity_manager::render_player_character(renderer& rend, sprite_manager& spr
     const auto& t = e.transform();
     const auto& s = e.sprite();
 
-    int32_t dir = direction_to_sprite_index(t.direction);
+    int32_t dir = direction_to_sprite_index(t.facing);
     int32_t action = static_cast<int32_t>(e.current_action());
 
     // Calculate frame index for sprites: (dir-1)*8 + current_frame
@@ -778,7 +778,7 @@ void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprit
     const auto& t = e.transform();
     const auto& s = e.sprite();
 
-    int32_t dir = direction_to_sprite_index(t.direction);
+    int32_t dir = direction_to_sprite_index(t.facing);
     int32_t npc_action = action_to_npc_action_index(e.current_action());
 
     // Get visual type from component or entity

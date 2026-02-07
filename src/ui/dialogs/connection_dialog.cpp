@@ -1,6 +1,7 @@
 #include "ui/dialogs/connection_dialog.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
+#include <cstring>
 
 namespace hb {
 

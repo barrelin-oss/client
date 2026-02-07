@@ -2,6 +2,7 @@
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "core/constants.hpp"
+#include <cstring>
 #include <format>
 
 namespace hb {

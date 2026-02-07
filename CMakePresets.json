@@ -8,13 +8,13 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default",
-      "description": "Default build with vcpkg",
+      "displayName": "Default (Debug)",
+      "description": "Debug build with vcpkg",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "type": "FILEPATH",
-          "value": "C:/code/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
         },
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -27,7 +27,7 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "type": "FILEPATH",
-          "value": "C:/code/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
         },
         "CMAKE_BUILD_TYPE": "Release"
       }

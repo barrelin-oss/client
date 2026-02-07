@@ -15,7 +15,7 @@ inline constexpr size_t bank_size = 120;
 
 // Inventory slot
 struct inventory_slot {
-    std::optional<item> item;
+    std::optional<item> held_item;
     bool locked = false;  // For trade/exchange locking
 };
 

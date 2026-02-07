@@ -370,7 +370,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         ent_transform.tile_y = ent.y;
         ent_transform.x = ent.x * 32;
         ent_transform.y = ent.y * 32;
-        ent_transform.direction = direction_from_protocol(ent.direction).value_or(direction::south);
+        ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
 
         if (world_entity.has_name())
         {
@@ -489,7 +489,7 @@ void ws_message_handler::handle_player_position_update(const json& message)
 
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
 
@@ -504,7 +504,7 @@ void ws_message_handler::handle_player_position_update(const json& message)
     }
 
     spdlog::debug("Entity {} position updated: ({},{}) dir={} running={} dest=({},{})",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.direction), data.is_running,
+                  data.entity_id, data.x, data.y, static_cast<int>(t.facing), data.is_running,
                   data.dest_x, data.dest_y);
 }
 
@@ -524,12 +524,12 @@ void ws_message_handler::handle_player_stop_response(const json& message)
     auto& t = player->transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
 
     spdlog::debug("Player stop confirmed: ({},{}) dir={}",
-                  data.x, data.y, static_cast<int>(t.direction));
+                  data.x, data.y, static_cast<int>(t.facing));
 }
 
 void ws_message_handler::handle_player_move_response(const json& message)
@@ -606,7 +606,7 @@ void ws_message_handler::handle_player_move_response(const json& message)
     }
 
     spdlog::debug("Movement confirmed: ({},{}) dir={} (interpolating={})",
-                  data.x, data.y, static_cast<int>(t.direction), t.moving);
+                  data.x, data.y, static_cast<int>(t.facing), t.moving);
 }
 
 void ws_message_handler::handle_hunger_update(const json& message)
@@ -651,12 +651,12 @@ void ws_message_handler::handle_npc_move(const json& message)
     auto& t = ent->transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
 
     spdlog::debug("NPC {} moved: ({},{}) dir={}",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.direction));
+                  data.entity_id, data.x, data.y, static_cast<int>(t.facing));
 }
 
 void ws_message_handler::handle_entity_info_response(const json& message)
@@ -687,7 +687,7 @@ void ws_message_handler::handle_entity_info_response(const json& message)
     t.tile_y = data.y;
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
-    t.direction = direction_from_protocol(data.direction).value_or(direction::south);
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     if (ent.has_name())
     {

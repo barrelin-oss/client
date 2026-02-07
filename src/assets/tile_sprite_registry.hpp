@@ -8,6 +8,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <optional>
+#include <vector>
 
 namespace hb {
 
@@ -38,6 +39,18 @@ public:
     // Initialize the registry with all tile PAK mappings
     // sprites_path: path to the sprites directory (e.g., "assets/sprites/")
     bool initialize(sprite_manager& sprites, std::string_view sprites_path);
+
+    // Two-phase initialization for loading screen integration:
+    // Phase 1: register core mappings + discover tile PAKs (returns list, doesn't load)
+    struct pending_tile_pak {
+        std::string pak_name;
+        std::string relative_path;
+        int16_t start_id;
+        uint32_t count;
+    };
+    bool initialize_core(sprite_manager& sprites, std::string_view sprites_path);
+    std::vector<pending_tile_pak> discover_tile_pak_list();
+    void load_tile_pak(const pending_tile_pak& entry);
 
     // Get a sprite by its legacy ID
     // Returns nullptr if the ID is not mapped or the sprite fails to load

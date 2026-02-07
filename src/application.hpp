@@ -13,6 +13,9 @@
 
 #include <chrono>
 #include <memory>
+#include <string_view>
+
+namespace hb { class sprite; }
 
 namespace hb {
 
@@ -36,6 +39,9 @@ private:
     void update(float delta_time);
     void render();
 
+    // Loading screen
+    void render_loading_frame(float progress, std::string_view message, float elapsed_time);
+
     // Configuration
     void load_config();
     void save_config();
@@ -53,6 +59,9 @@ private:
     // State
     bool running_ = false;
     bool had_focus_ = true;  // Track focus changes for borderless topmost
+
+    // Loading screen character
+    const sprite* loading_char_sprite_ = nullptr;
 
     // Timing
     using clock = std::chrono::high_resolution_clock;

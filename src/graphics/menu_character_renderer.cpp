@@ -261,50 +261,67 @@ static void load_pak_array(sprite_manager& sprites, const std::array<pak_load_en
     }
 }
 
+std::vector<equipment_pak_entry> menu_character_renderer::get_pak_load_list() {
+    std::vector<equipment_pak_entry> list;
+
+    auto add = [&](const pak_load_entry& e) {
+        list.push_back({e.pak_name, e.sprite_id, e.sprite_count});
+    };
+    auto add_array = [&](auto& arr) {
+        for (const auto& e : arr) add(e);
+    };
+
+    // Body sprites
+    add_array(male_body_paks);
+    add_array(female_body_paks);
+
+    // Base appearance (underwear, hair)
+    add(male_underwear_pak);
+    add(male_hair_pak);
+    add(female_underwear_pak);
+    add(female_hair_pak);
+
+    // Armor
+    add_array(male_body_armor_paks);
+    add_array(female_body_armor_paks);
+    add_array(male_arm_armor_paks);
+    add_array(female_arm_armor_paks);
+    add_array(male_pants_paks);
+    add_array(female_pants_paks);
+    add_array(male_boots_paks);
+    add_array(female_boots_paks);
+
+    // Weapons
+    add_array(male_sword_paks);
+    add_array(male_axe_paks);
+    add_array(male_hammer_staff_paks);
+    add_array(male_bow_paks);
+    add_array(female_sword_paks);
+    add_array(female_axe_paks);
+    add_array(female_hammer_staff_paks);
+    add_array(female_bow_paks);
+
+    // Shields
+    add(male_shield_pak);
+    add(female_shield_pak);
+
+    // Mantles
+    add_array(male_mantle_paks);
+    add_array(female_mantle_paks);
+
+    // Helmets
+    add_array(male_helmet_paks);
+    add_array(female_helmet_paks);
+
+    return list;
+}
+
 bool menu_character_renderer::initialize(sprite_manager& sprites) {
     spdlog::info("Initializing menu character renderer with equipment support...");
 
-    // Load body sprites
-    load_pak_array(sprites, male_body_paks);
-    load_pak_array(sprites, female_body_paks);
-
-    // Load base appearance (underwear, hair)
-    load_pak_at_offset(sprites, male_underwear_pak);
-    load_pak_at_offset(sprites, male_hair_pak);
-    load_pak_at_offset(sprites, female_underwear_pak);
-    load_pak_at_offset(sprites, female_hair_pak);
-
-    // Load armor
-    load_pak_array(sprites, male_body_armor_paks);
-    load_pak_array(sprites, female_body_armor_paks);
-    load_pak_array(sprites, male_arm_armor_paks);
-    load_pak_array(sprites, female_arm_armor_paks);
-    load_pak_array(sprites, male_pants_paks);
-    load_pak_array(sprites, female_pants_paks);
-    load_pak_array(sprites, male_boots_paks);
-    load_pak_array(sprites, female_boots_paks);
-
-    // Load weapons
-    load_pak_array(sprites, male_sword_paks);
-    load_pak_array(sprites, male_axe_paks);
-    load_pak_array(sprites, male_hammer_staff_paks);
-    load_pak_array(sprites, male_bow_paks);
-    load_pak_array(sprites, female_sword_paks);
-    load_pak_array(sprites, female_axe_paks);
-    load_pak_array(sprites, female_hammer_staff_paks);
-    load_pak_array(sprites, female_bow_paks);
-
-    // Load shields
-    load_pak_at_offset(sprites, male_shield_pak);
-    load_pak_at_offset(sprites, female_shield_pak);
-
-    // Load mantles
-    load_pak_array(sprites, male_mantle_paks);
-    load_pak_array(sprites, female_mantle_paks);
-
-    // Load helmets
-    load_pak_array(sprites, male_helmet_paks);
-    load_pak_array(sprites, female_helmet_paks);
+    for (const auto& entry : get_pak_load_list()) {
+        load_pak_at_offset(sprites, {entry.pak_name, entry.sprite_id, entry.sprite_count});
+    }
 
     initialized_ = true;
     spdlog::info("Menu character renderer initialized (with equipment support)");

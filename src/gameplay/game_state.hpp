@@ -32,6 +32,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace hb {
 
@@ -123,6 +124,10 @@ public:
     // Initialization
     bool initialize(renderer& rend, audio& aud);
     void shutdown();
+
+    // Async initialization - call each frame after initialize() until done
+    bool has_pending_init_steps() const;
+    std::pair<float, std::string> run_next_init_step();
 
     // Main loop
     void update(float delta_time, const hb::input& inp);
@@ -306,6 +311,14 @@ private:
     // Loading
     float loading_progress_ = 0.0f;
     std::string loading_message_;
+
+    // Async initialization step queue
+    struct init_step {
+        std::string message;
+        std::function<void()> action;
+    };
+    std::vector<init_step> init_steps_;
+    size_t init_step_index_ = 0;
 
     // Audio reference
     audio* audio_ = nullptr;

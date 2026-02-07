@@ -105,288 +105,300 @@ static constexpr std::array monster_paks =
     monster_pak_entry{"Devlin",        static_cast<uint16_t>(npc_base + npc_stride * 59), 16},  // Devlin (Type: 69)
 };
 
-// Load all monster/NPC PAK files and register sprites at their global IDs
-static void load_monster_sprites(sprite_manager& sprites)
-{
-    spdlog::info("Loading monster/NPC sprites...");
-    uint32_t loaded = 0;
-
-    for (const auto& entry : monster_paks)
-    {
-        std::string pak_path = std::string("sprites/") + entry.pak_name + ".pak";
-
-        if (!sprites.load_pak(entry.pak_name, pak_path))
-        {
-            spdlog::debug("Optional monster PAK not found: {}", pak_path);
-            continue;
-        }
-
-        for (uint16_t i = 0; i < entry.sprite_count; ++i)
-        {
-            uint16_t global_id = static_cast<uint16_t>(entry.sprite_id + i);
-            sprites.store_sprite_at_id(global_id, entry.pak_name, i);
-        }
-
-        loaded++;
-    }
-
-    spdlog::info("Loaded {}/{} monster/NPC PAK files", loaded, monster_paks.size());
-}
-
 } // anonymous namespace
 
 bool game_state_manager::initialize(renderer& rend, audio& aud) {
     audio_ = &aud;
     renderer_ = &rend;
 
-    // Initialize subsystems
+    // Synchronous critical initialization
     if (!network_.initialize()) {
         spdlog::error("Failed to initialize network");
         return false;
     }
-
     entities_.initialize();
-
-    // Initialize sprite manager and load PAK files FIRST
     sprites_.initialize("assets/");
 
-    // Load UI PAK files before UI initialization
-    if (sprites_.load_pak("interface", "sprites/interface.pak")) {
-        spdlog::info("Loaded interface.pak");
-        sprites_.store_sprite_at_id(0, "interface", 0);
+    // Queue async initialization steps
+    init_steps_.clear();
+    init_step_index_ = 0;
+
+    init_steps_.push_back({"Loading interface sprites...", [this]() {
+        if (sprites_.load_pak("interface", "sprites/interface.pak")) {
+            spdlog::info("Loaded interface.pak");
+            sprites_.store_sprite_at_id(0, "interface", 0);
+        }
+    }});
+
+    init_steps_.push_back({"Loading dialog sprites...", [this]() {
+        if (sprites_.load_pak("interface2", "sprites/interface2.pak"))
+            spdlog::info("Loaded interface2.pak");
+    }});
+    init_steps_.push_back({"Loading dialog sprites...", [this]() {
+        if (sprites_.load_pak("New-Dialog", "sprites/New-Dialog.pak")) {
+            spdlog::info("Loaded New-Dialog.pak");
+            sprites_.store_sprite_at_id(51, "New-Dialog", 0);
+            sprites_.store_sprite_at_id(52, "New-Dialog", 1);
+            sprites_.store_sprite_at_id(54, "New-Dialog", 2);
+        }
+    }});
+    init_steps_.push_back({"Loading dialog sprites...", [this]() {
+        if (sprites_.load_pak("LoginDialog", "sprites/LoginDialog.pak")) {
+            spdlog::info("Loaded LoginDialog.pak");
+            sprites_.store_sprite_at_id(53, "LoginDialog", 0);
+        }
+    }});
+    init_steps_.push_back({"Loading dialog sprites...", [this]() {
+        if (sprites_.load_pak("GameDialog", "sprites/GameDialog.pak")) {
+            spdlog::info("Loaded GameDialog.pak");
+            sprites_.store_sprite_at_id(57, "GameDialog", 8);
+            sprites_.store_sprite_at_id(58, "GameDialog", 9);
+            sprites_.store_sprite_at_id(60, "GameDialog", 0);
+            sprites_.store_sprite_at_id(61, "GameDialog", 1);
+            sprites_.store_sprite_at_id(62, "GameDialog", 2);
+            sprites_.store_sprite_at_id(63, "GameDialog", 3);
+        }
+    }});
+    init_steps_.push_back({"Loading dialog sprites...", [this]() {
+        if (sprites_.load_pak("DialogText", "sprites/DialogText.pak")) {
+            spdlog::info("Loaded DialogText.pak");
+            sprites_.store_sprite_at_id(71, "DialogText", 1);
+        }
+    }});
+
+    init_steps_.push_back({"Initializing UI...", [this]() {
+        ui_.set_sprite_manager(&sprites_);
+        ui_.initialize();
+    }});
+
+    init_steps_.push_back({"Initializing game systems...", [this]() { inventory_.initialize(); }});
+    init_steps_.push_back({"Initializing game systems...", [this]() { magic_.initialize(); }});
+    init_steps_.push_back({"Initializing game systems...", [this]() { skills_.initialize(); }});
+    init_steps_.push_back({"Initializing game systems...", [this]() {
+        combat_.initialize(&entities_, &magic_, &skills_, &sounds_, &inventory_);
+    }});
+
+    init_steps_.push_back({"Initializing effects...", [this]() {
+        effects_.initialize(sprites_, sounds_, world_);
+        magic_.set_effect_system(&effects_);
+    }});
+
+    init_steps_.push_back({"Setting up network...", [this]() {
+        setup_network_handlers();
+        action_queue_.initialize(*this);
+        input_handler_.initialize(*this);
+        dialog_callbacks_.initialize(*this);
+        ws_handler_.initialize(*this);
+    }});
+
+    // Each equipment PAK is its own step for fine-grained progress
+    for (const auto& entry : menu_character_renderer::get_pak_load_list()) {
+        init_steps_.push_back({"Loading character sprites...", [this, entry]() {
+            std::string pak_path = std::string("sprites/") + entry.pak_name + ".pak";
+            if (!sprites_.load_pak(entry.pak_name, pak_path)) {
+                spdlog::debug("Optional equipment PAK not found: {}", pak_path);
+                return;
+            }
+            for (uint32_t i = 0; i < entry.sprite_count; ++i) {
+                uint16_t global_id = static_cast<uint16_t>(entry.sprite_id + i);
+                sprites_.store_sprite_at_id(global_id, entry.pak_name, i);
+            }
+        }});
     }
-
-    if (sprites_.load_pak("interface2", "sprites/interface2.pak")) {
-        spdlog::info("Loaded interface2.pak");
-    }
-
-    if (sprites_.load_pak("New-Dialog", "sprites/New-Dialog.pak")) {
-        spdlog::info("Loaded New-Dialog.pak");
-        sprites_.store_sprite_at_id(51, "New-Dialog", 0);
-        sprites_.store_sprite_at_id(52, "New-Dialog", 1);
-        sprites_.store_sprite_at_id(54, "New-Dialog", 2);
-    }
-
-    if (sprites_.load_pak("LoginDialog", "sprites/LoginDialog.pak")) {
-        spdlog::info("Loaded LoginDialog.pak");
-        sprites_.store_sprite_at_id(53, "LoginDialog", 0);
-    }
-
-    if (sprites_.load_pak("GameDialog", "sprites/GameDialog.pak")) {
-        spdlog::info("Loaded GameDialog.pak");
-        sprites_.store_sprite_at_id(57, "GameDialog", 8);
-        sprites_.store_sprite_at_id(58, "GameDialog", 9);
-        sprites_.store_sprite_at_id(60, "GameDialog", 0);
-        sprites_.store_sprite_at_id(61, "GameDialog", 1);
-        sprites_.store_sprite_at_id(62, "GameDialog", 2);
-        sprites_.store_sprite_at_id(63, "GameDialog", 3);
-    }
-
-    if (sprites_.load_pak("DialogText", "sprites/DialogText.pak")) {
-        spdlog::info("Loaded DialogText.pak");
-        sprites_.store_sprite_at_id(71, "DialogText", 1);
-    }
-
-    ui_.set_sprite_manager(&sprites_);
-    ui_.initialize();
-
-    inventory_.initialize();
-    magic_.initialize();
-    skills_.initialize();
-    combat_.initialize(&entities_, &magic_, &skills_, &sounds_, &inventory_);
-
-    effects_.initialize(sprites_, sounds_, world_);
-    magic_.set_effect_system(&effects_);
-
-    // Setup legacy binary network handlers
-    setup_network_handlers();
-
-    // Initialize extracted subsystems
-    action_queue_.initialize(*this);
-    input_handler_.initialize(*this);
-    dialog_callbacks_.initialize(*this);
-    ws_handler_.initialize(*this);
-
-    // Initialize menu character renderer
-    if (menu_char_renderer_.initialize(sprites_)) {
+    init_steps_.push_back({"Loading character sprites...", [this]() {
+        menu_char_renderer_.set_initialized();
         spdlog::info("Menu character renderer initialized");
-    } else {
-        spdlog::warn("Menu character renderer initialization failed - character previews may not display");
-    }
+    }});
 
-    // Load monster/NPC sprites
-    load_monster_sprites(sprites_);
-
-    // Initialize screen manager
-    screens_.initialize();
-
-    // Setup screen callbacks
-    screens_.get_main_menu_screen().set_on_start([this]() {
-        change_state(game_state::login);
-    });
-    screens_.get_main_menu_screen().set_on_quit([this]() {
-        change_state(game_state::quit);
-    });
-    screens_.get_main_menu_screen().set_on_settings([this]() {
-        if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options)))
-        {
-            settings->set_ui_style(ui_.style());
-        }
-        ui_.open_dialog(dialog_type::options);
-    });
-
-    screens_.get_login_screen().set_on_login([this](const std::string& account, const std::string& password) {
-        spdlog::info("Login attempt: {} (pass length: {})", account, password.length());
-        attempt_login(account, password);
-    });
-    screens_.get_login_screen().set_on_cancel([this]() {
-        change_state(game_state::main_menu);
-    });
-
-    screens_.get_character_select_screen().set_on_select([this](int32_t index) {
-        if (index >= 0 && index < static_cast<int32_t>(characters_.size())) {
-            int32_t character_id = characters_[index].id;
-            spdlog::info("Entering game with character '{}' (ID: {})", characters_[index].name, character_id);
-            ws_handler_.request_enter_game(character_id);
-        }
-    });
-    screens_.get_character_select_screen().set_on_create([this]() {
-        spdlog::info("Opening character creation");
-        change_state(game_state::create_character);
-    });
-    screens_.get_character_select_screen().set_on_delete([this](int32_t index) {
-        if (index >= 0 && index < static_cast<int32_t>(characters_.size()))
-        {
-            int32_t character_id = characters_[index].id;
-            spdlog::info("Deleting character '{}' (ID: {})", characters_[index].name, character_id);
-            ws_handler_.request_delete_character(character_id);
-        }
-    });
-    screens_.get_character_select_screen().set_on_logout([this]() {
-        spdlog::info("Logging out to main menu");
-        ws_connection_.disconnect();
-        change_state(game_state::main_menu);
-    });
-
-    screens_.get_character_create_screen().set_on_create([this](const character_create_data& data) {
-        spdlog::info("Creating character: name='{}' gender={} stats={}/{}/{}/{}/{}/{}",
-                     data.name, data.gender, data.strength, data.vitality, data.dexterity,
-                     data.intelligence, data.magic, data.charisma);
-        ws_handler_.request_create_character(data);
-    });
-    screens_.get_character_create_screen().set_on_cancel([this]() {
-        spdlog::info("Canceling character creation, returning to character select");
-        change_state(game_state::select_character);
-    });
-
-    screens_.get_connection_lost_screen().set_on_timeout([this]() {
-        spdlog::info("Connection lost timeout, returning to main menu");
-        ws_connection_.disconnect();
-        change_state(game_state::main_menu);
-    });
-
-    screens_.get_character_select_screen().set_character_renderer(&menu_char_renderer_);
-    screens_.get_character_create_screen().set_character_renderer(&menu_char_renderer_);
-
-    auto play_ui_sound = [this]() { sounds_.play_ui_sound(14); };
-    screens_.get_main_menu_screen().set_on_button_sound(play_ui_sound);
-    screens_.get_login_screen().set_on_button_sound(play_ui_sound);
-    screens_.get_character_select_screen().set_on_button_sound(play_ui_sound);
-    screens_.get_character_create_screen().set_on_button_sound(play_ui_sound);
-
-    // Create UI dialogs
-    ui_.create_character_select_dialog();
-    ui_.create_character_create_dialog();
-    ui_.create_character_dialog();
-    ui_.create_inventory_dialog();
-    ui_.create_equipment_dialog();
-    ui_.create_spellbook_dialog();
-    ui_.create_skills_dialog();
-    ui_.create_chat_dialog();
-    ui_.create_shop_dialog();
-    ui_.create_bank_dialog();
-    ui_.create_party_dialog();
-    ui_.create_guild_dialog();
-    ui_.create_npc_dialog();
-    ui_.create_trade_dialog();
-    ui_.create_craft_dialog();
-    ui_.create_map_dialog();
-    ui_.create_repair_dialog();
-    ui_.create_help_dialog();
-    ui_.create_system_menu_dialog();
-    ui_.create_options_dialog();
-
-    ui_.load_dialog_definitions_from_directory("assets/ui/dialogs");
-    ui_.create_icon_panel_dialog();
-
-    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
-        yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
-    } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
-        icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
-    }
-
-    ui_.create_gauge_panel_dialog();
-    ui_.create_levelup_dialog();
-
-    // Wire up dialog callbacks (extracted)
-    dialog_callbacks_.setup_callbacks();
-
-    // Initialize tile sprite registry
-    if (tile_registry_.initialize(sprites_, "sprites/"))
-    {
-        spdlog::info("Tile sprite registry initialized with {} mappings", tile_registry_.registered_count());
-
-        if (!world_.initialize(tile_registry_))
-        {
-            spdlog::warn("World initialization failed - terrain rendering may not work");
-        }
-
-        const auto& video = config::instance().video();
-        world_.set_screen_size(video.screen_width, video.screen_height);
-    }
-    else
-    {
-        spdlog::warn("Tile sprite registry initialization failed - terrain rendering disabled");
-    }
-
-    // Initialize sound manager
-    if (sounds_.initialize(*audio_))
-    {
-        sounds_.set_sfx_enabled(config::instance().audio().sfx_enabled);
-        sounds_.set_music_enabled(config::instance().audio().music_enabled);
-        spdlog::info("Sound manager initialized with sfx={}, music={}",
-                     sounds_.is_sfx_enabled(), sounds_.is_music_enabled());
-        entities_.set_sound_manager(&sounds_);
-    }
-    else
-    {
-        spdlog::warn("Sound manager initialization failed - audio may not work");
-    }
-
-    // Wire up world events
-    world_.set_events({
-        .on_map_changed = [this](std::string_view /*old_map*/, std::string_view new_map) {
-            sounds_.start_bgm(new_map, static_cast<int>(world_.weather()));
-            if (state_ == game_state::playing && renderer_)
-            {
-                transition_.set_show_label(false);
-                transition_.randomize_type();
-                transition_.start_reveal(renderer_->width(), renderer_->height());
+    // Each monster PAK is its own step for fine-grained progress
+    for (const auto& entry : monster_paks) {
+        init_steps_.push_back({"Loading monster sprites...", [this, entry]() {
+            std::string pak_path = std::string("sprites/") + entry.pak_name + ".pak";
+            if (!sprites_.load_pak(entry.pak_name, pak_path)) {
+                spdlog::debug("Optional monster PAK not found: {}", pak_path);
+                return;
             }
-        },
-        .on_weather_changed = [this](weather_type w) {
-            int weather_int = static_cast<int>(w);
-            if (weather_int >= 4 && weather_int <= 6)
-            {
-                sounds_.start_bgm(world_.current_map_name(), weather_int);
+            for (uint16_t i = 0; i < entry.sprite_count; ++i) {
+                uint16_t global_id = static_cast<uint16_t>(entry.sprite_id + i);
+                sprites_.store_sprite_at_id(global_id, entry.pak_name, i);
             }
-        },
-        .on_time_changed = nullptr
-    });
+        }});
+    }
 
-    enter_state(game_state::main_menu);
+    init_steps_.push_back({"Initializing screens...", [this]() {
+        screens_.initialize();
+        screens_.get_main_menu_screen().set_on_start([this]() {
+            change_state(game_state::login);
+        });
+        screens_.get_main_menu_screen().set_on_quit([this]() {
+            change_state(game_state::quit);
+        });
+        screens_.get_main_menu_screen().set_on_settings([this]() {
+            if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options)))
+            {
+                settings->set_ui_style(ui_.style());
+            }
+            ui_.open_dialog(dialog_type::options);
+        });
+        screens_.get_login_screen().set_on_login([this](const std::string& account, const std::string& password) {
+            spdlog::info("Login attempt: {} (pass length: {})", account, password.length());
+            attempt_login(account, password);
+        });
+        screens_.get_login_screen().set_on_cancel([this]() {
+            change_state(game_state::main_menu);
+        });
+        screens_.get_character_select_screen().set_on_select([this](int32_t index) {
+            if (index >= 0 && index < static_cast<int32_t>(characters_.size())) {
+                int32_t character_id = characters_[index].id;
+                spdlog::info("Entering game with character '{}' (ID: {})", characters_[index].name, character_id);
+                ws_handler_.request_enter_game(character_id);
+            }
+        });
+        screens_.get_character_select_screen().set_on_create([this]() {
+            spdlog::info("Opening character creation");
+            change_state(game_state::create_character);
+        });
+        screens_.get_character_select_screen().set_on_delete([this](int32_t index) {
+            if (index >= 0 && index < static_cast<int32_t>(characters_.size()))
+            {
+                int32_t character_id = characters_[index].id;
+                spdlog::info("Deleting character '{}' (ID: {})", characters_[index].name, character_id);
+                ws_handler_.request_delete_character(character_id);
+            }
+        });
+        screens_.get_character_select_screen().set_on_logout([this]() {
+            spdlog::info("Logging out to main menu");
+            ws_connection_.disconnect();
+            change_state(game_state::main_menu);
+        });
+        screens_.get_character_create_screen().set_on_create([this](const character_create_data& data) {
+            spdlog::info("Creating character: name='{}' gender={} stats={}/{}/{}/{}/{}/{}",
+                         data.name, data.gender, data.strength, data.vitality, data.dexterity,
+                         data.intelligence, data.magic, data.charisma);
+            ws_handler_.request_create_character(data);
+        });
+        screens_.get_character_create_screen().set_on_cancel([this]() {
+            spdlog::info("Canceling character creation, returning to character select");
+            change_state(game_state::select_character);
+        });
+        screens_.get_connection_lost_screen().set_on_timeout([this]() {
+            spdlog::info("Connection lost timeout, returning to main menu");
+            ws_connection_.disconnect();
+            change_state(game_state::main_menu);
+        });
+        screens_.get_character_select_screen().set_character_renderer(&menu_char_renderer_);
+        screens_.get_character_create_screen().set_character_renderer(&menu_char_renderer_);
+        auto play_ui_sound = [this]() { sounds_.play_ui_sound(14); };
+        screens_.get_main_menu_screen().set_on_button_sound(play_ui_sound);
+        screens_.get_login_screen().set_on_button_sound(play_ui_sound);
+        screens_.get_character_select_screen().set_on_button_sound(play_ui_sound);
+        screens_.get_character_create_screen().set_on_button_sound(play_ui_sound);
+    }});
 
-    spdlog::info("Game state manager initialized");
+    // Each dialog is its own step for fine-grained progress
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_character_select_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_character_create_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_character_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_inventory_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_equipment_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_spellbook_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_skills_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_chat_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_shop_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_bank_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_party_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_guild_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_npc_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_trade_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_craft_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_map_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_repair_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_help_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_system_menu_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_options_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() {
+        ui_.load_dialog_definitions_from_directory("assets/ui/dialogs");
+    }});
+    init_steps_.push_back({"Creating dialogs...", [this]() {
+        ui_.create_icon_panel_dialog();
+        if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+            yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
+        } else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel))) {
+            icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
+        }
+    }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_gauge_panel_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_levelup_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() { dialog_callbacks_.setup_callbacks(); }});
+
+    // Tile sprites: register core mappings + discover tile PAKs, then queue each load
+    // initialize_core and discover are fast (no I/O), so run them now at queue time
+    tile_registry_.initialize_core(sprites_, "sprites/");
+    auto tile_paks = tile_registry_.discover_tile_pak_list();
+    for (auto& tp : tile_paks) {
+        init_steps_.push_back({"Loading tile sprites...", [this, entry = std::move(tp)]() {
+            tile_registry_.load_tile_pak(entry);
+        }});
+    }
+
+    // World initialization (depends on tile registry being populated)
+    init_steps_.push_back({"Initializing world...", [this]() {
+        if (tile_registry_.registered_count() > 0)
+        {
+            if (!world_.initialize(tile_registry_))
+                spdlog::warn("World initialization failed - terrain rendering may not work");
+            const auto& video = config::instance().video();
+            world_.set_screen_size(video.screen_width, video.screen_height);
+            spdlog::info("Tile sprite registry: {} mappings", tile_registry_.registered_count());
+        }
+        else
+        {
+            spdlog::warn("Tile sprite registry empty - terrain rendering disabled");
+        }
+    }});
+
+    init_steps_.push_back({"Initializing audio...", [this]() {
+        if (sounds_.initialize(*audio_))
+        {
+            sounds_.set_sfx_enabled(config::instance().audio().sfx_enabled);
+            sounds_.set_music_enabled(config::instance().audio().music_enabled);
+            spdlog::info("Sound manager initialized with sfx={}, music={}",
+                         sounds_.is_sfx_enabled(), sounds_.is_music_enabled());
+            entities_.set_sound_manager(&sounds_);
+        }
+        else
+        {
+            spdlog::warn("Sound manager initialization failed - audio may not work");
+        }
+    }});
+
+    init_steps_.push_back({"Finalizing...", [this]() {
+        world_.set_events({
+            .on_map_changed = [this](std::string_view /*old_map*/, std::string_view new_map) {
+                sounds_.start_bgm(new_map, static_cast<int>(world_.weather()));
+                if (state_ == game_state::playing && renderer_)
+                {
+                    transition_.set_show_label(false);
+                    transition_.randomize_type();
+                    transition_.start_reveal(renderer_->width(), renderer_->height());
+                }
+            },
+            .on_weather_changed = [this](weather_type w) {
+                int weather_int = static_cast<int>(w);
+                if (weather_int >= 4 && weather_int <= 6)
+                {
+                    sounds_.start_bgm(world_.current_map_name(), weather_int);
+                }
+            },
+            .on_time_changed = nullptr
+        });
+    }});
+
+    init_steps_.push_back({"Ready!", [this]() {
+        enter_state(game_state::main_menu);
+    }});
+
+    spdlog::info("Game state manager initialized ({} loading steps queued)", init_steps_.size());
     return true;
 }
 
@@ -404,6 +416,23 @@ void game_state_manager::shutdown()
     tile_registry_.clear_cache();
 
     spdlog::info("Game state manager shutdown");
+}
+
+bool game_state_manager::has_pending_init_steps() const {
+    return init_step_index_ < init_steps_.size();
+}
+
+std::pair<float, std::string> game_state_manager::run_next_init_step() {
+    if (init_step_index_ >= init_steps_.size())
+        return {1.0f, "Ready!"};
+
+    auto& step = init_steps_[init_step_index_];
+    std::string msg = step.message;
+    step.action();
+    ++init_step_index_;
+
+    float progress = static_cast<float>(init_step_index_) / static_cast<float>(init_steps_.size());
+    return {progress, msg};
 }
 
 void game_state_manager::update(float delta_time, const input& inp) {

@@ -2,34 +2,94 @@
 #include "assets/pak_file.hpp"
 #include <spdlog/spdlog.h>
 #include <filesystem>
-#include <regex>
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 
 namespace hb {
 
 bool tile_sprite_registry::initialize(sprite_manager& sprites, std::string_view sprites_path)
 {
+    if (!initialize_core(sprites, sprites_path))
+        return false;
+
+    // Load all discovered tile PAKs synchronously (legacy path)
+    auto pending = discover_tile_pak_list();
+    for (const auto& entry : pending)
+        load_tile_pak(entry);
+
+    spdlog::info("Tile sprite registry initialized: {} mappings", id_map_.size());
+    return true;
+}
+
+bool tile_sprite_registry::initialize_core(sprite_manager& sprites, std::string_view sprites_path)
+{
     sprites_ = &sprites;
     sprites_path_ = std::string(sprites_path);
 
-    // Ensure path ends with separator
     if (!sprites_path_.empty() && sprites_path_.back() != '/' && sprites_path_.back() != '\\')
     {
         sprites_path_ += '/';
     }
 
-    // Register all the hardcoded core PAK mappings first
     register_core_paks();
-
-    // Auto-discover Tile###-###.pak files
-    // For filesystem operations, we need the full path relative to working directory
-    // sprite_manager is initialized with "assets/" so we prepend that for discovery
-    std::string full_fs_path = "assets/" + sprites_path_;
-    discover_tile_paks(full_fs_path);
-
-    spdlog::info("Tile sprite registry initialized: {} mappings", id_map_.size());
     return true;
+}
+
+std::vector<tile_sprite_registry::pending_tile_pak> tile_sprite_registry::discover_tile_pak_list()
+{
+    namespace fs = std::filesystem;
+    std::vector<pending_tile_pak> result;
+
+    std::string full_fs_path = "assets/" + sprites_path_;
+    std::error_code ec;
+    fs::path dir(full_fs_path);
+
+    if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
+    {
+        spdlog::warn("Sprites directory not found for tile discovery: {}", full_fs_path);
+        return result;
+    }
+
+    for (const auto& entry : fs::directory_iterator(dir, ec))
+    {
+        if (!entry.is_regular_file())
+            continue;
+
+        std::string filename = entry.path().filename().string();
+        auto range = parse_tile_pak_name(filename);
+        if (!range)
+            continue;
+
+        auto [start_id, end_id] = *range;
+        if (has_mapping(start_id))
+            continue;
+
+        uint32_t count = static_cast<uint32_t>(end_id - start_id + 1);
+        std::string pak_name = entry.path().stem().string();
+        std::string relative_path = sprites_path_ + pak_name + ".pak";
+
+        result.push_back({pak_name, relative_path, start_id, count});
+    }
+
+    spdlog::info("Discovered {} tile PAK files to load", result.size());
+    return result;
+}
+
+void tile_sprite_registry::load_tile_pak(const pending_tile_pak& entry)
+{
+    if (!sprites_->load_pak(entry.pak_name, entry.relative_path))
+    {
+        spdlog::warn("Failed to load discovered tile PAK: {}", entry.relative_path);
+        return;
+    }
+
+    pak_file* pak = sprites_->get_pak(entry.pak_name);
+    if (!pak)
+        return;
+
+    uint32_t actual_count = std::min(entry.count, pak->sprite_count());
+    register_range(entry.start_id, entry.pak_name, actual_count);
 }
 
 const sprite* tile_sprite_registry::get_sprite(int16_t id)
@@ -161,110 +221,54 @@ void tile_sprite_registry::register_core_paks()
     // This includes Tile223-225, Tile226-229, Tile363-366, etc.
 }
 
-void tile_sprite_registry::discover_tile_paks(std::string_view sprites_path)
+// Legacy synchronous discover - kept for backward compatibility via initialize()
+void tile_sprite_registry::discover_tile_paks(std::string_view /*sprites_path*/)
 {
-    namespace fs = std::filesystem;
-
-    std::error_code ec;
-    fs::path dir(sprites_path);
-
-    if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
-    {
-        spdlog::warn("Sprites directory not found: {}", sprites_path);
-        return;
-    }
-
-    int discovered_count = 0;
-
-    for (const auto& entry : fs::directory_iterator(dir, ec))
-    {
-        if (!entry.is_regular_file())
-        {
-            continue;
-        }
-
-        std::string filename = entry.path().filename().string();
-
-        // Check if it matches Tile###-###.pak pattern
-        auto range = parse_tile_pak_name(filename);
-        if (!range)
-        {
-            continue;
-        }
-
-        auto [start_id, end_id] = *range;
-        uint32_t count = static_cast<uint32_t>(end_id - start_id + 1);
-
-        // Get the pak name without .pak extension
-        std::string pak_name = entry.path().stem().string();
-
-        // Check if we already have mappings for this range (from core paks)
-        bool already_registered = has_mapping(start_id);
-        if (already_registered)
-        {
-            // Skip - core paks take precedence
-            continue;
-        }
-
-        // Load the PAK file to verify sprite count
-        // (We need to know the actual count in the file)
-        // Use relative path for sprite_manager (it prepends asset_root_)
-        std::string relative_path = sprites_path_ + pak_name + ".pak";
-        if (!sprites_->load_pak(pak_name, relative_path))
-        {
-            spdlog::warn("Failed to load discovered tile PAK: {}", relative_path);
-            continue;
-        }
-
-        pak_file* pak = sprites_->get_pak(pak_name);
-        if (!pak)
-        {
-            continue;
-        }
-
-        // Use actual sprite count from PAK, but cap at the range count
-        uint32_t actual_count = std::min(count, pak->sprite_count());
-
-        register_range(start_id, pak_name, actual_count);
-        discovered_count++;
-    }
-
-    spdlog::info("Auto-discovered {} Tile###-###.pak files", discovered_count);
+    auto pending = discover_tile_pak_list();
+    for (const auto& entry : pending)
+        load_tile_pak(entry);
 }
 
 std::optional<std::pair<int16_t, int16_t>> tile_sprite_registry::parse_tile_pak_name(std::string_view filename)
 {
-    // Convert to lowercase for case-insensitive matching
-    std::string lower_name(filename);
-    std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    // Match pattern: tile###-###.pak
-    std::regex tile_pattern(R"(tile(\d+)-(\d+)\.pak)", std::regex::icase);
-    std::smatch match;
-
-    std::string name_str(filename);
-    if (!std::regex_match(name_str, match, tile_pattern))
-    {
+    // Match pattern: Tile###-###.pak (case-insensitive)
+    // Avoid std::regex - it's extremely slow in libstdc++
+    if (filename.size() < 12) // "Tile0-0.pak" minimum
         return std::nullopt;
-    }
 
-    try
-    {
-        int start = std::stoi(match[1].str());
-        int end = std::stoi(match[2].str());
-
-        if (start < 0 || start > 32767 || end < 0 || end > 32767 || start > end)
-        {
-            return std::nullopt;
-        }
-
-        return std::make_pair(static_cast<int16_t>(start), static_cast<int16_t>(end));
-    }
-    catch (const std::exception&)
-    {
+    // Check "tile" prefix (case-insensitive)
+    if (std::tolower(static_cast<unsigned char>(filename[0])) != 't' ||
+        std::tolower(static_cast<unsigned char>(filename[1])) != 'i' ||
+        std::tolower(static_cast<unsigned char>(filename[2])) != 'l' ||
+        std::tolower(static_cast<unsigned char>(filename[3])) != 'e')
         return std::nullopt;
-    }
+
+    // Check ".pak" suffix (case-insensitive)
+    auto suffix = filename.substr(filename.size() - 4);
+    if (std::tolower(static_cast<unsigned char>(suffix[0])) != '.' ||
+        std::tolower(static_cast<unsigned char>(suffix[1])) != 'p' ||
+        std::tolower(static_cast<unsigned char>(suffix[2])) != 'a' ||
+        std::tolower(static_cast<unsigned char>(suffix[3])) != 'k')
+        return std::nullopt;
+
+    // Extract the middle: "###-###"
+    auto middle = filename.substr(4, filename.size() - 8);
+    auto dash = middle.find('-');
+    if (dash == std::string_view::npos || dash == 0 || dash == middle.size() - 1)
+        return std::nullopt;
+
+    int start = 0, end = 0;
+    auto [p1, ec1] = std::from_chars(middle.data(), middle.data() + dash, start);
+    auto [p2, ec2] = std::from_chars(middle.data() + dash + 1, middle.data() + middle.size(), end);
+
+    if (ec1 != std::errc{} || ec2 != std::errc{})
+        return std::nullopt;
+    if (p1 != middle.data() + dash || p2 != middle.data() + middle.size())
+        return std::nullopt;
+    if (start < 0 || start > 32767 || end < 0 || end > 32767 || start > end)
+        return std::nullopt;
+
+    return std::make_pair(static_cast<int16_t>(start), static_cast<int16_t>(end));
 }
 
 } // namespace hb

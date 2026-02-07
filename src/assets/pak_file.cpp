@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <cstring>
 #include <algorithm>
+#include <unordered_map>
 
 namespace hb {
 
@@ -74,35 +75,50 @@ pak_file& pak_file::operator=(pak_file&& other) noexcept {
     return *this;
 }
 
-// Find a file by case-insensitive match when exact path doesn't exist.
-// Returns the actual path on disk, or empty if not found.
+// Cached directory listing for case-insensitive lookups.
+// Maps (parent_dir, lowercase_filename) -> actual_path.
+// Built once per directory, then O(1) lookups.
+static std::unordered_map<std::string, std::unordered_map<std::string, std::string>> dir_cache;
+
 static std::string find_case_insensitive(const std::filesystem::path& target)
 {
     auto parent = target.parent_path();
     auto filename = target.filename().string();
+    std::string parent_str = parent.string();
 
-    std::error_code ec;
-    if (!std::filesystem::exists(parent, ec))
+    // Build cache for this directory if we haven't yet
+    auto dir_it = dir_cache.find(parent_str);
+    if (dir_it == dir_cache.end())
     {
-        return {};
+        std::error_code ec;
+        if (!std::filesystem::exists(parent, ec))
+        {
+            dir_cache[parent_str] = {}; // cache the miss too
+            return {};
+        }
+
+        auto& file_map = dir_cache[parent_str];
+        for (const auto& entry : std::filesystem::directory_iterator(parent, ec))
+        {
+            auto name = entry.path().filename().string();
+            std::string lower_name = name;
+            std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
+                [](unsigned char c) { return std::tolower(c); });
+            file_map[lower_name] = entry.path().string();
+        }
+        dir_it = dir_cache.find(parent_str);
     }
 
-    // Convert target filename to lowercase for comparison
+    // Lookup by lowercase filename
     std::string lower_target = filename;
     std::transform(lower_target.begin(), lower_target.end(), lower_target.begin(),
         [](unsigned char c) { return std::tolower(c); });
 
-    for (const auto& entry : std::filesystem::directory_iterator(parent, ec))
+    auto& file_map = dir_it->second;
+    auto file_it = file_map.find(lower_target);
+    if (file_it != file_map.end())
     {
-        auto candidate = entry.path().filename().string();
-        std::string lower_candidate = candidate;
-        std::transform(lower_candidate.begin(), lower_candidate.end(), lower_candidate.begin(),
-            [](unsigned char c) { return std::tolower(c); });
-
-        if (lower_candidate == lower_target)
-        {
-            return entry.path().string();
-        }
+        return file_it->second;
     }
 
     return {};

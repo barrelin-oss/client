@@ -1,11 +1,19 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace hb {
 
 class renderer;
 class sprite_manager;
+
+// PAK loading entry for incremental initialization
+struct equipment_pak_entry {
+    const char* pak_name;
+    uint32_t sprite_id;
+    uint32_t sprite_count;
+};
 
 // Full appearance data for rendering a character preview with equipment
 struct character_appearance {
@@ -43,8 +51,14 @@ class menu_character_renderer {
 public:
     menu_character_renderer() = default;
 
-    // Load required sprites for character rendering
+    // Load required sprites for character rendering (loads all PAKs at once)
     bool initialize(sprite_manager& sprites);
+
+    // Get list of all equipment PAKs needed (for incremental loading)
+    static std::vector<equipment_pak_entry> get_pak_load_list();
+
+    // Mark as initialized (call after all PAKs from get_pak_load_list are loaded)
+    void set_initialized() { initialized_ = true; }
 
     // Draw a character at the given position
     // x, y: Screen position (character center/feet)

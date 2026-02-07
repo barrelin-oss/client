@@ -105,12 +105,27 @@ void map_renderer::render_chunk(const map& m, int32_t chunk_x, int32_t chunk_y)
 
 void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y)
 {
+    // Full render: terrain + all objects + debug overlays
+    render_terrain(rend, m, camera_x, camera_y);
+
+    if (config_.show_objects)
+    {
+        auto range = calculate_visible_range(m, camera_x, camera_y);
+        for (int32_t y = range.start_y; y < range.end_y; ++y)
+        {
+            render_objects_row(rend, m, y, camera_x, camera_y);
+        }
+    }
+}
+
+void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y)
+{
     if (!m.is_loaded())
     {
         static bool warned = false;
         if (!warned)
         {
-            spdlog::warn("map_renderer::render called but map is not loaded");
+            spdlog::warn("map_renderer::render_terrain called but map is not loaded");
             warned = true;
         }
         return;
@@ -148,12 +163,6 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
                 }
             }
         }
-    }
-
-    // Objects rendered tile-by-tile on top for proper layering
-    if (config_.show_objects)
-    {
-        render_objects(rend, m, camera_x, camera_y);
     }
 
     // Debug overlays (always drawn directly)
@@ -219,26 +228,33 @@ void map_renderer::render(renderer& rend, const map& m, int32_t camera_x, int32_
     }
 }
 
-void map_renderer::render_objects(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y)
+void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y)
 {
-    auto range = calculate_visible_range(m, camera_x, camera_y);
+    if (!config_.show_objects) return;
+    if (row_y < 0 || row_y >= m.height()) return;
 
-    for (int32_t y = range.start_y; y < range.end_y; ++y)
+    auto range = calculate_visible_range(m, camera_x, camera_y);
+    int32_t start_x = std::max(range.start_x, 0);
+    int32_t end_x = std::min(range.end_x, m.width());
+
+    for (int32_t x = start_x; x < end_x; ++x)
     {
-        for (int32_t x = range.start_x; x < range.end_x; ++x)
+        const auto& t = m.get_tile(x, row_y);
+        if (t.object_id != 0)
         {
-            const auto& t = m.get_tile(x, y);
-            if (t.object_id != 0)
+            auto [sx, sy] = tile_to_screen(x, row_y, camera_x, camera_y);
+            const sprite* spr = get_tile_sprite(t.object_id);
+            if (spr)
             {
-                auto [sx, sy] = tile_to_screen(x, y, camera_x, camera_y);
-                const sprite* spr = get_tile_sprite(t.object_id);
-                if (spr)
-                {
-                    rend.draw_sprite(*spr, sx, sy, 0);
-                }
+                rend.draw_sprite(*spr, sx, sy, 0);
             }
         }
     }
+}
+
+map_renderer::visible_range map_renderer::get_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const
+{
+    return calculate_visible_range(m, camera_x, camera_y);
 }
 
 const sprite* map_renderer::get_tile_sprite(int16_t id)

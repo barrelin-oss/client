@@ -72,8 +72,14 @@ public:
     // Update all entities
     void update(float delta_time, world& w, bool local_player_combat_mode);
 
-    // Render all entities
+    // Render all entities (Y-sorted, single pass)
     void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
+
+    // Get visible entities sorted by Y position (for interleaved rendering)
+    std::vector<entity*> get_visible_entities_sorted(renderer& rend, int32_t camera_x, int32_t camera_y);
+
+    // Render a single entity (for interleaved rendering)
+    void render_single_entity(renderer& rend, sprite_manager& sprites, entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
     // Global render mode - renders all entities without distance culling
     void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }

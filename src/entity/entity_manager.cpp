@@ -1205,6 +1205,44 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     }
 }
 
+std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend, int32_t camera_x, int32_t camera_y) {
+    std::vector<entity*> visible_entities;
+
+    static constexpr int32_t render_margin = 128;
+    int32_t scr_width = static_cast<int32_t>(rend.width());
+    int32_t scr_height = static_cast<int32_t>(rend.height());
+
+    for (auto& [id, e] : entities_) {
+        if (e->should_remove()) continue;
+        if (!e->sprite().visible) continue;
+
+        if (global_render_mode_) {
+            visible_entities.push_back(e.get());
+            continue;
+        }
+
+        const auto& t = e->transform();
+        int32_t screen_x = t.x - camera_x;
+        int32_t screen_y = t.y - camera_y;
+
+        if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
+            screen_y >= -render_margin && screen_y < scr_height + render_margin) {
+            visible_entities.push_back(e.get());
+        }
+    }
+
+    std::sort(visible_entities.begin(), visible_entities.end(),
+        [](const entity* a, const entity* b) {
+            return a->transform().y < b->transform().y;
+        });
+
+    return visible_entities;
+}
+
+void entity_manager::render_single_entity(renderer& rend, sprite_manager& sprites, entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
+    render_entity(rend, sprites, e, camera_x, camera_y, mouse_x, mouse_y);
+}
+
 void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
     const auto& t = e.transform();
     const auto& s = e.sprite();

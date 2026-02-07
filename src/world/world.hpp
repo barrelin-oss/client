@@ -57,8 +57,17 @@ public:
     // Update world state
     void update(float delta_time);
 
-    // Render world
+    // Render world (terrain + all objects + debug overlays)
     void render(renderer& rend);
+
+    // Render terrain only (chunks + debug overlays, no objects)
+    void render_terrain(renderer& rend);
+
+    // Render objects for a single tile row
+    void render_objects_row(renderer& rend, int32_t row_y);
+
+    // Get visible tile range for current camera position
+    map_renderer::visible_range get_visible_tile_range() const;
 
     // Map management
     bool load_map(std::string_view map_name);

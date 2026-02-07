@@ -5,6 +5,7 @@
 #include "assets/sprite_manager.hpp"
 #include "assets/tile_sprite_registry.hpp"
 #include "core/constants.hpp"
+#include "world/tile.hpp"
 #include "core/config.hpp"
 #include "core/direction_utils.hpp"
 #include "ui/dialog_manager.hpp"
@@ -875,15 +876,50 @@ void game_state_manager::render_loading(renderer& rend) {
 
 void game_state_manager::render_playing(renderer& rend) {
     world_.apply_zoom_view(rend);
-    world_.render(rend);
 
-    entities_.render(rend, sprites_, world_.camera_x(), world_.camera_y(),
-                     input_handler_.mouse_x(), input_handler_.mouse_y());
+    // Render terrain chunks and debug overlays (no objects)
+    world_.render_terrain(rend);
 
-    effects_.render(rend, world_.camera_x(), world_.camera_y());
+    // Row-interleaved rendering: for each tile row, draw entities then objects.
+    // A tree at row N (drawn after entities at row N) extends upward, covering
+    // entities already drawn at rows < N. Entities at rows > N are drawn later
+    // and appear in front of the tree.
+    auto range = world_.get_visible_tile_range();
+    int32_t cam_x = world_.camera_x();
+    int32_t cam_y = world_.camera_y();
+    int32_t mouse_x = input_handler_.mouse_x();
+    int32_t mouse_y = input_handler_.mouse_y();
+
+    auto sorted = entities_.get_visible_entities_sorted(rend, cam_x, cam_y);
+
+    size_t idx = 0;
+    for (int32_t row = range.start_y; row < range.end_y; ++row)
+    {
+        // Pixel Y of the bottom edge of this tile row
+        int32_t row_pixel_bottom = (row + 1) * tile_height;
+
+        // Draw entities whose world Y position is above this row's bottom edge
+        while (idx < sorted.size() && sorted[idx]->transform().y < row_pixel_bottom)
+        {
+            entities_.render_single_entity(rend, sprites_, *sorted[idx], cam_x, cam_y, mouse_x, mouse_y);
+            ++idx;
+        }
+
+        // Draw objects on this row (trees paint over entities at higher rows)
+        world_.render_objects_row(rend, row);
+    }
+
+    // Draw any remaining entities past the last visible row
+    while (idx < sorted.size())
+    {
+        entities_.render_single_entity(rend, sprites_, *sorted[idx], cam_x, cam_y, mouse_x, mouse_y);
+        ++idx;
+    }
+
+    effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);
 
-    floating_text_.render(rend, world_.camera_x(), world_.camera_y());
+    floating_text_.render(rend, cam_x, cam_y);
     debug::debug_stats::instance().render(rend);
     status_log_.render(rend, static_cast<int32_t>(rend.width()),
                        static_cast<int32_t>(rend.height()), 70);

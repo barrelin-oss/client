@@ -699,8 +699,6 @@ void ws_message_handler::handle_npc_move(const json& message)
         ent->set_action(object_action::move_peace);
     }
 
-    spdlog::debug("NPC {} moved: ({},{}) dir={} interpolating={}",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.facing), t.moving);
 }
 
 void ws_message_handler::handle_entity_info_response(const json& message)

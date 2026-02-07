@@ -34,12 +34,28 @@ public:
     map_renderer(const map_renderer&) = delete;
     map_renderer& operator=(const map_renderer&) = delete;
 
+    // Visible tile range returned by get_visible_range()
+    struct visible_range
+    {
+        int32_t start_x, start_y;
+        int32_t end_x, end_y;
+    };
+
     // Initialize with tile sprite registry
     bool initialize(tile_sprite_registry& registry);
     void shutdown();
 
-    // Render map
+    // Render full map (terrain + objects + debug overlays)
     void render(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y);
+
+    // Render terrain chunks and debug overlays only (no objects)
+    void render_terrain(renderer& rend, const map& m, int32_t camera_x, int32_t camera_y);
+
+    // Render objects for a single tile row
+    void render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y);
+
+    // Get visible tile range for current camera position
+    visible_range get_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const;
 
     // Configuration
     void set_config(const map_render_config& config) { config_ = config; }
@@ -73,12 +89,7 @@ private:
     // Get sprite for tile (terrain and objects use the same registry)
     const sprite* get_tile_sprite(int16_t id);
 
-    // Calculate visible tile range
-    struct visible_range
-    {
-        int32_t start_x, start_y;
-        int32_t end_x, end_y;
-    };
+    // Internal visible range calculation
     visible_range calculate_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const;
 
     // Chunk-based rendering

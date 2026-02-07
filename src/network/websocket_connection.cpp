@@ -162,7 +162,7 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg) {
             break;
 
         case ix::WebSocketMessageType::Message:
-            spdlog::debug("WebSocket received: {}", msg->str);
+            spdlog::trace("WebSocket received: {}", msg->str);
             try {
                 json parsed = json::parse(msg->str);
                 messages_received_++;

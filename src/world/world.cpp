@@ -71,6 +71,22 @@ void world::render(renderer& rend)
     }
 }
 
+void world::render_terrain(renderer& rend)
+{
+    map_renderer_.set_zoom_level(zoom_mode_enabled_ ? static_cast<float>(zoom_level_) : 1.0f);
+    map_renderer_.render_terrain(rend, current_map_, camera_x_, camera_y_);
+}
+
+void world::render_objects_row(renderer& rend, int32_t row_y)
+{
+    map_renderer_.render_objects_row(rend, current_map_, row_y, camera_x_, camera_y_);
+}
+
+map_renderer::visible_range world::get_visible_tile_range() const
+{
+    return map_renderer_.get_visible_range(current_map_, camera_x_, camera_y_);
+}
+
 void world::apply_zoom_view(renderer& rend)
 {
     if (zoom_mode_enabled_ && zoom_level_ != 1.0)

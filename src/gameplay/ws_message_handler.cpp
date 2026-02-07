@@ -929,6 +929,26 @@ void ws_message_handler::handle_chat_message_broadcast(const json& message)
         chat_dlg->add_message(msg);
     }
 
+    // Set chat bubble on sender entity
+    if (entity* sender = entities.get_entity(data.sender_id))
+    {
+        if (sender->has_name())
+        {
+            auto& name = sender->name();
+            name.chat_message = data.content;
+            name.chat_timer = 4.0f;
+            name.chat_elapsed = 0.0f;
+            name.chat_style = get_chat_bubble_style(data.channel);
+
+            // Map flags to text effects
+            for (const auto& flag : data.flags)
+            {
+                if (flag == "gm")    { name.chat_style.effect = text_effect::glow; break; }
+                if (flag == "emote") { name.chat_style.effect = text_effect::wave; break; }
+            }
+        }
+    }
+
     spdlog::debug("Chat from '{}' [{}]: {}", data.sender_name, data.channel, data.content);
 }
 

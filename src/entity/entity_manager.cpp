@@ -9,6 +9,8 @@
 #include "core/direction_utils.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <array>
+#include <string>
 
 namespace hb {
 
@@ -1020,8 +1022,10 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
         auto& name = e.name();
         if (name.chat_timer > 0) {
             name.chat_timer -= delta_time;
+            name.chat_elapsed += delta_time;
             if (name.chat_timer <= 0) {
                 name.chat_message.clear();
+                name.chat_elapsed = 0.0f;
             }
         }
     }
@@ -1475,14 +1479,69 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
 
     // Always render chat bubble (above entity, not affected by hover)
     if (!name.chat_message.empty()) {
-        int32_t chat_x = screen_x - static_cast<int32_t>(name.chat_message.length() * 3);
-        int32_t chat_y = screen_y - 80;
+        // Legacy slide-up animation (Game.cpp:21412-21424)
+        float elapsed_ms = name.chat_elapsed * 1000.0f;
+        int32_t slide_offset = 0;
+        if (elapsed_ms <= 320.0f)
+            slide_offset = static_cast<int32_t>(elapsed_ms / 32.0f);
+        else if (elapsed_ms <= 352.0f)
+            slide_offset = 10;
+        else
+            slide_offset = 9;
 
-        // Background
-        rend.draw_rect(chat_x - 4, chat_y - 2,
-                       static_cast<int32_t>(name.chat_message.length() * 6 + 8), 16,
-                       sf::Color(0, 0, 0, 180), true);
-        rend.draw_text(name.chat_message, chat_x, chat_y, sf::Color::White);
+        // Word-wrap: max 20 chars per line, max 3 lines
+        std::array<std::string, 3> lines;
+        int line_count = 0;
+        {
+            const auto& msg = name.chat_message;
+            size_t pos = 0;
+            while (pos < msg.size() && line_count < 3)
+            {
+                if (line_count == 2)
+                {
+                    // Last line: take remaining, truncate if needed
+                    lines[line_count] = msg.substr(pos, 20);
+                    if (pos + 20 < msg.size())
+                        lines[line_count] += "..";
+                    ++line_count;
+                    break;
+                }
+
+                // Find break point: prefer space within 20 chars
+                size_t remaining = msg.size() - pos;
+                if (remaining <= 20)
+                {
+                    lines[line_count++] = msg.substr(pos);
+                    break;
+                }
+
+                size_t break_at = 20;
+                for (size_t i = 20; i > 0; --i)
+                {
+                    if (msg[pos + i] == ' ')
+                    {
+                        break_at = i;
+                        break;
+                    }
+                }
+                lines[line_count++] = msg.substr(pos, break_at);
+                pos += break_at;
+                if (pos < msg.size() && msg[pos] == ' ') ++pos;
+            }
+        }
+
+        // Draw lines centered above entity, stacking upward
+        static constexpr int32_t line_spacing = 16;
+        int32_t base_y = screen_y - 65 - slide_offset;
+        int32_t top_y = base_y - (line_count - 1) * line_spacing;
+
+        for (int i = 0; i < line_count; ++i)
+        {
+            float text_w = rend.text().measure_width(lines[i], name.chat_style.size);
+            int32_t line_x = screen_x - static_cast<int32_t>(text_w * 0.5f);
+            int32_t line_y = top_y + i * line_spacing;
+            rend.text().draw(lines[i], line_x, line_y, name.chat_style, name.chat_elapsed);
+        }
     }
 }
 

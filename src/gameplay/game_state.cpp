@@ -13,6 +13,7 @@
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
+#include "chat/chat_message.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <array>
@@ -360,6 +361,16 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
 
             if (auto* chat_dlg = dynamic_cast<chat_dialog*>(ui_.get_dialog(dialog_type::chat)))
                 chat_dlg->add_message(msg);
+
+            // Set chat bubble on local player entity
+            if (entity* player = local_player())
+            {
+                auto& name = player->name();
+                name.chat_message = std::string(content);
+                name.chat_timer = 4.0f;
+                name.chat_elapsed = 0.0f;
+                name.chat_style = get_chat_bubble_style(channel);
+            }
         });
     }});
 

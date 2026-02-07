@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/game_enums.hpp"
+#include "graphics/text_style.hpp"
 #include "assets/sprite.hpp"
 #include <cstdint>
 #include <string>
@@ -265,6 +266,8 @@ struct name_component {
     // Chat bubble
     std::string chat_message;
     float chat_timer = 0.0f;
+    float chat_elapsed = 0.0f;
+    text_style chat_style = {sf::Color::White, sf::Color::Black, 1.0f, 12, text_effect::none};
 
     // Title/status
     std::string title;

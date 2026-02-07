@@ -106,6 +106,7 @@ add_executable(helbreath_client
     gameplay/skills.cpp
     gameplay/ws_message_handler.cpp
     gameplay/game_state.cpp
+    gameplay/chat_input_overlay.cpp
 
     # Platform
     platform/monitor.cpp

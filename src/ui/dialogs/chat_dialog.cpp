@@ -1,4 +1,6 @@
 #include "ui/dialogs/chat_dialog.hpp"
+#include "assets/sprite_manager.hpp"
+#include "assets/sprite.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "core/constants.hpp"
@@ -35,9 +37,33 @@ void chat_dialog::update(float delta_time, const input& inp) {
 void chat_dialog::render(renderer& rend) {
     if (!visible_) return;
 
-    // Semi-transparent background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(0, 0, 0, 150), true);
+    // Classic sprite background (PAK-based)
+    bool drew_classic = false;
+    if (classic_mode_ && sprites_)
+    {
+        if (auto* body = sprites_->get_sprite("GameDialog", 1))
+        {
+            if (body->frame_count() > 4)
+            {
+                body->draw(rend.window(), bounds_.x, bounds_.y, 4);
+                drew_classic = true;
+            }
+        }
+        if (auto* title = sprites_->get_sprite("DialogText", 0))
+        {
+            if (title->frame_count() > 22)
+            {
+                title->draw(rend.window(), bounds_.x + 10, bounds_.y + 2, 22);
+            }
+        }
+    }
+
+    // Fallback to programmatic background
+    if (!drew_classic)
+    {
+        rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
+                       sf::Color(0, 0, 0, 150), true);
+    }
 
     int32_t x = bounds_.x + 8;
     int32_t y = bounds_.y + 8;
@@ -249,23 +275,26 @@ bool chat_dialog::handle_text_input(char32_t unicode) {
         return false;
     }
 
-    // Check for chat mode prefixes
+    // Check for chat mode prefixes (legacy Helbreath mappings)
     if (input_text_.empty() && cursor_pos_ == 0) {
         switch (unicode) {
             case '!':
                 set_chat_mode(chat_mode::shout);
                 return true;
+            case '~':
+                set_chat_mode(chat_mode::guild);  // Faction uses guild channel
+                return true;
             case '@':
-                set_chat_mode(chat_mode::whisper);
-                return true;
-            case '#':
-                set_chat_mode(chat_mode::party);
-                return true;
-            case '$':
                 set_chat_mode(chat_mode::guild);
                 return true;
-            case '%':
-                set_chat_mode(chat_mode::trade);
+            case '$':
+                set_chat_mode(chat_mode::party);
+                return true;
+            case '#':
+                set_chat_mode(chat_mode::normal);  // Force local say (overrides whisper)
+                return true;
+            case '^':
+                set_chat_mode(chat_mode::trade);  // GM uses trade slot for now
                 return true;
         }
     }

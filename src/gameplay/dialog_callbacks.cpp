@@ -122,31 +122,26 @@ void dialog_callbacks::setup_callbacks()
         });
     }
 
-    // Chat dialog - message sending
+    // Chat dialog - message sending (via WebSocket)
     if (auto* chat_dlg = dynamic_cast<chat_dialog*>(ui.get_dialog(dialog_type::chat)))
     {
-        chat_dlg->set_on_send([&network](std::string_view message, chat_dialog::chat_mode mode) {
+        auto& ws = game_->ws_handler();
+        chat_dlg->set_on_send([&ws](std::string_view message, chat_dialog::chat_mode mode) {
+            std::string_view channel;
             switch (mode)
             {
-                case chat_dialog::chat_mode::normal:
-                    network.send_chat(message, 0);
-                    break;
-                case chat_dialog::chat_mode::shout:
-                    network.send_chat(message, 1);
-                    break;
-                case chat_dialog::chat_mode::whisper:
-                    break;
-                case chat_dialog::chat_mode::party:
-                    network.send_chat(message, 2);
-                    break;
-                case chat_dialog::chat_mode::guild:
-                    network.send_chat(message, 3);
-                    break;
-                default:
-                    network.send_chat(message, 0);
-                    break;
+                case chat_dialog::chat_mode::shout:   channel = "shout"; break;
+                case chat_dialog::chat_mode::whisper:  channel = "whisper"; break;
+                case chat_dialog::chat_mode::party:    channel = "party"; break;
+                case chat_dialog::chat_mode::guild:    channel = "guild"; break;
+                case chat_dialog::chat_mode::trade:    channel = "trade"; break;
+                default:                               channel = "local"; break;
             }
+            ws.send_chat_message(message, channel);
         });
+
+        // Wire classic sprite rendering
+        chat_dlg->set_sprite_manager(&game_->sprites());
     }
 
     // Shop dialog - buy/sell

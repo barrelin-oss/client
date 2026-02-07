@@ -46,6 +46,10 @@ namespace msg_type {
     inline constexpr const char* entity_info_request = "entity_info_request";
     inline constexpr const char* entity_info_response = "entity_info_response";
 
+    // Chat
+    inline constexpr const char* chat_message = "chat_message";
+    inline constexpr const char* chat_message_broadcast = "chat_message_broadcast";
+
     // Server-controlled render mode
     inline constexpr const char* set_render_mode = "set_render_mode";
 }
@@ -829,5 +833,48 @@ struct entity_info_response_data {
         return data;
     }
 };
+
+// Chat message broadcast data (server -> client)
+struct chat_message_broadcast_data {
+    std::string channel;        // "local", "shout", "whisper", "guild", "party", "gm", "faction", "global"
+    uint32_t sender_id = 0;
+    std::string sender_name;
+    std::string content;
+    std::vector<std::string> flags;  // "system", "gm", "emote", etc.
+    int64_t timestamp = 0;
+    std::string recipient_name;      // For whispers
+
+    static chat_message_broadcast_data from_json(const json& j) {
+        chat_message_broadcast_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("channel")) data.channel = d["channel"].get<std::string>();
+            if (d.contains("sender_id")) data.sender_id = d["sender_id"].get<uint32_t>();
+            if (d.contains("sender_name")) data.sender_name = d["sender_name"].get<std::string>();
+            if (d.contains("content")) data.content = d["content"].get<std::string>();
+            if (d.contains("flags") && d["flags"].is_array()) {
+                for (const auto& f : d["flags"]) {
+                    data.flags.push_back(f.get<std::string>());
+                }
+            }
+            if (d.contains("timestamp")) data.timestamp = d["timestamp"].get<int64_t>();
+            if (d.contains("recipient_name")) data.recipient_name = d["recipient_name"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Convenience function to build a chat message request
+inline json make_chat_message_request(std::string_view content, std::string_view channel,
+                                       std::string_view recipient = "")
+{
+    auto builder = message_builder(msg_type::chat_message)
+        .set("content", std::string(content))
+        .set("channel", std::string(channel));
+    if (!recipient.empty()) {
+        builder.set("recipient", std::string(recipient));
+    }
+    return builder.build();
+}
 
 } // namespace hb

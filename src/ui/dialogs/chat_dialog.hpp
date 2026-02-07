@@ -7,6 +7,8 @@
 #include <string>
 #include <deque>
 
+namespace hb { class sprite_manager; }
+
 namespace hb {
 
 // Chat dialog - handles chat messages and input
@@ -58,6 +60,10 @@ public:
     void focus_input();
     bool is_input_focused() const { return input_focused_; }
 
+    // Classic sprite rendering
+    void set_sprite_manager(sprite_manager* sprites) { sprites_ = sprites; }
+    void set_classic_mode(bool classic) { classic_mode_ = classic; }
+
 private:
     sf::Color get_message_color(chat_type type) const;
     std::string get_mode_prefix() const;
@@ -81,6 +87,10 @@ private:
 
     // Tab completion
     std::vector<std::string> recent_senders_;
+
+    // Classic sprite rendering
+    sprite_manager* sprites_ = nullptr;
+    bool classic_mode_ = false;
 
     static constexpr size_t max_input_length = 200;
 };

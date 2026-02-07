@@ -264,29 +264,16 @@ void renderer::end_scene() {
         window_.draw(scene_sprite);
     }
     else if (view_mode_ == view_mode::extended) {
-        // Draw fog overlay around the fair zone
         auto fair = fair_bounds();
         auto dw = static_cast<int32_t>(width_);
         auto dh = static_cast<int32_t>(height_);
-        sf::Color fog_color(0, 0, 0, 200);
 
-        // Top bar
-        if (fair.position.y > 0) {
-            draw_rect(0, 0, dw, fair.position.y, fog_color);
-        }
-        // Bottom bar
-        int32_t bottom_y = fair.position.y + fair.size.y;
-        if (bottom_y < dh) {
-            draw_rect(0, bottom_y, dw, dh - bottom_y, fog_color);
-        }
-        // Left bar (between top and bottom bars)
-        if (fair.position.x > 0) {
-            draw_rect(0, fair.position.y, fair.position.x, fair.size.y, fog_color);
-        }
-        // Right bar (between top and bottom bars)
-        int32_t right_x = fair.position.x + fair.size.x;
-        if (right_x < dw) {
-            draw_rect(right_x, fair.position.y, dw - right_x, fair.size.y, fog_color);
+        switch (fog_style_) {
+            case fog_style::solid:    draw_fog_solid(fair, dw, dh); break;
+            case fog_style::tile_fog: draw_fog_tile(fair, dw, dh); break;
+            case fog_style::vignette: draw_fog_vignette(fair, dw, dh); break;
+            case fog_style::gradient: draw_fog_gradient(fair, dw, dh); break;
+            case fog_style::dither:   draw_fog_dither(fair, dw, dh); break;
         }
     }
     // Special mode: no-op
@@ -393,6 +380,215 @@ void renderer::create_scene_rt() {
 
 void renderer::destroy_scene_rt() {
     scene_rt_.reset();
+}
+
+// ---------------------------------------------------------------------------
+// Fog overlay styles
+// ---------------------------------------------------------------------------
+
+void renderer::set_fog_style(fog_style style) {
+    fog_style_ = style;
+    spdlog::info("Fog style changed to {}", static_cast<int>(style));
+}
+
+void renderer::set_fog_camera_info(int32_t camera_x, int32_t camera_y, float zoom) {
+    fog_camera_x_ = camera_x;
+    fog_camera_y_ = camera_y;
+    fog_zoom_ = zoom;
+}
+
+void renderer::draw_fog_solid(const sf::IntRect& fair, int32_t dw, int32_t dh) {
+    sf::Color fog(0, 0, 0, 200);
+    if (fair.position.y > 0)
+        draw_rect(0, 0, dw, fair.position.y, fog);
+    int32_t bot = fair.position.y + fair.size.y;
+    if (bot < dh)
+        draw_rect(0, bot, dw, dh - bot, fog);
+    if (fair.position.x > 0)
+        draw_rect(0, fair.position.y, fair.position.x, fair.size.y, fog);
+    int32_t right = fair.position.x + fair.size.x;
+    if (right < dw)
+        draw_rect(right, fair.position.y, dw - right, fair.size.y, fog);
+}
+
+void renderer::draw_fog_tile(const sf::IntRect& fair, int32_t dw, int32_t dh) {
+    constexpr float tile_size = 32.0f;
+    float zoom = std::max(fog_zoom_, 0.1f);
+    float step = tile_size / zoom;
+
+    // Calculate tile grid phase on screen from camera position
+    float cx = static_cast<float>(dw) / 2.0f;
+    float cy = static_cast<float>(dh) / 2.0f;
+    float origin_x = cx + (static_cast<float>(-fog_camera_x_) - cx) / zoom;
+    float origin_y = cy + (static_cast<float>(-fog_camera_y_) - cy) / zoom;
+    float phase_x = std::fmod(origin_x, step);
+    if (phase_x < 0) phase_x += step;
+    float phase_y = std::fmod(origin_y, step);
+    if (phase_y < 0) phase_y += step;
+
+    // Snap fair zone inward to tile boundaries
+    float fl = static_cast<float>(fair.position.x);
+    float ft = static_cast<float>(fair.position.y);
+    float fr = static_cast<float>(fair.position.x + fair.size.x);
+    float fb = static_cast<float>(fair.position.y + fair.size.y);
+
+    auto snap_up = [](float val, float ph, float s) {
+        return std::ceil((val - ph) / s) * s + ph;
+    };
+    auto snap_down = [](float val, float ph, float s) {
+        return std::floor((val - ph) / s) * s + ph;
+    };
+
+    int32_t sl = static_cast<int32_t>(snap_up(fl, phase_x, step));
+    int32_t st = static_cast<int32_t>(snap_up(ft, phase_y, step));
+    int32_t sr = static_cast<int32_t>(snap_down(fr, phase_x, step));
+    int32_t sb = static_cast<int32_t>(snap_down(fb, phase_y, step));
+
+    sf::Color fog(0, 0, 0, 200);
+    if (st > 0)  draw_rect(0, 0, dw, st, fog);
+    if (sb < dh) draw_rect(0, sb, dw, dh - sb, fog);
+    if (sl > 0)  draw_rect(0, st, sl, sb - st, fog);
+    if (sr < dw) draw_rect(sr, st, dw - sr, sb - st, fog);
+}
+
+void renderer::draw_fog_vignette(const sf::IntRect& fair, int32_t dw, int32_t dh) {
+    constexpr int segments = 64;
+    constexpr uint8_t max_alpha = 200;
+    constexpr float pi2 = 6.2831853f;
+
+    float cx = static_cast<float>(dw) / 2.0f;
+    float cy = static_cast<float>(dh) / 2.0f;
+
+    // Inner ellipse matches fair zone
+    float rx_inner = static_cast<float>(fair.size.x) / 2.0f;
+    float ry_inner = static_cast<float>(fair.size.y) / 2.0f;
+
+    // Outer radius covers screen corners
+    float outer_r = std::sqrt(cx * cx + cy * cy) + 50.0f;
+
+    sf::Color inner_color(0, 0, 0, 0);
+    sf::Color outer_color(0, 0, 0, max_alpha);
+
+    sf::VertexArray va(sf::PrimitiveType::Triangles, segments * 6);
+    size_t vi = 0;
+
+    for (int i = 0; i < segments; ++i) {
+        float a0 = static_cast<float>(i) / segments * pi2;
+        float a1 = static_cast<float>(i + 1) / segments * pi2;
+
+        float cos0 = std::cos(a0), sin0 = std::sin(a0);
+        float cos1 = std::cos(a1), sin1 = std::sin(a1);
+
+        sf::Vector2f in0{cx + rx_inner * cos0, cy + ry_inner * sin0};
+        sf::Vector2f in1{cx + rx_inner * cos1, cy + ry_inner * sin1};
+        sf::Vector2f out0{cx + outer_r * cos0, cy + outer_r * sin0};
+        sf::Vector2f out1{cx + outer_r * cos1, cy + outer_r * sin1};
+
+        // Two triangles per segment
+        va[vi++] = {in0, inner_color};
+        va[vi++] = {out0, outer_color};
+        va[vi++] = {out1, outer_color};
+
+        va[vi++] = {in0, inner_color};
+        va[vi++] = {out1, outer_color};
+        va[vi++] = {in1, inner_color};
+    }
+
+    active_target_->draw(va);
+}
+
+void renderer::draw_fog_gradient(const sf::IntRect& fair, int32_t dw, int32_t dh) {
+    constexpr int32_t grad_w = 200;
+    constexpr uint8_t max_alpha = 200;
+    sf::Color clear_c(0, 0, 0, 0);
+    sf::Color dark_c(0, 0, 0, max_alpha);
+
+    float fl = static_cast<float>(fair.position.x);
+    float ft = static_cast<float>(fair.position.y);
+    float fr = fl + static_cast<float>(fair.size.x);
+    float fb = ft + static_cast<float>(fair.size.y);
+    float fw = static_cast<float>(dw);
+    float fh = static_cast<float>(dh);
+
+    // Gradient boundaries (clamped to screen)
+    float gt = std::max(ft - grad_w, 0.0f);
+    float gb = std::min(fb + grad_w, fh);
+    float gl = std::max(fl - grad_w, 0.0f);
+    float gr = std::min(fr + grad_w, fw);
+
+    sf::VertexArray va(sf::PrimitiveType::Triangles);
+
+    auto add_quad = [&](sf::Vector2f v0, sf::Color c0, sf::Vector2f v1, sf::Color c1,
+                        sf::Vector2f v2, sf::Color c2, sf::Vector2f v3, sf::Color c3) {
+        va.append({v0, c0});
+        va.append({v1, c1});
+        va.append({v2, c2});
+        va.append({v2, c2});
+        va.append({v3, c3});
+        va.append({v0, c0});
+    };
+
+    // Top gradient strip (full width)
+    add_quad({0, ft}, clear_c, {fw, ft}, clear_c, {fw, gt}, dark_c, {0, gt}, dark_c);
+    // Bottom gradient strip (full width)
+    add_quad({0, fb}, clear_c, {fw, fb}, clear_c, {fw, gb}, dark_c, {0, gb}, dark_c);
+    // Left gradient strip (between fair zone top/bottom)
+    add_quad({fl, ft}, clear_c, {fl, fb}, clear_c, {gl, fb}, dark_c, {gl, ft}, dark_c);
+    // Right gradient strip (between fair zone top/bottom)
+    add_quad({fr, ft}, clear_c, {fr, fb}, clear_c, {gr, fb}, dark_c, {gr, ft}, dark_c);
+
+    active_target_->draw(va);
+
+    // Solid dark beyond gradient
+    int32_t igt = static_cast<int32_t>(gt);
+    int32_t igb = static_cast<int32_t>(gb);
+    int32_t igl = static_cast<int32_t>(gl);
+    int32_t igr = static_cast<int32_t>(gr);
+
+    if (igt > 0) draw_rect(0, 0, dw, igt, dark_c);
+    if (igb < dh) draw_rect(0, igb, dw, dh - igb, dark_c);
+    if (igl > 0) draw_rect(0, igt, igl, igb - igt, dark_c);
+    if (igr < dw) draw_rect(igr, igt, dw - igr, igb - igt, dark_c);
+}
+
+void renderer::ensure_dither_texture() {
+    if (dither_texture_) return;
+
+    // Create a 2x2 checkerboard pattern
+    sf::Image img;
+    img.resize({2, 2}, sf::Color::Transparent);
+    img.setPixel({0, 0}, sf::Color::White);
+    img.setPixel({1, 1}, sf::Color::White);
+    // (0,1) and (1,0) stay transparent
+
+    dither_texture_ = std::make_unique<sf::Texture>(img);
+    dither_texture_->setRepeated(true);
+}
+
+void renderer::draw_fog_dither(const sf::IntRect& fair, int32_t dw, int32_t dh) {
+    ensure_dither_texture();
+
+    sf::Color tint(0, 0, 0, 200);
+
+    auto draw_dithered_rect = [&](int32_t x, int32_t y, int32_t w, int32_t h) {
+        if (w <= 0 || h <= 0) return;
+        sf::Sprite spr(*dither_texture_, sf::IntRect({0, 0}, {w, h}));
+        spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
+        spr.setColor(tint);
+        active_target_->draw(spr);
+    };
+
+    // Same 4 rectangles as solid, but with dither texture
+    if (fair.position.y > 0)
+        draw_dithered_rect(0, 0, dw, fair.position.y);
+    int32_t bot = fair.position.y + fair.size.y;
+    if (bot < dh)
+        draw_dithered_rect(0, bot, dw, dh - bot);
+    if (fair.position.x > 0)
+        draw_dithered_rect(0, fair.position.y, fair.position.x, fair.size.y);
+    int32_t right = fair.position.x + fair.size.x;
+    if (right < dw)
+        draw_dithered_rect(right, fair.position.y, dw - right, fair.size.y);
 }
 
 // ---------------------------------------------------------------------------

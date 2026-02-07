@@ -116,7 +116,15 @@ public:
     ui_element* focused_element() const { return focused_; }
 
     // Debug stats
-    size_t open_dialog_count() const { return dialog_order_.size(); }
+    size_t open_dialog_count() const
+    {
+        size_t count = 0;
+        for (const auto* d : dialog_order_)
+        {
+            if (d->is_open()) ++count;
+        }
+        return count;
+    }
 
     // Check if any dialog is blocking input
     bool is_modal_open() const;

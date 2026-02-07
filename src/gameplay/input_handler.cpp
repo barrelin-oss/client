@@ -705,6 +705,48 @@ void input_handler::handle_hotkey_input(const input& inp)
         spdlog::info("Tile grid: {}", config.show_grid ? "ON" : "OFF");
     }
 
+    // Cycle view mode for testing (F8)
+    if (inp.is_key_pressed(sf::Keyboard::Key::F8) && rend)
+    {
+        bool shift = inp.is_key_down(sf::Keyboard::Key::LShift)
+                  || inp.is_key_down(sf::Keyboard::Key::RShift);
+
+        if (shift)
+        {
+            // Shift+F8: cycle fog style
+            auto current = rend->current_fog_style();
+            fog_style next;
+            const char* name;
+            switch (current)
+            {
+                case fog_style::solid:    next = fog_style::tile_fog; name = "tile_fog"; break;
+                case fog_style::tile_fog: next = fog_style::vignette; name = "vignette"; break;
+                case fog_style::vignette: next = fog_style::gradient; name = "gradient"; break;
+                case fog_style::gradient: next = fog_style::dither;   name = "dither"; break;
+                default:                  next = fog_style::solid;    name = "solid"; break;
+            }
+            rend->set_fog_style(next);
+            spdlog::info("Fog style: {}", name);
+        }
+        else
+        {
+            // F8: cycle view mode
+            auto current = rend->current_view_mode();
+            view_mode next;
+            const char* name;
+            switch (current)
+            {
+                case view_mode::special: next = view_mode::scaled;   name = "scaled"; break;
+                case view_mode::scaled:  next = view_mode::extended;  name = "extended"; break;
+                default:                 next = view_mode::special;   name = "special"; break;
+            }
+            rend->set_view_mode(next);
+            world.set_screen_size(rend->scene_width(), rend->scene_height());
+            spdlog::info("View mode: {} (fair zone: {}x{})",
+                         name, rend->scene_width(), rend->scene_height());
+        }
+    }
+
     // Cycle screen transition type (F9)
     if (inp.is_key_pressed(sf::Keyboard::Key::F9) && rend)
     {

@@ -3,6 +3,8 @@
 #include "graphics/renderer.hpp"
 #include "core/config.hpp"
 #include "core/direction_utils.hpp"
+#include "chat/chat_message.hpp"
+#include "ui/dialogs/chat_dialog.hpp"
 #include "ui/dialogs/spellbook_dialog.hpp"
 #include "world/tile.hpp"
 #include <spdlog/spdlog.h>
@@ -86,6 +88,10 @@ void ws_message_handler::handle_message(const json& message)
         handle_entity_info_response(message);
     else if (type == msg_type::set_render_mode)
         handle_set_render_mode(message);
+    else if (type == msg_type::chat_message_broadcast)
+        handle_chat_message_broadcast(message);
+    else if (type == msg_type::chat_message)
+        {} // Ack from server, already handled via local echo
     else
         spdlog::warn("Unknown message type: {}", type);
 }
@@ -872,6 +878,58 @@ void ws_message_handler::send_view_range()
     json msg = make_set_view_range_request(w, h);
     game_->ws_connection().send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);
+}
+
+void ws_message_handler::send_chat_message(std::string_view content, std::string_view channel,
+                                            std::string_view recipient)
+{
+    json msg = make_chat_message_request(content, channel, recipient);
+    game_->ws_connection().send(msg);
+    spdlog::debug("Sent chat: channel={} content='{}'", channel, content);
+}
+
+void ws_message_handler::handle_chat_message_broadcast(const json& message)
+{
+    auto data = chat_message_broadcast_data::from_json(message);
+
+    // Skip our own messages (local echo already handled)
+    auto& entities = game_->entities();
+    if (data.sender_id == entities.local_player_id())
+        return;
+
+    // Map channel string to chat_type
+    chat_type type = chat_type::normal;
+    if (data.channel == "local") type = chat_type::normal;
+    else if (data.channel == "shout") type = chat_type::shout;
+    else if (data.channel == "whisper") type = chat_type::whisper;
+    else if (data.channel == "guild") type = chat_type::guild;
+    else if (data.channel == "party") type = chat_type::party;
+    else if (data.channel == "gm") type = chat_type::gm;
+    else if (data.channel == "faction") type = chat_type::guild;  // Faction uses guild color
+    else if (data.channel == "global") type = chat_type::global;
+    else if (data.channel == "trade") type = chat_type::trade;
+
+    // Check flags for overrides
+    for (const auto& flag : data.flags)
+    {
+        if (flag == "system") { type = chat_type::system; break; }
+        if (flag == "gm") { type = chat_type::gm; break; }
+        if (flag == "emote") { type = chat_type::emote; break; }
+    }
+
+    chat_message msg;
+    msg.type = type;
+    msg.sender = data.sender_name;
+    msg.content = data.content;
+    msg.timestamp = std::chrono::system_clock::now();
+    msg.recipient = data.recipient_name;
+
+    if (auto* chat_dlg = dynamic_cast<chat_dialog*>(game_->ui().get_dialog(dialog_type::chat)))
+    {
+        chat_dlg->add_message(msg);
+    }
+
+    spdlog::debug("Chat from '{}' [{}]: {}", data.sender_name, data.channel, data.content);
 }
 
 } // namespace hb

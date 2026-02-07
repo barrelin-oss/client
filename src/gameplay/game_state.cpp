@@ -335,6 +335,34 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_levelup_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() { dialog_callbacks_.setup_callbacks(); }});
 
+    // Wire chat input overlay
+    init_steps_.push_back({"Setting up chat...", [this]() {
+        chat_input_.set_on_send([this](std::string_view content, std::string_view channel,
+                                       std::string_view recipient) {
+            // Send via WebSocket
+            ws_handler_.send_chat_message(content, channel, recipient);
+
+            // Local echo
+            chat_message msg;
+            if (channel == "shout") msg.type = chat_type::shout;
+            else if (channel == "whisper") msg.type = chat_type::whisper;
+            else if (channel == "guild") msg.type = chat_type::guild;
+            else if (channel == "party") msg.type = chat_type::party;
+            else if (channel == "faction") msg.type = chat_type::guild;
+            else if (channel == "gm") msg.type = chat_type::gm;
+            else msg.type = chat_type::normal;
+
+            if (entity* player = local_player())
+                msg.sender = player->name().name;
+            msg.content = std::string(content);
+            msg.recipient = std::string(recipient);
+            msg.timestamp = std::chrono::system_clock::now();
+
+            if (auto* chat_dlg = dynamic_cast<chat_dialog*>(ui_.get_dialog(dialog_type::chat)))
+                chat_dlg->add_message(msg);
+        });
+    }});
+
     // Tile sprites: register core mappings + discover tile PAKs, then queue each load
     // initialize_core and discover are fast (no I/O), so run them now at queue time
     tile_registry_.initialize_core(sprites_, "sprites/");
@@ -728,8 +756,12 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Update blocked movement cooldown
     action_queue_.update_cooldown(delta_time);
 
-    // Handle input
-    input_handler_.handle_input(inp);
+    // Chat input overlay runs first - when active it consumes keyboard input
+    bool chat_active = chat_input_.update(delta_time, inp);
+
+    // Handle game input only when chat overlay is not active
+    if (!chat_active)
+        input_handler_.handle_input(inp);
 
     // Track alt key state for super attack indicator
     bool alt_held = inp.is_key_down(sf::Keyboard::Key::LAlt) ||
@@ -1026,6 +1058,9 @@ void game_state_manager::render_playing(renderer& rend) {
 
     floating_text_.render(rend, cam_x, cam_y);
 
+    // Provide camera info for fog overlay styles that need tile alignment
+    rend.set_fog_camera_info(cam_x, cam_y, world_.zoom_level());
+
     rend.end_scene();    // Scaled: composite. Extended: fog overlay. Special: no-op.
 
     rend.begin_ui();     // Switch to native resolution for UI overlay
@@ -1040,6 +1075,10 @@ void game_state_manager::render_playing(renderer& rend) {
     ds.render(rend);
     status_log_.render(rend, static_cast<int32_t>(rend.display_width()),
                        static_cast<int32_t>(rend.display_height()), 70);
+
+    // Chat input overlay (always on top of game, above icon panel)
+    chat_input_.render(rend, static_cast<int32_t>(rend.display_width()),
+                       static_cast<int32_t>(rend.display_height()));
 }
 
 void game_state_manager::setup_network_handlers() {

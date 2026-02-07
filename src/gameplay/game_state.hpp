@@ -8,6 +8,7 @@
 #include "gameplay/inventory.hpp"
 #include "gameplay/magic.hpp"
 #include "gameplay/skills.hpp"
+#include "gameplay/chat_input_overlay.hpp"
 #include "gameplay/ws_message_handler.hpp"
 #include "network/network_system.hpp"
 #include "network/websocket_connection.hpp"
@@ -169,6 +170,7 @@ public:
     hb::action_queue& action_queue() { return action_queue_; }
     hb::input_handler& input_handler() { return input_handler_; }
     ws_message_handler& ws_handler() { return ws_handler_; }
+    chat_input_overlay& chat_input() { return chat_input_; }
 
     // Local player
     void set_local_player_id(entity_id id);
@@ -288,6 +290,7 @@ private:
     hb::input_handler input_handler_;
     dialog_callbacks dialog_callbacks_;
     ws_message_handler ws_handler_;
+    chat_input_overlay chat_input_;
 
     // Network handlers (legacy binary protocol)
     notify_handler notify_handler_;

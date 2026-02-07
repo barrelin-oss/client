@@ -39,6 +39,10 @@ public:
     void request_entity_info(uint32_t entity_id);
     void send_view_range();
 
+    // Chat
+    void send_chat_message(std::string_view content, std::string_view channel,
+                           std::string_view recipient = "");
+
 private:
     // Individual message handlers
     void handle_login_response_ws(const json& message);
@@ -55,6 +59,7 @@ private:
     void handle_npc_move(const json& message);
     void handle_entity_info_response(const json& message);
     void handle_set_render_mode(const json& message);
+    void handle_chat_message_broadcast(const json& message);
 
     game_state_manager* game_ = nullptr;
 

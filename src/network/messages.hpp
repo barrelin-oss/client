@@ -52,6 +52,9 @@ namespace msg_type {
 
     // Server-controlled render mode
     inline constexpr const char* set_render_mode = "set_render_mode";
+
+    // Client preferences
+    inline constexpr const char* set_chat_preferences = "set_chat_preferences";
 }
 
 // Character info from server (used in get_characters_response)
@@ -571,6 +574,12 @@ inline json make_set_view_range_request(uint32_t width, uint32_t height) {
     return message_builder(msg_type::set_view_range)
         .set("screen_width", width)
         .set("screen_height", height)
+        .build();
+}
+
+inline json make_set_chat_preferences_request(bool filter_profanity) {
+    return message_builder(msg_type::set_chat_preferences)
+        .set("filter_profanity", filter_profanity)
         .build();
 }
 

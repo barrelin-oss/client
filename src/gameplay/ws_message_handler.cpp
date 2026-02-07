@@ -442,6 +442,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     spdlog::info("Entering game world: {}", ch.map_name);
 
     send_view_range();
+    send_chat_preferences();
     game_->change_state(game_state::playing);
 }
 
@@ -924,6 +925,14 @@ void ws_message_handler::send_view_range()
     json msg = make_set_view_range_request(w, h);
     game_->ws_connection().send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);
+}
+
+void ws_message_handler::send_chat_preferences()
+{
+    bool filter = config::instance().chat().filter_profanity;
+    json msg = make_set_chat_preferences_request(filter);
+    game_->ws_connection().send(msg);
+    spdlog::info("Sent chat preferences: filter_profanity={}", filter);
 }
 
 void ws_message_handler::send_chat_message(std::string_view content, std::string_view channel,

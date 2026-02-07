@@ -186,7 +186,7 @@ private:
     uint32_t draw_call_count_ = 0;
 
     // View mode system
-    view_mode view_mode_ = view_mode::scaled;
+    view_mode view_mode_ = view_mode::special;
     std::unique_ptr<sf::RenderTexture> scene_rt_;
     uint32_t internal_width_ = 800;
     uint32_t internal_height_ = 600;

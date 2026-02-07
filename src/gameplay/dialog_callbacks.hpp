@@ -16,8 +16,6 @@ public:
     void setup_callbacks();
 
 private:
-    void setup_system_menu_buttons(managed_dialog* sys_menu);
-
     game_state_manager* game_ = nullptr;
 };
 

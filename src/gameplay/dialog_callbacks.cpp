@@ -4,7 +4,9 @@
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
+#include "ui/dialogs/system_menu_dialog.hpp"
 #include "core/config.hpp"
+#include "network/messages.hpp"
 #include "debug/debug_stats.hpp"
 #include <spdlog/spdlog.h>
 
@@ -220,6 +222,24 @@ void dialog_callbacks::setup_callbacks()
         });
     }
 
+    // Helper lambda to open settings dialog directly (used by both icon panel types)
+    auto open_settings = [this]() {
+        if (auto* settings = dynamic_cast<settings_dialog*>(game_->ui().get_dialog(dialog_type::options)))
+        {
+            settings->set_ui_style(game_->ui().style());
+
+            // Center the dialog based on current renderer dimensions
+            if (auto* rend = game_->get_renderer())
+            {
+                auto b = settings->bounds();
+                int32_t new_x = (static_cast<int32_t>(rend->width()) - b.width) / 2;
+                int32_t new_y = (static_cast<int32_t>(rend->height()) - b.height) / 2;
+                settings->set_position(new_x, new_y);
+            }
+        }
+        game_->ui().toggle_dialog(dialog_type::options);
+    };
+
     // Icon panel - bottom HUD buttons
     // First try YAML-based icon panel
     if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui.get_dialog(dialog_type::icon_panel)))
@@ -244,34 +264,7 @@ void dialog_callbacks::setup_callbacks()
             game_->ui().toggle_dialog(dialog_type::chat);
         });
 
-        yaml_dlg->set_on_system_menu([this]() {
-            auto& dlg_mgr = game_->ui().dialogs();
-            auto* sys_menu = dlg_mgr.find_dialog("system_menu");
-
-            if (sys_menu)
-            {
-                if (sys_menu->is_open())
-                {
-                    sys_menu->close();
-                }
-                else
-                {
-                    sys_menu->open();
-                }
-            }
-            else if (dlg_mgr.get_definition("system_menu"))
-            {
-                sys_menu = dlg_mgr.open_dialog("system_menu");
-                if (sys_menu)
-                {
-                    setup_system_menu_buttons(sys_menu);
-                }
-            }
-            else
-            {
-                game_->ui().toggle_dialog(dialog_type::system_menu);
-            }
-        });
+        yaml_dlg->set_on_system_menu(open_settings);
 
         yaml_dlg->set_on_combat_indicator([this]() {
             game_->toggle_combat_mode();
@@ -306,30 +299,7 @@ void dialog_callbacks::setup_callbacks()
             game_->ui().toggle_dialog(dialog_type::chat);
         });
 
-        icon_dlg->set_on_system_menu([this]() {
-            auto& dlg_mgr = game_->ui().dialogs();
-            auto* sys_menu = dlg_mgr.find_dialog("system_menu");
-
-            if (sys_menu)
-            {
-                if (sys_menu->is_open())
-                {
-                    sys_menu->close();
-                }
-                else
-                {
-                    sys_menu->open();
-                }
-            }
-            else
-            {
-                sys_menu = dlg_mgr.open_dialog("system_menu");
-                if (sys_menu)
-                {
-                    setup_system_menu_buttons(sys_menu);
-                }
-            }
-        });
+        icon_dlg->set_on_system_menu(open_settings);
 
         icon_dlg->set_on_combat_indicator([this]() {
             game_->toggle_combat_mode();
@@ -339,53 +309,10 @@ void dialog_callbacks::setup_callbacks()
         icon_dlg->set_on_button_sound([&sounds]() { sounds.play_ui_sound(14); });
     }
 
-    // Legacy system menu dialog - keep for fallback
-    if (auto* sys_dlg = dynamic_cast<system_menu_dialog*>(ui.get_dialog(dialog_type::system_menu)))
-    {
-        sys_dlg->set_on_settings([this]() {
-            if (auto* settings = dynamic_cast<settings_dialog*>(game_->ui().get_dialog(dialog_type::options)))
-            {
-                settings->set_ui_style(game_->ui().style());
-
-                // Center the dialog based on current renderer dimensions
-                if (auto* rend = game_->get_renderer())
-                {
-                    auto b = settings->bounds();
-                    int32_t new_x = (static_cast<int32_t>(rend->width()) - b.width) / 2;
-                    int32_t new_y = (static_cast<int32_t>(rend->height()) - b.height) / 2;
-                    settings->set_position(new_x, new_y);
-                }
-            }
-            game_->ui().open_dialog(dialog_type::options);
-        });
-
-        sys_dlg->set_on_help([this]() {
-            auto* help_dlg = game_->ui().dialogs().create_help_dialog();
-            if (help_dlg)
-            {
-                help_dlg->open();
-            }
-            else
-            {
-                game_->ui().open_dialog(dialog_type::help);
-            }
-        });
-
-        sys_dlg->set_on_logout([this]() {
-            spdlog::info("Logout requested");
-            game_->ws_connection().disconnect();
-            game_->change_state(game_state::login);
-        });
-
-        sys_dlg->set_on_exit([this]() {
-            spdlog::info("Exit requested");
-            game_->change_state(game_state::quit);
-        });
-    }
-
-    // Settings dialog - game configuration including UI style
+    // Settings dialog - tabbed game configuration
     if (auto* settings_dlg = dynamic_cast<settings_dialog*>(ui.get_dialog(dialog_type::options)))
     {
+        // === Initialize from config ===
         const auto& video = config::instance().video();
         settings_dlg->set_resolution(video.screen_width, video.screen_height);
         settings_dlg->set_display_mode(video.fullscreen, video.borderless);
@@ -394,16 +321,75 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_framerate(video.framerate_limit);
         settings_dlg->set_remember_position(video.remember_position);
         settings_dlg->set_show_debug_stats(video.show_debug_stats);
+        settings_dlg->set_show_fps(video.show_fps);
+        settings_dlg->set_aspect_mode(video.aspect_mode);
+        settings_dlg->set_scale_filter(video.scale_filter);
+        settings_dlg->set_ui_scale(video.ui_scale);
 
         const auto& audio_cfg = config::instance().audio();
+        settings_dlg->set_master_volume(audio_cfg.master_volume);
         settings_dlg->set_music_volume(audio_cfg.music_volume);
         settings_dlg->set_sound_volume(audio_cfg.sfx_volume);
+        settings_dlg->set_music_enabled(audio_cfg.music_enabled);
+        settings_dlg->set_sfx_enabled(audio_cfg.sfx_enabled);
 
+        const auto& game_cfg = config::instance().game();
+        settings_dlg->set_type_to_chat(game_cfg.type_to_chat);
+        settings_dlg->set_show_damage_numbers(game_cfg.show_damage_numbers);
+        settings_dlg->set_show_names(game_cfg.show_names);
+        settings_dlg->set_show_guild_names(game_cfg.show_guild_names);
+        settings_dlg->set_show_hp_bars(game_cfg.show_hp_bars);
+        settings_dlg->set_camera_shake(game_cfg.camera_shake);
+
+        const auto& chat_cfg = config::instance().chat();
+        settings_dlg->set_show_timestamps(chat_cfg.show_timestamps);
+        settings_dlg->set_filter_profanity(chat_cfg.filter_profanity);
+        settings_dlg->set_block_spam(chat_cfg.block_spam);
+
+        // === Game tab callbacks ===
         settings_dlg->set_on_style_change([this](ui_style style) {
             game_->set_ui_style(style);
             spdlog::info("UI style preview: {}", style == ui_style::classic ? "classic" : "modern");
         });
 
+        settings_dlg->set_on_show_damage_numbers_change([](bool v) {
+            config::instance().game().show_damage_numbers = v;
+            config::instance().save();
+            spdlog::info("Show damage numbers: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_show_names_change([](bool v) {
+            config::instance().game().show_names = v;
+            config::instance().save();
+            spdlog::info("Show names: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_show_guild_names_change([](bool v) {
+            config::instance().game().show_guild_names = v;
+            config::instance().save();
+            spdlog::info("Show guild names: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_show_hp_bars_change([](bool v) {
+            config::instance().game().show_hp_bars = v;
+            config::instance().save();
+            spdlog::info("Show HP bars: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_camera_shake_change([](bool v) {
+            config::instance().game().camera_shake = v;
+            config::instance().save();
+            spdlog::info("Camera shake: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_type_to_chat_change([this](bool enabled) {
+            spdlog::info("Type to chat: {}", enabled ? "ON" : "OFF");
+            config::instance().game().type_to_chat = enabled;
+            game_->chat_input().set_type_to_chat(enabled);
+            config::instance().save();
+        });
+
+        // === Video tab callbacks ===
         settings_dlg->set_on_resolution_change([this](uint32_t width, uint32_t height,
                                                        bool fullscreen, bool borderless,
                                                        int32_t monitor_x, int32_t monitor_y) {
@@ -444,17 +430,18 @@ void dialog_callbacks::setup_callbacks()
             config::instance().video().remember_position = remember;
         });
 
-        settings_dlg->set_on_show_debug_stats_change([](bool show) {
-            spdlog::info("Debug stats: {}", show ? "ON" : "OFF");
-            config::instance().video().show_debug_stats = show;
-            debug::debug_stats::instance().set_visible(show);
+        settings_dlg->set_on_apply([]() {
+            spdlog::info("Settings applied");
+            config::instance().save();
         });
 
-        settings_dlg->set_type_to_chat(config::instance().game().type_to_chat);
-        settings_dlg->set_on_type_to_chat_change([this](bool enabled) {
-            spdlog::info("Type to chat: {}", enabled ? "ON" : "OFF");
-            config::instance().game().type_to_chat = enabled;
-            game_->chat_input().set_type_to_chat(enabled);
+        // === Audio tab callbacks ===
+        settings_dlg->set_on_master_volume_change([this](float volume) {
+            if (auto* a = game_->get_audio())
+            {
+                a->set_master_volume(volume);
+            }
+            config::instance().audio().master_volume = volume;
         });
 
         settings_dlg->set_on_music_volume_change([this](float volume) {
@@ -473,55 +460,81 @@ void dialog_callbacks::setup_callbacks()
             config::instance().audio().sfx_volume = volume;
         });
 
-        settings_dlg->set_on_apply([]() {
-            spdlog::info("Settings applied");
+        settings_dlg->set_on_music_enabled_change([this](bool enabled) {
+            spdlog::info("Music: {}", enabled ? "enabled" : "disabled");
+            config::instance().audio().music_enabled = enabled;
+            if (auto* a = game_->get_audio())
+            {
+                if (!enabled) a->stop_music();
+            }
             config::instance().save();
         });
-    }
-}
 
-void dialog_callbacks::setup_system_menu_buttons(managed_dialog* sys_menu)
-{
-    sys_menu->on_button_click("btn_settings", [this]() {
-        game_->ui().dialogs().close_dialog("system_menu");
-        if (auto* settings = dynamic_cast<settings_dialog*>(game_->ui().get_dialog(dialog_type::options)))
-        {
-            settings->set_ui_style(game_->ui().style());
+        settings_dlg->set_on_sfx_enabled_change([](bool enabled) {
+            spdlog::info("SFX: {}", enabled ? "enabled" : "disabled");
+            config::instance().audio().sfx_enabled = enabled;
+            config::instance().save();
+        });
 
-            // Center the dialog based on current renderer dimensions
-            if (auto* rend = game_->get_renderer())
+        // === Social tab callbacks ===
+        settings_dlg->set_on_show_timestamps_change([](bool v) {
+            config::instance().chat().show_timestamps = v;
+            config::instance().save();
+        });
+
+        settings_dlg->set_on_filter_profanity_change([this](bool v) {
+            config::instance().chat().filter_profanity = v;
+            config::instance().save();
+            // Tell the server to filter (or stop filtering) profanity for us
+            auto msg = make_set_chat_preferences_request(v);
+            game_->ws_connection().send(msg);
+        });
+
+        settings_dlg->set_on_block_spam_change([](bool v) {
+            config::instance().chat().block_spam = v;
+            config::instance().save();
+        });
+
+        // === Debug tab callbacks ===
+        settings_dlg->set_on_show_debug_stats_change([](bool show) {
+            spdlog::info("Debug stats: {}", show ? "ON" : "OFF");
+            config::instance().video().show_debug_stats = show;
+            debug::debug_stats::instance().set_visible(show);
+            config::instance().save();
+        });
+
+        settings_dlg->set_on_show_fps_change([](bool show) {
+            spdlog::info("Show FPS: {}", show ? "ON" : "OFF");
+            config::instance().video().show_fps = show;
+            config::instance().save();
+        });
+
+        // === System tab callbacks ===
+        settings_dlg->set_on_logout([this]() {
+            spdlog::info("Logout requested");
+            game_->ws_connection().disconnect();
+            game_->change_state(game_state::login);
+        });
+
+        settings_dlg->set_on_exit([this]() {
+            spdlog::info("Exit game requested");
+            game_->change_state(game_state::quit);
+        });
+
+        // === Help tab callback ===
+        settings_dlg->set_on_help([this]() {
+            game_->ui().close_dialog(dialog_type::options);
+            auto* help_dlg = game_->ui().dialogs().create_help_dialog();
+            if (help_dlg)
             {
-                auto b = settings->bounds();
-                int32_t new_x = (static_cast<int32_t>(rend->width()) - b.width) / 2;
-                int32_t new_y = (static_cast<int32_t>(rend->height()) - b.height) / 2;
-                settings->set_position(new_x, new_y);
+                help_dlg->open();
             }
-        }
-        game_->ui().open_dialog(dialog_type::options);
-    });
-    sys_menu->on_button_click("btn_help", [this]() {
-        game_->ui().dialogs().close_dialog("system_menu");
-        auto* help_dlg = game_->ui().dialogs().create_help_dialog();
-        if (help_dlg)
-        {
-            help_dlg->open();
-        }
-        else
-        {
-            game_->ui().open_dialog(dialog_type::help);
-        }
-    });
-    sys_menu->on_button_click("btn_logout", [this]() {
-        game_->ui().dialogs().close_dialog("system_menu");
-        spdlog::info("Logout requested");
-        game_->ws_connection().disconnect();
-        game_->change_state(game_state::login);
-    });
-    sys_menu->on_button_click("btn_exit", [this]() {
-        game_->ui().dialogs().close_dialog("system_menu");
-        spdlog::info("Exit game requested");
-        game_->change_state(game_state::quit);
-    });
+            else
+            {
+                game_->ui().open_dialog(dialog_type::help);
+            }
+        });
+    }
 }
 
 } // namespace hb

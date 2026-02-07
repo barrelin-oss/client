@@ -1,12 +1,14 @@
 #pragma once
 
 #include "chat/chat_message.hpp"
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 #include <deque>
 #include <functional>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace hb {
@@ -99,6 +101,7 @@ public:
 
 private:
     bool can_send_message() const;
+    bool is_incoming_spam(std::string_view sender);
     void add_to_history(const chat_message& msg);
     bool should_show_message(const chat_message& msg) const;
     chat_type detect_message_type(std::string_view& content) const;
@@ -112,6 +115,12 @@ private:
 
     std::string last_whisper_target_;
     float spam_timer_ = 0.0f;
+
+    // Per-sender incoming spam tracking
+    // Stores recent message timestamps per sender (lowercase name)
+    std::unordered_map<std::string, std::deque<std::chrono::steady_clock::time_point>> sender_message_times_;
+    static constexpr size_t spam_message_threshold = 5;         // Max messages in window
+    static constexpr float spam_window_seconds = 3.0f;          // Time window
 };
 
 } // namespace hb

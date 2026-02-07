@@ -319,7 +319,6 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_map_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_repair_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_help_dialog(); }});
-    init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_system_menu_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_options_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() {
         ui_.load_dialog_definitions_from_directory("assets/ui/dialogs");

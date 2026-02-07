@@ -480,13 +480,6 @@ void ui_system::create_chat_dialog() {
     dialog_order_.push_back(ptr);
 }
 
-void ui_system::create_system_menu_dialog() {
-    auto dlg = std::make_unique<system_menu_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::system_menu] = std::move(dlg);
-    dialog_order_.push_back(ptr);
-}
-
 void ui_system::create_options_dialog() {
     auto dlg = std::make_unique<settings_dialog>();
     dlg->set_ui_style(style_);  // Initialize with current UI style

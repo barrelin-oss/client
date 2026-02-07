@@ -80,7 +80,6 @@ public:
     void create_party_dialog();
     void create_guild_dialog();
     void create_npc_dialog();
-    void create_system_menu_dialog();
     void create_options_dialog();
     void create_trade_dialog();
     void create_craft_dialog();

@@ -9,12 +9,9 @@ namespace hb {
 void chat_system::initialize() {
     history_.clear();
     ignore_list_.clear();
+    filter_words_.clear();
     spam_timer_ = 0.0f;
-
-    // Add some default filter words
-    filter_words_ = {
-        // Add profanity words here if needed
-    };
+    sender_message_times_.clear();
 
     spdlog::info("Chat system initialized");
 }
@@ -23,6 +20,7 @@ void chat_system::shutdown() {
     history_.clear();
     ignore_list_.clear();
     filter_words_.clear();
+    sender_message_times_.clear();
     spdlog::info("Chat system shutdown");
 }
 
@@ -38,11 +36,18 @@ void chat_system::receive_message(const chat_message& msg) {
         return;
     }
 
-    // Filter message if enabled
-    chat_message filtered_msg = msg;
-    if (config_.filter_profanity) {
-        filtered_msg.content = filter_message(msg.content);
+    // Check for incoming spam (skip system messages - they're from the server)
+    if (config_.block_spam && !msg.sender.empty() && msg.type != chat_type::system) {
+        if (is_incoming_spam(msg.sender)) {
+            return;
+        }
     }
+
+    // Profanity filtering is handled server-side; the client sends its
+    // filter_profanity preference via set_chat_preferences and the server
+    // replaces words before broadcasting.
+
+    chat_message filtered_msg = msg;
 
     // Set timestamp
     filtered_msg.timestamp = std::chrono::system_clock::now();
@@ -339,6 +344,35 @@ void chat_system::add_error_message(std::string_view content) {
     msg.content = "[Error] " + std::string(content);
     msg.timestamp = std::chrono::system_clock::now();
     add_to_history(msg);
+}
+
+bool chat_system::is_incoming_spam(std::string_view sender) {
+    // Build lowercase sender key
+    std::string key;
+    key.reserve(sender.size());
+    for (char c : sender) {
+        key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    auto now = std::chrono::steady_clock::now();
+    auto window = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+        std::chrono::duration<float>(spam_window_seconds));
+
+    auto& times = sender_message_times_[key];
+
+    // Remove entries outside the time window
+    while (!times.empty() && (now - times.front()) > window) {
+        times.pop_front();
+    }
+
+    // Check if over threshold
+    if (times.size() >= spam_message_threshold) {
+        return true;
+    }
+
+    // Record this message
+    times.push_back(now);
+    return false;
 }
 
 bool chat_system::can_send_message() const {

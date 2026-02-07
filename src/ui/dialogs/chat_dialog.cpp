@@ -2,8 +2,10 @@
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "core/constants.hpp"
+#include "core/config.hpp"
 #include <algorithm>
 #include <cctype>
+#include <ctime>
 
 namespace hb {
 
@@ -29,6 +31,20 @@ bool ci_contains(std::string_view haystack, std::string_view needle)
         [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) ==
                                      std::tolower(static_cast<unsigned char>(b)); });
     return it != haystack.end();
+}
+
+std::string format_timestamp(std::chrono::system_clock::time_point tp)
+{
+    auto time_t_val = std::chrono::system_clock::to_time_t(tp);
+    std::tm tm_val{};
+#ifdef _WIN32
+    localtime_s(&tm_val, &time_t_val);
+#else
+    localtime_r(&time_t_val, &tm_val);
+#endif
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "[%02d:%02d]", tm_val.tm_hour, tm_val.tm_min);
+    return buf;
 }
 
 } // anonymous namespace
@@ -167,7 +183,16 @@ void chat_dialog::render(renderer& rend)
         {
             const auto& msg = messages_[filtered[fi]];
 
-            std::string display_text = msg.formatted();
+            std::string display_text;
+            if (config::instance().chat().show_timestamps
+                && msg.timestamp.time_since_epoch().count() > 0)
+            {
+                display_text = format_timestamp(msg.timestamp) + " " + msg.formatted();
+            }
+            else
+            {
+                display_text = msg.formatted();
+            }
 
             // Truncate if too long
             size_t max_chars = static_cast<size_t>((bounds_.width - 16) / 6);

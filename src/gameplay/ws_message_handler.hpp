@@ -38,6 +38,7 @@ public:
     void request_delete_character(int32_t character_id);
     void request_entity_info(uint32_t entity_id);
     void send_view_range();
+    void send_chat_preferences();
 
     // Chat
     void send_chat_message(std::string_view content, std::string_view channel,

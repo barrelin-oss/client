@@ -821,7 +821,7 @@ void input_handler::handle_hotkey_input(const input& inp)
     if (inp.is_key_pressed(sf::Keyboard::Key::M)) ui.toggle_dialog(dialog_type::spellbook);
     if (inp.is_key_pressed(sf::Keyboard::Key::P)) ui.toggle_dialog(dialog_type::party);
     if (inp.is_key_pressed(sf::Keyboard::Key::G)) ui.toggle_dialog(dialog_type::guild);
-    if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) ui.toggle_dialog(dialog_type::system_menu);
+    if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) ui.toggle_dialog(dialog_type::options);
 
     // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab))

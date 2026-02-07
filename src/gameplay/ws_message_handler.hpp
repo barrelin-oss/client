@@ -35,6 +35,7 @@ public:
     void request_characters();
     void request_enter_game(int32_t character_id, bool force_disconnect = false);
     void request_create_character(const character_create_data& data);
+    void request_delete_character(int32_t character_id);
     void request_entity_info(uint32_t entity_id);
     void send_view_range();
 
@@ -44,6 +45,7 @@ private:
     void handle_get_characters_response(const json& message);
     void handle_enter_game_response(const json& message);
     void handle_create_character_response(const json& message);
+    void handle_delete_character_response(const json& message);
     void handle_pickup_response(const json& message);
     void handle_ground_item_removed(const json& message);
     void handle_player_position_update(const json& message);

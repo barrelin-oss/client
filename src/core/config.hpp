@@ -17,6 +17,9 @@ struct video_config {
     bool vsync = true;
     uint32_t framerate_limit = 60;  // 0 = unlimited
     bool show_fps = false;
+    bool remember_position = false;
+    int32_t window_x = -1;  // -1 = center on primary monitor
+    int32_t window_y = -1;
 };
 
 // Audio settings

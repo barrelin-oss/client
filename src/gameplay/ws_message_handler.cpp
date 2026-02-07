@@ -65,6 +65,8 @@ void ws_message_handler::handle_message(const json& message)
         handle_enter_game_response(message);
     else if (type == msg_type::create_character_response)
         handle_create_character_response(message);
+    else if (type == msg_type::delete_character_response)
+        handle_delete_character_response(message);
     else if (type == msg_type::player_pickup_response)
         handle_pickup_response(message);
     else if (type == msg_type::ground_item_removed)
@@ -433,6 +435,24 @@ void ws_message_handler::handle_create_character_response(const json& message)
     }
 }
 
+void ws_message_handler::handle_delete_character_response(const json& message)
+{
+    auto response = delete_character_response_data::from_json(message);
+
+    if (response.success)
+    {
+        spdlog::info("Character deleted successfully");
+        // Server sends an unsolicited get_characters_response with the updated list,
+        // so we don't need to request_characters() here.
+    }
+    else
+    {
+        std::string error_msg = response.error_message.empty() ? "Failed to delete character" : response.error_message;
+        spdlog::warn("Character deletion failed: {}", error_msg);
+        game_->show_error(error_msg);
+    }
+}
+
 void ws_message_handler::handle_pickup_response(const json& message)
 {
     auto response = player_pickup_response_data::from_json(message);
@@ -755,6 +775,16 @@ void ws_message_handler::request_create_character(const character_create_data& d
         {"magic", data.magic},
         {"charisma", data.charisma}
     };
+    game_->ws_connection().send(msg);
+}
+
+void ws_message_handler::request_delete_character(int32_t character_id)
+{
+    spdlog::info("Requesting to delete character ID: {}", character_id);
+
+    json msg;
+    msg["type"] = "delete_character_request";
+    msg["data"] = {{"character_id", character_id}};
     game_->ws_connection().send(msg);
 }
 

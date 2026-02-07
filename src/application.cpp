@@ -137,6 +137,14 @@ bool application::initialize() {
 void application::shutdown() {
     spdlog::info("Shutting down...");
 
+    // Save window position before closing
+    auto& video = config::instance().video();
+    if (video.remember_position && renderer_.is_open() && !video.fullscreen) {
+        auto pos = renderer_.window().getPosition();
+        video.window_x = pos.x;
+        video.window_y = pos.y;
+    }
+
     // Save configuration
     save_config();
 

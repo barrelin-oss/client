@@ -131,8 +131,13 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         spdlog::info("Opening character creation");
         change_state(game_state::create_character);
     });
-    screens_.get_character_select_screen().set_on_delete([](int32_t index) {
-        spdlog::info("Delete character requested: {}", index);
+    screens_.get_character_select_screen().set_on_delete([this](int32_t index) {
+        if (index >= 0 && index < static_cast<int32_t>(characters_.size()))
+        {
+            int32_t character_id = characters_[index].id;
+            spdlog::info("Deleting character '{}' (ID: {})", characters_[index].name, character_id);
+            ws_handler_.request_delete_character(character_id);
+        }
     });
     screens_.get_character_select_screen().set_on_logout([this]() {
         spdlog::info("Logging out to main menu");

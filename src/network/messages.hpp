@@ -20,6 +20,8 @@ namespace msg_type {
     inline constexpr const char* enter_game_response = "enter_game_response";
     inline constexpr const char* create_character_request = "create_character_request";
     inline constexpr const char* create_character_response = "create_character_response";
+    inline constexpr const char* delete_character_request = "delete_character_request";
+    inline constexpr const char* delete_character_response = "delete_character_response";
     inline constexpr const char* set_view_range = "set_view_range";
 
     // Item pickup
@@ -487,6 +489,23 @@ struct create_character_response_data {
             if (d.contains("error")) {
                 data.error_message = d["error"].get<std::string>();
             }
+        }
+
+        return data;
+    }
+};
+
+struct delete_character_response_data {
+    bool success = false;
+    std::string error_message;
+
+    static delete_character_response_data from_json(const json& j) {
+        delete_character_response_data data;
+
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error_message = d["error"].get<std::string>();
         }
 
         return data;

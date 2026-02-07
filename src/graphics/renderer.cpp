@@ -33,6 +33,19 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
         return false;
     }
 
+    // Position the window
+    if (!fullscreen) {
+        if (video.remember_position && video.window_x >= 0 && video.window_y >= 0) {
+            window_.setPosition({video.window_x, video.window_y});
+            spdlog::info("Restored window position: {}, {}", video.window_x, video.window_y);
+        } else {
+            auto desktop = sf::VideoMode::getDesktopMode();
+            int32_t center_x = (static_cast<int32_t>(desktop.size.x) - static_cast<int32_t>(width)) / 2;
+            int32_t center_y = (static_cast<int32_t>(desktop.size.y) - static_cast<int32_t>(height)) / 2;
+            window_.setPosition({center_x, center_y});
+        }
+    }
+
     spdlog::info("Renderer initialized: {}x{} {}", width, height,
                  fullscreen ? "fullscreen" : "windowed");
     return true;

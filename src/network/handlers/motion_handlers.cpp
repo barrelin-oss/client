@@ -264,7 +264,7 @@ void motion_handler::process_attack_move(uint32_t entity_id, packet_reader& read
 
 void motion_handler::process_damage(uint32_t entity_id, packet_reader& reader) {
     auto damage = reader.read_i32();
-    auto attacker_id = reader.read_u32();
+    [[maybe_unused]] auto attacker_id = reader.read_u32();
 
     entity* ent = game_->entities().find(entity_id);
     if (!ent) return;
@@ -280,7 +280,7 @@ void motion_handler::process_damage_move(uint32_t entity_id, packet_reader& read
     auto x = reader.read_i16();
     auto y = reader.read_i16();
     auto dir = reader.read_u8();
-    auto damage = reader.read_i32();
+    [[maybe_unused]] auto damage = reader.read_i32();
 
     if (!x || !y || !dir) return;
 

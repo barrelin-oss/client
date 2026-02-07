@@ -94,6 +94,11 @@ bool application::initialize() {
         return false;
     }
 
+    // Apply view mode preferences from config
+    renderer_.set_aspect_mode(static_cast<aspect_mode>(video_cfg.aspect_mode));
+    renderer_.set_scale_filter(static_cast<scale_filter>(video_cfg.scale_filter));
+    renderer_.set_ui_scale(video_cfg.ui_scale);
+
     // Load font for text rendering
     if (!renderer_.load_font("assets/fonts/OpenSans-Regular.ttf")) {
         spdlog::warn("Failed to load font - text rendering will be disabled");

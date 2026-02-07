@@ -668,7 +668,7 @@ void settings_dialog::render(renderer& rend) {
 
     // Helper to render dropdown list overlay
     auto render_dropdown_list = [&](float animation, int32_t dropdown_y, int32_t count,
-                                    auto& options, int32_t hovered, int32_t selected,
+                                    auto& /*options*/, int32_t hovered, int32_t selected,
                                     auto get_label) {
         if (animation <= 0.0f) return;
 

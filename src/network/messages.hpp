@@ -45,6 +45,9 @@ namespace msg_type {
     // Entity info request/response (for when we receive updates for unknown entities)
     inline constexpr const char* entity_info_request = "entity_info_request";
     inline constexpr const char* entity_info_response = "entity_info_response";
+
+    // Server-controlled render mode
+    inline constexpr const char* set_render_mode = "set_render_mode";
 }
 
 // Character info from server (used in get_characters_response)

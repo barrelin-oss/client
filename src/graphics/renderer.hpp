@@ -3,12 +3,36 @@
 #include "graphics/text_renderer.hpp"
 #include <SFML/Graphics.hpp>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace hb {
 
 class sprite;
+
+// Server-controlled rendering mode
+enum class view_mode : uint8_t
+{
+    special = 0,   // Current behavior - native resolution, zoom, no restrictions
+    scaled = 1,    // Fixed internal resolution scaled up to display
+    extended = 2,  // Native resolution but entities only render within fair zone
+};
+
+// Player-configurable aspect ratio for scaled mode
+enum class aspect_mode : uint8_t
+{
+    letterbox = 0, // Uniform scale with black bars
+    stretch = 1,   // Independent x/y scaling to fill display
+};
+
+// Player-configurable scaling filter for scaled mode
+enum class scale_filter : uint8_t
+{
+    nearest = 0,   // Crisp pixel scaling
+    bilinear = 1,  // Smooth interpolation
+};
 
 class renderer {
 public:
@@ -18,6 +42,40 @@ public:
 
     void begin_frame();
     void end_frame();
+
+    // View mode system
+    void set_view_mode(view_mode mode);
+    void set_internal_resolution(uint32_t w, uint32_t h);
+    void begin_scene();  // Scaled: redirect to scene_rt_. Others: no-op.
+    void end_scene();    // Scaled: composite. Extended: fog overlay. Special: no-op.
+    void begin_ui();     // Ensure drawing to window at native resolution.
+
+    view_mode current_view_mode() const { return view_mode_; }
+
+    // Scene dimensions (what game world rendering uses)
+    // Scaled: internal resolution. Extended/Special: display resolution.
+    uint32_t scene_width() const;
+    uint32_t scene_height() const;
+
+    // Display dimensions (always window size)
+    uint32_t display_width() const { return width_; }
+    uint32_t display_height() const { return height_; }
+
+    // Coordinate mapping between display and scene space
+    std::pair<int32_t, int32_t> display_to_scene(int32_t x, int32_t y) const;
+    std::pair<int32_t, int32_t> scene_to_display(int32_t x, int32_t y) const;
+
+    // Fair zone bounds in screen coordinates (for extended mode culling/targeting)
+    sf::IntRect fair_bounds() const;
+    bool is_in_fair_zone(int32_t display_x, int32_t display_y) const;
+
+    // View mode settings
+    void set_aspect_mode(aspect_mode mode) { aspect_mode_ = mode; }
+    void set_scale_filter(scale_filter filter) { scale_filter_ = filter; }
+    void set_ui_scale(float scale) { ui_scale_ = scale; }
+    aspect_mode current_aspect_mode() const { return aspect_mode_; }
+    scale_filter current_scale_filter() const { return scale_filter_; }
+    float ui_scale() const { return ui_scale_; }
 
     // Sprite drawing (with color key transparency)
     void draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
@@ -64,10 +122,12 @@ public:
     // Accessors
     sf::RenderWindow& window() { return window_; }
     const sf::RenderWindow& window() const { return window_; }
+    sf::RenderTarget& active_target() { return *active_target_; }
     bool is_open() const { return window_.isOpen(); }
 
-    uint32_t width() const { return width_; }
-    uint32_t height() const { return height_; }
+    // Legacy width()/height() - returns scene dimensions for backward compatibility
+    uint32_t width() const { return scene_width(); }
+    uint32_t height() const { return scene_height(); }
 
     // Draw call tracking
     uint32_t draw_call_count() const { return draw_call_count_; }
@@ -81,6 +141,9 @@ public:
     void on_focus_changed(bool has_focus);
 
 private:
+    void create_scene_rt();
+    void destroy_scene_rt();
+
     sf::RenderWindow window_;
     sf::Font font_;
     bool font_loaded_ = false;
@@ -89,6 +152,17 @@ private:
     uint32_t height_ = 0;
     bool borderless_ = false;
     uint32_t draw_call_count_ = 0;
+
+    // View mode system
+    view_mode view_mode_ = view_mode::special;
+    std::unique_ptr<sf::RenderTexture> scene_rt_;
+    uint32_t internal_width_ = 800;
+    uint32_t internal_height_ = 600;
+    aspect_mode aspect_mode_ = aspect_mode::letterbox;
+    scale_filter scale_filter_ = scale_filter::nearest;
+    float ui_scale_ = 1.0f;
+    sf::RenderTarget* active_target_ = nullptr;
+    bool rendering_scene_ = false;
 
     text_renderer text_renderer_;
 };

@@ -9,10 +9,10 @@ namespace hb {
 text_renderer::text_renderer() = default;
 text_renderer::~text_renderer() = default;
 
-bool text_renderer::initialize(sf::Font& font, sf::RenderWindow& window)
+bool text_renderer::initialize(sf::Font& font, sf::RenderTarget& target)
 {
     font_ = &font;
-    window_ = &window;
+    target_ = &target;
 
     // Initialize shader cache
     shader_cache_ = std::make_unique<text_shader_cache>();
@@ -28,13 +28,18 @@ void text_renderer::shutdown()
     shader_rt_.reset();
     shader_cache_.reset();
     font_ = nullptr;
-    window_ = nullptr;
+    target_ = nullptr;
+}
+
+void text_renderer::set_target(sf::RenderTarget& target)
+{
+    target_ = &target;
 }
 
 void text_renderer::draw(std::string_view text, int32_t x, int32_t y,
                          const text_style& style, float time)
 {
-    if (!font_ || !window_)
+    if (!font_ || !target_)
     {
         return;
     }
@@ -216,7 +221,7 @@ void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t
     sprite.setPosition({static_cast<float>(x) - padding,
                         static_cast<float>(y) - padding});
 
-    window_->draw(sprite, sf::RenderStates(shader));
+    target_->draw(sprite, sf::RenderStates(shader));
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +245,7 @@ void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y,
     }
 
     sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_->draw(sf_text);
+    target_->draw(sf_text);
 }
 
 void text_renderer::draw_rainbow(std::string_view text, int32_t x, int32_t y,
@@ -261,7 +266,7 @@ void text_renderer::draw_rainbow(std::string_view text, int32_t x, int32_t y,
     }
 
     sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_->draw(sf_text);
+    target_->draw(sf_text);
 }
 
 void text_renderer::draw_special(std::string_view text, int32_t x, int32_t y,
@@ -291,7 +296,7 @@ void text_renderer::draw_special(std::string_view text, int32_t x, int32_t y,
             sf_text.setOutlineThickness(style.outline_thickness);
         }
         sf_text.setPosition({char_x, static_cast<float>(y)});
-        window_->draw(sf_text);
+        target_->draw(sf_text);
 
         char_x += glyph_advance(text[i], style.size);
     }
@@ -340,7 +345,7 @@ void text_renderer::draw_terror(std::string_view text, int32_t x, int32_t y,
             sf_text.setOutlineThickness(style.outline_thickness);
         }
         sf_text.setPosition({char_x, static_cast<float>(y) + y_offset});
-        window_->draw(sf_text);
+        target_->draw(sf_text);
 
         char_x += glyph_advance(text[i], style.size);
     }
@@ -391,7 +396,7 @@ void text_renderer::draw_wave(std::string_view text, int32_t x, int32_t y,
             sf_text.setOutlineThickness(style.outline_thickness);
         }
         sf_text.setPosition({char_x, static_cast<float>(y) + y_offset});
-        window_->draw(sf_text);
+        target_->draw(sf_text);
 
         char_x += glyph_advance(text[i], style.size);
     }
@@ -451,7 +456,7 @@ void text_renderer::draw_glitch(std::string_view text, int32_t x, int32_t y,
             sf_text.setOutlineThickness(style.outline_thickness);
         }
         sf_text.setPosition({char_x, static_cast<float>(y)});
-        window_->draw(sf_text);
+        target_->draw(sf_text);
 
         // Advance by original glyph width so text doesn't jitter
         char_x += glyph_advance(text[i], style.size);
@@ -495,7 +500,7 @@ void text_renderer::draw_char(char c, float x, float y, sf::Color color,
         sf_text.setOutlineThickness(style.outline_thickness);
     }
     sf_text.setPosition({x, y});
-    window_->draw(sf_text);
+    target_->draw(sf_text);
 }
 
 float text_renderer::glyph_advance(char c, uint32_t size) const

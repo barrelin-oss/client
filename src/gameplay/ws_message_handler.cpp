@@ -1,5 +1,6 @@
 #include "gameplay/ws_message_handler.hpp"
 #include "gameplay/game_state.hpp"
+#include "graphics/renderer.hpp"
 #include "core/config.hpp"
 #include "core/direction_utils.hpp"
 #include "ui/dialogs/spellbook_dialog.hpp"
@@ -83,6 +84,8 @@ void ws_message_handler::handle_message(const json& message)
         handle_npc_move(message);
     else if (type == msg_type::entity_info_response)
         handle_entity_info_response(message);
+    else if (type == msg_type::set_render_mode)
+        handle_set_render_mode(message);
     else
         spdlog::warn("Unknown message type: {}", type);
 }
@@ -817,12 +820,58 @@ void ws_message_handler::request_entity_info(uint32_t entity_id)
     game_->ws_connection().send(msg);
 }
 
+void ws_message_handler::handle_set_render_mode(const json& message)
+{
+    if (!message.contains("data"))
+    {
+        spdlog::warn("set_render_mode: missing data");
+        return;
+    }
+    const auto& d = message["data"];
+
+    auto* rend = game_->get_renderer();
+    if (!rend) return;
+
+    // Parse mode
+    if (d.contains("mode"))
+    {
+        std::string mode_str = d["mode"].get<std::string>();
+        if (mode_str == "scaled")
+            rend->set_view_mode(view_mode::scaled);
+        else if (mode_str == "extended")
+            rend->set_view_mode(view_mode::extended);
+        else
+            rend->set_view_mode(view_mode::special);
+    }
+
+    // Parse fair resolution
+    if (d.contains("fair_width") && d.contains("fair_height"))
+    {
+        uint32_t fw = d["fair_width"].get<uint32_t>();
+        uint32_t fh = d["fair_height"].get<uint32_t>();
+        rend->set_internal_resolution(fw, fh);
+    }
+
+    // Update world screen size to match the new scene dimensions
+    game_->game_world().set_screen_size(rend->scene_width(), rend->scene_height());
+
+    // Inform server of our effective view range
+    send_view_range();
+
+    spdlog::info("Render mode set: mode={}, fair={}x{}",
+                 static_cast<int>(rend->current_view_mode()),
+                 rend->scene_width(), rend->scene_height());
+}
+
 void ws_message_handler::send_view_range()
 {
-    const auto& video = config::instance().video();
-    json msg = make_set_view_range_request(video.screen_width, video.screen_height);
+    // Send the effective game resolution (scene dimensions account for view mode)
+    auto* rend = game_->get_renderer();
+    uint32_t w = rend ? rend->scene_width() : config::instance().video().screen_width;
+    uint32_t h = rend ? rend->scene_height() : config::instance().video().screen_height;
+    json msg = make_set_view_range_request(w, h);
     game_->ws_connection().send(msg);
-    spdlog::info("Sent view range: {}x{}", video.screen_width, video.screen_height);
+    spdlog::info("Sent view range: {}x{}", w, h);
 }
 
 } // namespace hb

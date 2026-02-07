@@ -23,6 +23,11 @@ struct video_config {
     bool remember_position = false;
     int32_t window_x = -1;  // -1 = center on primary monitor
     int32_t window_y = -1;
+
+    // View mode settings (player-configurable)
+    uint8_t aspect_mode = 0;    // 0=letterbox, 1=stretch (scaled mode only)
+    uint8_t scale_filter = 0;   // 0=nearest, 1=bilinear (scaled mode only)
+    float ui_scale = 1.0f;      // 1.0 = native, max ~3.0 (all modes)
 };
 
 // Audio settings

@@ -1210,8 +1210,13 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     // Use actual screen dimensions from renderer with margin for off-screen sprites
     // that may extend into view (characters render at -32, -64 from their position)
     static constexpr int32_t render_margin = 128;
-    int32_t scr_width = static_cast<int32_t>(rend.width());
-    int32_t scr_height = static_cast<int32_t>(rend.height());
+    int32_t scr_width = static_cast<int32_t>(rend.scene_width());
+    int32_t scr_height = static_cast<int32_t>(rend.scene_height());
+
+    // Extended mode: entities outside fair zone are hidden
+    bool extended_cull = rend.current_view_mode() == view_mode::extended;
+    sf::IntRect fair;
+    if (extended_cull) fair = rend.fair_bounds();
 
     for (auto& [id, e] : entities_) {
         if (e->should_remove()) continue;
@@ -1230,6 +1235,12 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
         // Check if on screen (with margin to prevent pop-in/pop-out)
         if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
             screen_y >= -render_margin && screen_y < scr_height + render_margin) {
+            // Extended mode: additionally check fair zone bounds
+            if (extended_cull) {
+                if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
+                    screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
+                    continue;
+            }
             visible_entities.push_back(e.get());
         }
     }
@@ -1250,8 +1261,13 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
     std::vector<entity*> visible_entities;
 
     static constexpr int32_t render_margin = 128;
-    int32_t scr_width = static_cast<int32_t>(rend.width());
-    int32_t scr_height = static_cast<int32_t>(rend.height());
+    int32_t scr_width = static_cast<int32_t>(rend.scene_width());
+    int32_t scr_height = static_cast<int32_t>(rend.scene_height());
+
+    // Extended mode: entities outside fair zone are hidden
+    bool extended_cull = rend.current_view_mode() == view_mode::extended;
+    sf::IntRect fair;
+    if (extended_cull) fair = rend.fair_bounds();
 
     for (auto& [id, e] : entities_) {
         if (e->should_remove()) continue;
@@ -1268,6 +1284,12 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
 
         if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
             screen_y >= -render_margin && screen_y < scr_height + render_margin) {
+            // Extended mode: additionally check fair zone bounds
+            if (extended_cull) {
+                if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
+                    screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
+                    continue;
+            }
             visible_entities.push_back(e.get());
         }
     }

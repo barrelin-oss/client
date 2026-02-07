@@ -54,6 +54,7 @@ private:
     void handle_hunger_update(const json& message);
     void handle_npc_move(const json& message);
     void handle_entity_info_response(const json& message);
+    void handle_set_render_mode(const json& message);
 
     game_state_manager* game_ = nullptr;
 

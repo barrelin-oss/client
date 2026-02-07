@@ -33,13 +33,6 @@ bool is_wav_extension(const fs::path& path)
     return iequals(ext, ".wav");
 }
 
-// Check if extension is .ogg (case-insensitive)
-bool is_ogg_extension(const fs::path& path)
-{
-    auto ext = path.extension().string();
-    return iequals(ext, ".ogg");
-}
-
 } // anonymous namespace
 
 bool sound_manager::initialize(audio& audio_system)

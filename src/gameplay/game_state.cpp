@@ -716,8 +716,11 @@ void game_state_manager::update_loading(float delta_time, const input& inp) {
 }
 
 void game_state_manager::update_playing(float delta_time, const input& inp) {
-    // Convert mouse position to view coordinates for entity hover detection
-    auto [mouse_world_x, mouse_world_y] = world_.screen_to_world(inp.mouse_x(), inp.mouse_y());
+    // Map display-space mouse to scene-space for game world interactions
+    auto [scene_mx, scene_my] = renderer_->display_to_scene(inp.mouse_x(), inp.mouse_y());
+
+    // Convert scene-space mouse position to view coordinates for entity hover detection
+    auto [mouse_world_x, mouse_world_y] = world_.screen_to_world(scene_mx, scene_my);
     input_handler_.set_mouse_position(
         mouse_world_x - world_.camera_x(),
         mouse_world_y - world_.camera_y());
@@ -737,12 +740,12 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         icon_dlg->set_alt_held(alt_held);
     }
 
-    // Mouse wheel zoom
+    // Mouse wheel zoom (use scene-space coordinates for anchor)
     if (world_.is_zoom_mode_enabled()) {
         int32_t wheel = inp.wheel_delta();
         if (wheel != 0) {
             if (world_.is_cinematic_mode()) {
-                world_.adjust_zoom(static_cast<float>(-wheel) * 0.1f, inp.mouse_x(), inp.mouse_y());
+                world_.adjust_zoom(static_cast<float>(-wheel) * 0.1f, scene_mx, scene_my);
             } else {
                 world_.adjust_zoom(static_cast<float>(-wheel) * 0.1f);
             }
@@ -866,11 +869,11 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         // Draw calls (from previous frame)
         debug_stats.set_draw_calls(renderer_->draw_call_count());
 
-        // Input
+        // Input (use scene-space coords for world/tile debug, display-space for screen pos)
         debug_stats.set_mouse_screen_pos(inp.mouse_x(), inp.mouse_y());
-        auto [dbg_world_x, dbg_world_y] = world_.screen_to_world(inp.mouse_x(), inp.mouse_y());
+        auto [dbg_world_x, dbg_world_y] = world_.screen_to_world(scene_mx, scene_my);
         debug_stats.set_mouse_world_pos(dbg_world_x, dbg_world_y);
-        auto [tile_x, tile_y] = world_.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        auto [tile_x, tile_y] = world_.screen_to_tile(scene_mx, scene_my);
         debug_stats.set_mouse_tile_pos(tile_x, tile_y);
 
         entity* hovered = entities_.get_entity_at_screen_pos(
@@ -955,6 +958,8 @@ void game_state_manager::render_loading(renderer& rend) {
 }
 
 void game_state_manager::render_playing(renderer& rend) {
+    rend.begin_scene();  // Scaled: redirect to scene_rt_. Others: no-op.
+
     world_.apply_zoom_view(rend);
 
     // Render terrain chunks and debug overlays (no objects)
@@ -1019,6 +1024,12 @@ void game_state_manager::render_playing(renderer& rend) {
     effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);
 
+    floating_text_.render(rend, cam_x, cam_y);
+
+    rend.end_scene();    // Scaled: composite. Extended: fog overlay. Special: no-op.
+
+    rend.begin_ui();     // Switch to native resolution for UI overlay
+
     // Update rendering stats
     auto& ds = debug::debug_stats::instance();
     int32_t visible_tiles = (range.end_x - range.start_x) * (range.end_y - range.start_y);
@@ -1026,10 +1037,9 @@ void game_state_manager::render_playing(renderer& rend) {
     ds.set_sprites_rendered(static_cast<int32_t>(sorted.size()));
     ds.set_objects_rendered(world_.objects_rendered());
 
-    floating_text_.render(rend, cam_x, cam_y);
     ds.render(rend);
-    status_log_.render(rend, static_cast<int32_t>(rend.width()),
-                       static_cast<int32_t>(rend.height()), 70);
+    status_log_.render(rend, static_cast<int32_t>(rend.display_width()),
+                       static_cast<int32_t>(rend.display_height()), 70);
 }
 
 void game_state_manager::setup_network_handlers() {
@@ -1372,10 +1382,13 @@ void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y) {
 }
 
 void game_state_manager::send_view_range() {
-    const auto& video = config::instance().video();
-    json msg = make_set_view_range_request(video.screen_width, video.screen_height);
+    // Send the effective game resolution (what the player can interact with).
+    // In scaled/extended mode this is the fair resolution, not the display resolution.
+    uint32_t w = renderer_ ? renderer_->scene_width() : config::instance().video().screen_width;
+    uint32_t h = renderer_ ? renderer_->scene_height() : config::instance().video().screen_height;
+    json msg = make_set_view_range_request(w, h);
     ws_connection_.send(msg);
-    spdlog::info("Sent view range: {}x{}", video.screen_width, video.screen_height);
+    spdlog::info("Sent view range: {}x{}", w, h);
 }
 
 bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool fullscreen,
@@ -1410,7 +1423,7 @@ bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool
     video.fullscreen = fullscreen;
     video.borderless = borderless;
 
-    world_.set_screen_size(width, height);
+    world_.set_screen_size(renderer_->scene_width(), renderer_->scene_height());
 
     if (state_ == game_state::playing) {
         send_view_range();

@@ -5,6 +5,8 @@
 #include "platform/monitor.hpp"
 #include <SFML/OpenGL.hpp>
 #include <spdlog/spdlog.h>
+#include <algorithm>
+#include <cmath>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -49,6 +51,9 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen,
         spdlog::error("Failed to create window");
         return false;
     }
+
+    // Initialize active_target_ to the window
+    active_target_ = &window_;
 
     // Position the window
     if (borderless) {
@@ -120,6 +125,14 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen,
     // Update borderless state
     borderless_ = borderless;
 
+    // Reset active_target_ to the window
+    active_target_ = &window_;
+
+    // Recreate scene render texture if in scaled mode
+    if (view_mode_ == view_mode::scaled) {
+        create_scene_rt();
+    }
+
     // Position the window
     if (borderless) {
         window_.setPosition({monitor_x, monitor_y});
@@ -147,6 +160,7 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen,
 }
 
 void renderer::shutdown() {
+    destroy_scene_rt();
     text_renderer_.shutdown();
     if (window_.isOpen()) {
         window_.close();
@@ -156,6 +170,8 @@ void renderer::shutdown() {
 
 void renderer::begin_frame() {
     window_.clear(sf::Color::Black);
+    active_target_ = &window_;
+    rendering_scene_ = false;
     draw_call_count_ = 0;
 }
 
@@ -163,37 +179,257 @@ void renderer::end_frame() {
     window_.display();
 }
 
+// ---------------------------------------------------------------------------
+// View mode system
+// ---------------------------------------------------------------------------
+
+void renderer::set_view_mode(view_mode mode) {
+    if (view_mode_ == mode) return;
+
+    view_mode prev = view_mode_;
+    view_mode_ = mode;
+
+    if (mode == view_mode::scaled) {
+        create_scene_rt();
+    } else if (prev == view_mode::scaled) {
+        destroy_scene_rt();
+    }
+
+    spdlog::info("View mode changed to {}", static_cast<int>(mode));
+}
+
+void renderer::set_internal_resolution(uint32_t w, uint32_t h) {
+    if (internal_width_ == w && internal_height_ == h) return;
+
+    internal_width_ = w;
+    internal_height_ = h;
+
+    // Recreate scene RT if it exists
+    if (view_mode_ == view_mode::scaled) {
+        create_scene_rt();
+    }
+
+    spdlog::info("Internal resolution set to {}x{}", w, h);
+}
+
+void renderer::begin_scene() {
+    if (view_mode_ == view_mode::scaled && scene_rt_) {
+        active_target_ = scene_rt_.get();
+        scene_rt_->clear(sf::Color::Black);
+        rendering_scene_ = true;
+        text_renderer_.set_target(*active_target_);
+    }
+}
+
+void renderer::end_scene() {
+    if (view_mode_ == view_mode::scaled && scene_rt_) {
+        // Finalize the render texture
+        scene_rt_->display();
+
+        // Switch back to window
+        active_target_ = &window_;
+        rendering_scene_ = false;
+        text_renderer_.set_target(*active_target_);
+
+        // Composite scene_rt_ onto window
+        const auto& tex = scene_rt_->getTexture();
+        auto tex_smooth = scale_filter_ == scale_filter::bilinear;
+        // SFML 3 textures are const from RenderTexture, use setSmooth on rt before display
+        // We set smooth on the render texture itself
+        scene_rt_->setSmooth(tex_smooth);
+
+        sf::Sprite scene_sprite(tex);
+
+        float display_w = static_cast<float>(width_);
+        float display_h = static_cast<float>(height_);
+        float internal_w = static_cast<float>(internal_width_);
+        float internal_h = static_cast<float>(internal_height_);
+
+        if (aspect_mode_ == aspect_mode::letterbox) {
+            float scale = std::min(display_w / internal_w, display_h / internal_h);
+            float scaled_w = internal_w * scale;
+            float scaled_h = internal_h * scale;
+            float offset_x = (display_w - scaled_w) / 2.0f;
+            float offset_y = (display_h - scaled_h) / 2.0f;
+
+            scene_sprite.setPosition({offset_x, offset_y});
+            scene_sprite.setScale({scale, scale});
+        } else {
+            // Stretch mode
+            float scale_x = display_w / internal_w;
+            float scale_y = display_h / internal_h;
+            scene_sprite.setScale({scale_x, scale_y});
+        }
+
+        window_.draw(scene_sprite);
+    }
+    else if (view_mode_ == view_mode::extended) {
+        // Draw fog overlay around the fair zone
+        auto fair = fair_bounds();
+        auto dw = static_cast<int32_t>(width_);
+        auto dh = static_cast<int32_t>(height_);
+        sf::Color fog_color(0, 0, 0, 200);
+
+        // Top bar
+        if (fair.position.y > 0) {
+            draw_rect(0, 0, dw, fair.position.y, fog_color);
+        }
+        // Bottom bar
+        int32_t bottom_y = fair.position.y + fair.size.y;
+        if (bottom_y < dh) {
+            draw_rect(0, bottom_y, dw, dh - bottom_y, fog_color);
+        }
+        // Left bar (between top and bottom bars)
+        if (fair.position.x > 0) {
+            draw_rect(0, fair.position.y, fair.position.x, fair.size.y, fog_color);
+        }
+        // Right bar (between top and bottom bars)
+        int32_t right_x = fair.position.x + fair.size.x;
+        if (right_x < dw) {
+            draw_rect(right_x, fair.position.y, dw - right_x, fair.size.y, fog_color);
+        }
+    }
+    // Special mode: no-op
+}
+
+void renderer::begin_ui() {
+    active_target_ = &window_;
+    rendering_scene_ = false;
+    text_renderer_.set_target(window_);
+    window_.setView(window_.getDefaultView());
+}
+
+uint32_t renderer::scene_width() const {
+    if (view_mode_ == view_mode::scaled) {
+        return internal_width_;
+    }
+    return width_;
+}
+
+uint32_t renderer::scene_height() const {
+    if (view_mode_ == view_mode::scaled) {
+        return internal_height_;
+    }
+    return height_;
+}
+
+std::pair<int32_t, int32_t> renderer::display_to_scene(int32_t x, int32_t y) const {
+    if (view_mode_ == view_mode::scaled) {
+        float display_w = static_cast<float>(width_);
+        float display_h = static_cast<float>(height_);
+        float internal_w = static_cast<float>(internal_width_);
+        float internal_h = static_cast<float>(internal_height_);
+
+        if (aspect_mode_ == aspect_mode::letterbox) {
+            float scale = std::min(display_w / internal_w, display_h / internal_h);
+            float offset_x = (display_w - internal_w * scale) / 2.0f;
+            float offset_y = (display_h - internal_h * scale) / 2.0f;
+
+            auto scene_x = static_cast<int32_t>((static_cast<float>(x) - offset_x) / scale);
+            auto scene_y = static_cast<int32_t>((static_cast<float>(y) - offset_y) / scale);
+            return {scene_x, scene_y};
+        } else {
+            float scale_x = display_w / internal_w;
+            float scale_y = display_h / internal_h;
+            auto scene_x = static_cast<int32_t>(static_cast<float>(x) / scale_x);
+            auto scene_y = static_cast<int32_t>(static_cast<float>(y) / scale_y);
+            return {scene_x, scene_y};
+        }
+    }
+    // Extended and special: 1:1
+    return {x, y};
+}
+
+std::pair<int32_t, int32_t> renderer::scene_to_display(int32_t x, int32_t y) const {
+    if (view_mode_ == view_mode::scaled) {
+        float display_w = static_cast<float>(width_);
+        float display_h = static_cast<float>(height_);
+        float internal_w = static_cast<float>(internal_width_);
+        float internal_h = static_cast<float>(internal_height_);
+
+        if (aspect_mode_ == aspect_mode::letterbox) {
+            float scale = std::min(display_w / internal_w, display_h / internal_h);
+            float offset_x = (display_w - internal_w * scale) / 2.0f;
+            float offset_y = (display_h - internal_h * scale) / 2.0f;
+
+            auto disp_x = static_cast<int32_t>(static_cast<float>(x) * scale + offset_x);
+            auto disp_y = static_cast<int32_t>(static_cast<float>(y) * scale + offset_y);
+            return {disp_x, disp_y};
+        } else {
+            float scale_x = display_w / internal_w;
+            float scale_y = display_h / internal_h;
+            auto disp_x = static_cast<int32_t>(static_cast<float>(x) * scale_x);
+            auto disp_y = static_cast<int32_t>(static_cast<float>(y) * scale_y);
+            return {disp_x, disp_y};
+        }
+    }
+    return {x, y};
+}
+
+sf::IntRect renderer::fair_bounds() const {
+    if (view_mode_ == view_mode::extended) {
+        int32_t fair_x = (static_cast<int32_t>(width_) - static_cast<int32_t>(internal_width_)) / 2;
+        int32_t fair_y = (static_cast<int32_t>(height_) - static_cast<int32_t>(internal_height_)) / 2;
+        return sf::IntRect(
+            {fair_x, fair_y},
+            {static_cast<int32_t>(internal_width_), static_cast<int32_t>(internal_height_)}
+        );
+    }
+    // For other modes, the entire screen is "fair"
+    return sf::IntRect({0, 0}, {static_cast<int32_t>(width_), static_cast<int32_t>(height_)});
+}
+
+bool renderer::is_in_fair_zone(int32_t display_x, int32_t display_y) const {
+    if (view_mode_ != view_mode::extended) return true;
+    auto fair = fair_bounds();
+    return display_x >= fair.position.x && display_x < fair.position.x + fair.size.x &&
+           display_y >= fair.position.y && display_y < fair.position.y + fair.size.y;
+}
+
+void renderer::create_scene_rt() {
+    scene_rt_ = std::make_unique<sf::RenderTexture>(sf::Vector2u{internal_width_, internal_height_});
+    spdlog::info("Created scene render texture: {}x{}", internal_width_, internal_height_);
+}
+
+void renderer::destroy_scene_rt() {
+    scene_rt_.reset();
+}
+
+// ---------------------------------------------------------------------------
+// Drawing (all redirected through active_target_)
+// ---------------------------------------------------------------------------
+
 void renderer::draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame) {
-    spr.draw(window_, x, y, frame);
+    spr.draw(*active_target_, x, y, frame);
     ++draw_call_count_;
 }
 
 void renderer::draw_sprite_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha) {
-    spr.draw_alpha(window_, x, y, frame, alpha);
+    spr.draw_alpha(*active_target_, x, y, frame, alpha);
     ++draw_call_count_;
 }
 
 void renderer::draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame) {
-    spr.draw_no_color_key(window_, x, y, frame);
+    spr.draw_no_color_key(*active_target_, x, y, frame);
     ++draw_call_count_;
 }
 
 void renderer::draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha) {
-    spr.draw_alpha_no_color_key(window_, x, y, frame, alpha);
+    spr.draw_alpha_no_color_key(*active_target_, x, y, frame, alpha);
     ++draw_call_count_;
 }
 
 void renderer::draw_texture(const sf::Texture& texture, int32_t x, int32_t y) {
     sf::Sprite spr(texture);
     spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_.draw(spr);
+    active_target_->draw(spr);
     ++draw_call_count_;
 }
 
 void renderer::draw_texture(const sf::Texture& texture, int32_t x, int32_t y, const sf::IntRect& rect) {
     sf::Sprite spr(texture, rect);
     spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_.draw(spr);
+    active_target_->draw(spr);
     ++draw_call_count_;
 }
 
@@ -201,8 +437,8 @@ bool renderer::load_font(std::string_view path) {
     if (font_.openFromFile(std::string(path))) {
         font_loaded_ = true;
 
-        // Initialize text renderer with the loaded font
-        text_renderer_.initialize(font_, window_);
+        // Initialize text renderer with the loaded font and active target
+        text_renderer_.initialize(font_, *active_target_);
 
         spdlog::info("Font loaded: {}", path);
         return true;
@@ -223,7 +459,7 @@ void renderer::draw_text(std::string_view text, int32_t x, int32_t y, sf::Color 
     sf::Text sf_text(font_, std::string(text), size);
     sf_text.setFillColor(color);
     sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_.draw(sf_text);
+    active_target_->draw(sf_text);
 }
 
 void renderer::draw_text_outlined(std::string_view text, int32_t x, int32_t y,
@@ -238,7 +474,7 @@ void renderer::draw_text_outlined(std::string_view text, int32_t x, int32_t y,
     sf_text.setOutlineColor(outline_color);
     sf_text.setOutlineThickness(outline_thickness);
     sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
-    window_.draw(sf_text);
+    active_target_->draw(sf_text);
 }
 
 void renderer::draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color color, bool filled) {
@@ -254,7 +490,7 @@ void renderer::draw_rect(int32_t x, int32_t y, int32_t w, int32_t h, sf::Color c
         rect.setOutlineThickness(1);
     }
 
-    window_.draw(rect);
+    active_target_->draw(rect);
 }
 
 void renderer::draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Color color) {
@@ -262,15 +498,21 @@ void renderer::draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Col
         sf::Vertex{{static_cast<float>(x1), static_cast<float>(y1)}, color},
         sf::Vertex{{static_cast<float>(x2), static_cast<float>(y2)}, color}
     };
-    window_.draw(line.data(), 2, sf::PrimitiveType::Lines);
+    active_target_->draw(line.data(), 2, sf::PrimitiveType::Lines);
 }
 
 void renderer::push_scissor(int32_t x, int32_t y, int32_t w, int32_t h) {
     // Flush SFML's render queue before changing OpenGL state
-    window_.setActive(true);
+    if (rendering_scene_ && scene_rt_) {
+        scene_rt_->setActive(true);
+    } else {
+        (void)window_.setActive(true);
+    }
 
     // OpenGL Y coordinate is flipped (0 at bottom)
-    int32_t gl_y = static_cast<int32_t>(height_) - y - h;
+    // Use the correct target height for the Y-flip
+    uint32_t target_h = rendering_scene_ ? internal_height_ : height_;
+    int32_t gl_y = static_cast<int32_t>(target_h) - y - h;
 
     glEnable(GL_SCISSOR_TEST);
     glScissor(x, gl_y, w, h);
@@ -281,14 +523,14 @@ void renderer::pop_scissor() {
 }
 
 void renderer::set_zoom_view(float zoom_level, float center_x, float center_y) {
-    sf::View view = window_.getDefaultView();
+    sf::View view = active_target_->getDefaultView();
     view.setCenter({center_x, center_y});
     view.zoom(zoom_level);
-    window_.setView(view);
+    active_target_->setView(view);
 }
 
 void renderer::reset_to_default_view() {
-    window_.setView(window_.getDefaultView());
+    active_target_->setView(active_target_->getDefaultView());
 }
 
 void renderer::set_topmost(bool topmost) {

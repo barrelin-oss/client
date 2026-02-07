@@ -154,7 +154,7 @@ void main_menu_screen::render(renderer& rend, sprite_manager& sprites) {
     draw(rend, sprites, mouse_x_, mouse_y_);
 }
 
-void main_menu_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y) {
+void main_menu_screen::draw(renderer& rend, sprite_manager& sprites, [[maybe_unused]] int32_t mouse_x, [[maybe_unused]] int32_t mouse_y) {
     // Draw background (frame 0)
     // Original: DrawNewDialogBox(DEF_SPRID_INTERFACE_ND_MAINMENU, -1, -1, 0, TRUE)
     // -1, -1 likely means centered or default position - using 0,0 for now

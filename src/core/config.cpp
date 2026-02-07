@@ -74,6 +74,9 @@ bool config::load(std::string_view path) {
             if (v.contains("remember_position")) video_.remember_position = v["remember_position"].get<bool>();
             if (v.contains("window_x")) video_.window_x = v["window_x"].get<int32_t>();
             if (v.contains("window_y")) video_.window_y = v["window_y"].get<int32_t>();
+            if (v.contains("aspect_mode")) video_.aspect_mode = v["aspect_mode"].get<uint8_t>();
+            if (v.contains("scale_filter")) video_.scale_filter = v["scale_filter"].get<uint8_t>();
+            if (v.contains("ui_scale")) video_.ui_scale = v["ui_scale"].get<float>();
         }
 
         // Audio settings
@@ -180,7 +183,10 @@ bool config::save(std::string_view path) const {
         {"show_debug_stats", video_.show_debug_stats},
         {"remember_position", video_.remember_position},
         {"window_x", video_.window_x},
-        {"window_y", video_.window_y}
+        {"window_y", video_.window_y},
+        {"aspect_mode", video_.aspect_mode},
+        {"scale_filter", video_.scale_filter},
+        {"ui_scale", video_.ui_scale}
     };
 
     // Audio settings

@@ -141,7 +141,7 @@ void input_handler::handle_movement_input(const input& inp)
 
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
-        auto [dest_x, dest_y] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        [[maybe_unused]] auto [dest_x, dest_y] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
         auto& t = player->transform();
 
         bool clicked_on_self = entities.is_point_in_entity_sprite(

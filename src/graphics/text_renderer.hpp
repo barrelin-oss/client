@@ -19,9 +19,12 @@ public:
     text_renderer();
     ~text_renderer();
 
-    // Initialize with font and render window references
-    bool initialize(sf::Font& font, sf::RenderWindow& window);
+    // Initialize with font and render target references
+    bool initialize(sf::Font& font, sf::RenderTarget& target);
     void shutdown();
+
+    // Switch render target (called by renderer when switching between window and scene_rt_)
+    void set_target(sf::RenderTarget& target);
 
     // Primary: draw styled text at screen position
     // time = elapsed seconds for animation (0 for static)
@@ -70,7 +73,7 @@ private:
     float glyph_advance(char c, uint32_t size) const;
 
     sf::Font* font_ = nullptr;
-    sf::RenderWindow* window_ = nullptr;
+    sf::RenderTarget* target_ = nullptr;
 
     // Render texture for shader effects (lazily created)
     std::unique_ptr<sf::RenderTexture> shader_rt_;

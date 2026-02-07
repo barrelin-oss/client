@@ -83,6 +83,11 @@ void floating_text_manager::update(float delta_time)
 
 void floating_text_manager::render(renderer& rend, int32_t camera_x, int32_t camera_y)
 {
+    // Extended mode: floating text outside fair zone is hidden
+    bool extended_cull = rend.current_view_mode() == view_mode::extended;
+    sf::IntRect fair;
+    if (extended_cull) fair = rend.fair_bounds();
+
     for (const auto& entry : entries_)
     {
         // World to screen conversion
@@ -90,10 +95,17 @@ void floating_text_manager::render(renderer& rend, int32_t camera_x, int32_t cam
         auto screen_y = static_cast<int32_t>(entry.world_y) - camera_y;
 
         // Skip if off screen (with generous margin)
-        if (screen_x < -200 || screen_x > static_cast<int32_t>(rend.width()) + 200 ||
-            screen_y < -100 || screen_y > static_cast<int32_t>(rend.height()) + 100)
+        if (screen_x < -200 || screen_x > static_cast<int32_t>(rend.scene_width()) + 200 ||
+            screen_y < -100 || screen_y > static_cast<int32_t>(rend.scene_height()) + 100)
         {
             continue;
+        }
+
+        // Extended mode: additionally check fair zone bounds
+        if (extended_cull) {
+            if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
+                screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
+                continue;
         }
 
         // Fade out during last 25% of lifetime

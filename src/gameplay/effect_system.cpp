@@ -91,8 +91,13 @@ void effect_system::update(float delta_time)
 
 void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
 {
-    auto screen_w = static_cast<int32_t>(rend.width());
-    auto screen_h = static_cast<int32_t>(rend.height());
+    auto screen_w = static_cast<int32_t>(rend.scene_width());
+    auto screen_h = static_cast<int32_t>(rend.scene_height());
+
+    // Extended mode: effects outside fair zone are hidden
+    bool extended_cull = rend.current_view_mode() == view_mode::extended;
+    sf::IntRect fair;
+    if (extended_cull) fair = rend.fair_bounds();
 
     for (const auto& eff : effects_)
     {
@@ -111,6 +116,13 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             screen_y < -margin || screen_y > screen_h + margin)
         {
             continue;
+        }
+
+        // Extended mode: additionally check fair zone bounds
+        if (extended_cull) {
+            if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
+                screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
+                continue;
         }
 
         // Calculate the frame to render

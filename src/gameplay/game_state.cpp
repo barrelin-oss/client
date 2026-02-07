@@ -1444,6 +1444,22 @@ void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y) {
 void game_state_manager::set_view_radius(int16_t radius, bool sees_all) {
     view_radius_ = radius;
     sees_all_ = sees_all;
+
+    if (!renderer_) return;
+
+    if (sees_all)
+    {
+        // Player sees everything - use full display as fair zone
+        renderer_->set_internal_resolution(renderer_->display_width(), renderer_->display_height());
+    }
+    else
+    {
+        // Convert tile radius to pixel dimensions: diameter * tile_size
+        uint32_t diameter_px = static_cast<uint32_t>(radius) * 2 * tile_width;
+        renderer_->set_internal_resolution(diameter_px, diameter_px);
+    }
+
+    world_.set_screen_size(renderer_->scene_width(), renderer_->scene_height());
 }
 
 void game_state_manager::send_view_range() {

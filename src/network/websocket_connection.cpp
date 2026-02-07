@@ -19,10 +19,11 @@ websocket_connection::~websocket_connection() {
 }
 
 bool websocket_connection::connect(std::string_view url) {
-    auto current_state = state_.load();
-    if (current_state == ws_connection_state::connected || current_state == ws_connection_state::connecting) {
-        disconnect();
-    }
+    // Always stop the underlying websocket before starting a new connection.
+    // A server-initiated close sets our state to disconnected but doesn't call
+    // websocket_.stop(), leaving the internal thread running. stop() is safe
+    // to call in any state.
+    websocket_.stop();
 
     // Reset all state for a fresh connection
     state_.store(ws_connection_state::connecting);
@@ -59,16 +60,17 @@ bool websocket_connection::connect(std::string_view url) {
 }
 
 void websocket_connection::disconnect() {
-    if (state_.load() != ws_connection_state::disconnected) {
-        spdlog::info("WebSocket disconnecting");
-        websocket_.stop();
-        state_.store(ws_connection_state::disconnected);
+    // Always stop the underlying socket. A server-initiated close sets our
+    // state to disconnected without calling stop(), so we can't rely on
+    // the state alone to decide whether cleanup is needed.
+    spdlog::info("WebSocket disconnecting");
+    websocket_.stop();
+    state_.store(ws_connection_state::disconnected);
 
-        // Clear message queue
-        std::lock_guard<std::mutex> lock(queue_mutex_);
-        while (!incoming_messages_.empty()) {
-            incoming_messages_.pop();
-        }
+    // Clear message queue
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    while (!incoming_messages_.empty()) {
+        incoming_messages_.pop();
     }
 }
 

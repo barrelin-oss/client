@@ -2,6 +2,7 @@
 #include "graphics/color_utils.hpp"
 #include "assets/sprite.hpp"
 #include "core/config.hpp"
+#include "platform/monitor.hpp"
 #include <SFML/OpenGL.hpp>
 #include <spdlog/spdlog.h>
 
@@ -33,18 +34,21 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
         return false;
     }
 
-    // Position the window
+    // Position the window on the primary monitor
     if (!fullscreen) {
         if (video.remember_position && video.window_x >= 0 && video.window_y >= 0) {
             window_.setPosition({video.window_x, video.window_y});
             spdlog::info("Restored window position: {}, {}", video.window_x, video.window_y);
-        } else {
-            auto desktop = sf::VideoMode::getDesktopMode();
-            int32_t center_x = (static_cast<int32_t>(desktop.size.x) - static_cast<int32_t>(width)) / 2;
-            int32_t center_y = (static_cast<int32_t>(desktop.size.y) - static_cast<int32_t>(height)) / 2;
+        } else if (auto mon = get_primary_monitor()) {
+            int32_t center_x = mon->x + (mon->width - static_cast<int32_t>(width)) / 2;
+            int32_t center_y = mon->y + (mon->height - static_cast<int32_t>(height)) / 2;
             window_.setPosition({center_x, center_y});
         }
     }
+
+    // Hide the system cursor over the game window - the game draws its own software cursor.
+    // SFML automatically restores the OS cursor when the mouse leaves the window.
+    window_.setMouseCursorVisible(false);
 
     spdlog::info("Renderer initialized: {}x{} {}", width, height,
                  fullscreen ? "fullscreen" : "windowed");
@@ -52,8 +56,15 @@ bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen) {
 }
 
 bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) {
-    // Close existing window
+    // Capture the current window center before destroying it so we can
+    // place the new window on the same monitor.
+    std::optional<sf::Vector2i> prev_center;
     if (window_.isOpen()) {
+        auto pos = window_.getPosition();
+        prev_center = sf::Vector2i{
+            pos.x + static_cast<int>(width_) / 2,
+            pos.y + static_cast<int>(height_) / 2
+        };
         window_.close();
     }
 
@@ -81,6 +92,25 @@ bool renderer::set_resolution(uint32_t width, uint32_t height, bool fullscreen) 
         spdlog::error("Failed to recreate window at {}x{}", width, height);
         return false;
     }
+
+    // Re-center the window around where the old window was, keeping it
+    // on the same monitor. Use the same logic as initial window creation.
+    if (!fullscreen) {
+        if (video.remember_position && video.window_x >= 0 && video.window_y >= 0) {
+            window_.setPosition({video.window_x, video.window_y});
+        } else if (prev_center) {
+            int32_t new_x = prev_center->x - static_cast<int32_t>(width) / 2;
+            int32_t new_y = prev_center->y - static_cast<int32_t>(height) / 2;
+            window_.setPosition({new_x, new_y});
+        } else if (auto mon = get_primary_monitor()) {
+            int32_t center_x = mon->x + (mon->width - static_cast<int32_t>(width)) / 2;
+            int32_t center_y = mon->y + (mon->height - static_cast<int32_t>(height)) / 2;
+            window_.setPosition({center_x, center_y});
+        }
+    }
+
+    // Hide the system cursor (window was recreated)
+    window_.setMouseCursorVisible(false);
 
     spdlog::info("Resolution changed to {}x{} {}", width, height,
                  fullscreen ? "fullscreen" : "windowed");

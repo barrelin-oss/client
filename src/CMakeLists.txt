@@ -106,6 +106,9 @@ add_executable(helbreath_client
     gameplay/ws_message_handler.cpp
     gameplay/game_state.cpp
 
+    # Platform
+    platform/monitor.cpp
+
     # Chat
     chat/chat_system.cpp
 
@@ -149,6 +152,12 @@ if(WIN32)
     )
     # Link Windows system libraries needed by ixwebsocket/mbedtls
     target_link_libraries(helbreath_client PRIVATE bcrypt)
+endif()
+
+# Linux-specific settings
+if(UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    target_link_libraries(helbreath_client PRIVATE X11::X11 X11::Xrandr)
 endif()
 
 # Compiler warnings

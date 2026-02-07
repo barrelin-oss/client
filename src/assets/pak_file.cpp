@@ -74,16 +74,66 @@ pak_file& pak_file::operator=(pak_file&& other) noexcept {
     return *this;
 }
 
+// Find a file by case-insensitive match when exact path doesn't exist.
+// Returns the actual path on disk, or empty if not found.
+static std::string find_case_insensitive(const std::filesystem::path& target)
+{
+    auto parent = target.parent_path();
+    auto filename = target.filename().string();
+
+    std::error_code ec;
+    if (!std::filesystem::exists(parent, ec))
+    {
+        return {};
+    }
+
+    // Convert target filename to lowercase for comparison
+    std::string lower_target = filename;
+    std::transform(lower_target.begin(), lower_target.end(), lower_target.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+
+    for (const auto& entry : std::filesystem::directory_iterator(parent, ec))
+    {
+        auto candidate = entry.path().filename().string();
+        std::string lower_candidate = candidate;
+        std::transform(lower_candidate.begin(), lower_candidate.end(), lower_candidate.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+
+        if (lower_candidate == lower_target)
+        {
+            return entry.path().string();
+        }
+    }
+
+    return {};
+}
+
 bool pak_file::open(std::string_view path) {
     close();
 
-    file_.open(std::string(path), std::ios::binary);
+    std::string path_str(path);
+    file_.open(path_str, std::ios::binary);
+
+    // Fallback: case-insensitive match (handles SLM.PAK vs slm.pak on Linux)
+    if (!file_.is_open()) {
+        auto resolved = find_case_insensitive(std::filesystem::path(path_str));
+        if (!resolved.empty()) {
+            file_.open(resolved, std::ios::binary);
+            if (file_.is_open()) {
+                path_ = resolved;
+                spdlog::trace("PAK case-insensitive match: {} -> {}", path, resolved);
+            }
+        }
+    }
+
     if (!file_.is_open()) {
         spdlog::error("Failed to open PAK file: {}", path);
         return false;
     }
 
-    path_ = path;
+    if (path_.empty()) {
+        path_ = path;
+    }
 
     if (!read_header()) {
         close();

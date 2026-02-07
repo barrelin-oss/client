@@ -100,6 +100,25 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
         return true;
     }
 
+    // Check settings button hover/click (bottom-right, resolution-independent)
+    if (window_width_ > 0 && window_height_ > 0)
+    {
+        int32_t sbx = static_cast<int32_t>(window_width_) - settings_btn_width_ - settings_btn_margin_;
+        int32_t sby = static_cast<int32_t>(window_height_) - settings_btn_height_ - settings_btn_margin_;
+        settings_hovered_ = mouse_x_ >= sbx && mouse_x_ <= sbx + settings_btn_width_
+                         && mouse_y_ >= sby && mouse_y_ <= sby + settings_btn_height_;
+
+        if (settings_hovered_ && mouse_pressed)
+        {
+            play_button_sound();
+            if (on_settings_)
+            {
+                on_settings_();
+            }
+            return true;
+        }
+    }
+
     // Check mouse clicks
     mouse_result result;
     int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
@@ -130,6 +149,8 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
 }
 
 void main_menu_screen::render(renderer& rend, sprite_manager& sprites) {
+    window_width_ = rend.width();
+    window_height_ = rend.height();
     draw(rend, sprites, mouse_x_, mouse_y_);
 }
 
@@ -158,11 +179,28 @@ void main_menu_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mou
             break;
     }
 
-    // Mouse cursor is drawn separately via render_cursor()
-}
+    // Settings button (bottom-right corner)
+    if (window_width_ > 0 && window_height_ > 0)
+    {
+        int32_t sbx = static_cast<int32_t>(window_width_) - settings_btn_width_ - settings_btn_margin_;
+        int32_t sby = static_cast<int32_t>(window_height_) - settings_btn_height_ - settings_btn_margin_;
 
-void main_menu_screen::render_cursor(renderer& rend, sprite_manager& sprites) {
-    draw_sprite(rend, sprites, main_menu_sprites::mouse_cursor, mouse_x_, mouse_y_, 0);
+        auto bg_color = settings_hovered_
+            ? sf::Color(80, 80, 80, 200)
+            : sf::Color(40, 40, 40, 180);
+        auto border_color = settings_hovered_
+            ? sf::Color(200, 200, 200, 220)
+            : sf::Color(140, 140, 140, 180);
+
+        rend.draw_rect(sbx, sby, settings_btn_width_, settings_btn_height_, bg_color, true);
+        rend.draw_rect(sbx, sby, settings_btn_width_, settings_btn_height_, border_color, false);
+
+        // Center the text within the button
+        int32_t text_x = sbx + (settings_btn_width_ / 2) - 22;
+        int32_t text_y = sby + (settings_btn_height_ / 2) - 6;
+        rend.draw_text("Settings", text_x, text_y, sf::Color::White, 12);
+    }
+
 }
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED

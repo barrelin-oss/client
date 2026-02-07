@@ -406,6 +406,7 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_fullscreen(video.fullscreen);
         settings_dlg->set_vsync(video.vsync);
         settings_dlg->set_framerate(video.framerate_limit);
+        settings_dlg->set_remember_position(video.remember_position);
 
         const auto& audio_cfg = config::instance().audio();
         settings_dlg->set_music_volume(audio_cfg.music_volume);
@@ -446,6 +447,11 @@ void dialog_callbacks::setup_callbacks()
                 rend->window().setVerticalSyncEnabled(vsync);
                 rend->window().setFramerateLimit(vsync ? 0 : v.framerate_limit);
             }
+        });
+
+        settings_dlg->set_on_remember_position_change([](bool remember) {
+            spdlog::info("Remember window position: {}", remember ? "enabled" : "disabled");
+            config::instance().video().remember_position = remember;
         });
 
         settings_dlg->set_on_music_volume_change([this](float volume) {

@@ -9,6 +9,7 @@ namespace hb {
 void connection_lost_screen::on_enter()
 {
     elapsed_time_ = 0.0f;
+    dismissed_ = false;
     spdlog::info("Connection lost screen entered");
 }
 
@@ -20,36 +21,68 @@ void connection_lost_screen::on_exit()
 
 bool connection_lost_screen::update(float delta_time, const input& inp)
 {
-    (void)inp;
-
     elapsed_time_ += delta_time;
 
     // Store mouse position for cursor rendering
     mouse_x_ = inp.mouse_x();
     mouse_y_ = inp.mouse_y();
 
-    if (elapsed_time_ >= timeout_duration_)
+    // Enter, Escape, or Space to dismiss immediately
+    if (inp.is_key_pressed(sf::Keyboard::Key::Enter)
+        || inp.is_key_pressed(sf::Keyboard::Key::Escape)
+        || inp.is_key_pressed(sf::Keyboard::Key::Space))
     {
-        if (on_timeout_)
+        dismiss();
+        return true;
+    }
+
+    // Check Ok button click
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left) && screen_width_ > 0)
+    {
+        int32_t btn_x = (screen_width_ - button_width_) / 2;
+        int32_t btn_y = screen_height_ / 2 + 70;
+
+        if (mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
+            && mouse_y_ >= btn_y && mouse_y_ <= btn_y + button_height_)
         {
-            on_timeout_();
+            play_button_sound();
+            dismiss();
+            return true;
         }
     }
 
+    if (elapsed_time_ >= timeout_duration_)
+    {
+        dismiss();
+    }
+
     return true;
+}
+
+void connection_lost_screen::dismiss()
+{
+    if (dismissed_) return;
+    dismissed_ = true;
+
+    if (on_timeout_)
+    {
+        on_timeout_();
+    }
 }
 
 void connection_lost_screen::render(renderer& rend, sprite_manager& sprites)
 {
     (void)sprites;
 
-    // Fill background with dark color
-    rend.draw_rect(0, 0, static_cast<int32_t>(rend.width()), static_cast<int32_t>(rend.height()),
-                   sf::Color(20, 20, 30), true);
+    // Cache screen size for update() hit testing
+    screen_width_ = static_cast<int32_t>(rend.width());
+    screen_height_ = static_cast<int32_t>(rend.height());
 
-    // Calculate center of screen
-    auto screen_width = static_cast<int32_t>(rend.width());
-    auto screen_height = static_cast<int32_t>(rend.height());
+    auto screen_width = screen_width_;
+    auto screen_height = screen_height_;
+
+    // Fill background with dark color
+    rend.draw_rect(0, 0, screen_width, screen_height, sf::Color(20, 20, 30), true);
 
     // Draw "Connection lost" text centered
     // Using size 24 for main message
@@ -94,12 +127,27 @@ void connection_lost_screen::render(renderer& rend, sprite_manager& sprites)
     rend.draw_text_outlined(countdown_text, countdown_x, countdown_y,
                             sf::Color(150, 150, 150), sf::Color::Black,
                             countdown_text_size, 1.0f);
-}
 
-void connection_lost_screen::render_cursor(renderer& rend, sprite_manager& sprites)
-{
-    // Draw mouse cursor
-    draw_sprite(rend, sprites, 0, mouse_x_, mouse_y_, 0);
+    // Draw Ok button
+    int32_t btn_x = (screen_width - button_width_) / 2;
+    int32_t btn_y = main_y + 100;
+
+    bool hovered = mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
+                && mouse_y_ >= btn_y && mouse_y_ <= btn_y + button_height_;
+
+    sf::Color btn_bg = hovered ? sf::Color(80, 80, 110) : sf::Color(50, 50, 70);
+    sf::Color btn_border = hovered ? sf::Color(140, 140, 180) : sf::Color(100, 100, 130);
+
+    rend.draw_rect(btn_x, btn_y, button_width_, button_height_, btn_bg, true);
+    rend.draw_rect(btn_x, btn_y, button_width_, button_height_, btn_border, false);
+
+    // Center "Ok" text within button
+    constexpr uint32_t btn_text_size = 14;
+    int32_t text_w = 2 * 7;  // "Ok" = 2 chars
+    int32_t text_x = btn_x + (button_width_ - text_w) / 2;
+    int32_t text_y = btn_y + (button_height_ - static_cast<int32_t>(btn_text_size)) / 2;
+
+    rend.draw_text("Ok", text_x, text_y, sf::Color::White, btn_text_size);
 }
 
 } // namespace hb

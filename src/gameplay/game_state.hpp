@@ -227,6 +227,8 @@ private:
     void enter_state(game_state state);
     void exit_state(game_state state);
 
+    void refresh_character_select_screen();
+
     void update_main_menu(float delta_time, const hb::input& inp);
     void update_login(float delta_time, const hb::input& inp);
     void update_character_select(float delta_time, const hb::input& inp);

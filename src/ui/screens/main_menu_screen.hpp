@@ -29,6 +29,7 @@ class main_menu_screen : public screen_base {
 public:
     using start_callback = std::function<void()>;
     using quit_callback = std::function<void()>;
+    using settings_callback = std::function<void()>;
 
     main_menu_screen() = default;
     ~main_menu_screen() override = default;
@@ -37,11 +38,11 @@ public:
     void on_exit() override;
     bool update(float delta_time, const input& inp) override;
     void render(renderer& rend, sprite_manager& sprites) override;
-    void render_cursor(renderer& rend, sprite_manager& sprites) override;
 
     // Set callbacks
     void set_on_start(start_callback callback) { on_start_ = std::move(callback); }
     void set_on_quit(quit_callback callback) { on_quit_ = std::move(callback); }
+    void set_on_settings(settings_callback callback) { on_settings_ = std::move(callback); }
 
 private:
     // Draw the screen
@@ -49,6 +50,7 @@ private:
 
     start_callback on_start_;
     quit_callback on_quit_;
+    settings_callback on_settings_;
 
     // Button highlight positions (mutable for debug overlay positioning)
     int32_t btn1_x_ = 385;  // Start Game
@@ -61,6 +63,16 @@ private:
     // Button dimensions (from sprite)
     static constexpr int32_t btn_width_ = 164;
     static constexpr int32_t btn_height_ = 22;
+
+    // Settings button (bottom-right corner, resolution-independent)
+    static constexpr int32_t settings_btn_width_ = 80;
+    static constexpr int32_t settings_btn_height_ = 28;
+    static constexpr int32_t settings_btn_margin_ = 12;
+    bool settings_hovered_ = false;
+
+    // Cached window dimensions (updated each render frame)
+    uint32_t window_width_ = 0;
+    uint32_t window_height_ = 0;
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
     // Debug overlay adapters

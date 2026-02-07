@@ -388,6 +388,12 @@ void settings_dialog::render(renderer& rend) {
     render_checkbox(rend, y, "VSync",
                     vsync_,
                     hovered_element_ == elem_vsync_checkbox);
+    y += 28;
+
+    // Remember window position checkbox
+    render_checkbox(rend, y, "Remember Window Position",
+                    remember_position_,
+                    hovered_element_ == elem_remember_position_checkbox);
     y += 40;
 
     // Audio section
@@ -684,6 +690,12 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
     if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
         return elem_vsync_checkbox;
     }
+    y += 28;
+
+    // Remember window position checkbox
+    if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
+        return elem_remember_position_checkbox;
+    }
     y += 40;  // Skip to audio section
 
     // Audio section header at y, then +25 for content
@@ -810,6 +822,12 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 close_all_dropdowns();
                 vsync_ = !vsync_;
                 if (on_vsync_change_) on_vsync_change_(vsync_);
+                return true;
+
+            case elem_remember_position_checkbox:
+                close_all_dropdowns();
+                remember_position_ = !remember_position_;
+                if (on_remember_position_change_) on_remember_position_change_(remember_position_);
                 return true;
 
             case elem_music_slider:

@@ -227,6 +227,13 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     screens_.get_main_menu_screen().set_on_quit([this]() {
         change_state(game_state::quit);
     });
+    screens_.get_main_menu_screen().set_on_settings([this]() {
+        if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options)))
+        {
+            settings->set_ui_style(ui_.style());
+        }
+        ui_.open_dialog(dialog_type::options);
+    });
 
     screens_.get_login_screen().set_on_login([this](const std::string& account, const std::string& password) {
         spdlog::info("Login attempt: {} (pass length: {})", account, password.length());
@@ -274,6 +281,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
 
     screens_.get_connection_lost_screen().set_on_timeout([this]() {
         spdlog::info("Connection lost timeout, returning to main menu");
+        ws_connection_.disconnect();
         change_state(game_state::main_menu);
     });
 
@@ -548,36 +556,11 @@ void game_state_manager::enter_state(game_state state) {
             screens_.change_screen(screen_type::login);
             break;
 
-        case game_state::select_character: {
+        case game_state::select_character:
             ui_.close_all_dialogs();
-
-            std::vector<char_slot_info> slot_chars;
-            for (const auto& ch : characters_) {
-                char_slot_info slot;
-                slot.has_character = true;
-                slot.name = ch.name;
-                slot.level = ch.level;
-                slot.exp = 0;
-                slot.class_name = ch.warrior ? "Warrior" : "Mage";
-                slot.gender = ch.gender;
-                slot.skin_color = ch.skin_color;
-                slot.hair_style = ch.hair_style;
-                slot.hair_color = ch.hair_color;
-                slot.underwear_color = ch.underwear_color;
-                slot.body_armor = ch.body_armor;
-                slot.arm_armor = ch.arm_armor;
-                slot.pants = ch.pants;
-                slot.boots = ch.boots;
-                slot.helmet = ch.helmet;
-                slot.mantle = ch.mantle;
-                slot.weapon = ch.weapon;
-                slot.shield = ch.shield;
-                slot_chars.push_back(slot);
-            }
-            screens_.get_character_select_screen().set_characters(slot_chars);
+            refresh_character_select_screen();
             screens_.change_screen(screen_type::character_select);
             break;
-        }
 
         case game_state::create_character:
             ui_.close_dialog(dialog_type::character_select);
@@ -992,6 +975,11 @@ const entity* game_state_manager::local_player() const {
 
 void game_state_manager::set_characters(std::vector<character_info> characters) {
     characters_ = std::move(characters);
+
+    if (state_ == game_state::select_character)
+    {
+        refresh_character_select_screen();
+    }
 }
 
 void game_state_manager::select_character(size_t index) {
@@ -1006,6 +994,33 @@ void game_state_manager::set_login_result(uint16_t result) {
     } else {
         spdlog::warn("Login failed: 0x{:04X}", result);
     }
+}
+
+void game_state_manager::refresh_character_select_screen() {
+    std::vector<char_slot_info> slot_chars;
+    for (const auto& ch : characters_) {
+        char_slot_info slot;
+        slot.has_character = true;
+        slot.name = ch.name;
+        slot.level = ch.level;
+        slot.exp = 0;
+        slot.class_name = ch.warrior ? "Warrior" : "Mage";
+        slot.gender = ch.gender;
+        slot.skin_color = ch.skin_color;
+        slot.hair_style = ch.hair_style;
+        slot.hair_color = ch.hair_color;
+        slot.underwear_color = ch.underwear_color;
+        slot.body_armor = ch.body_armor;
+        slot.arm_armor = ch.arm_armor;
+        slot.pants = ch.pants;
+        slot.boots = ch.boots;
+        slot.helmet = ch.helmet;
+        slot.mantle = ch.mantle;
+        slot.weapon = ch.weapon;
+        slot.shield = ch.shield;
+        slot_chars.push_back(slot);
+    }
+    screens_.get_character_select_screen().set_characters(slot_chars);
 }
 
 void game_state_manager::set_character_create_result(uint16_t result) {

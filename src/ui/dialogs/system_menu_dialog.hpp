@@ -84,6 +84,9 @@ public:
     void set_vsync(bool vsync) { vsync_ = vsync; }
     bool get_vsync() const { return vsync_; }
 
+    void set_remember_position(bool remember) { remember_position_ = remember; }
+    bool get_remember_position() const { return remember_position_; }
+
     void set_framerate(uint32_t fps);
     uint32_t get_framerate() const;
 
@@ -108,6 +111,7 @@ public:
     void set_on_resolution_change(resolution_callback cb) { on_resolution_change_ = std::move(cb); }
     void set_on_framerate_change(framerate_callback cb) { on_framerate_change_ = std::move(cb); }
     void set_on_vsync_change(bool_callback cb) { on_vsync_change_ = std::move(cb); }
+    void set_on_remember_position_change(bool_callback cb) { on_remember_position_change_ = std::move(cb); }
     void set_on_music_volume_change(volume_callback cb) { on_music_volume_change_ = std::move(cb); }
     void set_on_sound_volume_change(volume_callback cb) { on_sound_volume_change_ = std::move(cb); }
     void set_on_apply(callback cb) { on_apply_ = std::move(cb); }
@@ -137,6 +141,7 @@ private:
     bool fullscreen_ = false;
     bool applied_fullscreen_ = false;  // Last applied fullscreen state
     bool vsync_ = true;
+    bool remember_position_ = false;
     bool skip_close_after_apply_ = false;  // Set by resolution callback to keep dialog open
 
     // Framerate settings
@@ -155,6 +160,7 @@ private:
     resolution_callback on_resolution_change_;
     framerate_callback on_framerate_change_;
     bool_callback on_vsync_change_;
+    bool_callback on_remember_position_change_;
     volume_callback on_music_volume_change_;
     volume_callback on_sound_volume_change_;
     callback on_apply_;
@@ -166,7 +172,7 @@ private:
 
     // Layout
     static constexpr int32_t dialog_width = 300;
-    static constexpr int32_t dialog_height = 448;
+    static constexpr int32_t dialog_height = 476;
 
     // Element indices for hit testing
     static constexpr int32_t elem_style_classic = 0;
@@ -177,7 +183,8 @@ private:
     static constexpr int32_t elem_vsync_checkbox = 5;
     static constexpr int32_t elem_music_slider = 6;
     static constexpr int32_t elem_sound_slider = 7;
-    static constexpr int32_t elem_apply_button = 8;
+    static constexpr int32_t elem_remember_position_checkbox = 8;
+    static constexpr int32_t elem_apply_button = 9;
     // Resolution dropdown items start at this index
     static constexpr int32_t elem_resolution_item_base = 100;
     // Framerate dropdown items start at this index

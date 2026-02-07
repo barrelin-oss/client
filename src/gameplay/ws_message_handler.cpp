@@ -889,13 +889,17 @@ void ws_message_handler::handle_view_range_update(const json& message)
 {
     const auto& d = message["data"];
 
-    int16_t radius = d.value("radius", static_cast<int16_t>(40));
+    spdlog::debug("view_range_update raw: {}", d.dump());
+
+    int16_t radius_x = d.value("radius_x", static_cast<int16_t>(40));
+    int16_t radius_y = d.value("radius_y", static_cast<int16_t>(40));
     bool sees_all = d.value("sees_all", false);
 
-    // Store on game state for entity culling / fog rendering
-    game_->set_view_radius(radius, sees_all);
+    game_->set_view_radius(radius_x, radius_y, sees_all);
 
-    spdlog::info("View range update: radius={} tiles, sees_all={}", radius, sees_all);
+    spdlog::info("View range update: radius={}x{} tiles, sees_all={}, internal={}x{}",
+                 radius_x, radius_y, sees_all,
+                 radius_x * 2 * 32, radius_y * 2 * 32);
 }
 
 void ws_message_handler::handle_command_response(const json& message)

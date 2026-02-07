@@ -226,8 +226,9 @@ public:
 
     // View range
     void send_view_range();
-    void set_view_radius(int16_t radius, bool sees_all);
-    int16_t view_radius() const { return view_radius_; }
+    void set_view_radius(int16_t radius_x, int16_t radius_y, bool sees_all);
+    int16_t view_radius_x() const { return view_radius_x_; }
+    int16_t view_radius_y() const { return view_radius_y_; }
     bool sees_all() const { return sees_all_; }
 
     // WebSocket requests (forwarded to ws_handler)
@@ -277,8 +278,9 @@ private:
     bool state_transition_ = false;
 
     // Server-controlled view radius
-    int16_t view_radius_ = 40;  // Visibility radius in tiles (15-80)
-    bool sees_all_ = false;     // Player sees all events on current map
+    int16_t view_radius_x_ = 40;  // Visibility radius in tiles (15-80)
+    int16_t view_radius_y_ = 40;
+    bool sees_all_ = false;        // Player sees all events on current map
 
     // Subsystems
     network_system network_;

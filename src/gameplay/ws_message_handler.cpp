@@ -1,6 +1,7 @@
 #include "gameplay/ws_message_handler.hpp"
 #include "gameplay/game_state.hpp"
 #include "graphics/renderer.hpp"
+#include "graphics/color_utils.hpp"
 #include "core/config.hpp"
 #include "core/direction_utils.hpp"
 #include "chat/chat_message.hpp"
@@ -94,6 +95,10 @@ void ws_message_handler::handle_message(const json& message)
             handle_chat_message_broadcast(message);
         else if (type == msg_type::chat_message)
             {} // Ack from server, already handled via local echo
+        else if (type == "view_range_update")
+            handle_view_range_update(message);
+        else if (type == "command_response")
+            handle_command_response(message);
         else
             spdlog::warn("Unknown message type: {}", type);
     }
@@ -878,6 +883,34 @@ void ws_message_handler::handle_set_render_mode(const json& message)
     spdlog::info("Render mode set: mode={}, fair={}x{}",
                  static_cast<int>(rend->current_view_mode()),
                  rend->scene_width(), rend->scene_height());
+}
+
+void ws_message_handler::handle_view_range_update(const json& message)
+{
+    const auto& d = message["data"];
+
+    int16_t radius = d.value("radius", static_cast<int16_t>(40));
+    bool sees_all = d.value("sees_all", false);
+
+    // Store on game state for entity culling / fog rendering
+    game_->set_view_radius(radius, sees_all);
+
+    spdlog::info("View range update: radius={} tiles, sees_all={}", radius, sees_all);
+}
+
+void ws_message_handler::handle_command_response(const json& message)
+{
+    const auto& d = message["data"];
+    std::string msg_text = d.value("message", "");
+    bool success = d.value("success", false);
+
+    if (!msg_text.empty())
+    {
+        game_->get_status_log().add_event(msg_text,
+            success ? message_color::green : message_color::red);
+    }
+
+    spdlog::info("Command response: success={}, message={}", success, msg_text);
 }
 
 void ws_message_handler::send_view_range()

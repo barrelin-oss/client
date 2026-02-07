@@ -59,6 +59,8 @@ private:
     void handle_npc_move(const json& message);
     void handle_entity_info_response(const json& message);
     void handle_set_render_mode(const json& message);
+    void handle_view_range_update(const json& message);
+    void handle_command_response(const json& message);
     void handle_chat_message_broadcast(const json& message);
 
     game_state_manager* game_ = nullptr;

@@ -1441,6 +1441,11 @@ void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y) {
     ws_connection_.send(msg);
 }
 
+void game_state_manager::set_view_radius(int16_t radius, bool sees_all) {
+    view_radius_ = radius;
+    sees_all_ = sees_all;
+}
+
 void game_state_manager::send_view_range() {
     // Send the interaction area (what the player can see/target).
     // Special: display resolution. Scaled/Extended: fair zone (internal resolution).

@@ -224,8 +224,11 @@ public:
     renderer* get_renderer() { return renderer_; }
     audio* get_audio() { return audio_; }
 
-    // View range notification (tells server the effective visible area)
+    // View range
     void send_view_range();
+    void set_view_radius(int16_t radius, bool sees_all);
+    int16_t view_radius() const { return view_radius_; }
+    bool sees_all() const { return sees_all_; }
 
     // WebSocket requests (forwarded to ws_handler)
     void request_enter_game(int32_t character_id, bool force_disconnect = false)
@@ -272,6 +275,10 @@ private:
     game_state state_ = game_state::main_menu;
     game_state pending_state_ = game_state::main_menu;
     bool state_transition_ = false;
+
+    // Server-controlled view radius
+    int16_t view_radius_ = 40;  // Visibility radius in tiles (15-80)
+    bool sees_all_ = false;     // Player sees all events on current map
 
     // Subsystems
     network_system network_;

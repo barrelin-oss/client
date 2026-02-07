@@ -669,14 +669,32 @@ void ws_message_handler::handle_npc_move(const json& message)
     }
 
     auto& t = ent->transform();
-    t.tile_x = data.x;
-    t.tile_y = data.y;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
-    t.x = data.x * hb::tile_width + 16;
-    t.y = data.y * hb::tile_height + 16;
 
-    spdlog::debug("NPC {} moved: ({},{}) dir={}",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.facing));
+    // If the NPC hasn't been positioned yet (just spawned), snap to destination
+    bool first_position = (t.tile_x == 0 && t.tile_y == 0 && t.x == 0 && t.y == 0);
+
+    if (first_position || !ent->has_movement())
+    {
+        // Snap directly
+        t.tile_x = data.x;
+        t.tile_y = data.y;
+        t.x = data.x * hb::tile_width + 16;
+        t.y = data.y * hb::tile_height + 16;
+    }
+    else
+    {
+        // Set up interpolated movement (same as player characters)
+        t.dest_tile_x = data.x;
+        t.dest_tile_y = data.y;
+        t.moving = true;
+        t.move_progress = 0.0f;
+
+        ent->set_action(object_action::move_peace);
+    }
+
+    spdlog::debug("NPC {} moved: ({},{}) dir={} interpolating={}",
+                  data.entity_id, data.x, data.y, static_cast<int>(t.facing), t.moving);
 }
 
 void ws_message_handler::handle_entity_info_response(const json& message)

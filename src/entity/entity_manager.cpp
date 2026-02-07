@@ -122,6 +122,534 @@ inline uint16_t calculate_npc_sprite_id(uint16_t npc_type, int32_t action, int32
         (dir - 1));
 }
 
+// NPC/Monster animation frame data from legacy MapData.cpp
+// m_stFrame[type][action] = {m_sMaxFrame, m_sFrameTime}
+// m_sMaxFrame = last frame INDEX (frame count = maxFrame + 1)
+// m_sFrameTime = milliseconds per frame
+struct npc_frame_entry
+{
+    int16_t max_frame;     // -1 = use default
+    int16_t frame_time_ms; // -1 = use default
+};
+
+// Legacy action indices (from ActionID.h)
+enum legacy_action : int
+{
+    act_stop = 0,
+    act_move = 1,
+    act_run = 2,
+    act_attack = 3,
+    act_magic = 4,
+    act_getitem = 5,
+    act_damage = 6,
+    act_damagemove = 7,
+    act_attackmove = 8,
+    // 9 unused
+    act_dying = 10,
+    legacy_action_count = 11,
+};
+
+static constexpr int npc_type_first = 10;
+static constexpr int npc_type_last = 69;
+static constexpr int npc_type_count = npc_type_last - npc_type_first + 1;
+
+// Table populated once, indexed by [visual_type - 10][legacy_action]
+static npc_frame_entry npc_frame_table[npc_type_count][legacy_action_count];
+static bool npc_frame_table_ready = false;
+
+static void init_npc_frame_table()
+{
+    if (npc_frame_table_ready) return;
+
+    // Initialize all to "use default"
+    for (int i = 0; i < npc_type_count; i++)
+        for (int j = 0; j < legacy_action_count; j++)
+            npc_frame_table[i][j] = {-1, -1};
+
+    // Default: all NPC types get MOVE maxFrame = 7
+    for (int i = 0; i < npc_type_count; i++)
+        npc_frame_table[i][act_move].max_frame = 7;
+
+    // Helper lambda: set(type, action, maxFrame, frameTime)
+    auto set = [](int type, int action, int16_t mf, int16_t ft) {
+        npc_frame_table[type - npc_type_first][action] = {mf, ft};
+    };
+    // Helper: set only frame time
+    auto set_ft = [](int type, int action, int16_t ft) {
+        npc_frame_table[type - npc_type_first][action].frame_time_ms = ft;
+    };
+
+    // === Data from MapData.cpp constructor ===
+
+    // Slime (10)
+    set(10, act_stop, 3, 240);
+    set_ft(10, act_move, 120);
+    set(10, act_attack, 3, 90);
+    set(10, act_damage, 7, 150);   // 3+4
+    set(10, act_dying, 7, 240);
+
+    // Skeleton (11)
+    set(11, act_stop, 3, 150);
+    set_ft(11, act_move, 90);
+    set(11, act_attack, 3, 90);
+    set(11, act_damage, 7, 150);
+    set(11, act_dying, 7, 180);
+
+    // Stone-Golem (12)
+    set(12, act_stop, 3, 210);
+    set_ft(12, act_move, 100);
+    set(12, act_attack, 3, 120);
+    set(12, act_damage, 7, 150);
+    set(12, act_dying, 7, 180);
+
+    // Cyclops (13)
+    set(13, act_stop, 3, 210);
+    set_ft(13, act_move, 80);
+    set(13, act_attack, 3, 90);
+    set(13, act_damage, 7, 150);
+    set(13, act_dying, 7, 180);
+
+    // Orc (14)
+    set(14, act_stop, 3, 180);
+    set_ft(14, act_move, 80);
+    set(14, act_attack, 3, 120);
+    set(14, act_damage, 7, 150);
+    set(14, act_dying, 7, 180);
+
+    // ShopKeeper (15)
+    set(15, act_stop, 7, 180);
+    set_ft(15, act_move, 100);
+    set(15, act_attack, 3, 150);
+    set(15, act_damage, 3, 180);
+    set(15, act_dying, 7, 180);
+
+    // Giant Ant (16)
+    set(16, act_stop, 3, 120);
+    set_ft(16, act_move, 60);
+    set(16, act_attack, 3, 120);
+    set(16, act_damage, 7, 150);
+    set(16, act_dying, 7, 180);
+
+    // Scorpion (17)
+    set(17, act_stop, 3, 120);
+    set_ft(17, act_move, 45);
+    set(17, act_attack, 3, 120);
+    set(17, act_damage, 7, 150);
+    set(17, act_dying, 7, 180);
+
+    // Zombie (18)
+    set(18, act_stop, 3, 210);
+    set_ft(18, act_move, 130);
+    set(18, act_attack, 3, 150);
+    set(18, act_damage, 7, 150);
+    set(18, act_dying, 7, 180);
+
+    // Gandalf (19)
+    set(19, act_stop, 7, 250);
+    set_ft(19, act_move, 100);
+    set(19, act_attack, 3, 150);
+    set(19, act_damage, 3, 180);
+    set(19, act_dying, 7, 180);
+
+    // Howard (20)
+    set(20, act_stop, 7, 250);
+    set_ft(20, act_move, 100);
+    set(20, act_attack, 3, 150);
+    set(20, act_damage, 3, 180);
+    set(20, act_dying, 7, 180);
+
+    // Guard (21)
+    set(21, act_stop, 3, 250);
+    set_ft(21, act_move, 80);
+    set(21, act_attack, 3, 120);
+    set(21, act_damage, 7, 150);
+    set(21, act_dying, 7, 180);
+
+    // Amphisbena (22)
+    set(22, act_stop, 3, 250);
+    set_ft(22, act_move, 80);
+    set(22, act_attack, 3, 120);
+    set(22, act_damage, 7, 150);
+    set(22, act_dying, 7, 180);
+
+    // Clay-Golem (23)
+    set(23, act_stop, 3, 250);
+    set_ft(23, act_move, 80);
+    set(23, act_attack, 3, 120);
+    set(23, act_damage, 7, 150);
+    set(23, act_dying, 7, 180);
+
+    // Tom (24)
+    set(24, act_stop, 7, 150);
+
+    // William (25)
+    set(25, act_stop, 7, 250);
+
+    // Kennedy (26)
+    set(26, act_stop, 7, 250);
+
+    // Hellbound (27)
+    set(27, act_stop, 3, 250);
+    set_ft(27, act_move, 50);
+    set(27, act_attack, 3, 120);
+    set(27, act_damage, 7, 120);
+    set(27, act_dying, 7, 180);
+
+    // Troll (28)
+    set(28, act_stop, 3, 250);
+    set_ft(28, act_move, 100);
+    set(28, act_attack, 5, 60);
+    set(28, act_damage, 7, 120);
+    set(28, act_dying, 9, 100);
+
+    // Ogre (29)
+    set(29, act_stop, 3, 250);
+    set_ft(29, act_move, 100);
+    set(29, act_attack, 5, 120);
+    set(29, act_damage, 7, 120);
+    set(29, act_dying, 9, 100);
+
+    // Liche (30)
+    set(30, act_stop, 3, 250);
+    set_ft(30, act_move, 100);
+    set(30, act_attack, 5, 120);
+    set(30, act_damage, 7, 120);
+    set(30, act_dying, 9, 100);
+
+    // Demon (31)
+    set(31, act_stop, 3, 250);
+    set_ft(31, act_move, 100);
+    set(31, act_attack, 7, 120);
+    set(31, act_damage, 7, 120);
+    set(31, act_dying, 9, 100);
+
+    // Unicorn (32)
+    set(32, act_stop, 3, 250);
+    set_ft(32, act_move, 100);
+    set(32, act_attack, 7, 120);
+    set(32, act_damage, 7, 120);
+    set(32, act_dying, 11, 100);
+
+    // WereWolf (33)
+    set(33, act_stop, 3, 250);
+    set_ft(33, act_move, 120);
+    set(33, act_attack, 7, 120);
+    set(33, act_damage, 7, 120);
+    set(33, act_dying, 11, 100);
+
+    // Dummy (34)
+    set(34, act_stop, 3, 240);
+    set_ft(34, act_move, 120);
+    set(34, act_attack, 3, 90);
+    set(34, act_damage, 7, 150);
+    set(34, act_dying, 7, 240);
+
+    // Energy-Ball (35)
+    set(35, act_stop, 9, 80);
+    set(35, act_move, 3, 20);
+    set(35, act_attack, 3, 80);
+    set(35, act_damage, 7, 80);
+    set(35, act_dying, 7, 80);
+
+    // Crossbow Guard Tower (36)
+    set(36, act_stop, 0, 250);
+    set(36, act_move, 0, 80);
+    set(36, act_attack, 3, 120);
+    set(36, act_damage, 0, 150);
+    set(36, act_dying, 6, 200);
+
+    // Cannon Guard Tower (37)
+    set(37, act_stop, 0, 250);
+    set(37, act_move, 0, 80);
+    set(37, act_attack, 3, 120);
+    set(37, act_damage, 0, 150);
+    set(37, act_dying, 6, 200);
+
+    // Mana Collector (38)
+    set(38, act_stop, 0, 250);
+    set(38, act_move, 0, 80);
+    set(38, act_attack, 3, 120);
+    set(38, act_damage, 0, 150);
+    set(38, act_dying, 6, 200);
+
+    // Detector (39)
+    set(39, act_stop, 0, 250);
+    set(39, act_move, 0, 80);
+    set(39, act_attack, 3, 120);
+    set(39, act_damage, 0, 150);
+    set(39, act_dying, 6, 200);
+
+    // ESG (40)
+    set(40, act_stop, 0, 250);
+    set(40, act_move, 0, 80);
+    set(40, act_attack, 3, 120);
+    set(40, act_damage, 0, 150);
+    set(40, act_dying, 6, 200);
+
+    // GMG (41)
+    set(41, act_stop, 0, 250);
+    set(41, act_move, 0, 80);
+    set(41, act_attack, 3, 120);
+    set(41, act_damage, 0, 150);
+    set(41, act_dying, 6, 200);
+
+    // ManaStone (42)
+    set(42, act_stop, 0, 250);
+    set(42, act_move, 0, 80);
+    set(42, act_attack, 3, 120);
+    set(42, act_damage, 0, 150);
+    set(42, act_dying, 0, 200);
+
+    // Light War Beetle (43)
+    set(43, act_stop, 7, 250);
+    set_ft(43, act_move, 100);
+    set(43, act_attack, 7, 60);
+    set(43, act_damage, 10, 120);  // 3+7
+    set(43, act_dying, 9, 100);
+
+    // God's Hand Knight (44)
+    set(44, act_stop, 7, 250);
+    set_ft(44, act_move, 100);
+    set(44, act_attack, 7, 60);
+    set(44, act_damage, 10, 120);
+    set(44, act_dying, 9, 100);
+
+    // GHKABS (45)
+    set(45, act_stop, 7, 250);
+    set_ft(45, act_move, 100);
+    set(45, act_attack, 7, 60);
+    set(45, act_damage, 10, 120);
+    set(45, act_dying, 9, 100);
+
+    // Temple Knight (46)
+    set(46, act_stop, 7, 250);
+    set_ft(46, act_move, 100);
+    set(46, act_attack, 7, 60);
+    set(46, act_damage, 10, 120);
+    set(46, act_dying, 9, 100);
+
+    // Battle Golem (47)
+    set(47, act_stop, 7, 250);
+    set_ft(47, act_move, 100);
+    set(47, act_attack, 7, 60);
+    set(47, act_damage, 10, 120);
+    set(47, act_dying, 9, 100);
+
+    // Stalker (48)
+    set(48, act_stop, 7, 250);
+    set_ft(48, act_move, 100);
+    set(48, act_attack, 7, 60);
+    set(48, act_damage, 10, 120);
+    set(48, act_dying, 9, 100);
+
+    // Hellclaw (49)
+    set(49, act_stop, 7, 250);
+    set_ft(49, act_move, 100);
+    set(49, act_attack, 7, 60);
+    set(49, act_damage, 10, 120);
+    set(49, act_dying, 9, 100);
+
+    // Tigerworm (50)
+    set(50, act_stop, 7, 250);
+    set_ft(50, act_move, 100);
+    set(50, act_attack, 7, 60);
+    set(50, act_damage, 10, 120);
+    set(50, act_dying, 9, 100);
+
+    // Catapult (51)
+    set(51, act_stop, 0, 250);
+    set_ft(51, act_move, 100);
+    set(51, act_attack, 4, 60);
+    set(51, act_damage, 0, 120);
+    set(51, act_dying, 6, 100);
+
+    // Gargoyle (52)
+    set(52, act_stop, 7, 250);
+    set_ft(52, act_move, 100);
+    set(52, act_attack, 9, 70);
+    set(52, act_damage, 7, 120);
+    set(52, act_dying, 14, 100);  // 11+3
+
+    // Beholder (53)
+    set(53, act_stop, 7, 250);
+    set_ft(53, act_move, 100);
+    set(53, act_attack, 12, 60);
+    set(53, act_damage, 7, 120);
+    set(53, act_dying, 10, 70);   // 7+3
+
+    // DarkElf (54)
+    set(54, act_stop, 7, 250);
+    set_ft(54, act_move, 100);
+    set(54, act_attack, 9, 60);
+    set(54, act_damage, 7, 120);
+    set(54, act_dying, 10, 100);  // 7+3
+
+    // Bunny (55)
+    set(55, act_stop, 7, 250);
+    set_ft(55, act_move, 70);
+    set(55, act_attack, 7, 100);
+    set(55, act_damage, 7, 100);
+    set(55, act_dying, 10, 150);  // 7+3
+
+    // Cat (56)
+    set(56, act_stop, 7, 250);
+    set_ft(56, act_move, 100);
+    set(56, act_attack, 7, 60);
+    set(56, act_damage, 7, 100);
+    set(56, act_dying, 10, 150);  // 7+3
+
+    // GiantFrog (57)
+    set(57, act_stop, 7, 300);
+    set_ft(57, act_move, 100);
+    set(57, act_attack, 7, 100);
+    set(57, act_damage, 7, 100);
+    set(57, act_dying, 10, 150);  // 7+3
+
+    // Mountain Giant (58)
+    set(58, act_stop, 7, 250);
+    set_ft(58, act_move, 90);
+    set(58, act_attack, 7, 100);
+    set(58, act_damage, 7, 100);
+    set(58, act_dying, 10, 150);  // 7+3
+
+    // Ettin (59)
+    set(59, act_stop, 7, 250);
+    set_ft(59, act_move, 90);
+    set(59, act_attack, 7, 100);
+    set(59, act_damage, 7, 100);
+    set(59, act_dying, 10, 150);  // 7+3
+
+    // Cannibal Plant (60)
+    set(60, act_stop, 7, 250);
+    set_ft(60, act_move, 120);
+    set(60, act_attack, 7, 100);
+    set(60, act_damage, 7, 100);
+    set(60, act_dying, 10, 150);  // 7+3
+
+    // Rudolph (61)
+    set(61, act_stop, 7, 200);
+    set_ft(61, act_move, 90);
+    set(61, act_attack, 7, 120);
+    set(61, act_damage, 7, 60);
+    set(61, act_dying, 10, 150);  // 7+3
+
+    // Dire Boar (62)
+    set(62, act_stop, 7, 200);
+    set_ft(62, act_move, 60);
+    set(62, act_attack, 7, 60);
+    set(62, act_damage, 7, 60);
+    set(62, act_dying, 10, 150);  // 7+3
+
+    // Frost (63)
+    set(63, act_stop, 7, 200);
+    set_ft(63, act_move, 60);
+    set(63, act_attack, 7, 80);
+    set(63, act_damage, 7, 60);
+    set(63, act_dying, 8, 150);   // 5+3
+
+    // Crop (64)
+    set(64, act_stop, 40, 200);
+    set_ft(64, act_move, 200);
+    set(64, act_attack, 3, 200);
+    set(64, act_damage, 3, 200);
+    set(64, act_dying, 3, 200);
+
+    // Ice Golem (65)
+    set(65, act_stop, 7, 200);
+    set_ft(65, act_move, 140);
+    set(65, act_attack, 7, 105);
+    set(65, act_damage, 7, 60);
+    set(65, act_dying, 10, 150);  // 7+3
+
+    // Wyvern (66)
+    set(66, act_stop, 7, 100);
+    set_ft(66, act_move, 90);
+    set(66, act_attack, 7, 80);
+    set(66, act_damage, 7, 60);
+    set(66, act_dying, 18, 65);   // 15+3
+
+    // McGaffin (67)
+    set(67, act_stop, 3, 200);
+    set_ft(67, act_move, 120);
+    set(67, act_attack, 3, 80);
+    set(67, act_damage, 3, 60);
+    set(67, act_dying, 6, 65);    // 3+3
+
+    // Perry (68)
+    set(68, act_stop, 3, 200);
+    set(68, act_move, 3, 90);
+    set(68, act_attack, 3, 80);
+    set(68, act_damage, 3, 60);
+    set(68, act_dying, 6, 65);    // 3+3
+
+    // Devlin (69)
+    set(69, act_stop, 3, 200);
+    set(69, act_move, 3, 90);
+    set(69, act_attack, 3, 80);
+    set(69, act_damage, 3, 60);
+    set(69, act_dying, 6, 65);    // 3+3
+
+    npc_frame_table_ready = true;
+}
+
+// Map entity_anim_state to legacy action index for NPC frame table lookup
+inline int anim_state_to_legacy_action(entity_anim_state state)
+{
+    switch (state)
+    {
+        case entity_anim_state::stop:        return act_stop;
+        case entity_anim_state::move:        return act_move;
+        case entity_anim_state::run:         return act_run;
+        case entity_anim_state::attack:      return act_attack;
+        case entity_anim_state::attack_move: return act_attackmove;
+        case entity_anim_state::damage:      return act_damage;
+        case entity_anim_state::damage_move: return act_damagemove;
+        case entity_anim_state::magic:
+        case entity_anim_state::magic_attack: return act_magic;
+        case entity_anim_state::get_item:    return act_getitem;
+        case entity_anim_state::dying:       return act_dying;
+        default:                             return act_stop;
+    }
+}
+
+// Apply NPC-specific frame data to an animation component.
+// Returns true if overrides were applied.
+inline bool apply_npc_frame_data(animation_component& anim, uint16_t visual_type)
+{
+    if (visual_type < npc_type_first || visual_type > npc_type_last)
+        return false;
+
+    init_npc_frame_table();
+
+    int type_idx = visual_type - npc_type_first;
+    int action_idx = anim_state_to_legacy_action(anim.state);
+    if (action_idx < 0 || action_idx >= legacy_action_count)
+        return false;
+
+    const auto& entry = npc_frame_table[type_idx][action_idx];
+
+    if (entry.max_frame >= 0)
+        anim.frame_count = static_cast<uint8_t>(entry.max_frame + 1);
+
+    if (entry.frame_time_ms > 0)
+        anim.frame_duration = static_cast<float>(entry.frame_time_ms) / 1000.0f;
+
+    return true;
+}
+
+// Get the visual type for an entity (NPC/monster type ID)
+// Returns 0 if no valid visual type is set.
+inline uint16_t get_entity_visual_type(const entity& e)
+{
+    uint16_t visual_type = e.visual_type();
+    if (visual_type == 0)
+    {
+        if (e.has_npc()) visual_type = e.npc().npc_type;
+        else if (e.has_monster()) visual_type = e.monster().monster_type;
+    }
+    return visual_type;
+}
+
 } // anonymous namespace
 
 void entity_manager::initialize(sound_manager* sounds) {
@@ -155,6 +683,7 @@ entity& entity_manager::create_entity_with_id(entity_id id, entity_type type) {
         case entity_type::npc:
             e->add_name();
             e->add_npc();
+            e->add_movement();
             break;
 
         case entity_type::monster:
@@ -340,19 +869,12 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         int32_t dir = direction_to_sprite_index(t.facing);
         int32_t npc_action = action_to_npc_action_index(e.current_action());
 
-        // Get visual type from component or entity
-        uint16_t visual_type = e.visual_type();
-        if (visual_type == 0) {
-            if (e.has_npc()) {
-                visual_type = e.npc().npc_type;
-            } else if (e.has_monster()) {
-                visual_type = e.monster().monster_type;
-            }
-        }
+        uint16_t visual_type = get_entity_visual_type(e);
 
-        // Default to type 10 (Slime) if no visual type is set
-        if (visual_type < 10) {
-            visual_type = 10;
+        // No valid visual type - use fallback bounds
+        if (visual_type < npc_sprite_constants::npc_type_offset) {
+            return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
+                    mouse_y >= screen_y - 48 && mouse_y < screen_y + 16);
         }
 
         uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
@@ -483,6 +1005,18 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
 
 void entity_manager::update_animation(entity& e, float delta_time) {
     auto& anim = e.animation();
+
+    // Override frame count and timing for NPCs/monsters using per-type data
+    if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+        uint16_t vtype = get_entity_visual_type(e);
+        if (vtype >= npc_type_first) {
+            apply_npc_frame_data(anim, vtype);
+            // Clamp frame if override reduced frame_count below current position
+            if (anim.current_frame >= anim.frame_count) {
+                anim.current_frame = 0;
+            }
+        }
+    }
 
     if (anim.finished && !anim.looping) {
         // Handle state transitions when animation finishes
@@ -782,18 +1316,11 @@ void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprit
     int32_t npc_action = action_to_npc_action_index(e.current_action());
 
     // Get visual type from component or entity
-    uint16_t visual_type = e.visual_type();
-    if (visual_type == 0) {
-        if (e.has_npc()) {
-            visual_type = e.npc().npc_type;
-        } else if (e.has_monster()) {
-            visual_type = e.monster().monster_type;
-        }
-    }
+    uint16_t visual_type = get_entity_visual_type(e);
 
-    // Default to type 10 (Slime) if no visual type is set
-    if (visual_type < 10) {
-        visual_type = 10;
+    // Skip rendering if no valid visual type is set
+    if (visual_type < npc_sprite_constants::npc_type_offset) {
+        return;
     }
 
     uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);

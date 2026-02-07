@@ -11,8 +11,10 @@
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
+#include "ui/dialogs/system_menu_dialog.hpp"
 #include <spdlog/spdlog.h>
 #include <cmath>
+#include <array>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 #include "debug/debug_overlay.hpp"
@@ -21,6 +23,117 @@
 #include "debug/debug_stats.hpp"
 
 namespace hb {
+
+namespace {
+
+// Monster/NPC PAK loading table
+// Matches legacy Game.cpp MakeSprite() calls: MakeSprite("slm", 1220 + 7*8*0, 40, TRUE)
+// Each entry: {pak_name, sprite_id_start, sprite_count}
+// Formula: sprite_id = 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+struct monster_pak_entry
+{
+    const char* pak_name;
+    uint16_t sprite_id;
+    uint16_t sprite_count;
+};
+
+static constexpr uint16_t npc_base = 1220;
+static constexpr uint16_t npc_stride = 56;  // 7 actions * 8 directions
+
+// All monster/NPC PAK files from legacy loading (Game.cpp lines 3836-3930)
+static constexpr std::array monster_paks =
+{
+    monster_pak_entry{"slm",           static_cast<uint16_t>(npc_base + npc_stride * 0),  40},  // Slime (Type: 10)
+    monster_pak_entry{"ske",           static_cast<uint16_t>(npc_base + npc_stride * 1),  40},  // Skeleton (Type: 11)
+    monster_pak_entry{"Gol",           static_cast<uint16_t>(npc_base + npc_stride * 2),  40},  // Stone-Golem (Type: 12)
+    monster_pak_entry{"Cyc",           static_cast<uint16_t>(npc_base + npc_stride * 3),  40},  // Cyclops (Type: 13)
+    monster_pak_entry{"Orc",           static_cast<uint16_t>(npc_base + npc_stride * 4),  40},  // Orc (Type: 14)
+    monster_pak_entry{"Shopkpr",       static_cast<uint16_t>(npc_base + npc_stride * 5),   8},  // ShopKeeper (Type: 15)
+    monster_pak_entry{"Ant",           static_cast<uint16_t>(npc_base + npc_stride * 6),  40},  // Giant-Ant (Type: 16)
+    monster_pak_entry{"Scp",           static_cast<uint16_t>(npc_base + npc_stride * 7),  40},  // Scorpion (Type: 17)
+    monster_pak_entry{"Zom",           static_cast<uint16_t>(npc_base + npc_stride * 8),  40},  // Zombie (Type: 18)
+    monster_pak_entry{"Gandlf",        static_cast<uint16_t>(npc_base + npc_stride * 9),   8},  // Gandalf (Type: 19)
+    monster_pak_entry{"Howard",        static_cast<uint16_t>(npc_base + npc_stride * 10),  8},  // Howard (Type: 20)
+    monster_pak_entry{"Guard",         static_cast<uint16_t>(npc_base + npc_stride * 11), 40},  // Guard (Type: 21)
+    monster_pak_entry{"Amp",           static_cast<uint16_t>(npc_base + npc_stride * 12), 40},  // Amphis (Type: 22)
+    monster_pak_entry{"Cla",           static_cast<uint16_t>(npc_base + npc_stride * 13), 40},  // Clay-Golem (Type: 23)
+    monster_pak_entry{"tom",           static_cast<uint16_t>(npc_base + npc_stride * 14),  8},  // Tom (Type: 24)
+    monster_pak_entry{"William",       static_cast<uint16_t>(npc_base + npc_stride * 15),  8},  // William (Type: 25)
+    monster_pak_entry{"Kennedy",       static_cast<uint16_t>(npc_base + npc_stride * 16),  8},  // Kennedy (Type: 26)
+    monster_pak_entry{"Helb",          static_cast<uint16_t>(npc_base + npc_stride * 17), 40},  // Hellbound (Type: 27)
+    monster_pak_entry{"Troll",         static_cast<uint16_t>(npc_base + npc_stride * 18), 40},  // Troll (Type: 28)
+    monster_pak_entry{"Orge",          static_cast<uint16_t>(npc_base + npc_stride * 19), 40},  // Ogre (Type: 29)
+    monster_pak_entry{"Liche",         static_cast<uint16_t>(npc_base + npc_stride * 20), 40},  // Liche (Type: 30)
+    monster_pak_entry{"Demon",         static_cast<uint16_t>(npc_base + npc_stride * 21), 40},  // Demon (Type: 31)
+    monster_pak_entry{"Unicorn",       static_cast<uint16_t>(npc_base + npc_stride * 22), 40},  // Unicorn (Type: 32)
+    monster_pak_entry{"WereWolf",      static_cast<uint16_t>(npc_base + npc_stride * 23), 40},  // WereWolf (Type: 33)
+    monster_pak_entry{"Dummy",         static_cast<uint16_t>(npc_base + npc_stride * 24), 40},  // Dummy (Type: 34)
+    // Type 35 (Energy-Ball) uses Effect5.pak - skipped, handled separately if needed
+    monster_pak_entry{"GT-Arrow",      static_cast<uint16_t>(npc_base + npc_stride * 26), 40},  // Arrow-GuardTower (Type: 36)
+    monster_pak_entry{"GT-Cannon",     static_cast<uint16_t>(npc_base + npc_stride * 27), 40},  // Cannon-GuardTower (Type: 37)
+    monster_pak_entry{"ManaCollector", static_cast<uint16_t>(npc_base + npc_stride * 28), 40},  // Mana Collector (Type: 38)
+    monster_pak_entry{"Detector",      static_cast<uint16_t>(npc_base + npc_stride * 29), 40},  // Detector (Type: 39)
+    monster_pak_entry{"ESG",           static_cast<uint16_t>(npc_base + npc_stride * 30), 40},  // ESG (Type: 40)
+    monster_pak_entry{"GMG",           static_cast<uint16_t>(npc_base + npc_stride * 31), 40},  // GMG (Type: 41)
+    monster_pak_entry{"ManaStone",     static_cast<uint16_t>(npc_base + npc_stride * 32), 40},  // ManaStone (Type: 42)
+    monster_pak_entry{"LWB",           static_cast<uint16_t>(npc_base + npc_stride * 33), 40},  // Light War Beetle (Type: 43)
+    monster_pak_entry{"GHK",           static_cast<uint16_t>(npc_base + npc_stride * 34), 40},  // God's Hand Knight (Type: 44)
+    monster_pak_entry{"GHKABS",        static_cast<uint16_t>(npc_base + npc_stride * 35), 40},  // GHK + Battle Steed (Type: 45)
+    monster_pak_entry{"TK",            static_cast<uint16_t>(npc_base + npc_stride * 36), 40},  // Temple Knight (Type: 46)
+    monster_pak_entry{"BG",            static_cast<uint16_t>(npc_base + npc_stride * 37), 40},  // Battle Golem (Type: 47)
+    monster_pak_entry{"Stalker",       static_cast<uint16_t>(npc_base + npc_stride * 38), 40},  // Stalker (Type: 48)
+    monster_pak_entry{"Hellclaw",      static_cast<uint16_t>(npc_base + npc_stride * 39), 40},  // Hellclaw (Type: 49)
+    monster_pak_entry{"Tigerworm",     static_cast<uint16_t>(npc_base + npc_stride * 40), 40},  // Tigerworm (Type: 50)
+    monster_pak_entry{"Catapult",      static_cast<uint16_t>(npc_base + npc_stride * 41), 40},  // Catapult (Type: 51)
+    monster_pak_entry{"Gagoyle",       static_cast<uint16_t>(npc_base + npc_stride * 42), 40},  // Gargoyle (Type: 52)
+    monster_pak_entry{"Beholder",      static_cast<uint16_t>(npc_base + npc_stride * 43), 40},  // Beholder (Type: 53)
+    monster_pak_entry{"DarkElf",       static_cast<uint16_t>(npc_base + npc_stride * 44), 40},  // Dark-Elf (Type: 54)
+    monster_pak_entry{"Bunny",         static_cast<uint16_t>(npc_base + npc_stride * 45), 40},  // Bunny (Type: 55)
+    monster_pak_entry{"Cat",           static_cast<uint16_t>(npc_base + npc_stride * 46), 40},  // Cat (Type: 56)
+    monster_pak_entry{"GiantFrog",     static_cast<uint16_t>(npc_base + npc_stride * 47), 40},  // GiantFrog (Type: 57)
+    monster_pak_entry{"MTGiant",       static_cast<uint16_t>(npc_base + npc_stride * 48), 40},  // Mountain Giant (Type: 58)
+    monster_pak_entry{"Ettin",         static_cast<uint16_t>(npc_base + npc_stride * 49), 40},  // Ettin (Type: 59)
+    monster_pak_entry{"CanPlant",      static_cast<uint16_t>(npc_base + npc_stride * 50), 40},  // Cannibal Plant (Type: 60)
+    monster_pak_entry{"Rudolph",       static_cast<uint16_t>(npc_base + npc_stride * 51), 40},  // Rudolph (Type: 61)
+    monster_pak_entry{"DireBoar",      static_cast<uint16_t>(npc_base + npc_stride * 52), 40},  // Dire Boar (Type: 62)
+    monster_pak_entry{"frost",         static_cast<uint16_t>(npc_base + npc_stride * 53), 40},  // Frost (Type: 63)
+    monster_pak_entry{"Crop",          static_cast<uint16_t>(npc_base + npc_stride * 54), 40},  // Crop (Type: 64)
+    monster_pak_entry{"IceGolem",      static_cast<uint16_t>(npc_base + npc_stride * 55), 40},  // Ice Golem (Type: 65)
+    monster_pak_entry{"Wyvern",        static_cast<uint16_t>(npc_base + npc_stride * 56), 40},  // Wyvern (Type: 66)
+    monster_pak_entry{"McGaffin",      static_cast<uint16_t>(npc_base + npc_stride * 57), 16},  // McGaffin (Type: 67)
+    monster_pak_entry{"Perry",         static_cast<uint16_t>(npc_base + npc_stride * 58), 16},  // Perry (Type: 68)
+    monster_pak_entry{"Devlin",        static_cast<uint16_t>(npc_base + npc_stride * 59), 16},  // Devlin (Type: 69)
+};
+
+// Load all monster/NPC PAK files and register sprites at their global IDs
+static void load_monster_sprites(sprite_manager& sprites)
+{
+    spdlog::info("Loading monster/NPC sprites...");
+    uint32_t loaded = 0;
+
+    for (const auto& entry : monster_paks)
+    {
+        std::string pak_path = std::string("sprites/") + entry.pak_name + ".pak";
+
+        if (!sprites.load_pak(entry.pak_name, pak_path))
+        {
+            spdlog::debug("Optional monster PAK not found: {}", pak_path);
+            continue;
+        }
+
+        for (uint16_t i = 0; i < entry.sprite_count; ++i)
+        {
+            uint16_t global_id = static_cast<uint16_t>(entry.sprite_id + i);
+            sprites.store_sprite_at_id(global_id, entry.pak_name, i);
+        }
+
+        loaded++;
+    }
+
+    spdlog::info("Loaded {}/{} monster/NPC PAK files", loaded, monster_paks.size());
+}
+
+} // anonymous namespace
 
 bool game_state_manager::initialize(renderer& rend, audio& aud) {
     audio_ = &aud;
@@ -100,6 +213,9 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     } else {
         spdlog::warn("Menu character renderer initialization failed - character previews may not display");
     }
+
+    // Load monster/NPC sprites
+    load_monster_sprites(sprites_);
 
     // Initialize screen manager
     screens_.initialize();

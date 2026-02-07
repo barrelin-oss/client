@@ -224,6 +224,9 @@ public:
     renderer* get_renderer() { return renderer_; }
     audio* get_audio() { return audio_; }
 
+    // View range notification (tells server the effective visible area)
+    void send_view_range();
+
     // WebSocket requests (forwarded to ws_handler)
     void request_enter_game(int32_t character_id, bool force_disconnect = false)
     {
@@ -261,9 +264,6 @@ private:
 
     // HUD updates
     void update_icon_panel();
-
-    // View range notification
-    void send_view_range();
 
     // Clear all in-game data (map, entities, etc.) for clean re-entry
     void clear_game_data();

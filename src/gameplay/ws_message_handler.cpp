@@ -52,48 +52,59 @@ bool ws_message_handler::consume_pending_login(std::string& username, std::strin
 
 void ws_message_handler::handle_message(const json& message)
 {
-    if (!message.contains("type"))
+    try
     {
-        spdlog::warn("Received message without type field");
-        return;
+        if (!message.contains("type"))
+        {
+            spdlog::warn("Received message without type field");
+            return;
+        }
+
+        std::string type = message["type"].get<std::string>();
+
+        if (type == msg_type::login_response)
+            handle_login_response_ws(message);
+        else if (type == msg_type::get_characters_response)
+            handle_get_characters_response(message);
+        else if (type == msg_type::enter_game_response)
+            handle_enter_game_response(message);
+        else if (type == msg_type::create_character_response)
+            handle_create_character_response(message);
+        else if (type == msg_type::delete_character_response)
+            handle_delete_character_response(message);
+        else if (type == msg_type::player_pickup_response)
+            handle_pickup_response(message);
+        else if (type == msg_type::ground_item_removed)
+            handle_ground_item_removed(message);
+        else if (type == msg_type::player_position_update)
+            handle_player_position_update(message);
+        else if (type == msg_type::player_stop_response)
+            handle_player_stop_response(message);
+        else if (type == msg_type::player_move_response)
+            handle_player_move_response(message);
+        else if (type == msg_type::hunger_update)
+            handle_hunger_update(message);
+        else if (type == msg_type::npc_move)
+            handle_npc_move(message);
+        else if (type == msg_type::entity_info_response)
+            handle_entity_info_response(message);
+        else if (type == msg_type::set_render_mode)
+            handle_set_render_mode(message);
+        else if (type == msg_type::chat_message_broadcast)
+            handle_chat_message_broadcast(message);
+        else if (type == msg_type::chat_message)
+            {} // Ack from server, already handled via local echo
+        else
+            spdlog::warn("Unknown message type: {}", type);
     }
-
-    std::string type = message["type"].get<std::string>();
-
-    if (type == msg_type::login_response)
-        handle_login_response_ws(message);
-    else if (type == msg_type::get_characters_response)
-        handle_get_characters_response(message);
-    else if (type == msg_type::enter_game_response)
-        handle_enter_game_response(message);
-    else if (type == msg_type::create_character_response)
-        handle_create_character_response(message);
-    else if (type == msg_type::delete_character_response)
-        handle_delete_character_response(message);
-    else if (type == msg_type::player_pickup_response)
-        handle_pickup_response(message);
-    else if (type == msg_type::ground_item_removed)
-        handle_ground_item_removed(message);
-    else if (type == msg_type::player_position_update)
-        handle_player_position_update(message);
-    else if (type == msg_type::player_stop_response)
-        handle_player_stop_response(message);
-    else if (type == msg_type::player_move_response)
-        handle_player_move_response(message);
-    else if (type == msg_type::hunger_update)
-        handle_hunger_update(message);
-    else if (type == msg_type::npc_move)
-        handle_npc_move(message);
-    else if (type == msg_type::entity_info_response)
-        handle_entity_info_response(message);
-    else if (type == msg_type::set_render_mode)
-        handle_set_render_mode(message);
-    else if (type == msg_type::chat_message_broadcast)
-        handle_chat_message_broadcast(message);
-    else if (type == msg_type::chat_message)
-        {} // Ack from server, already handled via local echo
-    else
-        spdlog::warn("Unknown message type: {}", type);
+    catch (const nlohmann::json::exception& e)
+    {
+        spdlog::error("JSON parse error handling message: {}", e.what());
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::error("Error handling message: {}", e.what());
+    }
 }
 
 void ws_message_handler::handle_login_response_ws(const json& message)
@@ -871,10 +882,11 @@ void ws_message_handler::handle_set_render_mode(const json& message)
 
 void ws_message_handler::send_view_range()
 {
-    // Send the effective game resolution (scene dimensions account for view mode)
+    // Send the interaction area (what the player can see/target).
+    // Special: display resolution. Scaled/Extended: fair zone (internal resolution).
     auto* rend = game_->get_renderer();
-    uint32_t w = rend ? rend->scene_width() : config::instance().video().screen_width;
-    uint32_t h = rend ? rend->scene_height() : config::instance().video().screen_height;
+    uint32_t w = rend ? rend->interaction_width() : config::instance().video().screen_width;
+    uint32_t h = rend ? rend->interaction_height() : config::instance().video().screen_height;
     json msg = make_set_view_range_request(w, h);
     game_->ws_connection().send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);
@@ -905,7 +917,7 @@ void ws_message_handler::handle_chat_message_broadcast(const json& message)
     else if (data.channel == "guild") type = chat_type::guild;
     else if (data.channel == "party") type = chat_type::party;
     else if (data.channel == "gm") type = chat_type::gm;
-    else if (data.channel == "faction") type = chat_type::guild;  // Faction uses guild color
+    else if (data.channel == "faction") type = chat_type::faction;
     else if (data.channel == "global") type = chat_type::global;
     else if (data.channel == "trade") type = chat_type::trade;
 

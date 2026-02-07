@@ -122,27 +122,7 @@ void dialog_callbacks::setup_callbacks()
         });
     }
 
-    // Chat dialog - message sending (via WebSocket)
-    if (auto* chat_dlg = dynamic_cast<chat_dialog*>(ui.get_dialog(dialog_type::chat)))
-    {
-        auto& ws = game_->ws_handler();
-        chat_dlg->set_on_send([&ws](std::string_view message, chat_dialog::chat_mode mode) {
-            std::string_view channel;
-            switch (mode)
-            {
-                case chat_dialog::chat_mode::shout:   channel = "shout"; break;
-                case chat_dialog::chat_mode::whisper:  channel = "whisper"; break;
-                case chat_dialog::chat_mode::party:    channel = "party"; break;
-                case chat_dialog::chat_mode::guild:    channel = "guild"; break;
-                case chat_dialog::chat_mode::trade:    channel = "trade"; break;
-                default:                               channel = "local"; break;
-            }
-            ws.send_chat_message(message, channel);
-        });
-
-        // Wire classic sprite rendering
-        chat_dlg->set_sprite_manager(&game_->sprites());
-    }
+    // Chat dialog - no callbacks needed; input is handled by chat_input_overlay
 
     // Shop dialog - buy/sell
     if (auto* shop_dlg = dynamic_cast<shop_dialog*>(ui.get_dialog(dialog_type::shop)))
@@ -468,6 +448,13 @@ void dialog_callbacks::setup_callbacks()
             spdlog::info("Debug stats: {}", show ? "ON" : "OFF");
             config::instance().video().show_debug_stats = show;
             debug::debug_stats::instance().set_visible(show);
+        });
+
+        settings_dlg->set_type_to_chat(config::instance().game().type_to_chat);
+        settings_dlg->set_on_type_to_chat_change([this](bool enabled) {
+            spdlog::info("Type to chat: {}", enabled ? "ON" : "OFF");
+            config::instance().game().type_to_chat = enabled;
+            game_->chat_input().set_type_to_chat(enabled);
         });
 
         settings_dlg->set_on_music_volume_change([this](float volume) {

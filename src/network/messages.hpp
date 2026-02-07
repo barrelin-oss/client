@@ -849,7 +849,12 @@ struct chat_message_broadcast_data {
         if (j.contains("data")) {
             const auto& d = j["data"];
             if (d.contains("channel")) data.channel = d["channel"].get<std::string>();
-            if (d.contains("sender_id")) data.sender_id = d["sender_id"].get<uint32_t>();
+            if (d.contains("sender_id")) {
+                if (d["sender_id"].is_number())
+                    data.sender_id = d["sender_id"].get<uint32_t>();
+                else if (d["sender_id"].is_string())
+                    data.sender_id = static_cast<uint32_t>(std::stoul(d["sender_id"].get<std::string>()));
+            }
             if (d.contains("sender_name")) data.sender_name = d["sender_name"].get<std::string>();
             if (d.contains("content")) data.content = d["content"].get<std::string>();
             if (d.contains("flags") && d["flags"].is_array()) {
@@ -857,8 +862,13 @@ struct chat_message_broadcast_data {
                     data.flags.push_back(f.get<std::string>());
                 }
             }
-            if (d.contains("timestamp")) data.timestamp = d["timestamp"].get<int64_t>();
-            if (d.contains("recipient_name")) data.recipient_name = d["recipient_name"].get<std::string>();
+            if (d.contains("timestamp")) {
+                if (d["timestamp"].is_number())
+                    data.timestamp = d["timestamp"].get<int64_t>();
+                // else: ISO 8601 string — ignore for now, we use local clock
+            }
+            if (d.contains("recipient_name") && d["recipient_name"].is_string())
+                data.recipient_name = d["recipient_name"].get<std::string>();
         }
         return data;
     }

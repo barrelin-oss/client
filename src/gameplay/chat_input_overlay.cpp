@@ -50,6 +50,7 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
                 case '~': activate(); mode_ = chat_mode::faction; return true;
                 case '@': activate(); mode_ = chat_mode::guild; return true;
                 case '$': activate(); mode_ = chat_mode::party; return true;
+                case '%': activate(); mode_ = chat_mode::trade; return true;
                 case '^': activate(); mode_ = chat_mode::gm; return true;
                 case '#':
                     // # overrides whisper for one message -> force say mode
@@ -62,6 +63,14 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
                     cursor_pos_ = 1;
                     return true;
                 default:
+                    // Type-to-chat: any printable character opens chat and seeds input
+                    if (type_to_chat_ && ch >= 32 && ch != 127)
+                    {
+                        activate();
+                        input_text_ = std::string(1, ch);
+                        cursor_pos_ = 1;
+                        return true;
+                    }
                     break;
             }
         }
@@ -149,7 +158,7 @@ void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t sc
     constexpr int32_t bar_height = 24;
     constexpr int32_t icon_panel_height = 34;
     constexpr int32_t padding = 6;
-    int32_t bar_y = screen_height - icon_panel_height - bar_height - 2;
+    int32_t bar_y = screen_height - icon_panel_height - bar_height - 22;
     int32_t bar_x = 4;
     int32_t bar_width = screen_width - 8;
 
@@ -158,30 +167,47 @@ void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t sc
     rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(60, 60, 80), false);
 
     // Mode label
+    constexpr uint32_t font_size = 12;
     std::string label = label_for_mode();
     sf::Color label_color = color_for_mode();
-    rend.draw_text(label, bar_x + padding, bar_y + 5, label_color, 12);
+    rend.draw_text(label, bar_x + padding, bar_y + 5, label_color, font_size);
 
-    int32_t text_x = bar_x + padding + static_cast<int32_t>(label.size()) * 7 + 4;
-    int32_t text_width = std::max(14, bar_width - (text_x - bar_x) - padding);
+    float label_w = rend.text().measure_width(label, font_size);
+    int32_t text_x = bar_x + padding + static_cast<int32_t>(label_w) + 4;
+    float avail_w = static_cast<float>(std::max(14, bar_width - (text_x - bar_x) - padding));
 
     // Input text (scrolled to show cursor)
-    size_t max_visible = static_cast<size_t>(text_width / 7);
-    if (max_visible == 0) max_visible = 1;
     size_t start_char = 0;
-    if (cursor_pos_ >= max_visible)
+    if (!input_text_.empty())
     {
-        start_char = cursor_pos_ - max_visible + 1;
+        // Advance start_char until text from start_char..cursor fits
+        while (start_char < cursor_pos_)
+        {
+            auto sub = std::string_view(input_text_).substr(start_char, cursor_pos_ - start_char);
+            if (rend.text().measure_width(sub, font_size) <= avail_w)
+                break;
+            start_char++;
+        }
     }
-    std::string visible_text = input_text_.substr(
-        start_char, std::min(max_visible, input_text_.size() - start_char));
 
-    rend.draw_text(visible_text, text_x, bar_y + 5, sf::Color::White, 12);
+    // Build visible substring that fits
+    size_t end_char = cursor_pos_;
+    while (end_char < input_text_.size())
+    {
+        auto sub = std::string_view(input_text_).substr(start_char, end_char + 1 - start_char);
+        if (rend.text().measure_width(sub, font_size) > avail_w)
+            break;
+        end_char++;
+    }
+    std::string visible_text = input_text_.substr(start_char, end_char - start_char);
+
+    rend.draw_text(visible_text, text_x, bar_y + 5, label_color, font_size);
 
     // Blinking cursor
     if (cursor_visible_)
     {
-        int32_t cursor_x = text_x + static_cast<int32_t>((cursor_pos_ - start_char) * 7);
+        auto cursor_sub = std::string_view(input_text_).substr(start_char, cursor_pos_ - start_char);
+        int32_t cursor_x = text_x + static_cast<int32_t>(rend.text().measure_width(cursor_sub, font_size));
         rend.draw_line(cursor_x, bar_y + 3, cursor_x, bar_y + bar_height - 3, sf::Color::White);
     }
 }
@@ -252,10 +278,10 @@ void chat_input_overlay::parse_command(std::string_view text)
         return;
     }
 
-    // Unknown command - just send as local chat with the slash included
-    if (on_send_)
+    // Unknown command - send to server as command (no bubble, no chat echo)
+    if (on_command_)
     {
-        on_send_(text, "local", "");
+        on_command_(text);
     }
 }
 
@@ -268,6 +294,7 @@ std::string_view chat_input_overlay::channel_for_mode() const
         case chat_mode::faction: return "faction";
         case chat_mode::guild:   return "guild";
         case chat_mode::party:   return "party";
+        case chat_mode::trade:   return "trade";
         case chat_mode::gm:      return "gm";
         case chat_mode::whisper: return "whisper";
     }
@@ -278,15 +305,16 @@ sf::Color chat_input_overlay::color_for_mode() const
 {
     switch (mode_)
     {
-        case chat_mode::say:     return sf::Color::White;
-        case chat_mode::shout:   return sf::Color::Yellow;
-        case chat_mode::faction: return sf::Color(100, 255, 100);
-        case chat_mode::guild:   return sf::Color(100, 255, 100);
-        case chat_mode::party:   return sf::Color(100, 200, 255);
-        case chat_mode::gm:      return sf::Color(200, 100, 255);
-        case chat_mode::whisper: return sf::Color(255, 180, 200);
+        case chat_mode::say:     return get_chat_bubble_style("local").color;
+        case chat_mode::shout:   return get_chat_bubble_style("shout").color;
+        case chat_mode::faction: return get_chat_bubble_style("faction").color;
+        case chat_mode::guild:   return get_chat_bubble_style("guild").color;
+        case chat_mode::party:   return get_chat_bubble_style("party").color;
+        case chat_mode::trade:   return get_chat_bubble_style("trade").color;
+        case chat_mode::gm:      return get_chat_bubble_style("gm").color;
+        case chat_mode::whisper: return get_chat_bubble_style("whisper").color;
     }
-    return sf::Color::White;
+    return get_chat_bubble_style("local").color;
 }
 
 std::string chat_input_overlay::label_for_mode() const
@@ -303,6 +331,7 @@ std::string chat_input_overlay::label_for_mode() const
         case chat_mode::faction: return "[Faction]";
         case chat_mode::guild:   return "[Guild]";
         case chat_mode::party:   return "[Party]";
+        case chat_mode::trade:   return "[Trade]";
         case chat_mode::gm:      return "[GM]";
         case chat_mode::whisper: return "[Whisper]";
     }

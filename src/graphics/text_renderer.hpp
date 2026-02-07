@@ -64,6 +64,8 @@ private:
                      const text_style& style, float time, uint8_t alpha);
     void draw_typewriter(std::string_view text, int32_t x, int32_t y,
                          const text_style& style, float time, uint8_t alpha);
+    void draw_outline_pulse(std::string_view text, int32_t x, int32_t y,
+                            const text_style& style, float time, uint8_t alpha);
 
     // Helper: draw a single character with optional outline
     void draw_char(char c, float x, float y, sf::Color color,

@@ -273,7 +273,10 @@ void renderer::end_scene() {
             case fog_style::tile_fog: draw_fog_tile(fair, dw, dh); break;
             case fog_style::vignette: draw_fog_vignette(fair, dw, dh); break;
             case fog_style::gradient: draw_fog_gradient(fair, dw, dh); break;
-            case fog_style::dither:   draw_fog_dither(fair, dw, dh); break;
+        }
+
+        if (targeting_boundary_visible_) {
+            draw_targeting_boundary(fair);
         }
     }
     // Special mode: no-op
@@ -298,6 +301,16 @@ uint32_t renderer::scene_height() const {
         return internal_height_;
     }
     return height_;
+}
+
+uint32_t renderer::interaction_width() const {
+    if (view_mode_ == view_mode::special) return width_;
+    return internal_width_;
+}
+
+uint32_t renderer::interaction_height() const {
+    if (view_mode_ == view_mode::special) return height_;
+    return internal_height_;
 }
 
 std::pair<int32_t, int32_t> renderer::display_to_scene(int32_t x, int32_t y) const {
@@ -453,7 +466,8 @@ void renderer::draw_fog_tile(const sf::IntRect& fair, int32_t dw, int32_t dh) {
 
 void renderer::draw_fog_vignette(const sf::IntRect& fair, int32_t dw, int32_t dh) {
     constexpr int segments = 64;
-    constexpr uint8_t max_alpha = 200;
+    constexpr uint8_t max_alpha = 220;
+    constexpr float edge_width = 40.0f;  // Sharp transition zone width
     constexpr float pi2 = 6.2831853f;
 
     float cx = static_cast<float>(dw) / 2.0f;
@@ -463,13 +477,19 @@ void renderer::draw_fog_vignette(const sf::IntRect& fair, int32_t dw, int32_t dh
     float rx_inner = static_cast<float>(fair.size.x) / 2.0f;
     float ry_inner = static_cast<float>(fair.size.y) / 2.0f;
 
+    // Mid ellipse: sharp transition zone just outside fair zone
+    float rx_mid = rx_inner + edge_width;
+    float ry_mid = ry_inner + edge_width;
+
     // Outer radius covers screen corners
     float outer_r = std::sqrt(cx * cx + cy * cy) + 50.0f;
 
     sf::Color inner_color(0, 0, 0, 0);
+    sf::Color mid_color(0, 0, 0, static_cast<uint8_t>(max_alpha * 0.85f));
     sf::Color outer_color(0, 0, 0, max_alpha);
 
-    sf::VertexArray va(sf::PrimitiveType::Triangles, segments * 6);
+    // Two rings: inner-to-mid (sharp), mid-to-outer (gentle)
+    sf::VertexArray va(sf::PrimitiveType::Triangles, segments * 12);
     size_t vi = 0;
 
     for (int i = 0; i < segments; ++i) {
@@ -481,17 +501,26 @@ void renderer::draw_fog_vignette(const sf::IntRect& fair, int32_t dw, int32_t dh
 
         sf::Vector2f in0{cx + rx_inner * cos0, cy + ry_inner * sin0};
         sf::Vector2f in1{cx + rx_inner * cos1, cy + ry_inner * sin1};
+        sf::Vector2f mid0{cx + rx_mid * cos0, cy + ry_mid * sin0};
+        sf::Vector2f mid1{cx + rx_mid * cos1, cy + ry_mid * sin1};
         sf::Vector2f out0{cx + outer_r * cos0, cy + outer_r * sin0};
         sf::Vector2f out1{cx + outer_r * cos1, cy + outer_r * sin1};
 
-        // Two triangles per segment
+        // Inner ring: clear to mostly-dark (sharp boundary)
         va[vi++] = {in0, inner_color};
+        va[vi++] = {mid0, mid_color};
+        va[vi++] = {mid1, mid_color};
+        va[vi++] = {in0, inner_color};
+        va[vi++] = {mid1, mid_color};
+        va[vi++] = {in1, inner_color};
+
+        // Outer ring: mostly-dark to fully dark (gentle)
+        va[vi++] = {mid0, mid_color};
         va[vi++] = {out0, outer_color};
         va[vi++] = {out1, outer_color};
-
-        va[vi++] = {in0, inner_color};
+        va[vi++] = {mid0, mid_color};
         va[vi++] = {out1, outer_color};
-        va[vi++] = {in1, inner_color};
+        va[vi++] = {mid1, mid_color};
     }
 
     active_target_->draw(va);
@@ -528,14 +557,24 @@ void renderer::draw_fog_gradient(const sf::IntRect& fair, int32_t dw, int32_t dh
         va.append({v0, c0});
     };
 
-    // Top gradient strip (full width)
-    add_quad({0, ft}, clear_c, {fw, ft}, clear_c, {fw, gt}, dark_c, {0, gt}, dark_c);
-    // Bottom gradient strip (full width)
-    add_quad({0, fb}, clear_c, {fw, fb}, clear_c, {fw, gb}, dark_c, {0, gb}, dark_c);
-    // Left gradient strip (between fair zone top/bottom)
+    // Top gradient strip (between fair zone left/right edges)
+    add_quad({fl, ft}, clear_c, {fr, ft}, clear_c, {fr, gt}, dark_c, {fl, gt}, dark_c);
+    // Bottom gradient strip (between fair zone left/right edges)
+    add_quad({fl, fb}, clear_c, {fr, fb}, clear_c, {fr, gb}, dark_c, {fl, gb}, dark_c);
+    // Left gradient strip (between fair zone top/bottom edges)
     add_quad({fl, ft}, clear_c, {fl, fb}, clear_c, {gl, fb}, dark_c, {gl, ft}, dark_c);
-    // Right gradient strip (between fair zone top/bottom)
+    // Right gradient strip (between fair zone top/bottom edges)
     add_quad({fr, ft}, clear_c, {fr, fb}, clear_c, {gr, fb}, dark_c, {gr, ft}, dark_c);
+
+    // Corner gradients: diagonal from fair zone corner to gradient corner
+    // Top-left corner
+    add_quad({fl, ft}, clear_c, {fl, gt}, dark_c, {gl, gt}, dark_c, {gl, ft}, dark_c);
+    // Top-right corner
+    add_quad({fr, ft}, clear_c, {fr, gt}, dark_c, {gr, gt}, dark_c, {gr, ft}, dark_c);
+    // Bottom-left corner
+    add_quad({fl, fb}, clear_c, {fl, gb}, dark_c, {gl, gb}, dark_c, {gl, fb}, dark_c);
+    // Bottom-right corner
+    add_quad({fr, fb}, clear_c, {fr, gb}, dark_c, {gr, gb}, dark_c, {gr, fb}, dark_c);
 
     active_target_->draw(va);
 
@@ -551,44 +590,57 @@ void renderer::draw_fog_gradient(const sf::IntRect& fair, int32_t dw, int32_t dh
     if (igr < dw) draw_rect(igr, igt, dw - igr, igb - igt, dark_c);
 }
 
-void renderer::ensure_dither_texture() {
-    if (dither_texture_) return;
-
-    // Create a 2x2 checkerboard pattern
-    sf::Image img;
-    img.resize({2, 2}, sf::Color::Transparent);
-    img.setPixel({0, 0}, sf::Color::White);
-    img.setPixel({1, 1}, sf::Color::White);
-    // (0,1) and (1,0) stay transparent
-
-    dither_texture_ = std::make_unique<sf::Texture>(img);
-    dither_texture_->setRepeated(true);
+void renderer::set_targeting_boundary_visible(bool visible) {
+    if (visible && !targeting_boundary_visible_) {
+        boundary_start_time_ = std::chrono::steady_clock::now();
+    }
+    targeting_boundary_visible_ = visible;
 }
 
-void renderer::draw_fog_dither(const sf::IntRect& fair, int32_t dw, int32_t dh) {
-    ensure_dither_texture();
+void renderer::set_targeting_boundary_color(sf::Color color) {
+    targeting_boundary_color_ = color;
+}
 
-    sf::Color tint(0, 0, 0, 200);
+void renderer::draw_targeting_boundary(const sf::IntRect& fair) {
+    auto now = std::chrono::steady_clock::now();
+    float elapsed = std::chrono::duration<float>(now - boundary_start_time_).count();
 
-    auto draw_dithered_rect = [&](int32_t x, int32_t y, int32_t w, int32_t h) {
-        if (w <= 0 || h <= 0) return;
-        sf::Sprite spr(*dither_texture_, sf::IntRect({0, 0}, {w, h}));
-        spr.setPosition({static_cast<float>(x), static_cast<float>(y)});
-        spr.setColor(tint);
-        active_target_->draw(spr);
-    };
+    // Sine pulse: 1.5 second period, alpha oscillates between 40% and 100%
+    float pulse = (std::sin(elapsed * 4.18879f) + 1.0f) / 2.0f;  // 0..1, period ~1.5s
+    float alpha_factor = 0.4f + 0.6f * pulse;
 
-    // Same 4 rectangles as solid, but with dither texture
-    if (fair.position.y > 0)
-        draw_dithered_rect(0, 0, dw, fair.position.y);
-    int32_t bot = fair.position.y + fair.size.y;
-    if (bot < dh)
-        draw_dithered_rect(0, bot, dw, dh - bot);
-    if (fair.position.x > 0)
-        draw_dithered_rect(0, fair.position.y, fair.position.x, fair.size.y);
-    int32_t right = fair.position.x + fair.size.x;
-    if (right < dw)
-        draw_dithered_rect(right, fair.position.y, dw - right, fair.size.y);
+    sf::Color color = targeting_boundary_color_;
+    auto base_a = static_cast<float>(color.a);
+
+    // Outer glow: wider, softer
+    float glow_thickness = 3.0f + 2.0f * pulse;
+    sf::Color glow_color = color;
+    glow_color.a = static_cast<uint8_t>(base_a * alpha_factor * 0.3f);
+
+    sf::RectangleShape glow_rect(
+        {static_cast<float>(fair.size.x) + glow_thickness * 2.0f,
+         static_cast<float>(fair.size.y) + glow_thickness * 2.0f});
+    glow_rect.setPosition(
+        {static_cast<float>(fair.position.x) - glow_thickness,
+         static_cast<float>(fair.position.y) - glow_thickness});
+    glow_rect.setFillColor(sf::Color::Transparent);
+    glow_rect.setOutlineColor(glow_color);
+    glow_rect.setOutlineThickness(glow_thickness);
+    active_target_->draw(glow_rect);
+
+    // Inner border: crisp bright edge
+    constexpr float border_thickness = 1.5f;
+    sf::Color border_color = color;
+    border_color.a = static_cast<uint8_t>(base_a * alpha_factor);
+
+    sf::RectangleShape border_rect(
+        {static_cast<float>(fair.size.x), static_cast<float>(fair.size.y)});
+    border_rect.setPosition(
+        {static_cast<float>(fair.position.x), static_cast<float>(fair.position.y)});
+    border_rect.setFillColor(sf::Color::Transparent);
+    border_rect.setOutlineColor(border_color);
+    border_rect.setOutlineThickness(-border_thickness);
+    active_target_->draw(border_rect);
 }
 
 // ---------------------------------------------------------------------------

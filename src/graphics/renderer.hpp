@@ -2,6 +2,7 @@
 
 #include "graphics/text_renderer.hpp"
 #include <SFML/Graphics.hpp>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -41,7 +42,6 @@ enum class fog_style : uint8_t
     tile_fog = 1,   // Tile-grid-aligned boundary
     vignette = 2,   // Elliptical gradient darkening
     gradient = 3,   // Linear gradient fade from fair zone edge
-    dither = 4,     // Stipple/checkerboard pattern
 };
 
 class renderer {
@@ -71,6 +71,11 @@ public:
     uint32_t display_width() const { return width_; }
     uint32_t display_height() const { return height_; }
 
+    // Interaction dimensions (what the player can see/target - used for view range)
+    // Special: display resolution. Scaled/Extended: fair zone (internal resolution).
+    uint32_t interaction_width() const;
+    uint32_t interaction_height() const;
+
     // Coordinate mapping between display and scene space
     std::pair<int32_t, int32_t> display_to_scene(int32_t x, int32_t y) const;
     std::pair<int32_t, int32_t> scene_to_display(int32_t x, int32_t y) const;
@@ -91,6 +96,11 @@ public:
     void set_fog_style(fog_style style);
     fog_style current_fog_style() const { return fog_style_; }
     void set_fog_camera_info(int32_t camera_x, int32_t camera_y, float zoom);
+
+    // Targeting boundary (pulsing outline at fair zone edge, for ranged interactions)
+    void set_targeting_boundary_visible(bool visible);
+    void set_targeting_boundary_color(sf::Color color);
+    bool is_targeting_boundary_visible() const { return targeting_boundary_visible_; }
 
     // Sprite drawing (with color key transparency)
     void draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
@@ -164,8 +174,7 @@ private:
     void draw_fog_tile(const sf::IntRect& fair, int32_t dw, int32_t dh);
     void draw_fog_vignette(const sf::IntRect& fair, int32_t dw, int32_t dh);
     void draw_fog_gradient(const sf::IntRect& fair, int32_t dw, int32_t dh);
-    void draw_fog_dither(const sf::IntRect& fair, int32_t dw, int32_t dh);
-    void ensure_dither_texture();
+    void draw_targeting_boundary(const sf::IntRect& fair);
 
     sf::RenderWindow window_;
     sf::Font font_;
@@ -192,7 +201,11 @@ private:
     int32_t fog_camera_x_ = 0;
     int32_t fog_camera_y_ = 0;
     float fog_zoom_ = 1.0f;
-    std::unique_ptr<sf::Texture> dither_texture_;
+
+    // Targeting boundary
+    bool targeting_boundary_visible_ = false;
+    sf::Color targeting_boundary_color_{64, 192, 255, 255};  // Default: soft blue
+    std::chrono::steady_clock::time_point boundary_start_time_;
 
     text_renderer text_renderer_;
 };

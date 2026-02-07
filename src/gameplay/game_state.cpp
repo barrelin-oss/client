@@ -349,8 +349,9 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
             else if (channel == "whisper") msg.type = chat_type::whisper;
             else if (channel == "guild") msg.type = chat_type::guild;
             else if (channel == "party") msg.type = chat_type::party;
-            else if (channel == "faction") msg.type = chat_type::guild;
+            else if (channel == "faction") msg.type = chat_type::faction;
             else if (channel == "gm") msg.type = chat_type::gm;
+            else if (channel == "trade") msg.type = chat_type::trade;
             else msg.type = chat_type::normal;
 
             if (entity* player = local_player())
@@ -372,6 +373,12 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
                 name.chat_style = get_chat_bubble_style(channel);
             }
         });
+
+        chat_input_.set_on_command([this](std::string_view command) {
+            ws_handler_.send_chat_message(command, "command", "");
+        });
+
+        chat_input_.set_type_to_chat(config::instance().game().type_to_chat);
     }});
 
     // Tile sprites: register core mappings + discover tile PAKs, then queue each load
@@ -767,11 +774,14 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Update blocked movement cooldown
     action_queue_.update_cooldown(delta_time);
 
-    // Chat input overlay runs first - when active it consumes keyboard input
-    bool chat_active = chat_input_.update(delta_time, inp);
+    // Chat input overlay runs first - when active it consumes keyboard input.
+    // Skip overlay activation when a dialog has text focus (e.g. chat search).
+    bool chat_active = false;
+    if (!ui_.has_text_focus())
+        chat_active = chat_input_.update(delta_time, inp);
 
     // Handle game input only when chat overlay is not active
-    if (!chat_active)
+    if (!chat_active && !ui_.has_text_focus())
         input_handler_.handle_input(inp);
 
     // Track alt key state for super attack indicator
@@ -1432,10 +1442,10 @@ void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y) {
 }
 
 void game_state_manager::send_view_range() {
-    // Send the effective game resolution (what the player can interact with).
-    // In scaled/extended mode this is the fair resolution, not the display resolution.
-    uint32_t w = renderer_ ? renderer_->scene_width() : config::instance().video().screen_width;
-    uint32_t h = renderer_ ? renderer_->scene_height() : config::instance().video().screen_height;
+    // Send the interaction area (what the player can see/target).
+    // Special: display resolution. Scaled/Extended: fair zone (internal resolution).
+    uint32_t w = renderer_ ? renderer_->interaction_width() : config::instance().video().screen_width;
+    uint32_t h = renderer_ ? renderer_->interaction_height() : config::instance().video().screen_height;
     json msg = make_set_view_range_request(w, h);
     ws_connection_.send(msg);
     spdlog::info("Sent view range: {}x{}", w, h);

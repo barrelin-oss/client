@@ -601,6 +601,19 @@ void settings_dialog::render(renderer& rend) {
                     hovered_element_ == elem_show_debug_stats_checkbox);
     y += 40;
 
+    // Gameplay section
+    render_section_header(rend, y, "Gameplay");
+    y += 25;
+
+    // Type-to-chat checkbox
+    render_checkbox(rend, y, "Type to Chat (Legacy)",
+                    type_to_chat_,
+                    hovered_element_ == elem_type_to_chat_checkbox);
+    // Hint text below checkbox
+    rend.draw_text("Disables WASD movement when enabled",
+                   bounds_.x + 51, y + 20, sf::Color(120, 120, 150), 9);
+    y += 40;
+
     // Audio section
     render_section_header(rend, y, "Audio");
     y += 25;
@@ -958,6 +971,13 @@ int32_t settings_dialog::get_hovered_element(int32_t mouse_x, int32_t mouse_y) c
     if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
         return elem_show_debug_stats_checkbox;
     }
+    y += 40;  // Skip to gameplay section
+    y += 25;  // Gameplay section header
+
+    // Type-to-chat checkbox
+    if (mouse_x >= x && mouse_x < x + 200 && mouse_y >= y && mouse_y < y + 24) {
+        return elem_type_to_chat_checkbox;
+    }
     y += 40;  // Skip to audio section
     y += 25;  // Audio section header
 
@@ -1167,6 +1187,12 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 close_all_dropdowns();
                 show_debug_stats_ = !show_debug_stats_;
                 if (on_show_debug_stats_change_) on_show_debug_stats_change_(show_debug_stats_);
+                return true;
+
+            case elem_type_to_chat_checkbox:
+                close_all_dropdowns();
+                type_to_chat_ = !type_to_chat_;
+                if (on_type_to_chat_change_) on_type_to_chat_change_(type_to_chat_);
                 return true;
 
             case elem_music_slider:

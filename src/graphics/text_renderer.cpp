@@ -66,17 +66,14 @@ void text_renderer::draw(std::string_view text, int32_t x, int32_t y,
 
 float text_renderer::measure_width(std::string_view text, uint32_t size) const
 {
-    if (!font_)
+    if (!font_ || text.empty())
     {
         return 0.0f;
     }
 
-    float width = 0.0f;
-    for (char c : text)
-    {
-        width += glyph_advance(c, size);
-    }
-    return width;
+    // Use sf::Text to get exact width including kerning — matches draw_text() output
+    sf::Text sf_text(*font_, std::string(text), size);
+    return sf_text.findCharacterPos(text.size()).x;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +111,9 @@ void text_renderer::draw_cpu_effect(std::string_view text, int32_t x, int32_t y,
             break;
         case text_effect::typewriter:
             draw_typewriter(text, x, y, style, time, alpha);
+            break;
+        case text_effect::outline_pulse:
+            draw_outline_pulse(text, x, y, style, time, alpha);
             break;
         default:
             // Unknown CPU effect - render as plain text
@@ -480,6 +480,33 @@ void text_renderer::draw_typewriter(std::string_view text, int32_t x, int32_t y,
 
     std::string_view visible = text.substr(0, visible_count);
     draw_none(visible, x, y, style, alpha);
+}
+
+void text_renderer::draw_outline_pulse(std::string_view text, int32_t x, int32_t y,
+                                       const text_style& style, float time, uint8_t alpha)
+{
+    // Slow pulse (~1.5s period), small shift: outline lerps between base and a
+    // brighter tint derived from the text color.
+    constexpr float pulse_freq = 0.667f;  // ~1.5 second period
+    float t = 0.5f * (1.0f + std::sin(time * pulse_freq * 6.283185f));  // 0..1
+    constexpr float mix = 0.35f;  // max 35% blend toward bright tint
+
+    // Bright tint: 40% of the text color mixed in
+    auto lerp = [](uint8_t a, uint8_t b, float f) -> uint8_t {
+        return static_cast<uint8_t>(a + (static_cast<int>(b) - a) * f);
+    };
+
+    float blend = t * mix;
+    sf::Color outline = style.outline_color;
+    outline.r = lerp(outline.r, style.color.r, blend);
+    outline.g = lerp(outline.g, style.color.g, blend);
+    outline.b = lerp(outline.b, style.color.b, blend);
+    outline.a = alpha;
+
+    text_style modified = style;
+    modified.outline_color = outline;
+    modified.effect = text_effect::none;  // prevent recursion
+    draw_none(text, x, y, modified, alpha);
 }
 
 // ---------------------------------------------------------------------------

@@ -17,8 +17,12 @@ class chat_input_overlay
 public:
     // Callback: (content, channel, whisper_target)
     using send_callback = std::function<void(std::string_view, std::string_view, std::string_view)>;
+    // Callback for server commands: (raw_command_text)
+    using command_callback = std::function<void(std::string_view)>;
 
     void set_on_send(send_callback cb) { on_send_ = std::move(cb); }
+    void set_on_command(command_callback cb) { on_command_ = std::move(cb); }
+    void set_type_to_chat(bool enabled) { type_to_chat_ = enabled; }
 
     // Returns true when active (consuming keyboard input).
     bool update(float delta_time, const input& inp);
@@ -40,6 +44,7 @@ private:
         faction,   // ~
         guild,     // @
         party,     // $
+        trade,     // %
         gm,        // ^
         whisper,   // /to
     };
@@ -51,6 +56,7 @@ private:
     std::string label_for_mode() const;
 
     send_callback on_send_;
+    command_callback on_command_;
 
     bool active_ = false;
     std::string input_text_;
@@ -61,6 +67,9 @@ private:
     // Whisper persistence
     bool whisper_active_ = false;
     std::string whisper_target_;
+
+    // Type-to-chat: any printable key opens chat (legacy behavior)
+    bool type_to_chat_ = false;
 
     // Cursor blink
     float blink_timer_ = 0.0f;

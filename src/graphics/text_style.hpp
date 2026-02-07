@@ -20,6 +20,7 @@ enum class text_effect : uint8_t
     wave = 5,         // Smooth sinusoidal ripple per letter
     glitch = 6,       // Random letters briefly swap to other characters
     typewriter = 7,   // Reveals text character by character
+    outline_pulse = 8,// Outline color slowly pulses brighter (text stays solid)
 
     // GPU effects (render-to-texture + shader)
     dissolve = 10,    // Noise-based pixel dissolve with burning edge

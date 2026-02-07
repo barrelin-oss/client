@@ -35,6 +35,8 @@ void ui_system::shutdown() {
 }
 
 void ui_system::update(float delta_time, const input& inp) {
+    text_input_active_ = false;
+
     // Update legacy dialogs
     for (auto* dlg : dialog_order_) {
         dlg->update(delta_time, inp);
@@ -127,22 +129,42 @@ void ui_system::update(float delta_time, const input& inp) {
 
     // Route key presses to legacy dialogs (front to back)
     // This ensures modal dialogs like connection_dialog can receive Escape key
+    static constexpr sf::Keyboard::Key routed_keys[] = {
+        sf::Keyboard::Key::Escape, sf::Keyboard::Key::Enter,
+        sf::Keyboard::Key::Backspace, sf::Keyboard::Key::Delete,
+        sf::Keyboard::Key::Left, sf::Keyboard::Key::Right,
+        sf::Keyboard::Key::Home, sf::Keyboard::Key::End,
+        sf::Keyboard::Key::PageUp, sf::Keyboard::Key::PageDown,
+    };
     for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
         if ((*it)->is_open()) {
-            // Check common keys that dialogs might want to handle
-            if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
-                if ((*it)->handle_key_press(sf::Keyboard::Key::Escape)) {
-                    return;  // Key was consumed
-                }
-            }
-            if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
-                if ((*it)->handle_key_press(sf::Keyboard::Key::Enter)) {
-                    return;  // Key was consumed
+            for (auto key : routed_keys) {
+                if (inp.is_key_pressed(key)) {
+                    if ((*it)->handle_key_press(key)) {
+                        return;  // Key was consumed
+                    }
                 }
             }
             // Modal dialogs should block further key routing
             if ((*it)->modal()) {
                 break;
+            }
+        }
+    }
+
+    // Route text input to legacy dialogs (front to back)
+    auto text = inp.text_input();
+    if (!text.empty()) {
+        for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+            if ((*it)->is_open()) {
+                bool consumed = false;
+                for (char ch : text) {
+                    if ((*it)->handle_text_input(static_cast<char32_t>(ch))) {
+                        consumed = true;
+                    }
+                }
+                if (consumed) { text_input_active_ = true; return; }
+                if ((*it)->modal()) break;
             }
         }
     }
@@ -263,6 +285,13 @@ bool ui_system::handle_key_press(sf::Keyboard::Key key) {
         return focused_->handle_key_press(key);
     }
 
+    // Route to open legacy dialogs (front to back)
+    for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+        if ((*it)->is_open() && (*it)->handle_key_press(key)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -275,6 +304,14 @@ bool ui_system::handle_text_input(char32_t unicode) {
     if (focused_) {
         return focused_->handle_text_input(unicode);
     }
+
+    // Route to open legacy dialogs (front to back)
+    for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+        if ((*it)->is_open() && (*it)->handle_text_input(unicode)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -435,8 +472,8 @@ void ui_system::create_npc_dialog() {
 
 void ui_system::create_chat_dialog() {
     auto dlg = std::make_unique<chat_dialog>();
-    dlg->set_draggable(false);
-    dlg->set_closeable(false);
+    dlg->set_draggable(true);
+    dlg->set_closeable(true);
 
     dialog* ptr = dlg.get();
     dialogs_[dialog_type::chat] = std::move(dlg);
@@ -679,6 +716,20 @@ bool ui_system::is_modal_open() const {
             return true;
         }
     }
+    return false;
+}
+
+bool ui_system::has_text_focus() const {
+    if (focused_) return true;
+    if (text_input_active_) return true;
+
+    // Check chat dialog search
+    if (auto it = dialogs_.find(dialog_type::chat); it != dialogs_.end()) {
+        if (auto* chat = dynamic_cast<const chat_dialog*>(it->second.get())) {
+            if (chat->is_open() && chat->is_search_focused()) return true;
+        }
+    }
+
     return false;
 }
 

@@ -129,6 +129,9 @@ public:
     // Check if any dialog is blocking input
     bool is_modal_open() const;
 
+    // Check if any dialog is consuming text input (e.g. search field active)
+    bool has_text_focus() const;
+
     // Check if a screen point is over any open dialog
     bool is_point_over_dialog(int32_t x, int32_t y) const;
 
@@ -158,6 +161,9 @@ private:
     // UI style (default to classic for authentic Helbreath experience)
     ui_style style_ = ui_style::classic;
     sprite_manager* sprites_ = nullptr;
+
+    // Set during update() when a dialog consumed text input
+    bool text_input_active_ = false;
 
     // Tooltip
     std::string tooltip_text_;

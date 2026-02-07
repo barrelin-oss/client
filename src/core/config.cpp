@@ -137,6 +137,7 @@ bool config::load(std::string_view path) {
             if (g.contains("show_hp_bars")) game_.show_hp_bars = g["show_hp_bars"].get<bool>();
             if (g.contains("camera_shake")) game_.camera_shake = g["camera_shake"].get<bool>();
             if (g.contains("camera_speed")) game_.camera_speed = g["camera_speed"].get<float>();
+            if (g.contains("type_to_chat")) game_.type_to_chat = g["type_to_chat"].get<bool>();
         }
 
         // Control settings
@@ -245,7 +246,8 @@ bool config::save(std::string_view path) const {
         {"show_guild_names", game_.show_guild_names},
         {"show_hp_bars", game_.show_hp_bars},
         {"camera_shake", game_.camera_shake},
-        {"camera_speed", game_.camera_speed}
+        {"camera_speed", game_.camera_speed},
+        {"type_to_chat", game_.type_to_chat}
     };
 
     // Control settings

@@ -87,6 +87,9 @@ private:
 
     // Spell targeting mode
     bool spell_targeting_active_ = false;
+
+    // Attack consumed this frame (prevents left-click movement when attacking)
+    bool attack_consumed_ = false;
 };
 
 } // namespace hb

@@ -99,6 +99,16 @@ void ws_message_handler::handle_message(const json& message)
             handle_player_attack_response(message);
         else if (type == msg_type::npc_attack)
             handle_npc_attack(message);
+        else if (type == msg_type::entity_death)
+            handle_entity_death(message);
+        else if (type == msg_type::entity_despawn)
+            handle_entity_despawn(message);
+        else if (type == msg_type::combat_effect)
+            handle_combat_effect(message);
+        else if (type == msg_type::player_death_info)
+            handle_player_death_info(message);
+        else if (type == msg_type::player_teleport)
+            handle_player_teleport(message);
         else if (type == msg_type::chat_message)
             {} // Ack from server, already handled via local echo
         else if (type == msg_type::environment_update)
@@ -1050,10 +1060,17 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
         if (dir)
             attacker->transform().facing = *dir;
 
-        if (data.is_ranged())
-            attacker->set_action(object_action::attack_combat_bow);
-        else
-            attacker->set_action(object_action::attack_peace);
+        // If this is the local player and already in an active attack animation, don't restart it
+        bool skip_anim = (attacker->id() == entities.local_player_id() &&
+                          attacker->animation().state == entity_anim_state::attack &&
+                          !attacker->animation().finished);
+        if (!skip_anim)
+        {
+            if (data.is_ranged())
+                attacker->set_action(object_action::attack_combat_bow);
+            else
+                attacker->set_action(object_action::attack_peace);
+        }
 
         attacker->set_target(data.target_id);
     }
@@ -1075,9 +1092,16 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
         {
             auto& stats = target->stats();
             stats.hp = std::max(0, stats.hp - data.damage);
-        }
 
-        target->set_action(object_action::damage);
+            if (stats.hp <= 0)
+                target->set_action(object_action::dying);
+            else
+                target->set_action(object_action::damage);
+        }
+        else
+        {
+            target->set_action(object_action::damage);
+        }
 
         // Show floating damage number
         const auto& t = target->transform();
@@ -1085,6 +1109,20 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
             game_->floating_text().add_critical(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
         else
             game_->floating_text().add_damage(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
+    }
+    else if (target && data.hit && data.damage == 0)
+    {
+        // Hit but zero damage (blocked/absorbed)
+        const auto& t = target->transform();
+        game_->floating_text().add_damage(0, static_cast<float>(t.x), static_cast<float>(t.y));
+        target->set_action(object_action::damage);
+    }
+    else if (target && !data.hit)
+    {
+        // Show MISS floating text
+        const auto& t = target->transform();
+        game_->floating_text().add_text("MISS", static_cast<float>(t.x), static_cast<float>(t.y),
+                                        sf::Color(180, 180, 180));
     }
 
     spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
@@ -1102,6 +1140,12 @@ void ws_message_handler::handle_player_attack_response(const json& message)
         {
             game_->get_status_log().add_event(data.error, message_color::red);
             spdlog::debug("Attack failed: {}", data.error);
+        }
+
+        // Reset local player to idle on attack rejection
+        if (entity* player = game_->local_player())
+        {
+            player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
         }
         return;
     }
@@ -1164,9 +1208,16 @@ void ws_message_handler::handle_npc_attack(const json& message)
         {
             auto& stats = target->stats();
             stats.hp = std::max(0, stats.hp - data.damage);
-        }
 
-        target->set_action(object_action::damage);
+            if (stats.hp <= 0)
+                target->set_action(object_action::dying);
+            else
+                target->set_action(object_action::damage);
+        }
+        else
+        {
+            target->set_action(object_action::damage);
+        }
 
         const auto& t = target->transform();
         if (data.critical)
@@ -1174,10 +1225,241 @@ void ws_message_handler::handle_npc_attack(const json& message)
         else
             game_->floating_text().add_damage(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
     }
+    else if (target && !data.hit())
+    {
+        // Show MISS floating text
+        const auto& t = target->transform();
+        game_->floating_text().add_text("MISS", static_cast<float>(t.x), static_cast<float>(t.y),
+                                        sf::Color(180, 180, 180));
+    }
 
     spdlog::debug("NPC attack: {} -> {} ({} {} dmg={})",
                   data.npc_id, data.target_id, data.is_ranged ? "ranged" : "melee",
                   data.hit() ? "HIT" : "MISS", data.damage);
+}
+
+void ws_message_handler::handle_entity_death(const json& message)
+{
+    auto data = entity_death_data::from_json(message);
+
+    auto& entities = game_->entities();
+    entity* victim = entities.find(data.victim_id);
+    if (victim)
+    {
+        if (victim->has_stats())
+            victim->stats().hp = 0;
+
+        victim->set_action(object_action::dying);
+    }
+
+    spdlog::debug("Entity death: victim={} killer={} at ({},{})",
+                  data.victim_id, data.killer_id, data.x, data.y);
+}
+
+void ws_message_handler::handle_entity_despawn(const json& message)
+{
+    if (!message.contains("data")) return;
+    const auto& d = message["data"];
+
+    uint32_t entity_id = d.value("entity_id", static_cast<uint32_t>(0));
+    if (entity_id == 0) return;
+
+    game_->entities().remove_entity(entity_id);
+
+    spdlog::debug("Entity despawned: {}", entity_id);
+}
+
+void ws_message_handler::handle_combat_effect(const json& message)
+{
+    auto data = combat_effect_data::from_json(message);
+
+    auto& entities = game_->entities();
+
+    // Determine world position for floating text
+    float wx = static_cast<float>(data.target_x * 32 + 16);
+    float wy = static_cast<float>(data.target_y * 32 + 16);
+
+    // Try to get more accurate position from the target entity
+    if (entity* target = entities.find(data.target_id))
+    {
+        wx = static_cast<float>(target->transform().x);
+        wy = static_cast<float>(target->transform().y);
+    }
+
+    auto& ft = game_->floating_text();
+
+    if (data.effect_type == "damage")
+    {
+        if (data.is_critical)
+            ft.add_critical(data.value, wx, wy);
+        else
+            ft.add_damage(data.value, wx, wy);
+    }
+    else if (data.effect_type == "heal")
+    {
+        ft.add_heal(data.value, wx, wy);
+    }
+    else if (data.effect_type == "miss")
+    {
+        ft.add_text("MISS", wx, wy, sf::Color(180, 180, 180));
+    }
+    else if (data.effect_type == "dodge")
+    {
+        ft.add_text("DODGE", wx, wy, sf::Color(120, 180, 255));
+    }
+    else if (data.effect_type == "block")
+    {
+        ft.add_text("BLOCK", wx, wy, sf::Color(180, 180, 180));
+    }
+    else if (data.effect_type == "resist")
+    {
+        ft.add_text("RESIST", wx, wy, sf::Color(180, 100, 255));
+    }
+    else
+    {
+        spdlog::debug("Unhandled combat effect type: {}", data.effect_type);
+    }
+
+    spdlog::debug("Combat effect: {} -> {} type={} value={} critical={}",
+                  data.source_id, data.target_id, data.effect_type, data.value, data.is_critical);
+}
+
+void ws_message_handler::handle_player_death_info(const json& message)
+{
+    auto data = player_death_info_data::from_json(message);
+
+    // Build death message
+    std::string death_msg = "You have died!";
+    if (!data.killer_name.empty())
+    {
+        if (data.is_pvp)
+            death_msg += "\nKilled by: " + data.killer_name;
+        else
+            death_msg += "\nSlain by: " + data.killer_name;
+    }
+    if (data.xp_lost > 0)
+        death_msg += "\nEXP lost: " + std::to_string(data.xp_lost);
+
+    // Store respawn info for the restart callback
+    game_->ui().create_message_box("Death", death_msg, [this]() {
+        // Send respawn request
+        json msg = make_player_respawn_request();
+        game_->ws_connection().send(msg);
+        spdlog::info("Sent player respawn request");
+    });
+
+    spdlog::info("Player died! Killer: {} (pvp={}) XP lost: {} Respawn: {} ({},{})",
+                 data.killer_name, data.is_pvp, data.xp_lost,
+                 data.respawn_map, data.respawn_x, data.respawn_y);
+}
+
+void ws_message_handler::handle_player_teleport(const json& message)
+{
+    auto data = player_teleport_data::from_json(message);
+
+    auto& entities = game_->entities();
+    auto& world = game_->game_world();
+
+    // Close any open death dialog
+    game_->ui().close_dialog(dialog_type::message_box);
+
+    // Store local player ID before clearing
+    entity_id local_id = entities.local_player_id();
+
+    // Clear all non-local entities
+    std::vector<entity_id> to_remove;
+    // We can't iterate and remove, so collect IDs to remove
+    for (auto* ent : entities.get_entities_of_type(entity_type::character))
+        if (ent->id() != local_id) to_remove.push_back(ent->id());
+    for (auto* ent : entities.get_entities_of_type(entity_type::monster))
+        to_remove.push_back(ent->id());
+    for (auto* ent : entities.get_entities_of_type(entity_type::npc))
+        to_remove.push_back(ent->id());
+    for (auto* ent : entities.get_entities_of_type(entity_type::item))
+        to_remove.push_back(ent->id());
+    for (auto id : to_remove)
+        entities.remove_entity(id);
+
+    // Load new map if different
+    if (!data.dest_map.empty() && data.dest_map != world.current_map().name())
+    {
+        if (!world.load_map(data.dest_map))
+        {
+            spdlog::warn("Failed to load map '{}' during teleport", data.dest_map);
+            world.current_map_mut().set_name(data.dest_map);
+        }
+    }
+
+    // Reset local player position and state
+    entity* player = entities.local_player();
+    if (player)
+    {
+        auto& t = player->transform();
+        t.tile_x = data.dest_x;
+        t.tile_y = data.dest_y;
+        t.x = data.dest_x * 32 + 16;
+        t.y = data.dest_y * 32 + 16;
+        t.dest_tile_x = data.dest_x;
+        t.dest_tile_y = data.dest_y;
+        t.moving = false;
+        t.move_progress = 0.0f;
+        t.facing = direction_from_protocol(data.dest_dir).value_or(direction::south);
+
+        // Reset to alive idle state
+        player->set_alive(true);
+        player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
+
+        // Update camera
+        world.set_player_position(t.x, t.y);
+    }
+
+    // Spawn entities from teleport data
+    for (const auto& ent : data.entities)
+    {
+        if (entities.get_entity(ent.entity_id)) continue;
+
+        entity_type type = entity_type::character;
+        if (ent.type == "npc") type = entity_type::npc;
+        else if (ent.type == "monster") type = entity_type::monster;
+
+        auto& world_entity = entities.create_entity_with_id(ent.entity_id, type);
+
+        auto& ent_transform = world_entity.transform();
+        ent_transform.tile_x = ent.x;
+        ent_transform.tile_y = ent.y;
+        ent_transform.x = ent.x * 32;
+        ent_transform.y = ent.y * 32;
+        ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
+
+        if (world_entity.has_name())
+            world_entity.name().name = ent.name;
+
+        if (ent.visual_type > 0)
+        {
+            world_entity.set_type(ent.visual_type);
+            if (world_entity.has_npc())
+                world_entity.npc().npc_type = ent.visual_type;
+            else if (world_entity.has_monster())
+                world_entity.monster().monster_type = ent.visual_type;
+        }
+
+        if (world_entity.has_stats())
+        {
+            auto& ent_stats = world_entity.stats();
+            ent_stats.hp = ent.hp_percent;
+            ent_stats.max_hp = 100;
+        }
+    }
+
+    // Clear floating text and effects from old map
+    game_->floating_text().clear();
+    game_->effects().clear();
+
+    // Reset input state
+    game_->input_handler().set_move_dest(-1, -1);
+
+    spdlog::info("Teleported to {} at ({},{}) dir={}, {} entities spawned",
+                 data.dest_map, data.dest_x, data.dest_y, data.dest_dir, data.entities.size());
 }
 
 void ws_message_handler::handle_environment_update(const json& message)

@@ -64,6 +64,22 @@ void floating_text_manager::add_critical(int32_t amount, float world_x, float wo
     add(std::move(entry));
 }
 
+void floating_text_manager::add_text(std::string_view text, float world_x, float world_y, sf::Color color)
+{
+    floating_text_entry entry;
+    entry.text = std::string(text);
+    entry.style.color = color;
+    entry.style.outline_color = sf::Color::Black;
+    entry.style.outline_thickness = 1.0f;
+    entry.style.size = 14;
+    entry.style.effect = text_effect::none;
+    entry.world_x = world_x;
+    entry.world_y = world_y;
+    entry.lifetime = 1.2f;
+    entry.velocity_y = -45.0f;
+    add(std::move(entry));
+}
+
 void floating_text_manager::update(float delta_time)
 {
     for (auto& entry : entries_)

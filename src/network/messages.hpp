@@ -64,6 +64,12 @@ namespace msg_type {
     inline constexpr const char* player_attack_response = "player_attack_response";
     inline constexpr const char* combat_attack_broadcast = "combat_attack_broadcast";
     inline constexpr const char* npc_attack = "npc_attack";
+    inline constexpr const char* entity_death = "entity_death";
+    inline constexpr const char* entity_despawn = "entity_despawn";
+    inline constexpr const char* combat_effect = "combat_effect";
+    inline constexpr const char* player_death_info = "player_death_info";
+    inline constexpr const char* player_respawn_request = "player_respawn_request";
+    inline constexpr const char* player_teleport = "player_teleport";
 }
 
 // Character info from server (used in get_characters_response)
@@ -1036,6 +1042,120 @@ inline json make_player_attack_request(uint32_t target_id, uint8_t target_type,
     if (direction > 0)
         builder.set("direction", direction);
     return builder.build();
+}
+
+// Entity death data (server -> all nearby clients)
+struct entity_death_data {
+    uint32_t victim_id = 0;
+    uint32_t killer_id = 0;
+    int32_t x = 0;
+    int32_t y = 0;
+
+    static entity_death_data from_json(const json& j) {
+        entity_death_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("victim_id")) data.victim_id = d["victim_id"].get<uint32_t>();
+            if (d.contains("killer_id")) data.killer_id = d["killer_id"].get<uint32_t>();
+            if (d.contains("x")) data.x = d["x"].get<int32_t>();
+            if (d.contains("y")) data.y = d["y"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Combat effect data (server -> all nearby clients)
+struct combat_effect_data {
+    uint32_t source_id = 0;
+    uint32_t target_id = 0;
+    std::string effect_type;     // "damage", "heal", "miss", "dodge", "block", "resist", "buff", "debuff"
+    int32_t value = 0;
+    std::string damage_type;     // "physical", "fire", "ice", etc.
+    uint16_t spell_id = 0;
+    bool is_critical = false;
+    int32_t target_x = 0;
+    int32_t target_y = 0;
+
+    static combat_effect_data from_json(const json& j) {
+        combat_effect_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("source_id")) data.source_id = d["source_id"].get<uint32_t>();
+            if (d.contains("target_id")) data.target_id = d["target_id"].get<uint32_t>();
+            if (d.contains("effect_type")) data.effect_type = d["effect_type"].get<std::string>();
+            if (d.contains("value")) data.value = d["value"].get<int32_t>();
+            if (d.contains("damage_type")) data.damage_type = d["damage_type"].get<std::string>();
+            if (d.contains("spell_id")) data.spell_id = d["spell_id"].get<uint16_t>();
+            if (d.contains("is_critical")) data.is_critical = d["is_critical"].get<bool>();
+            if (d.contains("target_x")) data.target_x = d["target_x"].get<int32_t>();
+            if (d.contains("target_y")) data.target_y = d["target_y"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Player death info data (server -> dead player)
+struct player_death_info_data {
+    uint32_t killer_id = 0;
+    std::string killer_name;
+    bool is_pvp = false;
+    int32_t xp_lost = 0;
+    int32_t pk_points_change = 0;
+    int32_t gold_reward = 0;
+    int32_t respawn_delay_ms = 5000;
+    std::string respawn_map;
+    int32_t respawn_x = 0;
+    int32_t respawn_y = 0;
+
+    static player_death_info_data from_json(const json& j) {
+        player_death_info_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("killer_id")) data.killer_id = d["killer_id"].get<uint32_t>();
+            if (d.contains("killer_name")) data.killer_name = d["killer_name"].get<std::string>();
+            if (d.contains("is_pvp")) data.is_pvp = d["is_pvp"].get<bool>();
+            if (d.contains("xp_lost")) data.xp_lost = d["xp_lost"].get<int32_t>();
+            if (d.contains("pk_points_change")) data.pk_points_change = d["pk_points_change"].get<int32_t>();
+            if (d.contains("gold_reward")) data.gold_reward = d["gold_reward"].get<int32_t>();
+            if (d.contains("respawn_delay_ms")) data.respawn_delay_ms = d["respawn_delay_ms"].get<int32_t>();
+            if (d.contains("respawn_map")) data.respawn_map = d["respawn_map"].get<std::string>();
+            if (d.contains("respawn_x")) data.respawn_x = d["respawn_x"].get<int32_t>();
+            if (d.contains("respawn_y")) data.respawn_y = d["respawn_y"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Player teleport data (server -> player, used for respawn and map transitions)
+struct player_teleport_data {
+    std::string dest_map;
+    int32_t dest_x = 0;
+    int32_t dest_y = 0;
+    uint8_t dest_dir = 4;   // Default south
+    std::vector<enter_game_visible_entity> entities;
+
+    static player_teleport_data from_json(const json& j) {
+        player_teleport_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("dest_map")) data.dest_map = d["dest_map"].get<std::string>();
+            if (d.contains("dest_x")) data.dest_x = d["dest_x"].get<int32_t>();
+            if (d.contains("dest_y")) data.dest_y = d["dest_y"].get<int32_t>();
+            if (d.contains("dest_dir")) data.dest_dir = d["dest_dir"].get<uint8_t>();
+            if (d.contains("entities") && d["entities"].is_array()) {
+                for (const auto& ent : d["entities"]) {
+                    data.entities.push_back(enter_game_visible_entity::from_json(ent));
+                }
+            }
+        }
+        return data;
+    }
+};
+
+// Convenience function to build a player respawn request
+inline json make_player_respawn_request() {
+    return message_builder(msg_type::player_respawn_request)
+        .build();
 }
 
 } // namespace hb

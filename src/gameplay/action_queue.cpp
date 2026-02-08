@@ -103,6 +103,21 @@ void action_queue::process_pending()
             if (pending_action_.target_id != 0)
             {
                 game_->network().request_attack(pending_action_.target_id, pending_action_.attack_type);
+
+                // Immediate local attack animation
+                if (entity* target = game_->entities().find(pending_action_.target_id))
+                {
+                    auto dir = calculate_direction(
+                        player->transform().tile_x, player->transform().tile_y,
+                        target->transform().tile_x, target->transform().tile_y);
+                    if (dir)
+                        player->transform().facing = *dir;
+
+                    if (pending_action_.attack_type == static_cast<uint8_t>(attack_type::ranged))
+                        player->set_action(object_action::attack_combat_bow);
+                    else
+                        player->set_action(object_action::attack_peace);
+                }
             }
             break;
 

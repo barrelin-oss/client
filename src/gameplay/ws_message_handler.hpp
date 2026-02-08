@@ -70,6 +70,11 @@ private:
     void handle_player_attack_response(const json& message);
     void handle_npc_attack(const json& message);
     void handle_environment_update(const json& message);
+    void handle_entity_death(const json& message);
+    void handle_entity_despawn(const json& message);
+    void handle_combat_effect(const json& message);
+    void handle_player_death_info(const json& message);
+    void handle_player_teleport(const json& message);
 
     game_state_manager* game_ = nullptr;
 

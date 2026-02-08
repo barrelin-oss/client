@@ -27,6 +27,7 @@ void input_handler::clear()
     suppress_until_release_ = false;
     camera_drag_locked_ = false;
     spell_targeting_active_ = false;
+    attack_consumed_ = false;
 }
 
 void input_handler::update(float /*delta_time*/)
@@ -63,6 +64,7 @@ void input_handler::handle_input(const input& inp)
         return;
     }
 
+    attack_consumed_ = false;
     handle_playing_input(inp);
 }
 
@@ -131,9 +133,12 @@ void input_handler::handle_playing_input(const input& inp)
         }
     }
 
-    handle_movement_input(inp);
-    update_pathfinding_trace();
     handle_combat_input(inp);
+    if (!attack_consumed_)
+    {
+        handle_movement_input(inp);
+    }
+    update_pathfinding_trace();
     handle_hotkey_input(inp);
 }
 
@@ -641,7 +646,7 @@ void input_handler::handle_combat_input(const input& inp)
     auto& world = game_->game_world();
     auto& action_q = game_->action_queue();
 
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Right))
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
         entity* target = entities.get_entity_at_screen_pos(
             inp.mouse_x(), inp.mouse_y(),
@@ -650,6 +655,17 @@ void input_handler::handle_combat_input(const input& inp)
         if (target && target->id() != entities.local_player_id() &&
             (target->type() == entity_type::monster || target->type() == entity_type::character))
         {
+            // Monsters: attack on plain left-click
+            // Players: attack only if Ctrl is held
+            bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
+                             inp.is_key_down(sf::Keyboard::Key::RControl);
+
+            if (target->type() == entity_type::character && !ctrl_held)
+            {
+                // Don't attack players without Ctrl - let movement handle this click
+                return;
+            }
+
             // Determine attack type based on equipped weapon
             uint8_t atk_type = 0;
             if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
@@ -660,9 +676,27 @@ void input_handler::handle_combat_input(const input& inp)
                 }
             }
 
+            attack_consumed_ = true;
+
             if (action_q.can_perform_action())
             {
                 game_->network().request_attack(target->id(), atk_type);
+
+                // Immediate local attack animation (don't wait for server round-trip)
+                entity* player = game_->local_player();
+                if (player)
+                {
+                    auto dir = calculate_direction(
+                        player->transform().tile_x, player->transform().tile_y,
+                        target->transform().tile_x, target->transform().tile_y);
+                    if (dir)
+                        player->transform().facing = *dir;
+
+                    if (atk_type == static_cast<uint8_t>(attack_type::ranged))
+                        player->set_action(object_action::attack_combat_bow);
+                    else
+                        player->set_action(object_action::attack_peace);
+                }
             }
             else
             {

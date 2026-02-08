@@ -3,6 +3,7 @@
 #include "graphics/text_style.hpp"
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace hb {
@@ -42,6 +43,9 @@ public:
 
     // Convenience: add critical hit (large red with glow, floats up faster)
     void add_critical(int32_t amount, float world_x, float world_y);
+
+    // Convenience: add generic colored text (MISS, DODGE, BLOCK, etc.)
+    void add_text(std::string_view text, float world_x, float world_y, sf::Color color);
 
     // Update positions and remove expired entries
     void update(float delta_time);

@@ -15,7 +15,7 @@
 
 namespace hb {
 
-int application::run() {
+int application::run(const launch_options& opts) {
     // Initialize async logging - log I/O runs on a background thread so it
     // never blocks the main thread (important during loading screen rendering)
     try {
@@ -40,7 +40,7 @@ int application::run() {
     spdlog::info("Helbreath Client v{}.{}", version_major, version_minor);
     spdlog::info("========================================");
 
-    if (!initialize()) {
+    if (!initialize(opts)) {
         spdlog::error("Failed to initialize application");
         return 1;
     }
@@ -53,7 +53,7 @@ int application::run() {
     return 0;
 }
 
-bool application::initialize() {
+bool application::initialize(const launch_options& opts) {
     spdlog::info("Initializing subsystems...");
 
     // Load configuration first
@@ -142,6 +142,11 @@ bool application::initialize() {
     if (!game_state_->initialize(renderer_, audio_)) {
         spdlog::error("Failed to initialize game state manager");
         return false;
+    }
+
+    // Set launch options before loading loop (which runs enter_state(main_menu))
+    if (opts.has_credentials()) {
+        game_state_->set_launch_options(opts);
     }
 
     // Preload a random character body sprite for loading screen animation

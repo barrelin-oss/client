@@ -51,6 +51,7 @@ public:
     using create_callback = std::function<void()>;
     using delete_callback = std::function<void(int32_t index)>;
     using logout_callback = std::function<void()>;
+    using settings_callback = std::function<void()>;
 
     character_select_screen() = default;
     ~character_select_screen() override = default;
@@ -71,6 +72,7 @@ public:
     void set_on_create(create_callback callback) { on_create_ = std::move(callback); }
     void set_on_delete(delete_callback callback) { on_delete_ = std::move(callback); }
     void set_on_logout(logout_callback callback) { on_logout_ = std::move(callback); }
+    void set_on_settings(settings_callback callback) { on_settings_ = std::move(callback); }
 
     // Get selected character
     int32_t selected_index() const { return current_focus_ - 1; }
@@ -87,6 +89,7 @@ private:
     create_callback on_create_;
     delete_callback on_delete_;
     logout_callback on_logout_;
+    settings_callback on_settings_;
 
     // Character slots (up to 4)
     std::array<char_slot_info, 4> characters_{};
@@ -108,6 +111,14 @@ private:
     int32_t menu_dir_ = 1;
     int32_t menu_dir_count_ = 0;
     float frame_timer_ = 0.0f;
+
+    // Settings button (bottom-right corner, resolution-independent)
+    static constexpr int32_t settings_btn_width_ = 80;
+    static constexpr int32_t settings_btn_height_ = 28;
+    static constexpr int32_t settings_btn_margin_ = 12;
+    bool settings_hovered_ = false;
+    uint32_t window_width_ = 0;
+    uint32_t window_height_ = 0;
 
     // Character renderer (borrowed pointer)
     menu_character_renderer* char_renderer_ = nullptr;

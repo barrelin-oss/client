@@ -55,6 +55,12 @@ namespace msg_type {
 
     // Client preferences
     inline constexpr const char* set_chat_preferences = "set_chat_preferences";
+
+    // Combat
+    inline constexpr const char* player_attack_request = "player_attack_request";
+    inline constexpr const char* player_attack_response = "player_attack_response";
+    inline constexpr const char* combat_attack_broadcast = "combat_attack_broadcast";
+    inline constexpr const char* npc_attack = "npc_attack";
 }
 
 // Character info from server (used in get_characters_response)
@@ -883,6 +889,121 @@ struct chat_message_broadcast_data {
     }
 };
 
+// Combat attack broadcast data (server -> all nearby clients)
+struct combat_attack_broadcast_data {
+    uint32_t attacker_id = 0;
+    uint32_t target_id = 0;
+    int32_t attacker_x = 0;
+    int32_t attacker_y = 0;
+    int32_t target_x = 0;
+    int32_t target_y = 0;
+    bool hit = false;
+    bool critical = false;
+    int32_t damage = 0;
+    std::string attack_mode;      // "melee" or "ranged"
+    std::string projectile_type;  // "", "arrow", or "poison_arrow"
+    uint8_t direction = 0;
+
+    bool is_ranged() const { return attack_mode == "ranged"; }
+
+    static combat_attack_broadcast_data from_json(const json& j) {
+        combat_attack_broadcast_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("attacker_id")) data.attacker_id = d["attacker_id"].get<uint32_t>();
+            if (d.contains("target_id")) data.target_id = d["target_id"].get<uint32_t>();
+            if (d.contains("attacker_x")) data.attacker_x = d["attacker_x"].get<int32_t>();
+            if (d.contains("attacker_y")) data.attacker_y = d["attacker_y"].get<int32_t>();
+            if (d.contains("target_x")) data.target_x = d["target_x"].get<int32_t>();
+            if (d.contains("target_y")) data.target_y = d["target_y"].get<int32_t>();
+            if (d.contains("hit")) data.hit = d["hit"].get<bool>();
+            if (d.contains("critical")) data.critical = d["critical"].get<bool>();
+            if (d.contains("damage")) data.damage = d["damage"].get<int32_t>();
+            if (d.contains("attack_mode")) data.attack_mode = d["attack_mode"].get<std::string>();
+            if (d.contains("projectile_type") && !d["projectile_type"].is_null())
+                data.projectile_type = d["projectile_type"].get<std::string>();
+            if (d.contains("direction")) data.direction = d["direction"].get<uint8_t>();
+        }
+        return data;
+    }
+};
+
+// Player attack response data (server -> attacker only)
+// Server nests result fields inside data.result
+struct player_attack_response_data {
+    bool success = false;
+    std::string error;
+    bool hit = false;
+    bool critical = false;
+    int32_t damage = 0;
+    uint32_t target_id = 0;
+    int32_t target_hp = 0;
+    int32_t target_hp_max = 0;
+    bool is_ranged = false;
+    int32_t ammo_count = -1;          // remaining arrows (-1 = not applicable)
+    uint32_t ammo_template_id = 0;    // which arrow type was consumed
+
+    static player_attack_response_data from_json(const json& j) {
+        player_attack_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+            // Result fields are nested inside data.result
+            if (d.contains("result")) {
+                const auto& r = d["result"];
+                if (r.contains("hit")) data.hit = r["hit"].get<bool>();
+                if (r.contains("critical")) data.critical = r["critical"].get<bool>();
+                if (r.contains("damage")) data.damage = r["damage"].get<int32_t>();
+                if (r.contains("target_id")) data.target_id = r["target_id"].get<uint32_t>();
+                if (r.contains("target_hp")) data.target_hp = r["target_hp"].get<int32_t>();
+                if (r.contains("target_hp_max")) data.target_hp_max = r["target_hp_max"].get<int32_t>();
+                if (r.contains("is_ranged")) data.is_ranged = r["is_ranged"].get<bool>();
+                if (r.contains("ammo_count")) data.ammo_count = r["ammo_count"].get<int32_t>();
+                if (r.contains("ammo_template_id")) data.ammo_template_id = r["ammo_template_id"].get<uint32_t>();
+            }
+        }
+        return data;
+    }
+};
+
+// NPC attack data (server -> all nearby clients)
+struct npc_attack_data {
+    uint32_t npc_id = 0;
+    uint32_t target_id = 0;
+    int32_t npc_x = 0;
+    int32_t npc_y = 0;
+    int32_t target_x = 0;
+    int32_t target_y = 0;
+    int32_t damage = 0;
+    bool critical = false;
+    bool is_ranged = false;
+    std::string projectile_type;
+
+    bool hit() const { return damage > 0; }
+
+    static npc_attack_data from_json(const json& j) {
+        npc_attack_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            // Server sends "attacker_id" for npc attacks
+            if (d.contains("attacker_id")) data.npc_id = d["attacker_id"].get<uint32_t>();
+            if (d.contains("target_id")) data.target_id = d["target_id"].get<uint32_t>();
+            if (d.contains("attacker_x")) data.npc_x = d["attacker_x"].get<int32_t>();
+            if (d.contains("attacker_y")) data.npc_y = d["attacker_y"].get<int32_t>();
+            if (d.contains("target_x")) data.target_x = d["target_x"].get<int32_t>();
+            if (d.contains("target_y")) data.target_y = d["target_y"].get<int32_t>();
+            if (d.contains("damage")) data.damage = d["damage"].get<int32_t>();
+            // Server sends "is_critical" not "critical"
+            if (d.contains("is_critical")) data.critical = d["is_critical"].get<bool>();
+            if (d.contains("is_ranged")) data.is_ranged = d["is_ranged"].get<bool>();
+            if (d.contains("projectile_type") && !d["projectile_type"].is_null())
+                data.projectile_type = d["projectile_type"].get<std::string>();
+        }
+        return data;
+    }
+};
+
 // Convenience function to build a chat message request
 inline json make_chat_message_request(std::string_view content, std::string_view channel,
                                        std::string_view recipient = "")
@@ -893,6 +1014,24 @@ inline json make_chat_message_request(std::string_view content, std::string_view
     if (!recipient.empty()) {
         builder.set("recipient", std::string(recipient));
     }
+    return builder.build();
+}
+
+// Convenience function to build a player attack request
+// target_type: 1 = player, 2 = npc
+inline json make_player_attack_request(uint32_t target_id, uint8_t target_type,
+                                        int32_t player_x, int32_t player_y,
+                                        uint8_t attack_type = 0, uint8_t direction = 0) {
+    auto builder = message_builder(msg_type::player_attack_request)
+        .set("target_id", target_id)
+        .set("target_type", target_type)
+        .set("x", player_x)
+        .set("y", player_y)
+        .set("attack_type", attack_type)
+        .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()));
+    if (direction > 0)
+        builder.set("direction", direction);
     return builder.build();
 }
 

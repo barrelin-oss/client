@@ -134,16 +134,21 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
     att->combat().target_id = target;
     att->combat().attack_type = static_cast<uint8_t>(type);
 
-    // Set animation
-    att->set_action(object_action::attack_peace);
-
-    // Get equipped weapon type for sound selection
+    // Get equipped weapon type for animation and sound selection
     uint16_t weapon_type = 0;
     if (inventory_) {
         if (const auto* weapon = inventory_->get_equipped(equip_slot::right_hand)) {
             weapon_type = weapon->type_id;
         }
     }
+
+    // Set animation - use bow animation for ranged weapons
+    if (type == attack_type::ranged || is_bow_weapon(weapon_type)) {
+        att->set_action(object_action::attack_combat_bow);
+    } else {
+        att->set_action(object_action::attack_peace);
+    }
+
     play_attack_sound(attacker, weapon_type);
 
     // Play critical sound for super attacks

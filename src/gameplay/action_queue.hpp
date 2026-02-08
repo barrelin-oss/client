@@ -32,6 +32,7 @@ struct queued_action
     int32_t target_y = 0;
     uint32_t target_id = 0;
     uint16_t spell_id = 0;
+    uint8_t attack_type = 0;
     std::optional<direction> face_dir;
 };
 

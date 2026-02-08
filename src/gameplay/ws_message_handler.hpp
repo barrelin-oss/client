@@ -40,6 +40,9 @@ public:
     void send_view_range();
     void send_chat_preferences();
 
+    // Combat
+    void request_attack(uint32_t target_id, uint8_t attack_type = 0);
+
     // Chat
     void send_chat_message(std::string_view content, std::string_view channel,
                            std::string_view recipient = "");
@@ -63,6 +66,9 @@ private:
     void handle_view_range_update(const json& message);
     void handle_command_response(const json& message);
     void handle_chat_message_broadcast(const json& message);
+    void handle_combat_attack_broadcast(const json& message);
+    void handle_player_attack_response(const json& message);
+    void handle_npc_attack(const json& message);
 
     game_state_manager* game_ = nullptr;
 

@@ -4,6 +4,7 @@
 #include "core/constants.hpp"
 #include "core/config.hpp"
 #include "core/game_enums.hpp"
+#include "core/launch_options.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "gameplay/game_state.hpp"
@@ -28,10 +29,10 @@ public:
     application& operator=(const application&) = delete;
 
     // Main entry point - returns exit code
-    int run();
+    int run(const launch_options& opts = {});
 
 private:
-    bool initialize();
+    bool initialize(const launch_options& opts);
     void shutdown();
     void main_loop();
 

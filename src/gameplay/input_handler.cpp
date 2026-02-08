@@ -161,10 +161,17 @@ void input_handler::handle_movement_input(const input& inp)
 
                 if (target && target->type() == entity_type::monster)
                 {
+                    uint8_t atk_type = 0;
+                    if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+                    {
+                        if (is_bow_weapon(weapon->type_id))
+                            atk_type = static_cast<uint8_t>(attack_type::ranged);
+                    }
+
                     if (action_q.can_perform_action())
                     {
                         spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
-                        game_->network().request_attack(target->id(), 0);
+                        game_->network().request_attack(target->id(), atk_type);
                         player->transform().facing = direction::north;
                     }
                     else
@@ -172,6 +179,7 @@ void input_handler::handle_movement_input(const input& inp)
                         queued_action action;
                         action.type = queued_action_type::attack;
                         action.target_id = target->id();
+                        action.attack_type = atk_type;
                         action_q.queue_action(action);
                     }
                 }
@@ -631,15 +639,26 @@ void input_handler::handle_combat_input(const input& inp)
         if (target && target->id() != entities.local_player_id() &&
             (target->type() == entity_type::monster || target->type() == entity_type::character))
         {
+            // Determine attack type based on equipped weapon
+            uint8_t atk_type = 0;
+            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+            {
+                if (is_bow_weapon(weapon->type_id))
+                {
+                    atk_type = static_cast<uint8_t>(attack_type::ranged);
+                }
+            }
+
             if (action_q.can_perform_action())
             {
-                game_->network().request_attack(target->id());
+                game_->network().request_attack(target->id(), atk_type);
             }
             else
             {
                 queued_action action;
                 action.type = queued_action_type::attack;
                 action.target_id = target->id();
+                action.attack_type = atk_type;
                 action_q.queue_action(action);
             }
         }

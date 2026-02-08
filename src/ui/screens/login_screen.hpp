@@ -41,9 +41,12 @@ public:
     bool update(float delta_time, const input& inp) override;
     void render(renderer& rend, sprite_manager& sprites) override;
 
+    using settings_callback = std::function<void()>;
+
     // Set callbacks
     void set_on_login(login_callback callback) { on_login_ = std::move(callback); }
     void set_on_cancel(cancel_callback callback) { on_cancel_ = std::move(callback); }
+    void set_on_settings(settings_callback callback) { on_settings_ = std::move(callback); }
 
     // Get current input values
     const std::string& account_name() const { return account_name_; }
@@ -56,6 +59,7 @@ private:
 
     login_callback on_login_;
     cancel_callback on_cancel_;
+    settings_callback on_settings_;
 
     std::string account_name_;
     std::string password_;
@@ -67,6 +71,14 @@ private:
     // Cursor blink state
     float cursor_timer_ = 0.0f;
     bool cursor_visible_ = true;
+
+    // Settings button (bottom-right corner, resolution-independent)
+    static constexpr int32_t settings_btn_width_ = 80;
+    static constexpr int32_t settings_btn_height_ = 28;
+    static constexpr int32_t settings_btn_margin_ = 12;
+    bool settings_hovered_ = false;
+    uint32_t window_width_ = 0;
+    uint32_t window_height_ = 0;
 
     // UI positions (mutable for debug overlay positioning)
     // Login panel position

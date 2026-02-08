@@ -48,7 +48,6 @@ settings_dialog::settings_dialog()
 void settings_dialog::init_resolution_options()
 {
     resolution_options_ = {
-        {640, 480, "640x480"},
         {800, 600, "800x600"},
         {1024, 768, "1024x768"},
         {1280, 720, "1280x720 (HD)"},
@@ -66,8 +65,18 @@ void settings_dialog::rebuild_resolution_options()
 {
     int32_t max_w = 1920;
     int32_t max_h = 1080;
-    if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
+    if (selected_display_mode_ == 0)
     {
+        // Windowed mode: allow resolutions up to the largest monitor
+        for (const auto& mon : monitor_options_)
+        {
+            max_w = std::max(max_w, mon.width);
+            max_h = std::max(max_h, mon.height);
+        }
+    }
+    else if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
+    {
+        // Fullscreen/borderless: cap to the selected monitor
         max_w = monitor_options_[selected_monitor_].width;
         max_h = monitor_options_[selected_monitor_].height;
     }

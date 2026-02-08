@@ -102,7 +102,7 @@ void action_queue::process_pending()
         case queued_action_type::attack:
             if (pending_action_.target_id != 0)
             {
-                game_->network().request_attack(pending_action_.target_id);
+                game_->network().request_attack(pending_action_.target_id, pending_action_.attack_type);
             }
             break;
 

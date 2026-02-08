@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/game_enums.hpp"
+#include "core/launch_options.hpp"
 #include "gameplay/action_queue.hpp"
 #include "gameplay/combat.hpp"
 #include "gameplay/dialog_callbacks.hpp"
@@ -142,6 +143,9 @@ public:
     network_system& network() { return network_; }
     websocket_connection& ws_connection() { return ws_connection_; }
 
+    // Launch options (command-line credentials for auto-login)
+    void set_launch_options(launch_options opts);
+
     // WebSocket login
     void attempt_login(const std::string& username, const std::string& password);
     bool is_ws_connected() const { return ws_connection_.is_connected(); }
@@ -276,6 +280,10 @@ private:
     game_state state_ = game_state::main_menu;
     game_state pending_state_ = game_state::main_menu;
     bool state_transition_ = false;
+
+    // Command-line credentials (persist for reconnect)
+    launch_options launch_options_;
+    bool first_launch_connect_ = true;
 
     // Server-controlled view radius
     int16_t view_radius_x_ = 40;  // Visibility radius in tiles (15-80)

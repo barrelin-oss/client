@@ -93,6 +93,12 @@ void ws_message_handler::handle_message(const json& message)
             handle_set_render_mode(message);
         else if (type == msg_type::chat_message_broadcast)
             handle_chat_message_broadcast(message);
+        else if (type == msg_type::combat_attack_broadcast)
+            handle_combat_attack_broadcast(message);
+        else if (type == msg_type::player_attack_response)
+            handle_player_attack_response(message);
+        else if (type == msg_type::npc_attack)
+            handle_npc_attack(message);
         else if (type == msg_type::chat_message)
             {} // Ack from server, already handled via local echo
         else if (type == "view_range_update")
@@ -843,6 +849,26 @@ void ws_message_handler::request_entity_info(uint32_t entity_id)
     game_->ws_connection().send(msg);
 }
 
+void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
+{
+    auto* player = game_->local_player();
+    if (!player) return;
+
+    const auto& t = player->transform();
+
+    // Determine target type: 2 = npc/monster, 1 = player
+    uint8_t target_type = 1;
+    entity* target = game_->entities().find(target_id);
+    if (target && (target->has_npc() || target->has_monster()))
+        target_type = 2;
+
+    uint8_t dir = static_cast<uint8_t>(t.facing);
+
+    spdlog::debug("Requesting attack on entity {} (type {} target_type {})", target_id, attack_type, target_type);
+    json msg = make_player_attack_request(target_id, target_type, t.tile_x, t.tile_y, attack_type, dir);
+    game_->ws_connection().send(msg);
+}
+
 void ws_message_handler::handle_set_render_mode(const json& message)
 {
     if (!message.contains("data"))
@@ -1005,6 +1031,151 @@ void ws_message_handler::handle_chat_message_broadcast(const json& message)
     }
 
     spdlog::debug("Chat from '{}' [{}]: {}", data.sender_name, data.channel, data.content);
+}
+
+void ws_message_handler::handle_combat_attack_broadcast(const json& message)
+{
+    auto data = combat_attack_broadcast_data::from_json(message);
+
+    auto& entities = game_->entities();
+
+    // Set attacker animation and facing
+    entity* attacker = entities.find(data.attacker_id);
+    if (attacker)
+    {
+        // Calculate direction from attacker to target positions
+        auto dir = calculate_direction(data.attacker_x, data.attacker_y, data.target_x, data.target_y);
+        if (dir)
+            attacker->transform().facing = *dir;
+
+        if (data.is_ranged())
+            attacker->set_action(object_action::attack_combat_bow);
+        else
+            attacker->set_action(object_action::attack_peace);
+
+        attacker->set_target(data.target_id);
+    }
+
+    // Spawn arrow projectile for ranged attacks
+    if (data.is_ranged() && !data.projectile_type.empty())
+    {
+        game_->effects().add_effect(
+            effect_type_id::arrow,
+            data.attacker_x, data.attacker_y,
+            data.target_x, data.target_y);
+    }
+
+    // Apply damage to target
+    entity* target = entities.find(data.target_id);
+    if (target && data.hit && data.damage > 0)
+    {
+        if (target->has_stats())
+        {
+            auto& stats = target->stats();
+            stats.hp = std::max(0, stats.hp - data.damage);
+        }
+
+        target->set_action(object_action::damage);
+
+        // Show floating damage number
+        const auto& t = target->transform();
+        if (data.critical)
+            game_->floating_text().add_critical(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
+        else
+            game_->floating_text().add_damage(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
+    }
+
+    spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
+                  data.attacker_id, data.target_id, data.attack_mode,
+                  data.hit ? "HIT" : "MISS", data.damage);
+}
+
+void ws_message_handler::handle_player_attack_response(const json& message)
+{
+    auto data = player_attack_response_data::from_json(message);
+
+    if (!data.success)
+    {
+        if (!data.error.empty())
+        {
+            game_->get_status_log().add_event(data.error, message_color::red);
+            spdlog::debug("Attack failed: {}", data.error);
+        }
+        return;
+    }
+
+    // Update ammo count in inventory if applicable
+    if (data.ammo_count >= 0)
+    {
+        spdlog::debug("Ammo remaining: {} (template {})", data.ammo_count, data.ammo_template_id);
+        // TODO: Update inventory arrow count when inventory system supports item count updates
+    }
+
+    // Update target HP if provided
+    if (data.target_id != 0)
+    {
+        entity* target = game_->entities().find(data.target_id);
+        if (target && target->has_stats())
+        {
+            target->stats().hp = data.target_hp;
+            target->stats().max_hp = data.target_hp_max;
+        }
+    }
+}
+
+void ws_message_handler::handle_npc_attack(const json& message)
+{
+    auto data = npc_attack_data::from_json(message);
+
+    auto& entities = game_->entities();
+
+    // Set NPC attacker animation and facing
+    entity* attacker = entities.find(data.npc_id);
+    if (attacker)
+    {
+        auto dir = calculate_direction(data.npc_x, data.npc_y, data.target_x, data.target_y);
+        if (dir)
+            attacker->transform().facing = *dir;
+
+        if (data.is_ranged)
+            attacker->set_action(object_action::attack_combat_bow);
+        else
+            attacker->set_action(object_action::attack_peace);
+
+        attacker->set_target(data.target_id);
+    }
+
+    // Spawn arrow projectile for ranged NPC attacks
+    if (data.is_ranged && !data.projectile_type.empty())
+    {
+        game_->effects().add_effect(
+            effect_type_id::arrow,
+            data.npc_x, data.npc_y,
+            data.target_x, data.target_y);
+    }
+
+    // Apply damage to target
+    entity* target = entities.find(data.target_id);
+    if (target && data.hit() && data.damage > 0)
+    {
+        if (target->has_stats())
+        {
+            auto& stats = target->stats();
+            stats.hp = std::max(0, stats.hp - data.damage);
+        }
+
+        target->set_action(object_action::damage);
+
+        const auto& t = target->transform();
+        if (data.critical)
+            game_->floating_text().add_critical(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
+        else
+            game_->floating_text().add_damage(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
+    }
+
+    spdlog::debug("NPC attack: {} -> {} ({} {} dmg={})",
+                  data.npc_id, data.target_id, data.is_ranged ? "ranged" : "melee",
+                  data.hit() ? "HIT" : "MISS", data.damage);
 }
 
 } // namespace hb

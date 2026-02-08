@@ -65,6 +65,7 @@ add_executable(helbreath_client
     ui/screens/character_select_screen.cpp
     ui/screens/character_create_screen.cpp
     ui/screens/connection_lost_screen.cpp
+    ui/screens/reconnect_screen.cpp
 
     # UI Dialogs
     ui/dialogs/connection_dialog.cpp

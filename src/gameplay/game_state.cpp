@@ -14,6 +14,7 @@
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
 #include "chat/chat_message.hpp"
+#include <sodium/crypto_hash_sha256.h>
 #include <spdlog/spdlog.h>
 #include <cmath>
 #include <array>
@@ -238,13 +239,16 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         screens_.get_main_menu_screen().set_on_quit([this]() {
             change_state(game_state::quit);
         });
-        screens_.get_main_menu_screen().set_on_settings([this]() {
+        auto open_settings = [this]() {
             if (auto* settings = dynamic_cast<settings_dialog*>(ui_.get_dialog(dialog_type::options)))
             {
                 settings->set_ui_style(ui_.style());
             }
             ui_.open_dialog(dialog_type::options);
-        });
+        };
+        screens_.get_main_menu_screen().set_on_settings(open_settings);
+        screens_.get_login_screen().set_on_settings(open_settings);
+        screens_.get_character_select_screen().set_on_settings(open_settings);
         screens_.get_login_screen().set_on_login([this](const std::string& account, const std::string& password) {
             spdlog::info("Login attempt: {} (pass length: {})", account, password.length());
             attempt_login(account, password);
@@ -291,6 +295,13 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
             ws_connection_.disconnect();
             change_state(game_state::main_menu);
         });
+        screens_.get_reconnect_screen().set_on_reconnect([this]() {
+            if (launch_options_.has_credentials())
+            {
+                spdlog::info("Reconnect screen: attempting login with stored credentials");
+                attempt_login(*launch_options_.username, *launch_options_.password);
+            }
+        });
         screens_.get_character_select_screen().set_character_renderer(&menu_char_renderer_);
         screens_.get_character_create_screen().set_character_renderer(&menu_char_renderer_);
         auto play_ui_sound = [this]() { sounds_.play_ui_sound(14); };
@@ -298,6 +309,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
         screens_.get_login_screen().set_on_button_sound(play_ui_sound);
         screens_.get_character_select_screen().set_on_button_sound(play_ui_sound);
         screens_.get_character_create_screen().set_on_button_sound(play_ui_sound);
+        screens_.get_reconnect_screen().set_on_button_sound(play_ui_sound);
     }});
 
     // Each dialog is its own step for fine-grained progress
@@ -624,7 +636,17 @@ void game_state_manager::enter_state(game_state state) {
     switch (state) {
         case game_state::main_menu:
             ui_.close_all_dialogs();
-            screens_.change_screen(screen_type::main_menu);
+            if (launch_options_.has_credentials())
+            {
+                // Show reconnect screen instead of main menu
+                screens_.get_reconnect_screen().set_auto_connect(first_launch_connect_);
+                first_launch_connect_ = false;
+                screens_.change_screen(screen_type::reconnect);
+            }
+            else
+            {
+                screens_.change_screen(screen_type::main_menu);
+            }
             sounds_.play_bgm_track("title-screen.ogg");
             break;
 
@@ -955,9 +977,13 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 }
 
 void game_state_manager::render_main_menu(renderer& rend) {
-    if (sprites_.has_sprite_at_id(52)) {
+    if (screens_.current_screen_type() == screen_type::reconnect
+        || sprites_.has_sprite_at_id(52))
+    {
         screens_.render(rend, sprites_);
-    } else {
+    }
+    else
+    {
         rend.draw_rect(0, 0, screen_width, screen_height, sf::Color(20, 20, 40), true);
         rend.draw_text("HELBREATH", screen_width / 2 - 60, 150, sf::Color::White, 24);
         rend.draw_text("Click to Start (sprites not loaded)", screen_width / 2 - 100, 300, sf::Color(150, 150, 150));
@@ -1398,16 +1424,19 @@ void game_state_manager::auto_populate_spell_hotbar()
     spdlog::debug("Auto-populated spell hotbar with {} spells", slot);
 }
 
+void game_state_manager::set_launch_options(launch_options opts) {
+    launch_options_ = std::move(opts);
+}
+
 void game_state_manager::attempt_login(const std::string& username, const std::string& password) {
     auto& net_cfg = config::instance().network();
     std::string ws_url = "ws://" + net_cfg.login_server_host + ":" + std::to_string(net_cfg.login_server_port);
 
     spdlog::info("Connecting to server: {}", ws_url);
-    spdlog::info("attempt_login called with username='{}' password_len={}", username, password.length());
+    spdlog::info("attempt_login called with username='{}'", username);
 
     // Store credentials in ws_handler for after connection
     ws_handler_.set_pending_login(username, password);
-    spdlog::info("Stored pending credentials: username='{}' password_len={}", username, password.length());
 
     // If already connected, send login request directly
     if (ws_connection_.is_connected()) {

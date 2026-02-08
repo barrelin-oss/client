@@ -27,6 +27,9 @@ enum class weapon_skill : uint8_t {
     shield = 14,     // Shield blocking
 };
 
+// Weapon type 40+ are bows/crossbows (ranged weapons)
+inline bool is_bow_weapon(uint16_t weapon_type) { return weapon_type >= 40; }
+
 // Attack types
 enum class attack_type : uint8_t {
     normal = 1,      // Standard melee attack

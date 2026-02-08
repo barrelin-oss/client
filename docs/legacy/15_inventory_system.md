@@ -109,7 +109,12 @@ public:
     int   m_iSprH;                  // Sprite handle for display
     int   m_iSprFrame;              // Sprite frame for display
 
-    char  m_cElementName[7][21];    // Ingredient names (index 0 unused, 1-6 used)
+    char  m_cElementName1[21];      // Ingredient 1 name
+    char  m_cElementName2[21];      // Ingredient 2 name
+    char  m_cElementName3[21];      // Ingredient 3 name
+    char  m_cElementName4[21];      // Ingredient 4 name
+    char  m_cElementName5[21];      // Ingredient 5 name
+    char  m_cElementName6[21];      // Ingredient 6 name
     DWORD m_iElementCount[7];       // Ingredient quantities required
     BOOL  m_bElementFlag[7];        // Ingredient availability flags
 };

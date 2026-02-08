@@ -29,10 +29,10 @@ public:
     ~CMagic();
 
     char  m_cName[31];      // Spell name (max 30 characters + null)
-    short m_sValue1;        // Mana (MP) cost
-    short m_sValue2;        // Required Intelligence stat
-    short m_sValue3;        // Additional cost/effect modifier
-    char  m_bIsVisible;     // Whether spell appears in spellbook (0=hidden, 1=visible)
+    int   m_sValue1;        // Mana (MP) cost
+    int   m_sValue2;        // Required Intelligence stat
+    int   m_sValue3;        // Additional cost/effect modifier
+    bool  m_bIsVisible;     // Whether spell appears in spellbook (0=hidden, 1=visible)
 };
 ```
 

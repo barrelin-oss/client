@@ -75,7 +75,7 @@ Each ASD entry contains metadata about a sprite followed by its bitmap data:
 | 0      | 100               | char[]       | Sprite confirmation/signature data       |
 | 100    | 4                 | int32        | Total number of frames in this sprite    |
 | 104    | 12 * frame_count  | stBrush[]    | Frame metadata array (brush data)        |
-| 104 + (12 * frame_count) | variable | BMP data | Embedded Windows BMP bitmap data    |
+| 108 + (12 * frame_count) | variable | BMP data | Embedded Windows BMP bitmap data    |
 
 **Code Reference** (`Sprite.cpp:44-52`):
 ```cpp

@@ -200,37 +200,54 @@ void weather_system::spawn_particles()
 
 void weather_system::reset_particle(weather_particle& p, bool stagger)
 {
-    std::uniform_real_distribution<float> dist_x(
-        -100.0f, static_cast<float>(screen_width_) + 100.0f);
+    float sw = static_cast<float>(screen_width_);
+    float sh = static_cast<float>(screen_height_);
 
+    std::uniform_real_distribution<float> dist_x(-100.0f, sw + 100.0f);
     p.x = dist_x(rng_);
-
-    if (is_raining())
-    {
-        // Rain spawns above screen
-        std::uniform_real_distribution<float> dist_y(-200.0f, -20.0f);
-        p.y = dist_y(rng_);
-    }
-    else
-    {
-        // Snow spawns above screen
-        std::uniform_real_distribution<float> dist_y(-300.0f, -20.0f);
-        p.y = dist_y(rng_);
-    }
 
     if (stagger)
     {
-        // Random spawn delay to stagger particles
-        std::uniform_int_distribution<int16_t> dist_delay(-40, 0);
-        p.step = dist_delay(rng_);
+        // Initial spawn: scatter across full screen with random step progress
+        std::uniform_real_distribution<float> dist_y(-20.0f, sh);
+        p.y = dist_y(rng_);
 
-        // Also scatter vertically so they don't all start at the top
-        std::uniform_real_distribution<float> dist_scatter(
-            -20.0f, static_cast<float>(screen_height_));
-        p.y = dist_scatter(rng_);
+        // Random step so particles are mid-animation, not all starting fresh
+        if (is_raining())
+        {
+            std::uniform_int_distribution<int16_t> dist_step(-10, 15);
+            p.step = dist_step(rng_);
+        }
+        else
+        {
+            std::uniform_int_distribution<int16_t> dist_step(-10, 60);
+            p.step = dist_step(rng_);
+        }
     }
     else
     {
+        // Respawn: pick a random target Y anywhere on screen, then
+        // back-calculate a start position above it so the particle
+        // falls naturally to that spot.
+        std::uniform_real_distribution<float> dist_target(0.0f, sh);
+        float target_y = dist_target(rng_);
+
+        if (is_raining())
+        {
+            // Pick a random number of steps the particle will have "already fallen"
+            // so it enters from just above the screen toward the target Y.
+            // Rain step i moves (40-i) px. Start from step 0 above screen.
+            // We want p.y to be above screen (negative) so it falls into view.
+            // Just place it at target_y minus some travel distance.
+            std::uniform_int_distribution<int16_t> dist_offset(100, 300);
+            p.y = target_y - static_cast<float>(dist_offset(rng_));
+        }
+        else
+        {
+            // Snow is slower — spread the start position more
+            std::uniform_int_distribution<int16_t> dist_offset(50, 200);
+            p.y = target_y - static_cast<float>(dist_offset(rng_));
+        }
         p.step = 0;
     }
 }
@@ -239,11 +256,11 @@ void weather_system::update_rain_particle(weather_particle& p)
 {
     // Rain: fast downward + slight leftward drift
     // Legacy: sY += (40 - cStep), sX -= 1, cycle 0-25 at 30ms intervals
+    // Total Y travel at legacy values: sum(40..21) = 610px — covers full screen from spawn
     if (p.step < 20)
     {
-        float speed = static_cast<float>(40 - p.step);
-        p.y += speed * 0.5f;
-        p.x -= 0.5f;
+        p.y += static_cast<float>(40 - p.step);
+        p.x -= 1.0f;
         ++p.step;
     }
     else if (p.step <= 25)
@@ -261,10 +278,10 @@ void weather_system::update_snow_particle(weather_particle& p)
 {
     // Snow: slow downward + random horizontal drift
     // Legacy: sY += (80 - cStep) / 10, sX += 1 - (rand() % 3), cycle 0-80 at 30ms intervals
+    // Total Y travel: sum((80-i)/10 for i=0..79) = ~320px — slower, more floaty
     if (p.step < 80)
     {
-        float speed = static_cast<float>(80 - p.step) / 10.0f;
-        p.y += speed * 0.4f;
+        p.y += static_cast<float>(80 - p.step) / 10.0f;
 
         // Horizontal waver
         std::uniform_int_distribution<int> drift(-1, 1);

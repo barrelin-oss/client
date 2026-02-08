@@ -101,6 +101,8 @@ void ws_message_handler::handle_message(const json& message)
             handle_npc_attack(message);
         else if (type == msg_type::chat_message)
             {} // Ack from server, already handled via local echo
+        else if (type == msg_type::environment_update)
+            handle_environment_update(message);
         else if (type == "view_range_update")
             handle_view_range_update(message);
         else if (type == "command_response")
@@ -1176,6 +1178,49 @@ void ws_message_handler::handle_npc_attack(const json& message)
     spdlog::debug("NPC attack: {} -> {} ({} {} dmg={})",
                   data.npc_id, data.target_id, data.is_ranged ? "ranged" : "melee",
                   data.hit() ? "HIT" : "MISS", data.damage);
+}
+
+void ws_message_handler::handle_environment_update(const json& message)
+{
+    if (!game_ || !message.contains("data")) return;
+
+    const auto& d = message["data"];
+
+    // Weather (0-6 maps directly to weather_type enum)
+    if (d.contains("weather"))
+    {
+        uint8_t w = d["weather"].get<uint8_t>();
+        if (w <= static_cast<uint8_t>(weather_type::heavy_snow))
+        {
+            game_->game_world().set_weather(static_cast<weather_type>(w));
+        }
+    }
+
+    // Time of day - map hour to time_of_day enum
+    if (d.contains("hour"))
+    {
+        uint8_t hour = d["hour"].get<uint8_t>();
+        time_of_day tod;
+
+        if (hour < 5)
+            tod = time_of_day::midnight;
+        else if (hour < 7)
+            tod = time_of_day::dawn;
+        else if (hour < 10)
+            tod = time_of_day::morning;
+        else if (hour < 14)
+            tod = time_of_day::noon;
+        else if (hour < 17)
+            tod = time_of_day::afternoon;
+        else if (hour < 19)
+            tod = time_of_day::dusk;
+        else if (hour < 23)
+            tod = time_of_day::night;
+        else
+            tod = time_of_day::midnight;
+
+        game_->game_world().set_time(tod);
+    }
 }
 
 } // namespace hb

@@ -53,6 +53,9 @@ namespace msg_type {
     // Server-controlled render mode
     inline constexpr const char* set_render_mode = "set_render_mode";
 
+    // Environment
+    inline constexpr const char* environment_update = "environment_update";
+
     // Client preferences
     inline constexpr const char* set_chat_preferences = "set_chat_preferences";
 

@@ -69,6 +69,7 @@ private:
     void handle_combat_attack_broadcast(const json& message);
     void handle_player_attack_response(const json& message);
     void handle_npc_attack(const json& message);
+    void handle_environment_update(const json& message);
 
     game_state_manager* game_ = nullptr;
 

@@ -247,8 +247,11 @@ void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_
             const sprite* spr = get_tile_sprite(t.object_id);
             if (spr)
             {
-                // If the local player's bounds overlap this object, draw it semi-transparently
-                if (player_bounds && spr->has_metadata())
+                // If the local player's bounds overlap a tree, draw it semi-transparently
+                constexpr int16_t tree_id_first = 100;
+                constexpr int16_t tree_id_last = 145;
+                bool is_tree = t.object_id >= tree_id_first && t.object_id <= tree_id_last;
+                if (is_tree && player_bounds && spr->has_metadata())
                 {
                     sf::IntRect obj_bounds = spr->get_bounds(sx, sy, 0);
                     if (player_bounds->findIntersection(obj_bounds))

@@ -25,6 +25,7 @@ public:
     sound_id load_sound(std::string_view path);
     void unload_sound(sound_id id);
     void play_sound(sound_id id, float volume = 1.0f, float pan = 0.0f);
+    void play_sound_looped(sound_id id, float volume = 1.0f);
     void stop_sound(sound_id id);
     void stop_all_sounds();
 

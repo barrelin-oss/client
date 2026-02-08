@@ -64,6 +64,8 @@ public:
     void set_show_guild_names(bool v) { show_guild_names_ = v; }
     void set_show_hp_bars(bool v) { show_hp_bars_ = v; }
     void set_camera_shake(bool v) { camera_shake_ = v; }
+    void set_show_weather(bool v) { show_weather_ = v; }
+    void set_show_tint(bool v) { show_tint_ = v; }
     void set_type_to_chat(bool v) { type_to_chat_ = v; }
 
     // Video tab
@@ -125,6 +127,8 @@ public:
     void set_on_show_guild_names_change(bool_callback cb) { on_show_guild_names_change_ = std::move(cb); }
     void set_on_show_hp_bars_change(bool_callback cb) { on_show_hp_bars_change_ = std::move(cb); }
     void set_on_camera_shake_change(bool_callback cb) { on_camera_shake_change_ = std::move(cb); }
+    void set_on_show_weather_change(bool_callback cb) { on_show_weather_change_ = std::move(cb); }
+    void set_on_show_tint_change(bool_callback cb) { on_show_tint_change_ = std::move(cb); }
     void set_on_type_to_chat_change(bool_callback cb) { on_type_to_chat_change_ = std::move(cb); }
 
     // Video tab callbacks
@@ -221,6 +225,8 @@ private:
     bool show_guild_names_ = true;
     bool show_hp_bars_ = true;
     bool camera_shake_ = true;
+    bool show_weather_ = true;
+    bool show_tint_ = true;
     bool type_to_chat_ = false;
 
     // === Video tab state ===
@@ -306,6 +312,8 @@ private:
     bool_callback on_show_guild_names_change_;
     bool_callback on_show_hp_bars_change_;
     bool_callback on_camera_shake_change_;
+    bool_callback on_show_weather_change_;
+    bool_callback on_show_tint_change_;
     bool_callback on_type_to_chat_change_;
     // Video
     resolution_callback on_resolution_change_;
@@ -363,7 +371,9 @@ private:
     static constexpr int32_t elem_show_guild_names = 4;
     static constexpr int32_t elem_show_hp_bars = 5;
     static constexpr int32_t elem_camera_shake = 6;
-    static constexpr int32_t elem_type_to_chat = 7;
+    static constexpr int32_t elem_show_weather = 7;
+    static constexpr int32_t elem_show_tint = 8;
+    static constexpr int32_t elem_type_to_chat = 9;
 
     // Video tab elements
     static constexpr int32_t elem_display_mode_dropdown = 20;

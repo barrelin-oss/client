@@ -12,7 +12,8 @@ class sprite_manager;
 enum class cursor_type : uint8_t
 {
     normal = 0,
-    // Future: attack, talk, pickup, drag, resize, etc.
+    magic_target = 1,   // Magic targeting crosshair (frame 4)
+    magic_arrow = 2,    // Magic targeting on enemy (frame 5)
 };
 
 // Centralized cursor manager. Renders the software cursor as the very last draw call

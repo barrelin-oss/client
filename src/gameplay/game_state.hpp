@@ -42,6 +42,7 @@ namespace hb {
 class renderer;
 class input;
 class audio;
+class cursor_manager;
 
 // Quest objective progress
 struct quest_objective {
@@ -126,6 +127,7 @@ public:
 
     // Initialization
     bool initialize(renderer& rend, audio& aud);
+    void set_cursor_manager(cursor_manager& cursor) { cursor_ = &cursor; }
     void shutdown();
 
     // Async initialization - call each frame after initialize() until done
@@ -170,6 +172,7 @@ public:
     hb::status_log& get_status_log() { return status_log_; }
     floating_text_manager& floating_text() { return floating_text_; }
     screen_transition& transition() { return transition_; }
+    weather_system& weather() { return weather_system_; }
 
     // Extracted subsystems
     hb::action_queue& action_queue() { return action_queue_; }
@@ -228,6 +231,7 @@ public:
     // Internal accessors for extracted subsystems
     renderer* get_renderer() { return renderer_; }
     audio* get_audio() { return audio_; }
+    cursor_manager* get_cursor() { return cursor_; }
 
     // View range
     void send_view_range();
@@ -286,6 +290,11 @@ private:
     launch_options launch_options_;
     bool first_launch_connect_ = true;
 
+    // WebSocket connection retry state
+    bool ws_connecting_ = false;       // true while actively trying to establish connection
+    float ws_retry_timer_ = 0.0f;     // accumulates until retry_delay, then retries
+    static constexpr float ws_retry_delay_ = 2.0f;
+
     // Server-controlled view radius
     int16_t view_radius_x_ = 40;  // Visibility radius in tiles (15-80)
     int16_t view_radius_y_ = 40;
@@ -324,6 +333,7 @@ private:
     // Screens (sprite-based UI for login, main menu, etc.)
     screen_manager screens_;
     renderer* renderer_ = nullptr;
+    cursor_manager* cursor_ = nullptr;
 
     // Character selection
     std::vector<character_info> characters_;

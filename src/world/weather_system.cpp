@@ -41,14 +41,6 @@ void weather_system::set_weather(weather_type weather)
         static_cast<int>(old), static_cast<int>(weather), active_particle_count_);
 }
 
-void weather_system::set_time(time_of_day time)
-{
-    if (time_ == time) return;
-    time_ = time;
-    target_tint_ = tint_for_time(time);
-    spdlog::info("Time of day changed to {}", static_cast<int>(time));
-}
-
 void weather_system::set_screen_size(uint32_t width, uint32_t height)
 {
     screen_width_ = width;
@@ -95,24 +87,11 @@ void weather_system::update(float delta_time)
         }
     }
 
-    // Interpolate tint toward target (smooth, time-based)
-    auto lerp_channel = [](uint8_t current, uint8_t target, float t) -> uint8_t
-    {
-        float result = static_cast<float>(current)
-            + (static_cast<float>(target) - static_cast<float>(current)) * t;
-        return static_cast<uint8_t>(std::clamp(result, 0.0f, 255.0f));
-    };
-
-    // Transition speed: ~2 seconds to fully change
-    float t = std::min(delta_time * 0.5f, 1.0f);
-    current_tint_.r = lerp_channel(current_tint_.r, target_tint_.r, t);
-    current_tint_.g = lerp_channel(current_tint_.g, target_tint_.g, t);
-    current_tint_.b = lerp_channel(current_tint_.b, target_tint_.b, t);
-    current_tint_.a = lerp_channel(current_tint_.a, target_tint_.a, t);
 }
 
 void weather_system::render_particles(renderer& rend)
 {
+    if (!visible_) return;
     if (active_particle_count_ <= 0) return;
 
     bool is_rain = is_raining();
@@ -163,17 +142,6 @@ void weather_system::render_particles(renderer& rend)
             rend.draw_rect(px, py, size, size, color, true);
         }
     }
-}
-
-void weather_system::render_overlay(renderer& rend)
-{
-    if (current_tint_.a == 0) return;
-
-    sf::Color tint(current_tint_.r, current_tint_.g, current_tint_.b, current_tint_.a);
-    rend.draw_rect(0, 0,
-        static_cast<int32_t>(rend.scene_width()),
-        static_cast<int32_t>(rend.scene_height()),
-        tint, true);
 }
 
 bool weather_system::is_raining() const
@@ -293,28 +261,6 @@ void weather_system::update_snow_particle(weather_particle& p)
     {
         reset_particle(p, false);
     }
-}
-
-tint_color weather_system::tint_for_time(time_of_day t)
-{
-    switch (t)
-    {
-        case time_of_day::dawn:
-            return {200, 140, 80, 35};       // Warm orange
-        case time_of_day::morning:
-            return {0, 0, 0, 0};             // No tint
-        case time_of_day::noon:
-            return {0, 0, 0, 0};             // No tint
-        case time_of_day::afternoon:
-            return {200, 160, 100, 15};      // Warm
-        case time_of_day::dusk:
-            return {160, 60, 40, 55};        // Orange-red
-        case time_of_day::night:
-            return {10, 10, 50, 110};        // Dark blue
-        case time_of_day::midnight:
-            return {5, 5, 30, 140};          // Deep blue
-    }
-    return {0, 0, 0, 0};
 }
 
 } // namespace hb

@@ -3,6 +3,7 @@
 #include "input/input.hpp"
 #include "core/direction_utils.hpp"
 #include "gameplay/pathfinding.hpp"
+#include "ui/cursor.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb {
@@ -92,6 +93,25 @@ void input_handler::handle_playing_input(const input& inp)
     if (magic.has_pending_spell() && !spell_targeting_active_)
     {
         spell_targeting_active_ = true;
+
+        // Play casting animation on local player (sound triggered by entity_manager at frame 1)
+        entity* player = game_->local_player();
+        if (player)
+        {
+            player->set_action(object_action::magic);
+
+            // Show spell name above player's head as red chat bubble
+            const auto* sp = magic.get_spell(magic.pending_spell());
+            if (sp && player->has_name())
+            {
+                auto& name = player->name();
+                name.chat_message = sp->name + "!";
+                name.chat_timer = 3.0f;
+                name.chat_elapsed = 0.0f;
+                name.chat_style = {sf::Color::Red, sf::Color::Black, 1.0f, 14};
+            }
+        }
+
         spdlog::debug("Spell targeting mode activated for spell {}", magic.pending_spell());
     }
 
@@ -546,6 +566,20 @@ void input_handler::handle_spell_targeting(const input& inp)
     auto& world = game_->game_world();
     auto& entities = game_->entities();
 
+    // Set magic targeting cursor
+    if (auto* cursor = game_->get_cursor())
+    {
+        // Check if hovering over an enemy entity for the arrow cursor variant
+        entity* hover = entities.get_entity_at_screen_pos(
+            inp.mouse_x(), inp.mouse_y(),
+            world.camera_x(), world.camera_y());
+        if (hover && hover->id() != entities.local_player_id() &&
+            (hover->type() == entity_type::monster || hover->type() == entity_type::character))
+            cursor->set_cursor(cursor_type::magic_arrow);
+        else
+            cursor->set_cursor(cursor_type::magic_target);
+    }
+
     uint16_t pending_id = magic.pending_spell();
     const auto* sp = magic.get_spell(pending_id);
     if (!sp)
@@ -631,7 +665,7 @@ void input_handler::handle_spell_targeting(const input& inp)
         }
 
         // Send cast request to server
-        game_->network().request_magic(pending_id, target_x, target_y, target_id);
+        game_->ws_handler().request_magic(pending_id, target_x, target_y, target_id);
         spdlog::debug("Spell cast request: spell={} target=({},{}) entity={}",
                       pending_id, target_x, target_y, target_id);
 

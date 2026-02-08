@@ -110,9 +110,10 @@ void dialog_callbacks::setup_callbacks()
     // Spellbook dialog - single click to cast
     if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(ui.get_dialog(dialog_type::spellbook)))
     {
-        spell_dlg->set_on_spell_click([&magic](uint16_t spell_id) {
+        spell_dlg->set_on_spell_click([&magic, &ui](uint16_t spell_id) {
             spdlog::info("Casting spell {} from spellbook", spell_id);
             magic.set_pending_spell(spell_id);
+            ui.close_dialog(dialog_type::spellbook);
         });
     }
 
@@ -340,6 +341,10 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_show_guild_names(game_cfg.show_guild_names);
         settings_dlg->set_show_hp_bars(game_cfg.show_hp_bars);
         settings_dlg->set_camera_shake(game_cfg.camera_shake);
+        settings_dlg->set_show_weather(game_cfg.show_weather);
+        game_->weather().set_visible(game_cfg.show_weather);
+        settings_dlg->set_show_tint(game_cfg.show_tint);
+        game_->game_world().set_tint_visible(game_cfg.show_tint);
 
         const auto& chat_cfg = config::instance().chat();
         settings_dlg->set_show_timestamps(chat_cfg.show_timestamps);
@@ -380,6 +385,20 @@ void dialog_callbacks::setup_callbacks()
             config::instance().game().camera_shake = v;
             config::instance().save();
             spdlog::info("Camera shake: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_show_weather_change([this](bool v) {
+            config::instance().game().show_weather = v;
+            game_->weather().set_visible(v);
+            config::instance().save();
+            spdlog::info("Show weather: {}", v ? "ON" : "OFF");
+        });
+
+        settings_dlg->set_on_show_tint_change([this](bool v) {
+            config::instance().game().show_tint = v;
+            game_->game_world().set_tint_visible(v);
+            config::instance().save();
+            spdlog::info("Show day/night tint: {}", v ? "ON" : "OFF");
         });
 
         settings_dlg->set_on_type_to_chat_change([this](bool enabled) {

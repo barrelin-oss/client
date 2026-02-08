@@ -126,9 +126,9 @@ void action_queue::process_pending()
             break;
 
         case queued_action_type::magic:
-            game_->network().request_magic(pending_action_.spell_id,
-                                           pending_action_.target_x, pending_action_.target_y,
-                                           pending_action_.target_id);
+            game_->ws_handler().request_magic(pending_action_.spell_id,
+                                              pending_action_.target_x, pending_action_.target_y,
+                                              pending_action_.target_id);
             break;
 
         case queued_action_type::face_direction:

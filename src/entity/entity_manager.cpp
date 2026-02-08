@@ -1115,6 +1115,17 @@ void entity_manager::update_animation(entity& e, float delta_time) {
             }
         }
 
+        // Play magic cast sound at frame 1 of magic animation
+        if ((anim.state == entity_anim_state::magic ||
+             anim.state == entity_anim_state::magic_attack) &&
+            anim.current_frame == 1 && !anim.attack_triggered) {
+            anim.attack_triggered = true;
+            if (sounds_) {
+                sounds_->play_character_sound_at(
+                    character_sound::magic_cast, e.transform().x, e.transform().y);
+            }
+        }
+
         if (anim.current_frame >= anim.frame_count) {
             if (anim.looping) {
                 anim.current_frame = 0;

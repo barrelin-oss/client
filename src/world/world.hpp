@@ -12,6 +12,12 @@ namespace hb {
 class renderer;
 class tile_sprite_registry;
 
+// Day/night tint color (RGBA)
+struct tint_color
+{
+    uint8_t r = 0, g = 0, b = 0, a = 0;
+};
+
 // Weather types (matches legacy server values 0-6)
 enum class weather_type : uint8_t
 {
@@ -120,6 +126,18 @@ public:
     void set_time(time_of_day time);
     time_of_day time() const { return time_; }
 
+    // Server clock (for display purposes)
+    void set_clock(uint8_t hour, uint8_t minute);
+    uint8_t clock_hour() const { return clock_hour_; }
+    uint8_t clock_minute() const { return clock_minute_; }
+
+    // Render day/night tint overlay (call after all scene rendering, before UI)
+    void render_overlay(renderer& rend);
+
+    // Tint overlay visibility toggle
+    void set_tint_visible(bool v) { tint_visible_ = v; }
+    bool tint_visible() const { return tint_visible_; }
+
     // Coordinate helpers
     std::pair<int32_t, int32_t> screen_to_tile(int32_t screen_x, int32_t screen_y) const;
     std::pair<int32_t, int32_t> screen_to_world(int32_t screen_x, int32_t screen_y) const;
@@ -163,8 +181,12 @@ public:
 
 private:
     void update_camera(float delta_time);
+    void update_clock(float delta_time);
     void update_lighting();
+    void update_tint(float delta_time);
     void center_on_player();
+
+    static tint_color tint_for_time(time_of_day t);
 
     map current_map_;
     map_renderer map_renderer_;
@@ -191,6 +213,17 @@ private:
     weather_type weather_ = weather_type::clear;
     time_of_day time_ = time_of_day::noon;
     float weather_intensity_ = 0.0f;
+    uint8_t clock_hour_ = 12;
+    uint8_t clock_minute_ = 0;
+    float clock_accumulator_ = 0.0f;  // Accumulates real seconds; 1 real sec = 1 game minute
+    bool tint_visible_ = true;
+
+    // Day/night tint transition (current stored as float to avoid integer truncation stalls)
+    float current_tint_r_ = 0.0f;
+    float current_tint_g_ = 0.0f;
+    float current_tint_b_ = 0.0f;
+    float current_tint_a_ = 0.0f;
+    tint_color target_tint_{};
 
     // Events
     world_events events_;

@@ -70,6 +70,11 @@ namespace msg_type {
     inline constexpr const char* player_death_info = "player_death_info";
     inline constexpr const char* player_respawn_request = "player_respawn_request";
     inline constexpr const char* player_teleport = "player_teleport";
+
+    // Magic
+    inline constexpr const char* player_magic_request = "player_magic_request";
+    inline constexpr const char* player_magic_response = "player_magic_response";
+    inline constexpr const char* spell_list_update = "spell_list_update";
 }
 
 // Character info from server (used in get_characters_response)
@@ -416,12 +421,23 @@ struct enter_game_visible_entity {
 struct enter_game_world {
     std::vector<enter_game_visible_entity> entities;
 
+    // Environment state from server
+    uint8_t time_hour = 12;
+    uint8_t time_minute = 0;
+    uint8_t weather = 0;
+
     static enter_game_world from_json(const json& j) {
         enter_game_world world;
         if (j.contains("entities") && j["entities"].is_array()) {
             for (const auto& ent : j["entities"]) {
                 world.entities.push_back(enter_game_visible_entity::from_json(ent));
             }
+        }
+        if (j.contains("environment")) {
+            const auto& env = j["environment"];
+            if (env.contains("hour")) world.time_hour = env["hour"].get<uint8_t>();
+            if (env.contains("minute")) world.time_minute = env["minute"].get<uint8_t>();
+            if (env.contains("weather")) world.weather = env["weather"].get<uint8_t>();
         }
         return world;
     }
@@ -1151,6 +1167,56 @@ struct player_teleport_data {
         return data;
     }
 };
+
+// Player magic response data (server -> caster)
+// Server nests result fields inside data.result
+struct player_magic_response_data {
+    bool success = false;
+    std::string error;
+    uint16_t spell_id = 0;
+    int32_t mana_cost = 0;
+    int32_t damage = 0;
+    int32_t heal = 0;
+    uint32_t target_id = 0;
+    int32_t caster_mp = 0;
+
+    static player_magic_response_data from_json(const json& j) {
+        player_magic_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+            if (d.contains("result")) {
+                const auto& r = d["result"];
+                if (r.contains("spell_id")) data.spell_id = r["spell_id"].get<uint16_t>();
+                if (r.contains("mana_cost")) data.mana_cost = r["mana_cost"].get<int32_t>();
+                if (r.contains("damage")) data.damage = r["damage"].get<int32_t>();
+                if (r.contains("heal")) data.heal = r["heal"].get<int32_t>();
+                if (r.contains("target_id")) data.target_id = r["target_id"].get<uint32_t>();
+                if (r.contains("caster_mp")) data.caster_mp = r["caster_mp"].get<int32_t>();
+            }
+        }
+        return data;
+    }
+};
+
+// Convenience function to build a player magic request
+inline json make_player_magic_request(int32_t x, int32_t y, uint8_t direction,
+                                       uint16_t spell_id, const std::string& target_type,
+                                       uint32_t target_id, int32_t target_x, int32_t target_y) {
+    return message_builder(msg_type::player_magic_request)
+        .set("x", x)
+        .set("y", y)
+        .set("direction", direction)
+        .set("spell_id", spell_id)
+        .set("target_type", target_type)
+        .set("target_id", target_id)
+        .set("target_x", target_x)
+        .set("target_y", target_y)
+        .set("timestamp", static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()))
+        .build();
+}
 
 // Convenience function to build a player respawn request
 inline json make_player_respawn_request() {

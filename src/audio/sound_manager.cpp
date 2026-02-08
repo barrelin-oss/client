@@ -242,6 +242,34 @@ void sound_manager::play_ui_sound(int effect_num)
     play_sound('E', effect_num, 0, 0.0f);
 }
 
+void sound_manager::start_ambient(char type, int num)
+{
+    if (!sfx_enabled_ || !audio_) return;
+
+    sound_id id = get_sound_id(type, num);
+    if (id == invalid_sound_id) return;
+
+    // Already playing this ambient
+    if (ambient_sound_id_ == id) return;
+
+    // Stop any existing ambient
+    stop_ambient();
+
+    ambient_sound_id_ = id;
+    audio_->play_sound_looped(id, 1.0f);
+    spdlog::debug("Started ambient sound: {}{}", type, num);
+}
+
+void sound_manager::stop_ambient()
+{
+    if (ambient_sound_id_ != invalid_sound_id && audio_)
+    {
+        audio_->stop_sound(ambient_sound_id_);
+        spdlog::debug("Stopped ambient sound");
+    }
+    ambient_sound_id_ = invalid_sound_id;
+}
+
 void sound_manager::play_sound_at(char type, int num, int32_t world_x, int32_t world_y)
 {
     if (!sfx_enabled_ || !audio_) return;
@@ -377,6 +405,7 @@ void sound_manager::set_sfx_enabled(bool enabled)
 
     if (!enabled && audio_)
     {
+        ambient_sound_id_ = invalid_sound_id;
         audio_->stop_all_sounds();
     }
 }

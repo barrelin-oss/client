@@ -14,6 +14,7 @@ class reconnect_screen : public screen_base
 {
 public:
     using reconnect_callback = std::function<void()>;
+    using exit_callback = std::function<void()>;
 
     reconnect_screen() = default;
     ~reconnect_screen() override = default;
@@ -24,6 +25,7 @@ public:
     void render(renderer& rend, sprite_manager& sprites) override;
 
     void set_on_reconnect(reconnect_callback callback) { on_reconnect_ = std::move(callback); }
+    void set_on_exit(exit_callback callback) { on_exit_game_ = std::move(callback); }
 
     // When true, the screen will auto-fire the reconnect callback on the first update
     void set_auto_connect(bool auto_connect) { auto_connect_ = auto_connect; }
@@ -36,6 +38,7 @@ private:
     static constexpr int32_t button_height_ = 28;
 
     reconnect_callback on_reconnect_;
+    exit_callback on_exit_game_;
     float elapsed_time_ = 0.0f;
     bool auto_connect_ = false;
     std::string status_text_;

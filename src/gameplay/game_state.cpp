@@ -16,8 +16,10 @@
 #include "chat/chat_message.hpp"
 #include <sodium/crypto_hash_sha256.h>
 #include <spdlog/spdlog.h>
-#include <cmath>
 #include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 #include "debug/debug_overlay.hpp"
@@ -107,6 +109,34 @@ static constexpr std::array monster_paks =
     monster_pak_entry{"Perry",         static_cast<uint16_t>(npc_base + npc_stride * 58), 16},  // Perry (Type: 68)
     monster_pak_entry{"Devlin",        static_cast<uint16_t>(npc_base + npc_stride * 59), 16},  // Devlin (Type: 69)
 };
+
+const char* weather_to_str(weather_type w)
+{
+    switch (w) {
+        case weather_type::clear:       return "Clear";
+        case weather_type::light_rain:  return "Light Rain";
+        case weather_type::medium_rain: return "Rain";
+        case weather_type::heavy_rain:  return "Heavy Rain";
+        case weather_type::light_snow:  return "Light Snow";
+        case weather_type::medium_snow: return "Snow";
+        case weather_type::heavy_snow:  return "Heavy Snow";
+        default:                        return "Unknown";
+    }
+}
+
+const char* time_to_str(time_of_day t)
+{
+    switch (t) {
+        case time_of_day::dawn:      return "Dawn";
+        case time_of_day::morning:   return "Morning";
+        case time_of_day::noon:      return "Noon";
+        case time_of_day::afternoon: return "Afternoon";
+        case time_of_day::dusk:      return "Dusk";
+        case time_of_day::night:     return "Night";
+        case time_of_day::midnight:  return "Midnight";
+        default:                     return "Unknown";
+    }
+}
 
 } // anonymous namespace
 
@@ -302,6 +332,10 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
                 attempt_login(*launch_options_.username, *launch_options_.password);
             }
         });
+        screens_.get_reconnect_screen().set_on_exit([this]() {
+            spdlog::info("Reconnect screen: player chose to exit");
+            change_state(game_state::quit);
+        });
         screens_.get_character_select_screen().set_character_renderer(&menu_char_renderer_);
         screens_.get_character_create_screen().set_character_renderer(&menu_char_renderer_);
         auto play_ui_sound = [this]() { sounds_.play_ui_sound(14); };
@@ -448,6 +482,13 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
             .on_weather_changed = [this](weather_type w) {
                 weather_system_.set_weather(w);
                 int weather_int = static_cast<int>(w);
+
+                // Rain ambient sound (legacy: E38 looping)
+                if (weather_int >= 1 && weather_int <= 3)
+                    sounds_.start_ambient('E', 38);
+                else
+                    sounds_.stop_ambient();
+
                 // Snow triggers christmas BGM
                 if (weather_int >= 4 && weather_int <= 6)
                 {
@@ -455,7 +496,11 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
                 }
             },
             .on_time_changed = [this](time_of_day t) {
-                weather_system_.set_time(t);
+                // Transition sounds (legacy: E32 = birds/dawn, E31 = night)
+                if (t == time_of_day::dawn)
+                    sounds_.play_sound('E', 32, 0);
+                else if (t == time_of_day::night)
+                    sounds_.play_sound('E', 31, 0);
             }
         });
     }});
@@ -522,6 +567,8 @@ void game_state_manager::update(float delta_time, const input& inp) {
     // Handle pending connect event
     if (ws_connection_.poll_connect_event()) {
         spdlog::info("WebSocket connected (polled on main thread)");
+        ws_connecting_ = false;
+        ws_retry_timer_ = 0.0f;
         std::string username, password;
         if (ws_handler_.consume_pending_login(username, password)) {
             spdlog::info("Sending login request for user: {}", username);
@@ -534,13 +581,37 @@ void game_state_manager::update(float delta_time, const input& inp) {
     std::string disconnect_reason;
     if (ws_connection_.poll_disconnect_event(disconnect_reason)) {
         spdlog::warn("WebSocket disconnected (polled on main thread): {}", disconnect_reason);
-        ws_handler_.clear_session();
-        characters_.clear();
 
-        if (state_ != game_state::main_menu && state_ != game_state::connection_lost) {
-            screens_.get_connection_lost_screen().set_reason(
-                disconnect_reason.empty() ? "Server disconnected" : disconnect_reason);
-            change_state(game_state::connection_lost);
+        if (ws_connecting_) {
+            // Still in initial connection attempt - retry logic will handle reconnect
+            spdlog::info("Disconnected during connection attempt, will retry...");
+        } else {
+            ws_handler_.clear_session();
+            characters_.clear();
+
+            if (state_ != game_state::main_menu && state_ != game_state::connection_lost) {
+                screens_.get_connection_lost_screen().set_reason(
+                    disconnect_reason.empty() ? "Server disconnected" : disconnect_reason);
+                change_state(game_state::connection_lost);
+            }
+        }
+    }
+
+    // Retry WebSocket connection on failure
+    if (ws_connecting_) {
+        auto ws_state = ws_connection_.state();
+        if (ws_state == ws_connection_state::failed || ws_state == ws_connection_state::disconnected) {
+            ws_retry_timer_ += delta_time;
+            if (ws_retry_timer_ >= ws_retry_delay_) {
+                ws_retry_timer_ = 0.0f;
+                auto& net_cfg = config::instance().network();
+                std::string ws_url = "ws://" + net_cfg.login_server_host + ":"
+                    + std::to_string(net_cfg.login_server_port);
+                spdlog::info("Retrying WebSocket connection to: {}", ws_url);
+                ws_connection_.connect(ws_url);
+            }
+        } else {
+            ws_retry_timer_ = 0.0f;
         }
     }
 
@@ -737,7 +808,7 @@ void game_state_manager::clear_game_data() {
     // Clear visual effects, weather, status log, and floating text
     effects_.clear();
     weather_system_.set_weather(weather_type::clear);
-    weather_system_.set_time(time_of_day::noon);
+    sounds_.stop_ambient();
     status_log_.clear();
     floating_text_.clear();
     quests_.clear();
@@ -925,30 +996,6 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         debug_stats.set_zoom_level(world_.zoom_level());
         debug_stats.set_chunk_count(static_cast<int32_t>(world_.chunk_count()));
 
-        auto weather_to_str = [](weather_type w) -> const char* {
-            switch (w) {
-                case weather_type::clear:       return "Clear";
-                case weather_type::light_rain:  return "Light Rain";
-                case weather_type::medium_rain: return "Rain";
-                case weather_type::heavy_rain:  return "Heavy Rain";
-                case weather_type::light_snow:  return "Light Snow";
-                case weather_type::medium_snow: return "Snow";
-                case weather_type::heavy_snow:  return "Heavy Snow";
-                default:                        return "Unknown";
-            }
-        };
-        auto time_to_str = [](time_of_day t) -> const char* {
-            switch (t) {
-                case time_of_day::dawn:      return "Dawn";
-                case time_of_day::morning:   return "Morning";
-                case time_of_day::noon:      return "Noon";
-                case time_of_day::afternoon: return "Afternoon";
-                case time_of_day::dusk:      return "Dusk";
-                case time_of_day::night:     return "Night";
-                case time_of_day::midnight:  return "Midnight";
-                default:                     return "Unknown";
-            }
-        };
         debug_stats.set_weather(weather_to_str(world_.weather()));
         debug_stats.set_time_of_day(time_to_str(world_.time()));
 
@@ -1118,7 +1165,7 @@ void game_state_manager::render_playing(renderer& rend) {
     weather_system_.render_particles(rend);
 
     // Day/night tint overlay
-    weather_system_.render_overlay(rend);
+    world_.render_overlay(rend);
 
     floating_text_.render(rend, cam_x, cam_y);
 
@@ -1137,6 +1184,40 @@ void game_state_manager::render_playing(renderer& rend) {
     ds.set_objects_rendered(world_.objects_rendered());
 
     ds.render(rend);
+
+    // Server time & weather status bar (top-right corner)
+    {
+        auto hour = world_.clock_hour();
+        auto minute = world_.clock_minute();
+        bool pm = hour >= 12;
+        uint8_t display_hour = hour % 12;
+        if (display_hour == 0) display_hour = 12;
+
+        char time_buf[16];
+        std::snprintf(time_buf, sizeof(time_buf), "%d:%02d %s",
+                      display_hour, minute, pm ? "PM" : "AM");
+
+        const char* weather_str = weather_to_str(world_.weather());
+        const char* time_str = time_to_str(world_.time());
+
+        char status_buf[64];
+        std::snprintf(status_buf, sizeof(status_buf), "%s  %s  %s",
+                      time_buf, time_str, weather_str);
+
+        int32_t display_w = static_cast<int32_t>(rend.display_width());
+        int32_t padding = 6;
+        int32_t text_w = static_cast<int32_t>(std::strlen(status_buf)) * 7;
+        int32_t bar_w = text_w + padding * 2;
+        int32_t bar_h = 20;
+        int32_t bar_x = display_w - bar_w - 4;
+        int32_t bar_y = 4;
+
+        rend.draw_rect(bar_x, bar_y, bar_w, bar_h,
+                       sf::Color(0, 0, 0, 140), true);
+        rend.draw_text(status_buf, bar_x + padding, bar_y + 2,
+                       sf::Color(220, 220, 220), 12);
+    }
+
     status_log_.render(rend, static_cast<int32_t>(rend.display_width()),
                        static_cast<int32_t>(rend.display_height()), 70);
 
@@ -1464,12 +1545,18 @@ void game_state_manager::attempt_login(const std::string& username, const std::s
         return;
     }
 
+    ws_connecting_ = true;
+    ws_retry_timer_ = 0.0f;
+
     if (!ws_connection_.connect(ws_url)) {
+        ws_connecting_ = false;
         show_error("Failed to connect to server");
         return;
     }
 
     ui_.show_connection_dialog([this]() {
+        ws_connecting_ = false;
+        ws_retry_timer_ = 0.0f;
         ws_connection_.disconnect();
         ws_handler_.clear_session();
         change_state(game_state::main_menu);

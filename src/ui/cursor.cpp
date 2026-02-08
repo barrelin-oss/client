@@ -29,6 +29,8 @@ uint32_t cursor_manager::frame_for(cursor_type type) const
 {
     switch (type)
     {
+        case cursor_type::magic_target: return 4;
+        case cursor_type::magic_arrow:  return 5;
         case cursor_type::normal:
         default:
             return 0;

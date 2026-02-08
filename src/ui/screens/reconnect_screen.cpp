@@ -50,11 +50,23 @@ bool reconnect_screen::update(float delta_time, const input& inp)
         return true;
     }
 
-    // Check button click
+    // Escape to exit
+    if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+    {
+        play_button_sound();
+        if (on_exit_game_)
+        {
+            on_exit_game_();
+        }
+        return true;
+    }
+
+    // Check button clicks
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left) && screen_width_ > 0)
     {
         int32_t btn_x = (screen_width_ - button_width_) / 2;
         int32_t btn_y = screen_height_ * 55 / 100;
+        int32_t exit_btn_y = btn_y + button_height_ + 12;
 
         if (mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
             && mouse_y_ >= btn_y && mouse_y_ <= btn_y + button_height_)
@@ -63,6 +75,17 @@ bool reconnect_screen::update(float delta_time, const input& inp)
             if (on_reconnect_)
             {
                 on_reconnect_();
+            }
+            return true;
+        }
+
+        if (mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
+            && mouse_y_ >= exit_btn_y && mouse_y_ <= exit_btn_y + button_height_)
+        {
+            play_button_sound();
+            if (on_exit_game_)
+            {
+                on_exit_game_();
             }
             return true;
         }
@@ -234,31 +257,49 @@ void reconnect_screen::render(renderer& rend, sprite_manager& sprites)
     int32_t btn_x = (sw - button_width_) / 2;
     int32_t btn_y = sh * 55 / 100;
 
-    bool hovered = mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
-                && mouse_y_ >= btn_y && mouse_y_ <= btn_y + button_height_;
+    bool reconnect_hovered = mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
+                          && mouse_y_ >= btn_y && mouse_y_ <= btn_y + button_height_;
 
-    sf::Color btn_bg = hovered ? sf::Color(80, 80, 110) : sf::Color(50, 50, 70);
-    sf::Color btn_border = hovered ? sf::Color(140, 140, 180) : sf::Color(100, 100, 130);
+    {
+        sf::Color bg = reconnect_hovered ? sf::Color(80, 80, 110) : sf::Color(50, 50, 70);
+        sf::Color border = reconnect_hovered ? sf::Color(140, 140, 180) : sf::Color(100, 100, 130);
+        rend.draw_rect(btn_x, btn_y, button_width_, button_height_, bg, true);
+        rend.draw_rect(btn_x, btn_y, button_width_, button_height_, border, false);
 
-    rend.draw_rect(btn_x, btn_y, button_width_, button_height_, btn_bg, true);
-    rend.draw_rect(btn_x, btn_y, button_width_, button_height_, btn_border, false);
+        constexpr uint32_t btn_text_size = 14;
+        const char* label = "Reconnect";
+        int32_t tw = static_cast<int32_t>(std::strlen(label)) * 7;
+        int32_t tx = btn_x + (button_width_ - tw) / 2;
+        int32_t ty = btn_y + (button_height_ - static_cast<int32_t>(btn_text_size)) / 2;
+        rend.draw_text(label, tx, ty, sf::Color::White, btn_text_size);
+    }
 
-    // Center "Reconnect" text within button
-    constexpr uint32_t btn_text_size = 14;
-    const char* btn_label = "Reconnect";
-    int32_t text_w = static_cast<int32_t>(std::strlen(btn_label)) * 7;
-    int32_t text_x = btn_x + (button_width_ - text_w) / 2;
-    int32_t text_y = btn_y + (button_height_ - static_cast<int32_t>(btn_text_size)) / 2;
+    // Exit button
+    int32_t exit_btn_y = btn_y + button_height_ + 12;
+    bool exit_hovered = mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_
+                     && mouse_y_ >= exit_btn_y && mouse_y_ <= exit_btn_y + button_height_;
 
-    rend.draw_text(btn_label, text_x, text_y, sf::Color::White, btn_text_size);
+    {
+        sf::Color bg = exit_hovered ? sf::Color(110, 60, 60) : sf::Color(70, 45, 45);
+        sf::Color border = exit_hovered ? sf::Color(180, 120, 120) : sf::Color(130, 90, 90);
+        rend.draw_rect(btn_x, exit_btn_y, button_width_, button_height_, bg, true);
+        rend.draw_rect(btn_x, exit_btn_y, button_width_, button_height_, border, false);
 
-    // Status text below button
+        constexpr uint32_t btn_text_size = 14;
+        const char* label = "Exit";
+        int32_t tw = static_cast<int32_t>(std::strlen(label)) * 7;
+        int32_t tx = btn_x + (button_width_ - tw) / 2;
+        int32_t ty = exit_btn_y + (button_height_ - static_cast<int32_t>(btn_text_size)) / 2;
+        rend.draw_text(label, tx, ty, sf::Color::White, btn_text_size);
+    }
+
+    // Status text below buttons
     if (!status_text_.empty())
     {
         constexpr uint32_t status_text_size = 14;
         int32_t status_w = static_cast<int32_t>(status_text_.size()) * 7;
         int32_t status_x = (sw - status_w) / 2;
-        int32_t status_y = btn_y + button_height_ + 16;
+        int32_t status_y = exit_btn_y + button_height_ + 16;
 
         rend.draw_text_outlined(status_text_, status_x, status_y,
                                 sf::Color(180, 180, 180), sf::Color::Black,

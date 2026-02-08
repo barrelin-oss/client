@@ -43,6 +43,9 @@ public:
     // Combat
     void request_attack(uint32_t target_id, uint8_t attack_type = 0);
 
+    // Magic
+    void request_magic(uint16_t spell_id, int32_t target_x, int32_t target_y, uint32_t target_id = 0);
+
     // Chat
     void send_chat_message(std::string_view content, std::string_view channel,
                            std::string_view recipient = "");
@@ -75,6 +78,8 @@ private:
     void handle_combat_effect(const json& message);
     void handle_player_death_info(const json& message);
     void handle_player_teleport(const json& message);
+    void handle_player_magic_response(const json& message);
+    void handle_spell_list_update(const json& message);
 
     game_state_manager* game_ = nullptr;
 

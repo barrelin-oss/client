@@ -12,6 +12,22 @@
 
 namespace hb {
 
+namespace {
+
+time_of_day hour_to_time_of_day(uint8_t hour)
+{
+    if (hour < 5)  return time_of_day::midnight;
+    if (hour < 7)  return time_of_day::dawn;
+    if (hour < 10) return time_of_day::morning;
+    if (hour < 14) return time_of_day::noon;
+    if (hour < 17) return time_of_day::afternoon;
+    if (hour < 19) return time_of_day::dusk;
+    if (hour < 23) return time_of_day::night;
+    return time_of_day::midnight;
+}
+
+} // anonymous namespace
+
 void ws_message_handler::initialize(game_state_manager& game)
 {
     game_ = &game;
@@ -109,6 +125,10 @@ void ws_message_handler::handle_message(const json& message)
             handle_player_death_info(message);
         else if (type == msg_type::player_teleport)
             handle_player_teleport(message);
+        else if (type == msg_type::player_magic_response)
+            handle_player_magic_response(message);
+        else if (type == msg_type::spell_list_update)
+            handle_spell_list_update(message);
         else if (type == msg_type::chat_message)
             {} // Ack from server, already handled via local echo
         else if (type == msg_type::environment_update)
@@ -449,6 +469,21 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     {
         spdlog::warn("Failed to load map data for '{}', continuing without tile data", ch.map_name);
         world.current_map_mut().set_name(ch.map_name);
+    }
+
+    // Apply initial environment state from enter_game_response
+    {
+        uint8_t hour = response.world.time_hour;
+        uint8_t minute = response.world.time_minute;
+        uint8_t weather = response.world.weather;
+
+        world.set_clock(hour, minute);
+        world.set_time(hour_to_time_of_day(hour));
+
+        if (weather <= static_cast<uint8_t>(weather_type::heavy_snow))
+            world.set_weather(static_cast<weather_type>(weather));
+
+        spdlog::info("Initial environment: {}:{:02d}, weather={}", hour, minute, weather);
     }
 
     int32_t player_world_x = ch.pos_x * 32 + 16;
@@ -879,6 +914,205 @@ void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
     spdlog::debug("Requesting attack on entity {} (type {} target_type {})", target_id, attack_type, target_type);
     json msg = make_player_attack_request(target_id, target_type, t.tile_x, t.tile_y, attack_type, dir);
     game_->ws_connection().send(msg);
+}
+
+void ws_message_handler::request_magic(uint16_t spell_id, int32_t target_x, int32_t target_y, uint32_t target_id)
+{
+    auto* player = game_->local_player();
+    if (!player) return;
+
+    const auto& t = player->transform();
+
+    // Determine target_type string based on target entity
+    std::string target_type_str = "none";
+    if (target_id != 0)
+    {
+        entity* target = game_->entities().find(target_id);
+        if (target)
+        {
+            if (target->has_npc() || target->has_monster())
+                target_type_str = "npc";
+            else
+                target_type_str = "player";
+        }
+    }
+    else if (target_x >= 0 && target_y >= 0)
+    {
+        target_type_str = "ground";
+    }
+
+    uint8_t dir = static_cast<uint8_t>(t.facing);
+
+    spdlog::debug("Requesting magic: spell={} target=({},{}) entity={} type={}",
+                  spell_id, target_x, target_y, target_id, target_type_str);
+    json msg = make_player_magic_request(t.tile_x, t.tile_y, dir,
+                                          spell_id, target_type_str,
+                                          target_id, target_x, target_y);
+    game_->ws_connection().send(msg);
+}
+
+void ws_message_handler::handle_player_magic_response(const json& message)
+{
+    auto data = player_magic_response_data::from_json(message);
+
+    if (!data.success)
+    {
+        if (!data.error.empty())
+        {
+            game_->get_status_log().add_event(data.error, message_color::red);
+            spdlog::debug("Magic failed: {}", data.error);
+        }
+        return;
+    }
+
+    auto& entities = game_->entities();
+    entity* player = game_->local_player();
+    if (!player) return;
+
+    // Update local player MP
+    player->stats().mp = data.caster_mp;
+
+    // Look up spell definition for effect IDs
+    const spell* sp = game_->magic().get_spell(data.spell_id);
+
+    // Set caster animation to magic casting
+    player->set_action(object_action::magic);
+
+    // Trigger cooldown
+    game_->magic().trigger_cooldown(data.spell_id);
+
+    // Get caster tile position
+    const auto& caster_t = player->transform();
+    int32_t caster_tx = caster_t.tile_x;
+    int32_t caster_ty = caster_t.tile_y;
+
+    // Get target position
+    int32_t target_tx = caster_tx;
+    int32_t target_ty = caster_ty;
+    float target_wx = static_cast<float>(caster_t.x);
+    float target_wy = static_cast<float>(caster_t.y);
+
+    if (data.target_id != 0)
+    {
+        entity* target = entities.find(data.target_id);
+        if (target)
+        {
+            target_tx = target->transform().tile_x;
+            target_ty = target->transform().tile_y;
+            target_wx = static_cast<float>(target->transform().x);
+            target_wy = static_cast<float>(target->transform().y);
+        }
+    }
+
+    // Spawn visual effects
+    if (sp)
+    {
+        // Projectile effect (travels from caster to target)
+        if (sp->projectile_effect != 0)
+        {
+            game_->effects().add_effect(
+                static_cast<effect_type_id>(sp->projectile_effect),
+                caster_tx, caster_ty,
+                target_tx, target_ty);
+        }
+
+        // Impact effect at target
+        if (sp->effect_sprite != 0)
+        {
+            game_->effects().add_effect_at(
+                static_cast<effect_type_id>(sp->effect_sprite),
+                target_tx, target_ty);
+        }
+    }
+
+    // Floating text for damage/heal
+    if (data.damage > 0)
+    {
+        game_->floating_text().add_damage(data.damage, target_wx, target_wy);
+    }
+    if (data.heal > 0)
+    {
+        game_->floating_text().add_heal(data.heal, target_wx, target_wy);
+    }
+
+    // Status log message
+    std::string spell_name = sp ? sp->name : ("Spell #" + std::to_string(data.spell_id));
+    if (data.damage > 0)
+    {
+        game_->get_status_log().add_event(
+            spell_name + " hits for " + std::to_string(data.damage) + " damage",
+            message_color::blue);
+    }
+    else if (data.heal > 0)
+    {
+        game_->get_status_log().add_event(
+            spell_name + " restores " + std::to_string(data.heal) + " HP",
+            message_color::green);
+    }
+    else
+    {
+        game_->get_status_log().add_event(
+            spell_name + " cast successfully",
+            message_color::blue);
+    }
+
+    // Update target HP if target entity exists
+    if (data.target_id != 0)
+    {
+        entity* target = entities.find(data.target_id);
+        if (target && target->has_stats())
+        {
+            if (data.damage > 0)
+            {
+                target->stats().hp = std::max(0, target->stats().hp - data.damage);
+                if (target->stats().hp <= 0)
+                    target->set_action(object_action::dying);
+                else
+                    target->set_action(object_action::damage);
+            }
+            else if (data.heal > 0)
+            {
+                target->stats().hp = std::min(target->stats().max_hp, target->stats().hp + data.heal);
+            }
+        }
+    }
+
+    spdlog::debug("Magic response: spell={} damage={} heal={} target={} mp={}",
+                  data.spell_id, data.damage, data.heal, data.target_id, data.caster_mp);
+}
+
+void ws_message_handler::handle_spell_list_update(const json& message)
+{
+    if (!message.contains("data")) return;
+    const auto& d = message["data"];
+
+    if (!d.contains("spells") || !d["spells"].is_array()) return;
+
+    auto& magic = game_->magic();
+
+    for (const auto& sp : d["spells"])
+    {
+        auto spell_data = enter_game_spell::from_json(sp);
+        magic.learn_spell(spell_data.spell_id);
+        magic.set_spell_mastery(spell_data.spell_id, static_cast<uint8_t>(spell_data.level));
+        magic.set_spell_total_casts(spell_data.spell_id, spell_data.total_casts);
+    }
+
+    // Refresh spellbook dialog if open
+    if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(
+            game_->ui().get_dialog(dialog_type::spellbook)))
+    {
+        spell_dlg->clear_spells();
+        for (const auto* sp : magic.get_all_spells())
+        {
+            spell_dlg->add_spell(*sp);
+        }
+    }
+
+    // Re-populate hotbar
+    game_->auto_populate_spell_hotbar();
+
+    spdlog::info("Spell list updated: {} spells received", d["spells"].size());
 }
 
 void ws_message_handler::handle_set_render_mode(const json& message)
@@ -1482,26 +1716,10 @@ void ws_message_handler::handle_environment_update(const json& message)
     if (d.contains("hour"))
     {
         uint8_t hour = d["hour"].get<uint8_t>();
-        time_of_day tod;
+        uint8_t minute = d.contains("minute") ? d["minute"].get<uint8_t>() : 0;
+        game_->game_world().set_clock(hour, minute);
 
-        if (hour < 5)
-            tod = time_of_day::midnight;
-        else if (hour < 7)
-            tod = time_of_day::dawn;
-        else if (hour < 10)
-            tod = time_of_day::morning;
-        else if (hour < 14)
-            tod = time_of_day::noon;
-        else if (hour < 17)
-            tod = time_of_day::afternoon;
-        else if (hour < 19)
-            tod = time_of_day::dusk;
-        else if (hour < 23)
-            tod = time_of_day::night;
-        else
-            tod = time_of_day::midnight;
-
-        game_->game_world().set_time(tod);
+        game_->game_world().set_time(hour_to_time_of_day(hour));
     }
 }
 

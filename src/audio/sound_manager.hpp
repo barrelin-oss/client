@@ -39,6 +39,10 @@ public:
     // Convenience wrapper for non-spatial sounds (button clicks, etc.)
     void play_ui_sound(int effect_num);
 
+    // Ambient looping sound (e.g., rain) — only one ambient at a time
+    void start_ambient(char type, int num);
+    void stop_ambient();
+
     // Spatial sound at world position - calculates distance/pan from listener
     void play_sound_at(char type, int num, int32_t world_x, int32_t world_y);
 
@@ -98,6 +102,9 @@ private:
     // Enable/disable flags
     bool sfx_enabled_ = true;
     bool music_enabled_ = true;
+
+    // Currently looping ambient sound (0 = none)
+    sound_id ambient_sound_id_ = invalid_sound_id;
 
     // Sound directory path
     std::string sound_dir_;

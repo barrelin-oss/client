@@ -608,6 +608,10 @@ void settings_dialog::render_game_tab(renderer& rend, int32_t content_y)
     y += checkbox_row_height;
     render_checkbox(rend, y, "Camera Shake", camera_shake_, hovered_element_ == elem_camera_shake);
     y += checkbox_row_height;
+    render_checkbox(rend, y, "Show Weather Effects", show_weather_, hovered_element_ == elem_show_weather);
+    y += checkbox_row_height;
+    render_checkbox(rend, y, "Show Day/Night Tint", show_tint_, hovered_element_ == elem_show_tint);
+    y += checkbox_row_height;
 
     render_checkbox(rend, y, "Type to Chat (Legacy)", type_to_chat_, hovered_element_ == elem_type_to_chat);
     rend.draw_text("Disables WASD movement when enabled",
@@ -1114,6 +1118,10 @@ int32_t settings_dialog::get_hovered_element_game(int32_t mx, int32_t my, int32_
     y += checkbox_row_height;
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_camera_shake;
     y += checkbox_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_weather;
+    y += checkbox_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_tint;
+    y += checkbox_row_height;
 
     // Type to chat
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_type_to_chat;
@@ -1443,6 +1451,14 @@ bool settings_dialog::handle_game_tab_click(int32_t elem)
         case elem_camera_shake:
             camera_shake_ = !camera_shake_;
             if (on_camera_shake_change_) on_camera_shake_change_(camera_shake_);
+            return true;
+        case elem_show_weather:
+            show_weather_ = !show_weather_;
+            if (on_show_weather_change_) on_show_weather_change_(show_weather_);
+            return true;
+        case elem_show_tint:
+            show_tint_ = !show_tint_;
+            if (on_show_tint_change_) on_show_tint_change_(show_tint_);
             return true;
         case elem_type_to_chat:
             type_to_chat_ = !type_to_chat_;

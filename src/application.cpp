@@ -143,6 +143,7 @@ bool application::initialize(const launch_options& opts) {
         spdlog::error("Failed to initialize game state manager");
         return false;
     }
+    game_state_->set_cursor_manager(cursor_);
 
     // Set launch options before loading loop (which runs enter_state(main_menu))
     if (opts.has_credentials()) {
@@ -325,6 +326,9 @@ void application::process_events() {
 }
 
 void application::update(float delta_time) {
+    // Reset cursor at the start of each update cycle so game code can set it
+    cursor_.begin_frame();
+
     // Update chat system
     chat_.update(delta_time);
 
@@ -336,7 +340,6 @@ void application::update(float delta_time) {
 
 void application::render() {
     renderer_.begin_frame();
-    cursor_.begin_frame();
 
     // Render game state
     if (game_state_) {

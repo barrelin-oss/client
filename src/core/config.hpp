@@ -78,6 +78,8 @@ struct game_config {
     bool show_guild_names = true;
     bool show_hp_bars = true;
     bool camera_shake = true;
+    bool show_weather = true;
+    bool show_tint = true;
     float camera_speed = 1.0f;
     bool type_to_chat = false;  // Any key press opens chat (legacy behavior, disables WASD movement)
 };

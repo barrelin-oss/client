@@ -136,6 +136,8 @@ bool config::load(std::string_view path) {
             if (g.contains("show_guild_names")) game_.show_guild_names = g["show_guild_names"].get<bool>();
             if (g.contains("show_hp_bars")) game_.show_hp_bars = g["show_hp_bars"].get<bool>();
             if (g.contains("camera_shake")) game_.camera_shake = g["camera_shake"].get<bool>();
+            if (g.contains("show_weather")) game_.show_weather = g["show_weather"].get<bool>();
+            if (g.contains("show_tint")) game_.show_tint = g["show_tint"].get<bool>();
             if (g.contains("camera_speed")) game_.camera_speed = g["camera_speed"].get<float>();
             if (g.contains("type_to_chat")) game_.type_to_chat = g["type_to_chat"].get<bool>();
         }
@@ -246,6 +248,8 @@ bool config::save(std::string_view path) const {
         {"show_guild_names", game_.show_guild_names},
         {"show_hp_bars", game_.show_hp_bars},
         {"camera_shake", game_.camera_shake},
+        {"show_weather", game_.show_weather},
+        {"show_tint", game_.show_tint},
         {"camera_speed", game_.camera_speed},
         {"type_to_chat", game_.type_to_chat}
     };

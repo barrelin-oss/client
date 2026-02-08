@@ -111,6 +111,21 @@ void audio::play_sound(sound_id id, float volume, float pan) {
     active_sounds_.push_back({std::move(sound), intended});
 }
 
+void audio::play_sound_looped(sound_id id, float volume) {
+    if (id == invalid_sound_id || muted_) return;
+
+    auto it = buffers_.find(id);
+    if (it == buffers_.end()) return;
+
+    float intended = volume * sound_volume_;
+    auto sound = std::make_unique<sf::Sound>(it->second);
+    sound->setVolume(effective_volume(intended) * 100.0f);
+    sound->setLooping(true);
+    sound->setRelativeToListener(true);
+    sound->play();
+    active_sounds_.push_back({std::move(sound), intended});
+}
+
 void audio::stop_sound(sound_id id) {
     if (id == invalid_sound_id) return;
 

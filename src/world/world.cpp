@@ -30,7 +30,9 @@ void world::shutdown()
 void world::update(float delta_time)
 {
     update_camera(delta_time);
+    update_clock(delta_time);
     update_lighting();
+    update_tint(delta_time);
 
     // Smooth zoom interpolation (time-based)
     if (zoom_mode_enabled_ && has_zoom_anchor_)
@@ -300,11 +302,56 @@ void world::set_weather(weather_type weather)
     }
 }
 
+void world::set_clock(uint8_t hour, uint8_t minute)
+{
+    clock_hour_ = hour;
+    clock_minute_ = minute;
+    clock_accumulator_ = 0.0f;  // Reset accumulator on server sync
+}
+
+static time_of_day hour_to_time_of_day(uint8_t hour)
+{
+    if (hour < 5)  return time_of_day::midnight;
+    if (hour < 7)  return time_of_day::dawn;
+    if (hour < 10) return time_of_day::morning;
+    if (hour < 14) return time_of_day::noon;
+    if (hour < 17) return time_of_day::afternoon;
+    if (hour < 19) return time_of_day::dusk;
+    if (hour < 23) return time_of_day::night;
+    return time_of_day::midnight;
+}
+
+void world::update_clock(float delta_time)
+{
+    // Server game clock: 1 real second = 1 game minute (60x speed)
+    clock_accumulator_ += delta_time;
+    if (clock_accumulator_ < 1.0f) return;
+
+    // Advance by whole minutes
+    auto minutes = static_cast<int>(clock_accumulator_);
+    clock_accumulator_ -= static_cast<float>(minutes);
+
+    clock_minute_ += static_cast<uint8_t>(minutes);
+    while (clock_minute_ >= 60)
+    {
+        clock_minute_ -= 60;
+        clock_hour_ = (clock_hour_ + 1) % 24;
+
+        // Recompute time_of_day when the hour changes
+        auto new_tod = hour_to_time_of_day(clock_hour_);
+        if (new_tod != time_)
+        {
+            set_time(new_tod);
+        }
+    }
+}
+
 void world::set_time(time_of_day time)
 {
     if (time_ != time)
     {
         time_ = time;
+        target_tint_ = tint_for_time(time);
         if (events_.on_time_changed)
         {
             events_.on_time_changed(time);
@@ -380,48 +427,61 @@ void world::update_camera(float delta_time)
 
 void world::update_lighting()
 {
-    // Update light level based on time of day
-    float light_level = 1.0f;
+    // Day/night is handled by the tint overlay (render_overlay).
+    // The map renderer light_level only applies per-tile light variation
+    // (e.g. torchlight); keep it at full brightness for the global level.
+    auto config = map_renderer_.config();
+    config.light_level = 1.0f;
+    map_renderer_.set_config(config);
+}
 
-    switch (time_)
+void world::update_tint(float delta_time)
+{
+    // Transition speed: ~2 seconds to fully change
+    float t = std::min(delta_time * 0.5f, 1.0f);
+    current_tint_r_ += (static_cast<float>(target_tint_.r) - current_tint_r_) * t;
+    current_tint_g_ += (static_cast<float>(target_tint_.g) - current_tint_g_) * t;
+    current_tint_b_ += (static_cast<float>(target_tint_.b) - current_tint_b_) * t;
+    current_tint_a_ += (static_cast<float>(target_tint_.a) - current_tint_a_) * t;
+}
+
+void world::render_overlay(renderer& rend)
+{
+    if (!tint_visible_) return;
+    auto a = static_cast<uint8_t>(std::clamp(current_tint_a_, 0.0f, 255.0f));
+    if (a == 0) return;
+
+    sf::Color tint(
+        static_cast<uint8_t>(std::clamp(current_tint_r_, 0.0f, 255.0f)),
+        static_cast<uint8_t>(std::clamp(current_tint_g_, 0.0f, 255.0f)),
+        static_cast<uint8_t>(std::clamp(current_tint_b_, 0.0f, 255.0f)),
+        a);
+    rend.draw_rect(0, 0,
+        static_cast<int32_t>(rend.scene_width()),
+        static_cast<int32_t>(rend.scene_height()),
+        tint, true);
+}
+
+tint_color world::tint_for_time(time_of_day t)
+{
+    switch (t)
     {
         case time_of_day::dawn:
-            light_level = 0.6f;
-            break;
+            return {200, 140, 80, 35};       // Warm orange
         case time_of_day::morning:
-            light_level = 0.8f;
-            break;
+            return {0, 0, 0, 0};             // No tint
         case time_of_day::noon:
-            light_level = 1.0f;
-            break;
+            return {0, 0, 0, 0};             // No tint
         case time_of_day::afternoon:
-            light_level = 0.9f;
-            break;
+            return {200, 160, 100, 15};      // Warm
         case time_of_day::dusk:
-            light_level = 0.5f;
-            break;
+            return {160, 60, 40, 55};        // Orange-red
         case time_of_day::night:
-            light_level = 0.3f;
-            break;
+            return {10, 10, 50, 110};        // Dark blue
         case time_of_day::midnight:
-            light_level = 0.2f;
-            break;
+            return {5, 5, 30, 140};          // Deep blue
     }
-
-    // Weather affects lighting (rain and heavy snow darken the scene)
-    if (weather_ == weather_type::light_rain || weather_ == weather_type::medium_rain
-        || weather_ == weather_type::heavy_rain)
-    {
-        light_level *= 0.8f;
-    }
-    else if (weather_ == weather_type::heavy_snow)
-    {
-        light_level *= 0.9f;
-    }
-
-    auto config = map_renderer_.config();
-    config.light_level = light_level;
-    map_renderer_.set_config(config);
+    return {0, 0, 0, 0};
 }
 
 void world::set_zoom_mode_enabled(bool enabled)

@@ -43,20 +43,24 @@ private:
     // Button hover state
     bool cancel_hovered_ = false;
 
-    // Layout constants - centered on 640x480 screen
+    // Layout constants
     static constexpr int32_t dialog_width = 320;
     static constexpr int32_t dialog_height = 100;
-    static constexpr int32_t dialog_x = (640 - dialog_width) / 2;
-    static constexpr int32_t dialog_y = (480 - dialog_height) / 2;
 
     // Timing constants
     static constexpr float escape_hint_delay = 7.0f;
 
-    // Button layout (for error mode)
+    // Button layout (relative to dialog origin)
     static constexpr int32_t button_width = 80;
     static constexpr int32_t button_height = 22;
-    static constexpr int32_t button_x = (dialog_width - button_width) / 2;
-    static constexpr int32_t button_y = 65;
+    static constexpr int32_t button_rel_x = (dialog_width - button_width) / 2;
+    static constexpr int32_t button_rel_y = 65;
+
+    // Dynamic dialog position (centered on actual window, updated each render)
+    int32_t actual_x_ = 0;
+    int32_t actual_y_ = 0;
+    uint32_t window_width_ = 640;
+    uint32_t window_height_ = 480;
 
     bool is_point_in_cancel_button(int32_t x, int32_t y) const;
     bool handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) override;

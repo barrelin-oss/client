@@ -8,7 +8,7 @@ namespace hb {
 connection_dialog::connection_dialog()
     : dialog(dialog_type::connection) {
     set_title("");
-    set_bounds({dialog_x, dialog_y, dialog_width, dialog_height});
+    set_bounds({actual_x_, actual_y_, dialog_width, dialog_height});
     set_closeable(false);
     set_draggable(false);
     set_modal(true);
@@ -53,17 +53,24 @@ void connection_dialog::update(float delta_time, const input& inp) {
 void connection_dialog::render(renderer& rend) {
     if (!visible_) return;
 
-    // Draw semi-transparent dark background overlay
-    rend.draw_rect(0, 0, 640, 480, sf::Color(0, 0, 0, 128), true);
+    // Update window dimensions and center dialog on actual window
+    window_width_ = rend.width();
+    window_height_ = rend.height();
+    actual_x_ = (static_cast<int32_t>(window_width_) - dialog_width) / 2;
+    actual_y_ = (static_cast<int32_t>(window_height_) - dialog_height) / 2;
+
+    // Draw semi-transparent dark background overlay (full window)
+    rend.draw_rect(0, 0, static_cast<int32_t>(window_width_), static_cast<int32_t>(window_height_),
+                   sf::Color(0, 0, 0, 128), true);
 
     // Draw dialog box background
-    rend.draw_rect(dialog_x, dialog_y, dialog_width, dialog_height,
+    rend.draw_rect(actual_x_, actual_y_, dialog_width, dialog_height,
                    sf::Color(32, 32, 48, 240), true);
 
     // Draw border
-    rend.draw_rect(dialog_x, dialog_y, dialog_width, dialog_height,
+    rend.draw_rect(actual_x_, actual_y_, dialog_width, dialog_height,
                    sf::Color(80, 80, 120), false);
-    rend.draw_rect(dialog_x + 1, dialog_y + 1, dialog_width - 2, dialog_height - 2,
+    rend.draw_rect(actual_x_ + 1, actual_y_ + 1, dialog_width - 2, dialog_height - 2,
                    sf::Color(60, 60, 90), false);
 
     // Outline color for all text
@@ -72,17 +79,17 @@ void connection_dialog::render(renderer& rend) {
     if (error_mode_) {
         // Error mode: show error message and Cancel button
 
-        // Draw error message (centered with offset fix)
+        // Draw error message (centered within dialog)
         int32_t text_width = static_cast<int32_t>(error_message_.length()) * 7;
-        int32_t text_x = dialog_x + (dialog_width - text_width) / 2 + 20;
-        int32_t text_y = dialog_y + 30;
+        int32_t text_x = actual_x_ + (dialog_width - text_width) / 2 + 20;
+        int32_t text_y = actual_y_ + 30;
 
         rend.draw_text_outlined(error_message_, text_x, text_y,
                                 sf::Color(255, 200, 200), outline_color);
 
         // Draw Cancel button
-        int32_t btn_x = dialog_x + button_x;
-        int32_t btn_y = dialog_y + button_y;
+        int32_t btn_x = actual_x_ + button_rel_x;
+        int32_t btn_y = actual_y_ + button_rel_y;
 
         sf::Color btn_bg = cancel_hovered_ ? sf::Color(70, 70, 100) : sf::Color(50, 50, 70);
         rend.draw_rect(btn_x, btn_y, button_width, button_height, btn_bg, true);
@@ -105,17 +112,17 @@ void connection_dialog::render(renderer& rend) {
             main_msg += ".";
         }
 
-        // Draw main message (centered with offset fix)
+        // Draw main message (centered within dialog)
         int32_t main_width = static_cast<int32_t>(main_msg.length()) * 7;
-        int32_t main_x = dialog_x + (dialog_width - main_width) / 2 + 20;
-        int32_t main_y = dialog_y + 30;
+        int32_t main_x = actual_x_ + (dialog_width - main_width) / 2 + 20;
+        int32_t main_y = actual_y_ + 30;
 
         rend.draw_text_outlined(main_msg, main_x, main_y,
                                 sf::Color(255, 255, 200), outline_color);
 
         // Draw Cancel button
-        int32_t btn_x = dialog_x + button_x;
-        int32_t btn_y = dialog_y + button_y;
+        int32_t btn_x = actual_x_ + button_rel_x;
+        int32_t btn_y = actual_y_ + button_rel_y;
 
         sf::Color btn_bg = cancel_hovered_ ? sf::Color(70, 70, 100) : sf::Color(50, 50, 70);
         rend.draw_rect(btn_x, btn_y, button_width, button_height, btn_bg, true);
@@ -169,8 +176,8 @@ bool connection_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Butto
 }
 
 bool connection_dialog::is_point_in_cancel_button(int32_t x, int32_t y) const {
-    int32_t btn_x = dialog_x + button_x;
-    int32_t btn_y = dialog_y + button_y;
+    int32_t btn_x = actual_x_ + button_rel_x;
+    int32_t btn_y = actual_y_ + button_rel_y;
     return x >= btn_x && x < btn_x + button_width &&
            y >= btn_y && y < btn_y + button_height;
 }

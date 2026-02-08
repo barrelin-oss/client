@@ -70,6 +70,9 @@ bool character_select_screen::update(float delta_time, const input& inp) {
     mouse_y_ = inp.mouse_y();
     bool mouse_pressed = inp.is_mouse_pressed(sf::Mouse::Button::Left);
 
+    // Get adjusted mouse coordinates for hit testing within 640x480 design space
+    auto [adj_x, adj_y] = get_adjusted_mouse();
+
     // Update animation timer
     frame_timer_ += delta_time;
     if (frame_timer_ >= 0.1f) {  // 100ms per frame
@@ -138,9 +141,9 @@ bool character_select_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Check mouse clicks
+    // Check mouse clicks (use adjusted coords for 640x480 design space)
     mouse_result result;
-    int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
+    int32_t button_num = mouse_interface_.get_status(adj_x, adj_y, mouse_pressed, result);
 
     if (result == mouse_result::click) {
         play_button_sound();
@@ -191,10 +194,14 @@ bool character_select_screen::update(float delta_time, const input& inp) {
 void character_select_screen::render(renderer& rend, sprite_manager& sprites) {
     window_width_ = rend.width();
     window_height_ = rend.height();
+    update_screen_offset(window_width_, window_height_);
     draw(rend, sprites, mouse_x_, mouse_y_);
 }
 
-void character_select_screen::draw(renderer& rend, sprite_manager& sprites, int32_t mouse_x, int32_t mouse_y) {
+void character_select_screen::draw(renderer& rend, sprite_manager& sprites, [[maybe_unused]] int32_t mouse_x, [[maybe_unused]] int32_t mouse_y) {
+    // Adjusted mouse for hover detection in 640x480 design space
+    auto [adj_mx, adj_my] = get_adjusted_mouse();
+
     // Draw background (GameDialog sprite 8, frame 0) - NO color key for full-screen backgrounds
     draw_sprite_no_color_key(rend, sprites, charselect_sprites::select_char, 0, 0, 0);
 
@@ -218,9 +225,9 @@ void character_select_screen::draw(renderer& rend, sprite_manager& sprites, int3
         if (characters_[i].has_character) {
             // Draw character sprite preview
             if (char_renderer_) {
-                // Character position in slot (centered)
-                int32_t char_x = 160 + i * 109;  // Center of each slot
-                int32_t char_y = 130;            // Vertical position for character feet
+                // Character position in slot (centered), offset for screen centering
+                int32_t char_x = 160 + i * 109 + screen_offset_x_;
+                int32_t char_y = 130 + screen_offset_y_;
 
                 character_appearance appearance;
                 appearance.gender = characters_[i].gender;
@@ -242,8 +249,8 @@ void character_select_screen::draw(renderer& rend, sprite_manager& sprites, int3
             }
 
             // Draw character info text
-            int32_t text_x = 112 + i * 109;
-            int32_t text_y = 179 - 9 + 10;  // sY = 10
+            int32_t text_x = 112 + i * 109 + screen_offset_x_;
+            int32_t text_y = 179 - 9 + 10 + screen_offset_y_;  // sY = 10
 
             // Character name
             rend.draw_text(characters_[i].name, text_x, text_y, sf::Color(200, 200, 200));
@@ -265,23 +272,23 @@ void character_select_screen::draw(renderer& rend, sprite_manager& sprites, int3
     draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 54);  // Change Password
     draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 55);  // Log Out
 
-    // Draw button highlights on hover
-    if (mouse_x > 360 && mouse_y >= 283 && mouse_x < 545 && mouse_y <= 315) {
+    // Draw button highlights on hover (use adjusted mouse for design space)
+    if (adj_mx > 360 && adj_my >= 283 && adj_mx < 545 && adj_my <= 315) {
         draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 56);  // Enter Game highlight
-    } else if (mouse_x > 360 && mouse_y >= 316 && mouse_x < 545 && mouse_y <= 345) {
+    } else if (adj_mx > 360 && adj_my >= 316 && adj_mx < 545 && adj_my <= 345) {
         draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 57);  // New Character highlight
-    } else if (mouse_x > 360 && mouse_y >= 346 && mouse_x < 545 && mouse_y <= 375) {
+    } else if (adj_mx > 360 && adj_my >= 346 && adj_mx < 545 && adj_my <= 375) {
         draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 58);  // Delete Character highlight
-    } else if (mouse_x > 360 && mouse_y >= 376 && mouse_x < 545 && mouse_y <= 405) {
+    } else if (adj_mx > 360 && adj_my >= 376 && adj_mx < 545 && adj_my <= 405) {
         draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 59);  // Change Password highlight
-    } else if (mouse_x > 360 && mouse_y >= 406 && mouse_x < 545 && mouse_y <= 435) {
+    } else if (adj_mx > 360 && adj_my >= 406 && adj_mx < 545 && adj_my <= 435) {
         draw_sprite(rend, sprites, charselect_sprites::button, 0, 0, 60);  // Log Out highlight
     }
 
     // Draw help text for empty slots
     if (total_characters_ == 0) {
-        rend.draw_text("No characters found.", 150, 290, sf::Color(200, 200, 200));
-        rend.draw_text("Click 'New Character' to create one.", 120, 310, sf::Color(180, 180, 180));
+        rend.draw_text("No characters found.", 150 + screen_offset_x_, 290 + screen_offset_y_, sf::Color(200, 200, 200));
+        rend.draw_text("Click 'New Character' to create one.", 120 + screen_offset_x_, 310 + screen_offset_y_, sf::Color(180, 180, 180));
     }
 
     // Settings button (bottom-right corner)

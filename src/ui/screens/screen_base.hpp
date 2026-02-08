@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <utility>
 
 namespace hb {
 
@@ -85,6 +86,18 @@ protected:
     // Mouse position (stored during update for render)
     int32_t mouse_x_ = 0;
     int32_t mouse_y_ = 0;
+
+    // Screen centering (for 640x480 design resolution)
+    static constexpr int32_t design_width_ = 640;
+    static constexpr int32_t design_height_ = 480;
+    int32_t screen_offset_x_ = 0;
+    int32_t screen_offset_y_ = 0;
+
+    // Calculate centering offset based on current window size
+    void update_screen_offset(uint32_t window_width, uint32_t window_height);
+
+    // Get adjusted mouse coordinates (subtracts offset for hit testing)
+    std::pair<int32_t, int32_t> get_adjusted_mouse() const;
 
     // Sound callback for button clicks
     sound_callback on_button_sound_;

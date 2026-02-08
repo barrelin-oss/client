@@ -133,6 +133,9 @@ bool character_create_screen::update(float delta_time, const input& inp) {
     mouse_y_ = inp.mouse_y();
     bool mouse_pressed = inp.is_mouse_pressed(sf::Mouse::Button::Left);
 
+    // Get adjusted mouse coordinates for hit testing within 640x480 design space
+    auto [adj_x, adj_y] = get_adjusted_mouse();
+
     // Handle arrow key navigation
     if (inp.is_key_pressed(sf::Keyboard::Key::Up)) {
         current_focus_--;
@@ -166,9 +169,9 @@ bool character_create_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Check mouse clicks
+    // Check mouse clicks (use adjusted coords for 640x480 design space)
     mouse_result result;
-    int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
+    int32_t button_num = mouse_interface_.get_status(adj_x, adj_y, mouse_pressed, result);
 
     if (result == mouse_result::click) {
         play_button_sound();
@@ -300,6 +303,7 @@ bool character_create_screen::update(float delta_time, const input& inp) {
 }
 
 void character_create_screen::render(renderer& rend, sprite_manager& sprites) {
+    update_screen_offset(rend.width(), rend.height());
     draw(rend, sprites);
 }
 
@@ -395,6 +399,10 @@ bool character_create_screen::is_valid_character() const {
 }
 
 void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
+    // Shorthand for screen centering offset
+    int32_t ox = screen_offset_x_;
+    int32_t oy = screen_offset_y_;
+
     // Draw background (frame 0) - NO color key for full-screen background
     draw_sprite_no_color_key(rend, sprites, charcreate_sprites::new_char, 0, 0, 0);
 
@@ -407,82 +415,82 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
 
     // === Section 1: Character Name ===
     // "Enter a character name." - centered header
-    rend.draw_text("Enter a character name.", 100, 90, label_color);
+    rend.draw_text("Enter a character name.", 100 + ox, 90 + oy, label_color);
     // "Character Name" label
-    rend.draw_text("Character Name", 57, 110, label_color);
+    rend.draw_text("Character Name", 57 + ox, 110 + oy, label_color);
     // Name input field
     if (current_focus_ != 1) {
-        rend.draw_text(char_name_, 197, 112, value_color);
+        rend.draw_text(char_name_, 197 + ox, 112 + oy, value_color);
     } else {
         std::string display_name = char_name_;
         if (cursor_visible_) display_name += "_";
-        rend.draw_text(display_name, 197, 112, sf::Color::White);
+        rend.draw_text(display_name, 197 + ox, 112 + oy, sf::Color::White);
     }
 
     // === Section 2: Appearance ===
     // "Select character's gender." - section header
-    rend.draw_text("Select character's appearance.", 80, 140, label_color);
+    rend.draw_text("Select character's appearance.", 80 + ox, 140 + oy, label_color);
 
     // Appearance labels (left column)
-    rend.draw_text("Gender", 100, 160, label_color);
-    rend.draw_text("Skin Color", 100, 175, label_color);
-    rend.draw_text("Hair Style", 100, 190, label_color);
-    rend.draw_text("Hair Color", 100, 205, label_color);
-    rend.draw_text("Underwear Color", 100, 220, label_color);
+    rend.draw_text("Gender", 100 + ox, 160 + oy, label_color);
+    rend.draw_text("Skin Color", 100 + ox, 175 + oy, label_color);
+    rend.draw_text("Hair Style", 100 + ox, 190 + oy, label_color);
+    rend.draw_text("Hair Color", 100 + ox, 205 + oy, label_color);
+    rend.draw_text("Underwear Color", 100 + ox, 220 + oy, label_color);
 
     // Appearance values (right side, between arrows)
     const char* gender_str = (gender_ == 1) ? "Male" : "Female";
-    rend.draw_text(gender_str, 200, 160, value_color);
-    rend.draw_text(std::to_string(skin_color_), 200, 175, value_color);
-    rend.draw_text(std::to_string(hair_style_), 200, 190, value_color);
-    rend.draw_text(std::to_string(hair_color_), 200, 205, value_color);
-    rend.draw_text(std::to_string(underwear_color_), 200, 220, value_color);
+    rend.draw_text(gender_str, 200 + ox, 160 + oy, value_color);
+    rend.draw_text(std::to_string(skin_color_), 200 + ox, 175 + oy, value_color);
+    rend.draw_text(std::to_string(hair_style_), 200 + ox, 190 + oy, value_color);
+    rend.draw_text(std::to_string(hair_color_), 200 + ox, 205 + oy, value_color);
+    rend.draw_text(std::to_string(underwear_color_), 200 + ox, 220 + oy, value_color);
 
     // === Section 3: Stats ===
     // "Select character's stats." - section header
-    rend.draw_text("Allocate stat points.", 100, 245, label_color);
+    rend.draw_text("Allocate stat points.", 100 + ox, 245 + oy, label_color);
 
     // Remaining points
     std::string points_str = "Stat points left: " + std::to_string(remaining_points()) + " points";
-    rend.draw_text(points_str, 100, 260, sf::Color(15, 10, 10));
+    rend.draw_text(points_str, 100 + ox, 260 + oy, sf::Color(15, 10, 10));
 
     // Stat labels (left column)
-    rend.draw_text("Strength", 100, 275, label_color);
-    rend.draw_text("Vitality", 100, 292, label_color);
-    rend.draw_text("Dexterity", 100, 309, label_color);
-    rend.draw_text("Intelligence", 100, 326, label_color);
-    rend.draw_text("Magic", 100, 343, label_color);
-    rend.draw_text("Charisma", 100, 360, label_color);
+    rend.draw_text("Strength", 100 + ox, 275 + oy, label_color);
+    rend.draw_text("Vitality", 100 + ox, 292 + oy, label_color);
+    rend.draw_text("Dexterity", 100 + ox, 309 + oy, label_color);
+    rend.draw_text("Intelligence", 100 + ox, 326 + oy, label_color);
+    rend.draw_text("Magic", 100 + ox, 343 + oy, label_color);
+    rend.draw_text("Charisma", 100 + ox, 360 + oy, label_color);
 
     // Stat values (between +/- buttons)
-    rend.draw_text(std::to_string(str_), 204, 277, value_color);
-    rend.draw_text(std::to_string(vit_), 204, 293, value_color);
-    rend.draw_text(std::to_string(dex_), 204, 309, value_color);
-    rend.draw_text(std::to_string(int_), 204, 325, value_color);
-    rend.draw_text(std::to_string(mag_), 204, 341, value_color);
-    rend.draw_text(std::to_string(chr_), 204, 357, value_color);
+    rend.draw_text(std::to_string(str_), 204 + ox, 277 + oy, value_color);
+    rend.draw_text(std::to_string(vit_), 204 + ox, 293 + oy, value_color);
+    rend.draw_text(std::to_string(dex_), 204 + ox, 309 + oy, value_color);
+    rend.draw_text(std::to_string(int_), 204 + ox, 325 + oy, value_color);
+    rend.draw_text(std::to_string(mag_), 204 + ox, 341 + oy, value_color);
+    rend.draw_text(std::to_string(chr_), 204 + ox, 357 + oy, value_color);
 
     // Stat range note
-    rend.draw_text("You can have each value between 10~14", 64, 380, label_color);
+    rend.draw_text("You can have each value between 10~14", 64 + ox, 380 + oy, label_color);
 
     // === Right side: Calculated HP/MP/SP ===
-    rend.draw_text("Hit Point", 445, 192, label_color);
-    rend.draw_text("Mana Point", 445, 208, label_color);
-    rend.draw_text("Stamina Point", 445, 224, label_color);
+    rend.draw_text("Hit Point", 445 + ox, 192 + oy, label_color);
+    rend.draw_text("Mana Point", 445 + ox, 208 + oy, label_color);
+    rend.draw_text("Stamina Point", 445 + ox, 224 + oy, label_color);
 
     // Calculate and display HP/MP/SP
     int32_t hp = vit_ * 3 + 2 + str_ / 2;
     int32_t mp = mag_ * 2 + 2 + int_ / 2;
     int32_t sp = str_ * 2 + 2;
-    rend.draw_text(std::to_string(hp), 550, 192, value_color);
-    rend.draw_text(std::to_string(mp), 550, 208, value_color);
-    rend.draw_text(std::to_string(sp), 550, 224, value_color);
+    rend.draw_text(std::to_string(hp), 550 + ox, 192 + oy, value_color);
+    rend.draw_text(std::to_string(mp), 550 + ox, 208 + oy, value_color);
+    rend.draw_text(std::to_string(sp), 550 + ox, 224 + oy, value_color);
 
     // === Character Preview ===
     if (char_renderer_) {
-        // Draw character preview in the right side panel
-        int32_t char_x = 500;  // Center of preview area
-        int32_t char_y = 130;  // Vertical position
+        // Draw character preview in the right side panel, offset for screen centering
+        int32_t char_x = 500 + ox;
+        int32_t char_y = 130 + oy;
 
         character_appearance appearance;
         appearance.gender = gender_;

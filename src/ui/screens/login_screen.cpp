@@ -65,6 +65,9 @@ bool login_screen::update(float delta_time, const input& inp) {
     mouse_y_ = inp.mouse_y();
     bool mouse_pressed = inp.is_mouse_pressed(sf::Mouse::Button::Left);
 
+    // Get adjusted mouse coordinates for hit testing within 640x480 design space
+    auto [adj_x, adj_y] = get_adjusted_mouse();
+
     // Handle arrow key navigation
     if (inp.is_key_pressed(sf::Keyboard::Key::Up)) {
         current_focus_--;
@@ -137,9 +140,9 @@ bool login_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Check mouse clicks
+    // Check mouse clicks (use adjusted coords for 640x480 design space)
     mouse_result result;
-    int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
+    int32_t button_num = mouse_interface_.get_status(adj_x, adj_y, mouse_pressed, result);
     if (result == mouse_result::click) {
         switch (button_num) {
             case 1:  // Account name field
@@ -161,9 +164,9 @@ bool login_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Update focus based on mouse hover for buttons
-    if (mouse_x_ >= 80 && mouse_x_ <= 163 && mouse_y_ >= 280 && mouse_y_ <= 302) current_focus_ = 3;
-    if (mouse_x_ >= 258 && mouse_x_ <= 327 && mouse_y_ >= 280 && mouse_y_ <= 302) current_focus_ = 4;
+    // Update focus based on mouse hover for buttons (use adjusted coords)
+    if (adj_x >= 80 && adj_x <= 163 && adj_y >= 280 && adj_y <= 302) current_focus_ = 3;
+    if (adj_x >= 258 && adj_x <= 327 && adj_y >= 280 && adj_y <= 302) current_focus_ = 4;
 
     return true;
 }
@@ -171,6 +174,7 @@ bool login_screen::update(float delta_time, const input& inp) {
 void login_screen::render(renderer& rend, sprite_manager& sprites) {
     window_width_ = rend.width();
     window_height_ = rend.height();
+    update_screen_offset(window_width_, window_height_);
     draw(rend, sprites);
 }
 
@@ -253,8 +257,8 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites) {
     }
 
     // Draw account name text inside its click area (offset +5, +4 from box position)
-    int32_t account_text_x = account_box_x_ + 5;
-    int32_t account_text_y = account_box_y_ + 4;
+    int32_t account_text_x = account_box_x_ + 5 + screen_offset_x_;
+    int32_t account_text_y = account_box_y_ + 4 + screen_offset_y_;
     if (current_focus_ != 1) {
         rend.draw_text(account_name_, account_text_x, account_text_y, sf::Color::Black);
     } else {
@@ -267,8 +271,8 @@ void login_screen::draw(renderer& rend, sprite_manager& sprites) {
     }
 
     // Draw password text (masked with asterisks) inside its click area
-    int32_t password_text_x = password_box_x_ + 5;
-    int32_t password_text_y = password_box_y_ + 4;
+    int32_t password_text_x = password_box_x_ + 5 + screen_offset_x_;
+    int32_t password_text_y = password_box_y_ + 4 + screen_offset_y_;
     std::string masked_password(password_.size(), '*');
     if (current_focus_ != 2) {
         rend.draw_text(masked_password, password_text_x, password_text_y, sf::Color::Black);

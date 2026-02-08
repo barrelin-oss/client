@@ -61,6 +61,9 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
     mouse_y_ = inp.mouse_y();
     bool mouse_pressed = inp.is_mouse_pressed(sf::Mouse::Button::Left);
 
+    // Get adjusted mouse coordinates for hit testing within 640x480 design space
+    auto [adj_x, adj_y] = get_adjusted_mouse();
+
     // Handle arrow key navigation
     if (inp.is_key_pressed(sf::Keyboard::Key::Up)) {
         current_focus_--;
@@ -119,9 +122,9 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Check mouse clicks
+    // Check mouse clicks (use adjusted coords for 640x480 design space)
     mouse_result result;
-    int32_t button_num = mouse_interface_.get_status(mouse_x_, mouse_y_, mouse_pressed, result);
+    int32_t button_num = mouse_interface_.get_status(adj_x, adj_y, mouse_pressed, result);
     if (result == mouse_result::click) {
         play_button_sound();
         switch (button_num) {
@@ -140,10 +143,10 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
         }
     }
 
-    // Update focus based on mouse hover position
-    if (mouse_x_ >= btn1_x_ && mouse_x_ <= btn1_x_ + btn_width_ && mouse_y_ >= btn1_y_ && mouse_y_ <= btn1_y_ + btn_height_) current_focus_ = 1;
-    if (mouse_x_ >= btn2_x_ && mouse_x_ <= btn2_x_ + btn_width_ && mouse_y_ >= btn2_y_ && mouse_y_ <= btn2_y_ + btn_height_) current_focus_ = 2;
-    if (mouse_x_ >= btn3_x_ && mouse_x_ <= btn3_x_ + btn_width_ && mouse_y_ >= btn3_y_ && mouse_y_ <= btn3_y_ + btn_height_) current_focus_ = 3;
+    // Update focus based on mouse hover position (use adjusted coords)
+    if (adj_x >= btn1_x_ && adj_x <= btn1_x_ + btn_width_ && adj_y >= btn1_y_ && adj_y <= btn1_y_ + btn_height_) current_focus_ = 1;
+    if (adj_x >= btn2_x_ && adj_x <= btn2_x_ + btn_width_ && adj_y >= btn2_y_ && adj_y <= btn2_y_ + btn_height_) current_focus_ = 2;
+    if (adj_x >= btn3_x_ && adj_x <= btn3_x_ + btn_width_ && adj_y >= btn3_y_ && adj_y <= btn3_y_ + btn_height_) current_focus_ = 3;
 
     return true;
 }
@@ -151,6 +154,7 @@ bool main_menu_screen::update(float delta_time, const input& inp) {
 void main_menu_screen::render(renderer& rend, sprite_manager& sprites) {
     window_width_ = rend.width();
     window_height_ = rend.height();
+    update_screen_offset(window_width_, window_height_);
     draw(rend, sprites, mouse_x_, mouse_y_);
 }
 

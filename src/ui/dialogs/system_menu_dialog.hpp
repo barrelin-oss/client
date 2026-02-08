@@ -48,9 +48,11 @@ public:
     settings_dialog();
     ~settings_dialog() override = default;
 
+    void open() override;
     void update(float delta_time, const input& inp) override;
     void render(renderer& rend) override;
     bool handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) override;
+    bool handle_key_press(sf::Keyboard::Key key) override;
 
     // === Setters for current state ===
 

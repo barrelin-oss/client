@@ -85,7 +85,7 @@ public:
 
     dialog_type type() const { return type_; }
 
-    void open();
+    virtual void open();
     void close();
     bool is_open() const { return visible(); }
 

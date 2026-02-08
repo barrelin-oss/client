@@ -295,6 +295,40 @@ void settings_dialog::set_display_mode(bool fullscreen, bool borderless)
 }
 
 // =============================================================================
+// Open - always center on screen
+// =============================================================================
+
+void settings_dialog::open()
+{
+    dialog::open();
+
+    // Always re-center on the current screen dimensions
+    const auto& video = config::instance().video();
+    auto sw = static_cast<int32_t>(video.screen_width);
+    auto sh = static_cast<int32_t>(video.screen_height);
+    bounds_.x = (sw - dialog_width) / 2;
+    bounds_.y = (sh - dialog_height) / 2;
+}
+
+// =============================================================================
+// Key handling
+// =============================================================================
+
+bool settings_dialog::handle_key_press(sf::Keyboard::Key key)
+{
+    if (!visible_) return false;
+
+    if (key == sf::Keyboard::Key::Escape)
+    {
+        close();
+        if (on_close_cb_) on_close_cb_();
+        return true;
+    }
+
+    return false;
+}
+
+// =============================================================================
 // Update
 // =============================================================================
 

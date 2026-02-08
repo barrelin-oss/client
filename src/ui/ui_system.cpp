@@ -152,6 +152,17 @@ void ui_system::update(float delta_time, const input& inp) {
         }
     }
 
+    // Escape not consumed by any dialog — toggle options (playing state only)
+    if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+    {
+        auto* icon_panel = get_dialog(dialog_type::icon_panel);
+        if (icon_panel && icon_panel->is_open())
+        {
+            toggle_dialog(dialog_type::options);
+            return;
+        }
+    }
+
     // Route text input to legacy dialogs (front to back)
     auto text = inp.text_input();
     if (!text.empty()) {

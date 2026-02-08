@@ -36,6 +36,9 @@ public:
     // Run mode
     bool is_run_mode_enabled() const { return run_mode_enabled_; }
 
+    // Suppress input until all mouse buttons are released
+    void suppress_until_release() { suppress_until_release_ = true; }
+
     // Spell targeting mode
     bool is_spell_targeting() const { return spell_targeting_active_; }
 
@@ -75,6 +78,9 @@ private:
 
     // Run mode toggle
     bool run_mode_enabled_ = false;
+
+    // Suppress input until mouse is released (prevents enter-game click from walking)
+    bool suppress_until_release_ = false;
 
     // Camera drag lock
     bool camera_drag_locked_ = false;

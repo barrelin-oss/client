@@ -24,6 +24,7 @@ void input_handler::clear()
     combat_mode_ = false;
     safe_attack_mode_ = false;
     run_mode_enabled_ = false;
+    suppress_until_release_ = false;
     camera_drag_locked_ = false;
     spell_targeting_active_ = false;
 }
@@ -52,6 +53,16 @@ void input_handler::toggle_combat_mode()
 
 void input_handler::handle_input(const input& inp)
 {
+    if (suppress_until_release_)
+    {
+        if (!inp.is_mouse_down(sf::Mouse::Button::Left) &&
+            !inp.is_mouse_down(sf::Mouse::Button::Right))
+        {
+            suppress_until_release_ = false;
+        }
+        return;
+    }
+
     handle_playing_input(inp);
 }
 
@@ -840,7 +851,6 @@ void input_handler::handle_hotkey_input(const input& inp)
     if (inp.is_key_pressed(sf::Keyboard::Key::M)) ui.toggle_dialog(dialog_type::spellbook);
     if (inp.is_key_pressed(sf::Keyboard::Key::P)) ui.toggle_dialog(dialog_type::party);
     if (inp.is_key_pressed(sf::Keyboard::Key::G)) ui.toggle_dialog(dialog_type::guild);
-    if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) ui.toggle_dialog(dialog_type::options);
 
     // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab))

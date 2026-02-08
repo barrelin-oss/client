@@ -676,6 +676,7 @@ void game_state_manager::enter_state(game_state state) {
         case game_state::playing:
             screens_.change_screen(screen_type::none);
             ui_.close_all_dialogs();
+            input_handler_.suppress_until_release();
             transition_.set_show_label(false);
             transition_.randomize_type();
             transition_.start_reveal(renderer_->width(), renderer_->height());

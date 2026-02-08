@@ -410,6 +410,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
                 spdlog::warn("World initialization failed - terrain rendering may not work");
             const auto& video = config::instance().video();
             world_.set_screen_size(video.screen_width, video.screen_height);
+            weather_system_.set_screen_size(video.screen_width, video.screen_height);
             spdlog::info("Tile sprite registry: {} mappings", tile_registry_.registered_count());
         }
         else
@@ -445,13 +446,17 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
                 }
             },
             .on_weather_changed = [this](weather_type w) {
+                weather_system_.set_weather(w);
                 int weather_int = static_cast<int>(w);
+                // Snow triggers christmas BGM
                 if (weather_int >= 4 && weather_int <= 6)
                 {
                     sounds_.start_bgm(world_.current_map_name(), weather_int);
                 }
             },
-            .on_time_changed = nullptr
+            .on_time_changed = [this](time_of_day t) {
+                weather_system_.set_time(t);
+            }
         });
     }});
 
@@ -729,8 +734,10 @@ void game_state_manager::clear_game_data() {
     input_handler_.clear();
     ws_handler_.clear();
 
-    // Clear visual effects, status log, and floating text
+    // Clear visual effects, weather, status log, and floating text
     effects_.clear();
+    weather_system_.set_weather(weather_type::clear);
+    weather_system_.set_time(time_of_day::noon);
     status_log_.clear();
     floating_text_.clear();
     quests_.clear();
@@ -829,6 +836,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update world
     world_.update(delta_time);
+    weather_system_.update(delta_time);
 
     // Update entities
     entities_.update(delta_time, world_, input_handler_.is_combat_mode());
@@ -919,11 +927,14 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
         auto weather_to_str = [](weather_type w) -> const char* {
             switch (w) {
-                case weather_type::clear: return "Clear";
-                case weather_type::rain:  return "Rain";
-                case weather_type::snow:  return "Snow";
-                case weather_type::storm: return "Storm";
-                default:                  return "Unknown";
+                case weather_type::clear:       return "Clear";
+                case weather_type::light_rain:  return "Light Rain";
+                case weather_type::medium_rain: return "Rain";
+                case weather_type::heavy_rain:  return "Heavy Rain";
+                case weather_type::light_snow:  return "Light Snow";
+                case weather_type::medium_snow: return "Snow";
+                case weather_type::heavy_snow:  return "Heavy Snow";
+                default:                        return "Unknown";
             }
         };
         auto time_to_str = [](time_of_day t) -> const char* {
@@ -1102,6 +1113,12 @@ void game_state_manager::render_playing(renderer& rend) {
 
     effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);
+
+    // Weather particles render in screen space (not affected by zoom)
+    weather_system_.render_particles(rend);
+
+    // Day/night tint overlay
+    weather_system_.render_overlay(rend);
 
     floating_text_.render(rend, cam_x, cam_y);
 
@@ -1520,6 +1537,7 @@ bool game_state_manager::change_resolution(uint32_t width, uint32_t height, bool
     video.borderless = borderless;
 
     world_.set_screen_size(renderer_->scene_width(), renderer_->scene_height());
+    weather_system_.set_screen_size(renderer_->scene_width(), renderer_->scene_height());
 
     if (state_ == game_state::playing) {
         send_view_range();

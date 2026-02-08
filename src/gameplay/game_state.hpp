@@ -27,6 +27,7 @@
 #include "audio/sound_manager.hpp"
 #include "gameplay/floating_text.hpp"
 #include "gameplay/effect_system.hpp"
+#include "world/weather_system.hpp"
 #include "graphics/screen_transition.hpp"
 #include "ui/status_log.hpp"
 #include <algorithm>
@@ -354,6 +355,9 @@ private:
 
     // Visual effects (spell explosions, projectiles, particles)
     effect_system effects_;
+
+    // Weather particles and day/night overlay
+    weather_system weather_system_;
 
     // Floating text for damage numbers, heals, etc.
     floating_text_manager floating_text_;

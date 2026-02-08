@@ -39,6 +39,7 @@ add_executable(helbreath_client
     # World
     world/map.cpp
     world/map_renderer.cpp
+    world/weather_system.cpp
     world/world.cpp
 
     # Entity

@@ -64,11 +64,8 @@ void world::render(renderer& rend)
 
     map_renderer_.render(rend, current_map_, camera_x_, camera_y_);
 
-    // Render weather effects
-    if (weather_ != weather_type::clear && weather_intensity_ > 0.0f)
-    {
-        // TODO: Render rain/snow particles
-    }
+    // Weather particles and day/night overlay are rendered by weather_system
+    // in game_state_manager::render_playing() after the scene is drawn
 }
 
 void world::render_terrain(renderer& rend)
@@ -411,10 +408,15 @@ void world::update_lighting()
             break;
     }
 
-    // Weather affects lighting
-    if (weather_ == weather_type::rain || weather_ == weather_type::storm)
+    // Weather affects lighting (rain and heavy snow darken the scene)
+    if (weather_ == weather_type::light_rain || weather_ == weather_type::medium_rain
+        || weather_ == weather_type::heavy_rain)
     {
         light_level *= 0.8f;
+    }
+    else if (weather_ == weather_type::heavy_snow)
+    {
+        light_level *= 0.9f;
     }
 
     auto config = map_renderer_.config();

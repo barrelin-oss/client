@@ -12,13 +12,16 @@ namespace hb {
 class renderer;
 class tile_sprite_registry;
 
-// Weather types
+// Weather types (matches legacy server values 0-6)
 enum class weather_type : uint8_t
 {
     clear = 0,
-    rain = 1,
-    snow = 2,
-    storm = 3,
+    light_rain = 1,
+    medium_rain = 2,
+    heavy_rain = 3,
+    light_snow = 4,
+    medium_snow = 5,
+    heavy_snow = 6,
 };
 
 // Time of day

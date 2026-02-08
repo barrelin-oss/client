@@ -871,16 +871,28 @@ void notify_handler::handle_weather_change(packet_reader& reader) {
     auto weather = reader.read_u8();
     if (!weather || !game_) return;
 
-    spdlog::info("Weather changed to {}", *weather);
-    // Cast to weather_type enum
+    if (*weather <= static_cast<uint8_t>(weather_type::heavy_snow))
+    {
+        game_->game_world().set_weather(static_cast<weather_type>(*weather));
+    }
+    else
+    {
+        spdlog::warn("Invalid weather type: {}", *weather);
+    }
 }
 
 void notify_handler::handle_time_change(packet_reader& reader) {
     auto hour = reader.read_u8();
     if (!hour || !game_) return;
 
-    spdlog::debug("Time changed to hour {}", *hour);
-    // Cast to time_of_day enum
+    if (*hour <= static_cast<uint8_t>(time_of_day::midnight))
+    {
+        game_->game_world().set_time(static_cast<time_of_day>(*hour));
+    }
+    else
+    {
+        spdlog::warn("Invalid time of day: {}", *hour);
+    }
 }
 
 // ============================================================================

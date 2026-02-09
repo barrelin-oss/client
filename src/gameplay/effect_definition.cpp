@@ -5,7 +5,7 @@ namespace hb {
 
 // Static table of all effect definitions, derived from docs/legacy/29_effects_system.md.
 // Each entry maps directly from the legacy bAddNewEffect switch statement.
-static const std::array<effect_definition, 91> s_definitions = {{
+static const std::array<effect_definition, 93> s_definitions = {{
     // === Basic Effects (1-18) ===
 
     // Type 1: Sword Slash - melee weapon trail
@@ -20,6 +20,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 2: Arrow - flying arrow projectile
+    // Legacy: speed=70, impact=dust cloud (type 14)
     {
         .type_id = effect_type_id::arrow,
         .behavior = effect_behavior::projectile,
@@ -28,6 +29,8 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .max_frames = 0,
         .frame_time_ms = 10,
         .directional = true,
+        .projectile_speed = 70,
+        .impact_effect = effect_type_id::dust_cloud,
     },
 
     // Type 4: Gold Drop - coin drop animation
@@ -194,17 +197,23 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .light_radius = 6,
     },
 
-    // Type 16: Fire Strike Projectile
+    // Type 16: Energy Strike Projectile
+    // Legacy: m_pEffectSpr[0] frame 0, speed=40, trail=1x type 8, impact=type 18 + 5x type 9
     {
-        .type_id = effect_type_id::fire_strike_proj,
+        .type_id = effect_type_id::energy_strike_proj,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 11,
+        .sprite_pak_index = 0,
         .max_frames = 0,
         .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
+        .directional = false,
+        .projectile_speed = 40,
+        .impact_effect = effect_type_id::energy_strike_impact,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 1,
+        .trail_random_range = 10,
     },
 
     // Type 17: Ice Storm Fragment
@@ -220,17 +229,37 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 18: Ground Shake
+    // Legacy: m_pEffectSpr[18], PutTransSprite70_NoColorKey
     {
         .type_id = effect_type_id::ground_shake,
         .behavior = effect_behavior::static_anim,
-        .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 12,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 18,
         .max_frames = 10,
         .frame_time_ms = 50,
         .shake_intensity = 3,
     },
 
+    // Type 19: Energy Strike Impact (ground shake + burst physics)
+    // Legacy type 16 on-arrival: type 18 + 5x type 9 with ±20 random offset, sound 'E' 1
+    // Render: m_pEffectSpr[18], PutTransSprite70_NoColorKey
+    {
+        .type_id = effect_type_id::energy_strike_impact,
+        .behavior = effect_behavior::composite,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 18,
+        .max_frames = 10,
+        .frame_time_ms = 50,
+        .sound_id = 1,
+        .shake_intensity = 3,
+        .children = {{
+            {effect_type_id::burst_physics, 0, 5, 0, 0, true, 20},
+        }},
+        .child_count = 1,
+    },
+
     // === Projectiles (20-27) ===
+    // Legacy: speed=50, trail=2x type 8
 
     {
         .type_id = effect_type_id::magic_projectile_20,
@@ -242,6 +271,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_21,
@@ -253,6 +286,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_22,
@@ -264,6 +301,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_23,
@@ -275,6 +316,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_24,
@@ -286,6 +331,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_25,
@@ -297,6 +346,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_26,
@@ -308,6 +361,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
     {
         .type_id = effect_type_id::magic_projectile_27,
@@ -319,6 +376,10 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
 
     // === Spell Effects (30-77) ===
@@ -373,6 +434,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 34: Moving Ice Bolt (projectile)
+    // Legacy: speed=50
     {
         .type_id = effect_type_id::moving_ice_bolt,
         .behavior = effect_behavior::projectile,
@@ -382,6 +444,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .frame_time_ms = 10,
         .shake_intensity = 2,
         .directional = true,
+        .projectile_speed = 50,
     },
 
     // Type 40: Chill Wind
@@ -514,25 +577,27 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 52: Protection Ring
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::protection_ring,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 24,
         .max_frames = 15,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
         .emits_light = true,
         .light_radius = 15,
     },
 
     // Type 53: Hold Twist
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::hold_twist,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 25,
         .max_frames = 15,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
     },
 
     // Types 54-55: Star Twinkle
@@ -569,13 +634,14 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 57: Casting Effect
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::casting_effect,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 4,
         .max_frames = 16,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
         .sound_id = 5,
         .emits_light = true,
         .light_radius = 12,
@@ -647,6 +713,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 65: Moving Dark Cloud
+    // Legacy: speed=50
     {
         .type_id = effect_type_id::moving_dark_cloud,
         .behavior = effect_behavior::projectile,
@@ -655,6 +722,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .max_frames = 30,
         .frame_time_ms = 30,
         .directional = false,
+        .projectile_speed = 50,
     },
 
     // Type 66: Earthquake
@@ -716,6 +784,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 71: Moving Ice Bolt 2
+    // Legacy: speed=50
     {
         .type_id = effect_type_id::moving_ice_bolt_2,
         .behavior = effect_behavior::projectile,
@@ -724,6 +793,7 @@ static const std::array<effect_definition, 91> s_definitions = {{
         .max_frames = 0,
         .frame_time_ms = 10,
         .directional = true,
+        .projectile_speed = 50,
     },
 
     // Type 72: Blizzard Large Impact
@@ -792,85 +862,102 @@ static const std::array<effect_definition, 91> s_definitions = {{
     // === Magic Spell Effects (100-200+) ===
 
     // Type 100: Magic Missile (projectile)
+    // Legacy: speed=50, frame_time=20, trail=type 8 x1, impact=type 7
     {
         .type_id = effect_type_id::spell_magic_missile,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 0,
         .max_frames = 0,
-        .frame_time_ms = 10,
+        .frame_time_ms = 20,
         .sound_id = 1,
         .emits_light = true,
         .light_radius = 10,
         .directional = true,
+        .projectile_speed = 50,
+        .impact_effect = effect_type_id::magic_missile_exp,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 1,
+        .trail_random_range = 10,
     },
 
     // Type 101: Heal
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_heal,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 14,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
         .emits_light = true,
         .light_radius = 12,
     },
 
     // Type 102: Create Food
+    // Legacy: frame_time=120
     {
         .type_id = effect_type_id::spell_create_food,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 4,
         .max_frames = 13,
-        .frame_time_ms = 30,
+        .frame_time_ms = 120,
     },
 
     // Type 110: Energy Bolt (projectile)
+    // Legacy: speed=50, frame_time=20, trail=type 8 x2, impact=type 6
     {
         .type_id = effect_type_id::spell_energy_bolt,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 6,
         .max_frames = 0,
-        .frame_time_ms = 10,
+        .frame_time_ms = 20,
         .sound_id = 2,
         .emits_light = true,
         .light_radius = 15,
         .directional = true,
+        .projectile_speed = 50,
+        .impact_effect = effect_type_id::energy_bolt_burst,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 2,
+        .trail_random_range = 10,
     },
 
     // Type 111: Stamina Drain
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_stamina_drain,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 14,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
     },
 
     // Type 112: Recall 1
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_recall_1,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 12,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
         .emits_light = true,
         .light_radius = 15,
     },
 
     // Type 113: Defense Shield
+    // Legacy: frame_time=120
     {
         .type_id = effect_type_id::spell_defense_shield,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 24,
         .max_frames = 12,
-        .frame_time_ms = 30,
+        .frame_time_ms = 120,
         .emits_light = true,
         .light_radius = 12,
     },
@@ -892,38 +979,43 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 120: Fire Ball (directional projectile)
+    // Legacy: speed=50, frame_time=20, no trail, impact=type 5
     {
         .type_id = effect_type_id::spell_fire_ball,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 3,
         .max_frames = 0,
-        .frame_time_ms = 10,
+        .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
         .directional = true,
+        .projectile_speed = 50,
+        .impact_effect = effect_type_id::fire_explosion,
     },
 
     // Type 121: Great Heal
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_great_heal,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 14,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
         .emits_light = true,
         .light_radius = 15,
     },
 
     // Type 122: Recall 2
+    // Legacy: frame_time=120
     {
         .type_id = effect_type_id::spell_recall_2,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 13,
-        .frame_time_ms = 30,
+        .frame_time_ms = 120,
         .emits_light = true,
         .light_radius = 15,
     },
@@ -957,36 +1049,42 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 130: Fire Strike (projectile)
+    // Legacy: speed=50, frame_time=20, no trail, impact=type 5
+    // Legacy spawns 4 fire explosions with offsets; we spawn 1 and let composite handle children
     {
         .type_id = effect_type_id::spell_fire_strike,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 11,
         .max_frames = 0,
-        .frame_time_ms = 10,
+        .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
         .directional = true,
+        .projectile_speed = 50,
+        .impact_effect = effect_type_id::fire_explosion,
     },
 
     // Type 131: Summon
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_summon,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 4,
         .max_frames = 12,
-        .frame_time_ms = 40,
+        .frame_time_ms = 80,
     },
 
     // Type 132: Invisibility
+    // Legacy: frame_time=80
     {
         .type_id = effect_type_id::spell_invisibility,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::fade,
         .sprite_pak_index = 4,
         .max_frames = 12,
-        .frame_time_ms = 30,
+        .frame_time_ms = 80,
     },
 
     // Type 133: Protection Magic (triggers protection ring)
@@ -1018,28 +1116,35 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 136: Cure
+    // Legacy: frame_time=120
     {
         .type_id = effect_type_id::spell_cure,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 4,
         .max_frames = 13,
-        .frame_time_ms = 30,
+        .frame_time_ms = 120,
         .emits_light = true,
         .light_radius = 10,
     },
 
     // Type 137: Lightning Arrow (projectile)
+    // Legacy: speed=50, frame_time=20, trail=type 8 x3, impact=type 10
     {
         .type_id = effect_type_id::spell_lightning_arrow,
         .behavior = effect_behavior::projectile,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 6,
         .max_frames = 0,
-        .frame_time_ms = 10,
+        .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
         .directional = true,
+        .projectile_speed = 50,
+        .impact_effect = effect_type_id::lightning_arrow_exp,
+        .trail_effect = effect_type_id::burst_stationary,
+        .trail_count = 3,
+        .trail_random_range = 10,
     },
 
     // Type 138: Tremor (composite: spawns many dust clouds + camera shake)
@@ -1059,25 +1164,44 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 150: Berserk
+    // Legacy: frame_time=100
     {
         .type_id = effect_type_id::spell_berserk,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 4,
         .max_frames = 11,
-        .frame_time_ms = 30,
+        .frame_time_ms = 100,
         .emits_light = true,
         .light_radius = 15,
     },
 
+    // Type 160: Energy Strike (invisible spawner - fires projectiles from caster to target)
+    // Legacy: max_frames=7, frame_time=80, spawns type 16 each frame from src to dest±50
+    {
+        .type_id = effect_type_id::spell_energy_strike,
+        .behavior = effect_behavior::composite,
+        .render_mode = effect_render_mode::transparent,
+        .sprite_pak_index = 255,    // No visible sprite
+        .max_frames = 7,
+        .frame_time_ms = 80,
+        .sound_id = 1,
+        .uses_tile_coords = true,
+        .children = {{
+            {effect_type_id::energy_strike_proj, -1, 1, 0, 0, true, 50, true},
+        }},
+        .child_count = 1,
+    },
+
     // Type 180: Illusion
+    // Legacy: frame_time=100
     {
         .type_id = effect_type_id::spell_illusion,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::fade,
         .sprite_pak_index = 60,
         .max_frames = 11,
-        .frame_time_ms = 30,
+        .frame_time_ms = 100,
     },
 
     // Type 181: Special Meteor (lightning variant)
@@ -1094,13 +1218,14 @@ static const std::array<effect_definition, 91> s_definitions = {{
     },
 
     // Type 190: Mass Illusion
+    // Legacy: frame_time=100
     {
         .type_id = effect_type_id::spell_mass_illusion,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::fade,
         .sprite_pak_index = 61,
         .max_frames = 11,
-        .frame_time_ms = 30,
+        .frame_time_ms = 100,
     },
 }};
 

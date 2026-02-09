@@ -94,6 +94,13 @@ void input_handler::handle_playing_input(const input& inp)
     {
         spell_targeting_active_ = true;
 
+        // Auto-switch to attack mode when readying a spell
+        if (!combat_mode_)
+        {
+            combat_mode_ = true;
+            spdlog::debug("Combat mode auto-enabled for spell targeting");
+        }
+
         // Play casting animation on local player (sound triggered by entity_manager at frame 1)
         entity* player = game_->local_player();
         if (player)
@@ -177,7 +184,7 @@ void input_handler::handle_movement_input(const input& inp)
 
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
-        [[maybe_unused]] auto [dest_x, dest_y] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        [[maybe_unused]] auto [dest_x, dest_y] = world.screen_to_tile(mouse_x_, mouse_y_);
         auto& t = player->transform();
 
         bool clicked_on_self = entities.is_point_in_entity_sprite(
@@ -246,7 +253,7 @@ void input_handler::handle_movement_input(const input& inp)
 
     if (inp.is_mouse_down(sf::Mouse::Button::Left))
     {
-        auto [dest_x, dest_y] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        auto [dest_x, dest_y] = world.screen_to_tile(mouse_x_, mouse_y_);
 
         bool hovering_self = entities.is_point_in_entity_sprite(
             *player, sprites, world.camera_x(), world.camera_y(),
@@ -280,7 +287,7 @@ void input_handler::handle_movement_input(const input& inp)
     {
         auto& t = player->transform();
 
-        auto [click_x, click_y] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
+        auto [click_x, click_y] = world.screen_to_tile(mouse_x_, mouse_y_);
         int32_t dx = click_x - t.tile_x;
         int32_t dy = click_y - t.tile_y;
 
@@ -571,7 +578,7 @@ void input_handler::handle_spell_targeting(const input& inp)
     {
         // Check if hovering over an enemy entity for the arrow cursor variant
         entity* hover = entities.get_entity_at_screen_pos(
-            inp.mouse_x(), inp.mouse_y(),
+            mouse_x_, mouse_y_,
             world.camera_x(), world.camera_y());
         if (hover && hover->id() != entities.local_player_id() &&
             (hover->type() == entity_type::monster || hover->type() == entity_type::character))
@@ -626,12 +633,15 @@ void input_handler::handle_spell_targeting(const input& inp)
             }
 
             case spell_target::single:
+            case spell_target::ground:
+            case spell_target::area:
+            default:
             {
-                // Look for entity under cursor
+                // Target the clicked tile; if an entity is under cursor, use their tile position
                 entity* target = entities.get_entity_at_screen_pos(
-                    inp.mouse_x(), inp.mouse_y(),
+                    mouse_x_, mouse_y_,
                     world.camera_x(), world.camera_y());
-                if (target)
+                if (target && target->id() != entities.local_player_id())
                 {
                     target_id = target->id();
                     target_x = target->transform().tile_x;
@@ -639,38 +649,71 @@ void input_handler::handle_spell_targeting(const input& inp)
                 }
                 else
                 {
-                    // No entity under cursor for single-target spell
-                    spdlog::debug("No target under cursor for single-target spell");
-                    return;
+                    auto [tx, ty] = world.screen_to_tile(mouse_x_, mouse_y_);
+                    target_x = tx;
+                    target_y = ty;
                 }
-                break;
-            }
-
-            case spell_target::ground:
-            case spell_target::area:
-            {
-                auto [tx, ty] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
-                target_x = tx;
-                target_y = ty;
-                break;
-            }
-
-            default:
-            {
-                auto [tx, ty] = world.screen_to_tile(inp.mouse_x(), inp.mouse_y());
-                target_x = tx;
-                target_y = ty;
                 break;
             }
         }
 
         // Send cast request to server
         game_->ws_handler().request_magic(pending_id, target_x, target_y, target_id);
-        spdlog::debug("Spell cast request: spell={} target=({},{}) entity={}",
-                      pending_id, target_x, target_y, target_id);
+
+        // Trigger cooldown (the ready animation is already playing on the player)
+        magic.trigger_cooldown(pending_id);
+
+        // Spawn projectile and/or impact effects using world pixel coordinates
+        if (sp)
+        {
+            // Source: player's world position
+            float src_wx = static_cast<float>(player_t.x);
+            float src_wy = static_cast<float>(player_t.y);
+
+            // Destination: entity position or click world position
+            float dest_wx, dest_wy;
+            if (target_id != 0)
+            {
+                entity* target_ent = entities.find(target_id);
+                if (target_ent)
+                {
+                    dest_wx = static_cast<float>(target_ent->transform().x);
+                    dest_wy = static_cast<float>(target_ent->transform().y);
+                }
+                else
+                {
+                    auto [wx, wy] = world.screen_to_world(mouse_x_, mouse_y_);
+                    dest_wx = static_cast<float>(wx);
+                    dest_wy = static_cast<float>(wy);
+                }
+            }
+            else
+            {
+                auto [wx, wy] = world.screen_to_world(mouse_x_, mouse_y_);
+                dest_wx = static_cast<float>(wx);
+                dest_wy = static_cast<float>(wy);
+            }
+
+            if (sp->projectile_effect != 0)
+            {
+                game_->effects().add_effect_world(
+                    static_cast<effect_type_id>(sp->projectile_effect),
+                    src_wx, src_wy, dest_wx, dest_wy);
+            }
+            else if (sp->effect_sprite != 0)
+            {
+                game_->effects().add_effect_at_pixel(
+                    static_cast<effect_type_id>(sp->effect_sprite),
+                    dest_wx, dest_wy);
+            }
+        }
 
         magic.clear_pending_spell();
         spell_targeting_active_ = false;
+
+        // Suppress input until mouse is released to prevent the held click
+        // from triggering movement after the cast
+        suppress_until_release_ = true;
     }
 }
 
@@ -683,7 +726,7 @@ void input_handler::handle_combat_input(const input& inp)
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
         entity* target = entities.get_entity_at_screen_pos(
-            inp.mouse_x(), inp.mouse_y(),
+            mouse_x_, mouse_y_,
             world.camera_x(), world.camera_y());
 
         if (target && target->id() != entities.local_player_id() &&

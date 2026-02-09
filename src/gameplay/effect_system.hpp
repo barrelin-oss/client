@@ -35,6 +35,11 @@ public:
                     int32_t dest_x, int32_t dest_y,
                     int8_t start_frame = 0, int32_t value = 1);
 
+    // Projectile/composite in world pixel coordinates (bypasses tile conversion + height_offset)
+    void add_effect_world(effect_type_id type_id,
+                          float src_x, float src_y,
+                          float dest_x, float dest_y);
+
     // Convenience: single-position effect at tile coordinates
     void add_effect_at(effect_type_id type_id, int32_t tile_x, int32_t tile_y);
 

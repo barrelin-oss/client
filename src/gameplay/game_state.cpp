@@ -31,6 +31,32 @@ namespace hb {
 
 namespace {
 
+// Effect PAK loading table
+// Matches legacy Game.cpp MakeEffectSpr() calls (lines 4213-4227)
+// Each entry: {pak_name, global_start, sprite_count, local_start}
+// Global effect sprite array: m_pEffectSpr[0..86]
+struct effect_pak_entry
+{
+    const char* pak_name;
+    uint8_t global_start;   // First index in global effect sprite array
+    uint8_t sprite_count;   // Number of sprites to load from this PAK
+    uint8_t local_start;    // First sprite index within the PAK (usually 0)
+};
+
+static constexpr std::array effect_paks =
+{
+    effect_pak_entry{"effect",       0, 10, 0},   // effect.pak:     global 0-9
+    effect_pak_entry{"effect2",     10,  3, 0},   // effect2.pak:    global 10-12
+    effect_pak_entry{"effect3",     13,  6, 0},   // effect3.pak:    global 13-18
+    effect_pak_entry{"effect4",     19,  5, 0},   // effect4.pak:    global 19-23
+    effect_pak_entry{"effect5",     24,  7, 1},   // effect5.pak:    global 24-30 (local starts at 1)
+    effect_pak_entry{"CruEffect1",  31,  9, 0},   // CruEffect1.pak: global 31-39
+    effect_pak_entry{"effect6",     40,  5, 0},   // effect6.pak:    global 40-44
+    effect_pak_entry{"effect7",     45, 12, 0},   // effect7.pak:    global 45-56
+    effect_pak_entry{"effect8",     57,  9, 0},   // effect8.pak:    global 57-65
+    effect_pak_entry{"effect9",     66, 21, 0},   // effect9.pak:    global 66-86
+};
+
 // Monster/NPC PAK loading table
 // Matches legacy Game.cpp MakeSprite() calls: MakeSprite("slm", 1220 + 7*8*0, 40, TRUE)
 // Each entry: {pak_name, sprite_id_start, sprite_count}
@@ -213,6 +239,18 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     init_steps_.push_back({"Initializing game systems...", [this]() {
         combat_.initialize(&entities_, &magic_, &skills_, &sounds_, &inventory_);
     }});
+
+    // Each effect PAK is its own step for fine-grained progress
+    for (const auto& entry : effect_paks) {
+        init_steps_.push_back({"Loading effect sprites...", [this, entry]() {
+            std::string pak_path = std::string("sprites/") + entry.pak_name + ".pak";
+            if (!sprites_.load_pak(entry.pak_name, pak_path)) {
+                spdlog::debug("Optional effect PAK not found: {}", pak_path);
+                return;
+            }
+            sprites_.preload_pak_metadata(entry.pak_name);
+        }});
+    }
 
     init_steps_.push_back({"Initializing effects...", [this]() {
         effects_.initialize(sprites_, sounds_, world_);

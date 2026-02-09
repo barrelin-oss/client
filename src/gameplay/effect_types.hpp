@@ -24,9 +24,10 @@ enum class effect_type_id : uint16_t
     smoke_rising = 13,
     dust_cloud = 14,
     fire_trail = 15,
-    fire_strike_proj = 16,
+    energy_strike_proj = 16,
     ice_storm_fragment = 17,
     ground_shake = 18,
+    energy_strike_impact = 19,  // Composite: ground shake + burst physics on proj arrival
 
     // Projectiles (20-27)
     magic_projectile_20 = 20,
@@ -107,6 +108,7 @@ enum class effect_type_id : uint16_t
     spell_tremor = 138,
     spell_confuse_lang = 142,
     spell_great_def_shield = 144,
+    spell_energy_strike = 160,
     spell_berserk = 150,
     spell_mass_poison_1 = 152,
     spell_mass_poison_2 = 153,

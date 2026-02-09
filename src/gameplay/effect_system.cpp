@@ -18,37 +18,48 @@ bool effect_system::initialize(sprite_manager& sprites, sound_manager& sounds, w
     sounds_ = &sounds;
     world_ = &w;
 
-    // Try to load effect PAK files (graceful if missing)
-    struct pak_entry
+    // Effect PAKs are already loaded in game_state init sequence.
+    // Pre-resolve all effect sprites using the legacy global index mapping.
+    // Matches Game.cpp MakeEffectSpr() calls (lines 4213-4227).
+    struct pak_mapping
     {
-        int index;
-        const char* filename;
+        const char* pak_name;
+        uint8_t global_start;
+        uint8_t count;
+        uint8_t local_start;
     };
-    static constexpr pak_entry effect_paks[] = {
-        {7,  "sprites/Effect7.pak"},
-        {8,  "sprites/Effect8.pak"},
-        {11, "sprites/Effect11.pak"},
-        {12, "sprites/Effect12.pak"},
-        {13, "sprites/Effect13.pak"},
+    static constexpr pak_mapping mappings[] = {
+        {"effect",       0, 10, 0},
+        {"effect2",     10,  3, 0},
+        {"effect3",     13,  6, 0},
+        {"effect4",     19,  5, 0},
+        {"effect5",     24,  7, 1},   // local starts at 1
+        {"CruEffect1",  31,  9, 0},
+        {"effect6",     40,  5, 0},
+        {"effect7",     45, 12, 0},
+        {"effect8",     57,  9, 0},
+        {"effect9",     66, 21, 0},
     };
 
     int loaded = 0;
-    for (const auto& pak : effect_paks)
+    for (const auto& m : mappings)
     {
-        std::string pak_name = "Effect" + std::to_string(pak.index);
-        if (sprites_->load_pak(pak_name, pak.filename))
+        for (uint8_t i = 0; i < m.count; ++i)
         {
-            ++loaded;
-            spdlog::debug("Loaded effect PAK: {}", pak.filename);
-        }
-        else
-        {
-            spdlog::debug("Effect PAK not found (will skip): {}", pak.filename);
+            uint8_t global_idx = m.global_start + i;
+            if (global_idx >= max_effect_sprites) break;
+
+            auto* spr = sprites_->get_sprite(m.pak_name, m.local_start + i);
+            if (spr)
+            {
+                effect_sprites_[global_idx] = spr;
+                ++loaded;
+            }
         }
     }
 
     sprites_loaded_ = true;
-    spdlog::info("Effect system initialized ({} PAK files loaded)", loaded);
+    spdlog::info("Effect system initialized ({} effect sprites resolved)", loaded);
     return true;
 }
 
@@ -70,6 +81,13 @@ void effect_system::update(float delta_time)
         }
 
         eff.elapsed += delta_time;
+
+        // Safety timeout: no effect should live longer than 10 seconds
+        if (eff.elapsed > 10.0f)
+        {
+            eff.active = false;
+            continue;
+        }
 
         switch (eff.def->behavior)
         {
@@ -183,7 +201,7 @@ void effect_system::add_effect(effect_type_id type_id,
     const auto* def = get_effect_definition(type_id);
     if (!def)
     {
-        spdlog::debug("Unknown effect type: {}", static_cast<uint16_t>(type_id));
+        spdlog::warn("Unknown effect type: {}", static_cast<uint16_t>(type_id));
         return;
     }
 
@@ -201,14 +219,14 @@ void effect_system::add_effect(effect_type_id type_id,
 
     auto& eff = effects_[slot];
 
-    // Convert tile coords to world pixels if needed
+    // Convert tile coords to world pixels (tile center, matching entity positions)
     float fx_src, fy_src, fx_dest, fy_dest;
     if (def->uses_tile_coords)
     {
-        fx_src = static_cast<float>(src_x * tile_width);
-        fy_src = static_cast<float>(src_y * tile_height);
-        fx_dest = static_cast<float>(dest_x * tile_width);
-        fy_dest = static_cast<float>(dest_y * tile_height);
+        fx_src = static_cast<float>(src_x * tile_width + tile_width / 2);
+        fy_src = static_cast<float>(src_y * tile_height + tile_height / 2);
+        fx_dest = static_cast<float>(dest_x * tile_width + tile_width / 2);
+        fy_dest = static_cast<float>(dest_y * tile_height + tile_height / 2);
     }
     else
     {
@@ -224,6 +242,39 @@ void effect_system::add_effect(effect_type_id type_id,
     play_effect_sound(*def, eff.pos_x, eff.pos_y);
 
     // Camera shake
+    trigger_shake(*def);
+}
+
+void effect_system::add_effect_world(effect_type_id type_id,
+                                      float src_x, float src_y,
+                                      float dest_x, float dest_y)
+{
+    const auto* def = get_effect_definition(type_id);
+    if (!def)
+    {
+        spdlog::warn("Unknown effect type: {}", static_cast<uint16_t>(type_id));
+        return;
+    }
+
+    if (detail_level_ == 0 && def->detail_level == effect_detail::high_only)
+    {
+        return;
+    }
+
+    int32_t slot = find_free_slot();
+    if (slot < 0)
+    {
+        return;
+    }
+
+    auto& eff = effects_[slot];
+
+    // Pre-compensate for height_offset so init_effect lands at the exact world position.
+    // init_effect does: eff.y = y + height_offset, so we subtract it here to cancel out.
+    float h = static_cast<float>(def->height_offset);
+    init_effect(eff, *def, src_x, src_y - h, dest_x, dest_y - h, 0, 1);
+
+    play_effect_sound(*def, eff.pos_x, eff.pos_y);
     trigger_shake(*def);
 }
 
@@ -303,14 +354,15 @@ void effect_system::init_effect(effect& eff, const effect_definition& def,
     eff.max_frame = static_cast<int8_t>(def.max_frames);
     eff.value = value;
 
+    // Apply height offset to both endpoints (projectile flies head-to-head, not feet-to-feet)
+    float h = static_cast<float>(def.height_offset);
     eff.src_x = src_x;
-    eff.src_y = src_y;
+    eff.src_y = src_y + h;
     eff.dest_x = dest_x;
-    eff.dest_y = dest_y;
+    eff.dest_y = dest_y + h;
 
-    // Position starts at source (with height offset for tile-based effects)
-    eff.pos_x = src_x;
-    eff.pos_y = src_y + static_cast<float>(def.height_offset);
+    eff.pos_x = eff.src_x;
+    eff.pos_y = eff.src_y;
     eff.prev_x = eff.pos_x;
     eff.prev_y = eff.pos_y;
 
@@ -392,9 +444,25 @@ void effect_system::update_projectile(effect& eff, float delta_time)
         // Step along the Bresenham line
         if (!step_bresenham(eff))
         {
-            // Reached destination
+            // Reached destination - spawn impact effect
+            if (eff.def->impact_effect != effect_type_id::none)
+            {
+                add_effect_at_pixel(eff.def->impact_effect, eff.dest_x, eff.dest_y);
+            }
             eff.active = false;
             return;
+        }
+
+        // Spawn trail particles while traveling
+        if (eff.def->trail_effect != effect_type_id::none && eff.def->trail_count > 0)
+        {
+            int16_t range = eff.def->trail_random_range;
+            for (uint8_t t = 0; t < eff.def->trail_count; ++t)
+            {
+                float tx = eff.pos_x + static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                float ty = eff.pos_y + static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                add_effect_at_pixel(eff.def->trail_effect, tx, ty);
+            }
         }
 
         // For projectiles with max_frames > 0, advance frame
@@ -475,8 +543,8 @@ bool effect_system::step_bresenham(effect& eff)
         return false;
     }
 
-    // Take multiple steps per frame for faster projectiles
-    constexpr int steps_per_frame = 4;
+    // Take multiple steps per frame (matches legacy GetPoint step parameter)
+    int steps_per_frame = eff.def ? eff.def->projectile_speed : 4;
     for (int step = 0; step < steps_per_frame; ++step)
     {
         x = static_cast<int32_t>(eff.pos_x);
@@ -515,26 +583,59 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
             continue;
         }
 
-        if (child_spec.trigger_frame != trigger_frame)
+        // trigger_frame == -1 means "every frame"
+        if (child_spec.trigger_frame != -1 && child_spec.trigger_frame != trigger_frame)
         {
             continue;
         }
 
         for (int8_t c = 0; c < child_spec.count; ++c)
         {
-            float offset_x = static_cast<float>(child_spec.offset_x);
-            float offset_y = static_cast<float>(child_spec.offset_y);
-
-            if (child_spec.random_offset)
+            if (child_spec.as_projectile)
             {
-                offset_x += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
-                offset_y += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                // Spawn as projectile from parent's source to parent's dest (+ random offset)
+                float dest_x = parent.dest_x;
+                float dest_y = parent.dest_y;
+                if (child_spec.random_offset)
+                {
+                    int16_t range = child_spec.random_range;
+                    dest_x += static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                    dest_y += static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                }
+
+                // Look up the child effect definition
+                const auto* child_def = get_effect_definition(child_spec.type);
+                if (!child_def) continue;
+
+                int32_t slot = find_free_slot();
+                if (slot < 0) return;
+
+                auto& eff = effects_[slot];
+                // Parent's src/dest already have parent's height offset applied.
+                // Subtract child's height offset so init_effect doesn't double-apply it.
+                float child_h = static_cast<float>(child_def->height_offset);
+                init_effect(eff, *child_def,
+                            parent.src_x, parent.src_y - child_h,
+                            dest_x, dest_y - child_h, 0, 1);
+                play_effect_sound(*child_def, eff.pos_x, eff.pos_y);
+                trigger_shake(*child_def);
             }
+            else
+            {
+                float offset_x = static_cast<float>(child_spec.offset_x);
+                float offset_y = static_cast<float>(child_spec.offset_y);
 
-            float child_x = parent.pos_x + offset_x;
-            float child_y = parent.pos_y + offset_y;
+                if (child_spec.random_offset)
+                {
+                    offset_x += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                    offset_y += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                }
 
-            add_effect_at_pixel(child_spec.type, child_x, child_y);
+                float child_x = parent.pos_x + offset_x;
+                float child_y = parent.pos_y + offset_y;
+
+                add_effect_at_pixel(child_spec.type, child_x, child_y);
+            }
         }
     }
 }
@@ -569,33 +670,12 @@ void effect_system::trigger_shake(const effect_definition& def)
 
 const sprite* effect_system::resolve_sprite(const effect_definition& def)
 {
-    if (!sprites_)
-    {
-        return nullptr;
-    }
-
-    // Check cache first
     uint8_t idx = def.sprite_pak_index;
-    if (idx < max_effect_sprites && effect_sprites_[idx])
+    if (idx < max_effect_sprites)
     {
         return effect_sprites_[idx];
     }
-
-    // Try to load from the Effect PAK file
-    std::string pak_name = "Effect" + std::to_string(idx);
-    auto* spr = sprites_->get_sprite(pak_name, 0);
-
-    if (spr && idx < max_effect_sprites)
-    {
-        effect_sprites_[idx] = spr;
-    }
-
-    if (!spr)
-    {
-        spdlog::debug("No sprite for effect PAK index {} ({})", idx, pak_name);
-    }
-
-    return spr;
+    return nullptr;
 }
 
 } // namespace hb

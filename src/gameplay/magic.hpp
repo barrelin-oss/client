@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <optional>
 
 namespace hb {
 
@@ -218,9 +219,9 @@ public:
 
     // Pending spell (for quick cast from spellbook)
     void set_pending_spell(uint16_t spell_id) { pending_spell_ = spell_id; }
-    uint16_t pending_spell() const { return pending_spell_; }
-    void clear_pending_spell() { pending_spell_ = 0; }
-    bool has_pending_spell() const { return pending_spell_ != 0; }
+    uint16_t pending_spell() const { return pending_spell_.value_or(0); }
+    void clear_pending_spell() { pending_spell_.reset(); }
+    bool has_pending_spell() const { return pending_spell_.has_value(); }
 
     // Callbacks
     using effect_expired_callback = std::function<void(const spell_effect&)>;
@@ -246,7 +247,7 @@ private:
     std::vector<spell_effect> active_effects_;
     std::unordered_map<uint32_t, casting_info> casting_entities_;
     std::unordered_map<uint16_t, float> cooldowns_;
-    uint16_t pending_spell_ = 0;
+    std::optional<uint16_t> pending_spell_;
 
     entity_manager* entities_ = nullptr;
     combat_system* combat_ = nullptr;

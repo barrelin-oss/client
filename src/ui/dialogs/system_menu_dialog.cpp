@@ -525,7 +525,7 @@ void settings_dialog::render_tab_bar(renderer& rend)
                    bounds_.x + bounds_.width, tab_y + tab_bar_height - 1,
                    sf::Color(80, 80, 100));
 
-    int32_t visible_tabs = is_gm_ ? tab_count : (tab_count - 1);  // Hide debug tab for non-GMs
+    int32_t visible_tabs = tab_count;
     int32_t tab_width = bounds_.width / visible_tabs;
 
     for (int32_t i = 0; i < visible_tabs; ++i)
@@ -1050,7 +1050,7 @@ int32_t settings_dialog::get_hovered_tab(int32_t mouse_x, int32_t mouse_y) const
     if (mouse_y < tab_y || mouse_y >= tab_y + tab_bar_height) return -1;
     if (mouse_x < bounds_.x || mouse_x >= bounds_.x + bounds_.width) return -1;
 
-    int32_t visible_tabs = is_gm_ ? tab_count : (tab_count - 1);
+    int32_t visible_tabs = tab_count;
     int32_t tab_width = bounds_.width / visible_tabs;
 
     int32_t index = (mouse_x - bounds_.x) / tab_width;

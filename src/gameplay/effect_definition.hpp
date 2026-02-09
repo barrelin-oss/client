@@ -11,12 +11,13 @@ namespace hb {
 struct child_effect_spec
 {
     effect_type_id type = effect_type_id::none;
-    int8_t trigger_frame = 0;       // Frame at which to spawn (-1 = on completion)
+    int8_t trigger_frame = 0;       // Frame at which to spawn (-1 = every frame)
     int8_t count = 1;               // How many to spawn
     int16_t offset_x = 0;           // Pixel offset from parent
     int16_t offset_y = 0;
     bool random_offset = false;
     int16_t random_range = 0;
+    bool as_projectile = false;     // Spawn as projectile from parent src to parent dest
 };
 
 // Static definition for each effect type (replaces the giant bAddNewEffect switch)
@@ -44,6 +45,18 @@ struct effect_definition
     int16_t height_offset = -40;    // Default head-height offset in pixels
 
     bool directional = false;       // Use direction for sprite frame offset
+
+    // Projectile speed: pixels per Bresenham step (legacy GetPoint step param)
+    // Arrow=70, spell projectiles=50, fire strike proj=50
+    uint8_t projectile_speed = 4;
+
+    // Projectile arrival: what to spawn when reaching destination
+    effect_type_id impact_effect = effect_type_id::none;
+
+    // Projectile trail: particles spawned each frame while traveling
+    effect_type_id trail_effect = effect_type_id::none;
+    uint8_t trail_count = 0;            // How many trail particles per frame
+    int16_t trail_random_range = 10;    // Random offset range in pixels
 
     static constexpr size_t max_children = 8;
     std::array<child_effect_spec, max_children> children{};

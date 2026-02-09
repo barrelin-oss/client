@@ -126,10 +126,63 @@ void action_queue::process_pending()
             break;
 
         case queued_action_type::magic:
+        {
             game_->ws_handler().request_magic(pending_action_.spell_id,
                                               pending_action_.target_x, pending_action_.target_y,
                                               pending_action_.target_id);
+
+            // Play cast effects locally
+            entity* player = game_->local_player();
+            if (player)
+            {
+                player->set_action(object_action::magic);
+                game_->magic().trigger_cooldown(pending_action_.spell_id);
+
+                const spell* sp = game_->magic().get_spell(pending_action_.spell_id);
+                if (sp)
+                {
+                    const auto& pt = player->transform();
+                    float src_wx = static_cast<float>(pt.x);
+                    float src_wy = static_cast<float>(pt.y);
+
+                    // Target world position from entity or tile center
+                    float dest_wx, dest_wy;
+                    if (pending_action_.target_id != 0)
+                    {
+                        entity* target_ent = game_->entities().find(pending_action_.target_id);
+                        if (target_ent)
+                        {
+                            dest_wx = static_cast<float>(target_ent->transform().x);
+                            dest_wy = static_cast<float>(target_ent->transform().y);
+                        }
+                        else
+                        {
+                            dest_wx = static_cast<float>(pending_action_.target_x * 32 + 16);
+                            dest_wy = static_cast<float>(pending_action_.target_y * 32 + 16);
+                        }
+                    }
+                    else
+                    {
+                        dest_wx = static_cast<float>(pending_action_.target_x * 32 + 16);
+                        dest_wy = static_cast<float>(pending_action_.target_y * 32 + 16);
+                    }
+
+                    if (sp->projectile_effect != 0)
+                    {
+                        game_->effects().add_effect_world(
+                            static_cast<effect_type_id>(sp->projectile_effect),
+                            src_wx, src_wy, dest_wx, dest_wy);
+                    }
+                    else if (sp->effect_sprite != 0)
+                    {
+                        game_->effects().add_effect_at_pixel(
+                            static_cast<effect_type_id>(sp->effect_sprite),
+                            dest_wx, dest_wy);
+                    }
+                }
+            }
             break;
+        }
 
         case queued_action_type::face_direction:
         {

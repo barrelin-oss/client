@@ -323,8 +323,8 @@ spell_cast_result magic_system::execute_spell(uint16_t spell_id, uint32_t caster
             break;
     }
 
-    // Spawn visual effect at target position
-    if (s->effect_sprite != 0 && entities_)
+    // Spawn visual effect at target position (only if no projectile handles it)
+    if (s->projectile_effect == 0 && s->effect_sprite != 0 && entities_)
     {
         entity* target = entities_->get_entity(target_id);
         if (target)
@@ -378,8 +378,11 @@ spell_cast_result magic_system::execute_spell_at_location(uint16_t spell_id, [[m
         }
     }
 
-    // Create visual effect
-    create_effect(s->effect_sprite, x, y);
+    // Create visual effect (only if no projectile handles it)
+    if (s->projectile_effect == 0)
+    {
+        create_effect(s->effect_sprite, x, y);
+    }
 
     trigger_cooldown(spell_id);
     add_spell_experience(spell_id, 10);
@@ -950,7 +953,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area_no_spot, .element = magic_element::lightning,
          .int_req = 67, .mp_cost = 65, .base_damage = 59, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 6, .cast_time = 1.0f});
+         .projectile_effect = 160, .cast_time = 1.0f});
 
     add({.id = spell_id::mass_fire_strike, .name = "Mass Fire Strike",
          .description = "Fire rains from the sky",

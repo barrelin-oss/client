@@ -990,7 +990,7 @@ void entity_manager::cleanup_removed_entities() {
 
 void entity_manager::update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
     // Update animation
-    update_animation(e, delta_time);
+    update_animation(e, delta_time, local_player_combat_mode);
 
     // Update movement
     if (e.has_movement()) {
@@ -1048,7 +1048,7 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
     }
 }
 
-void entity_manager::update_animation(entity& e, float delta_time) {
+void entity_manager::update_animation(entity& e, float delta_time, bool local_player_combat_mode) {
     auto& anim = e.animation();
 
     // Override frame count and timing for NPCs/monsters using per-type data
@@ -1073,8 +1073,12 @@ void entity_manager::update_animation(entity& e, float delta_time) {
             case entity_anim_state::magic:
             case entity_anim_state::magic_attack:
             case entity_anim_state::get_item:
-                // Return to idle after these animations
-                anim.set_state(entity_anim_state::stop);
+                // Return to idle after these animations (combat idle if in combat mode)
+                if (e.id() == local_player_id_) {
+                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                } else {
+                    e.set_action(object_action::stop_peace);
+                }
                 break;
             case entity_anim_state::dying:
                 // Transition to dead state

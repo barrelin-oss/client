@@ -106,7 +106,7 @@ public:
 private:
     void cleanup_removed_entities();
     void update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode);
-    void update_animation(entity& e, float delta_time);
+    void update_animation(entity& e, float delta_time, bool local_player_combat_mode);
     void update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode);
 
     void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);

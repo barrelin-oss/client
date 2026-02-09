@@ -969,59 +969,23 @@ void ws_message_handler::handle_player_magic_response(const json& message)
     entity* player = game_->local_player();
     if (!player) return;
 
-    // Update local player MP
+    // Update local player MP (server-authoritative)
     player->stats().mp = data.caster_mp;
 
-    // Look up spell definition for effect IDs
+    // Look up spell definition
     const spell* sp = game_->magic().get_spell(data.spell_id);
 
-    // Set caster animation to magic casting
-    player->set_action(object_action::magic);
-
-    // Trigger cooldown
-    game_->magic().trigger_cooldown(data.spell_id);
-
-    // Get caster tile position
-    const auto& caster_t = player->transform();
-    int32_t caster_tx = caster_t.tile_x;
-    int32_t caster_ty = caster_t.tile_y;
-
-    // Get target position
-    int32_t target_tx = caster_tx;
-    int32_t target_ty = caster_ty;
-    float target_wx = static_cast<float>(caster_t.x);
-    float target_wy = static_cast<float>(caster_t.y);
+    // Get target position for floating text
+    float target_wx = static_cast<float>(player->transform().x);
+    float target_wy = static_cast<float>(player->transform().y);
 
     if (data.target_id != 0)
     {
         entity* target = entities.find(data.target_id);
         if (target)
         {
-            target_tx = target->transform().tile_x;
-            target_ty = target->transform().tile_y;
             target_wx = static_cast<float>(target->transform().x);
             target_wy = static_cast<float>(target->transform().y);
-        }
-    }
-
-    // Spawn visual effects
-    if (sp)
-    {
-        // Projectile effect (travels from caster to target)
-        if (sp->projectile_effect != 0)
-        {
-            game_->effects().add_effect(
-                static_cast<effect_type_id>(sp->projectile_effect),
-                caster_tx, caster_ty,
-                target_tx, target_ty);
-        }
-
-        // Impact effect at target
-        if (sp->effect_sprite != 0)
-        {
-            game_->effects().add_effect_at(
-                static_cast<effect_type_id>(sp->effect_sprite),
-                target_tx, target_ty);
         }
     }
 
@@ -1509,6 +1473,14 @@ void ws_message_handler::handle_combat_effect(const json& message)
 
     auto& entities = game_->entities();
 
+    // Skip effects where we are the source - we already handle our own
+    // attacks/spells via player_attack_response / player_magic_response
+    if (data.source_id != 0 && data.source_id == entities.local_player_id())
+    {
+        spdlog::debug("Skipping combat_effect for local player source");
+        return;
+    }
+
     // Determine world position for floating text
     float wx = static_cast<float>(data.target_x * 32 + 16);
     float wy = static_cast<float>(data.target_y * 32 + 16);
@@ -1520,6 +1492,65 @@ void ws_message_handler::handle_combat_effect(const json& message)
         wy = static_cast<float>(target->transform().y);
     }
 
+    // Spell visual effects for other players' casts
+    const spell* sp = game_->magic().get_spell(data.spell_id);
+
+    // Set caster animation and spell name
+    entity* caster = entities.find(data.source_id);
+    if (caster)
+    {
+        caster->set_action(object_action::magic);
+
+        if (sp && caster->has_name())
+        {
+            auto& name = caster->name();
+            name.chat_message = sp->name + "!";
+            name.chat_timer = 3.0f;
+            name.chat_elapsed = 0.0f;
+            name.chat_style = {sf::Color::Red, sf::Color::Black, 1.0f, 14};
+        }
+    }
+
+    // Spawn projectile and/or impact effects using world pixel coords
+    if (sp)
+    {
+        // Caster world position
+        float src_wx = static_cast<float>(data.target_x * 32 + 16);
+        float src_wy = static_cast<float>(data.target_y * 32 + 16);
+        if (caster)
+        {
+            src_wx = static_cast<float>(caster->transform().x);
+            src_wy = static_cast<float>(caster->transform().y);
+        }
+
+        // Target world position
+        float dest_wx = static_cast<float>(data.target_x * 32 + 16);
+        float dest_wy = static_cast<float>(data.target_y * 32 + 16);
+        if (data.target_id != 0)
+        {
+            entity* target = entities.find(data.target_id);
+            if (target)
+            {
+                dest_wx = static_cast<float>(target->transform().x);
+                dest_wy = static_cast<float>(target->transform().y);
+            }
+        }
+
+        if (sp->projectile_effect != 0)
+        {
+            game_->effects().add_effect_world(
+                static_cast<effect_type_id>(sp->projectile_effect),
+                src_wx, src_wy, dest_wx, dest_wy);
+        }
+        else if (sp->effect_sprite != 0)
+        {
+            game_->effects().add_effect_at_pixel(
+                static_cast<effect_type_id>(sp->effect_sprite),
+                dest_wx, dest_wy);
+        }
+    }
+
+    // Floating text
     auto& ft = game_->floating_text();
 
     if (data.effect_type == "damage")
@@ -1554,8 +1585,29 @@ void ws_message_handler::handle_combat_effect(const json& message)
         spdlog::debug("Unhandled combat effect type: {}", data.effect_type);
     }
 
-    spdlog::debug("Combat effect: {} -> {} type={} value={} critical={}",
-                  data.source_id, data.target_id, data.effect_type, data.value, data.is_critical);
+    // Update target HP from combat effects
+    if (data.target_id != 0)
+    {
+        entity* target = entities.find(data.target_id);
+        if (target && target->has_stats())
+        {
+            if (data.effect_type == "damage" && data.value > 0)
+            {
+                target->stats().hp = std::max(0, target->stats().hp - data.value);
+                if (target->stats().hp <= 0)
+                    target->set_action(object_action::dying);
+                else
+                    target->set_action(object_action::damage);
+            }
+            else if (data.effect_type == "heal" && data.value > 0)
+            {
+                target->stats().hp = std::min(target->stats().max_hp, target->stats().hp + data.value);
+            }
+        }
+    }
+
+    spdlog::debug("Combat effect: {} -> {} type={} value={} spell={} critical={}",
+                  data.source_id, data.target_id, data.effect_type, data.value, data.spell_id, data.is_critical);
 }
 
 void ws_message_handler::handle_player_death_info(const json& message)

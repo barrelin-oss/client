@@ -304,7 +304,11 @@ void effect_system::add_effect_at_pixel(effect_type_id type_id, float world_x, f
     }
 
     auto& eff = effects_[slot];
-    init_effect(eff, *def, world_x, world_y, world_x, world_y, 0, 1);
+
+    // Pre-compensate for height_offset so init_effect's addition cancels it out,
+    // placing the effect at the exact world pixel coordinate.
+    float h = static_cast<float>(def->height_offset);
+    init_effect(eff, *def, world_x, world_y - h, world_x, world_y - h, 0, 1);
     play_effect_sound(*def, eff.pos_x, eff.pos_y);
     trigger_shake(*def);
 }

@@ -5,7 +5,7 @@ namespace hb {
 
 // Static table of all effect definitions, derived from docs/legacy/29_effects_system.md.
 // Each entry maps directly from the legacy bAddNewEffect switch statement.
-static const std::array<effect_definition, 93> s_definitions = {{
+static const std::array<effect_definition, 100> s_definitions = {{
     // === Basic Effects (1-18) ===
 
     // Type 1: Sword Slash - melee weapon trail
@@ -270,7 +270,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -285,7 +284,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -300,7 +298,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -315,7 +312,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -330,7 +326,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -345,7 +340,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -360,7 +354,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -375,7 +368,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 10,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .trail_effect = effect_type_id::burst_stationary,
         .trail_count = 2,
@@ -863,6 +855,7 @@ static const std::array<effect_definition, 93> s_definitions = {{
 
     // Type 100: Magic Missile (projectile)
     // Legacy: speed=50, frame_time=20, trail=type 8 x1, impact=type 7
+    // Legacy renders m_cFrame (=0) not direction, so directional=false
     {
         .type_id = effect_type_id::spell_magic_missile,
         .behavior = effect_behavior::projectile,
@@ -873,7 +866,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .sound_id = 1,
         .emits_light = true,
         .light_radius = 10,
-        .directional = true,
         .projectile_speed = 50,
         .impact_effect = effect_type_id::magic_missile_exp,
         .trail_effect = effect_type_id::burst_stationary,
@@ -907,6 +899,7 @@ static const std::array<effect_definition, 93> s_definitions = {{
 
     // Type 110: Energy Bolt (projectile)
     // Legacy: speed=50, frame_time=20, trail=type 8 x2, impact=type 6
+    // Legacy renders m_cFrame (=0), not direction
     {
         .type_id = effect_type_id::spell_energy_bolt,
         .behavior = effect_behavior::projectile,
@@ -917,7 +910,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .sound_id = 2,
         .emits_light = true,
         .light_radius = 15,
-        .directional = true,
         .projectile_speed = 50,
         .impact_effect = effect_type_id::energy_bolt_burst,
         .trail_effect = effect_type_id::burst_stationary,
@@ -978,8 +970,9 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .child_count = 1,
     },
 
-    // Type 120: Fire Ball (directional projectile)
+    // Type 120: Fire Ball (projectile)
     // Legacy: speed=50, frame_time=20, no trail, impact=type 5
+    // Legacy renders m_cFrame (=0), not direction
     {
         .type_id = effect_type_id::spell_fire_ball,
         .behavior = effect_behavior::projectile,
@@ -989,7 +982,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
-        .directional = true,
         .projectile_speed = 50,
         .impact_effect = effect_type_id::fire_explosion,
     },
@@ -1018,6 +1010,19 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 120,
         .emits_light = true,
         .light_radius = 15,
+    },
+
+    // Type 123: Stamina Recovery
+    // Legacy: similar to heal - sprite 4, alpha_50, frame_time=80
+    {
+        .type_id = effect_type_id::spell_stamina_recovery_1,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::alpha_50,
+        .sprite_pak_index = 4,
+        .max_frames = 14,
+        .frame_time_ms = 80,
+        .emits_light = true,
+        .light_radius = 12,
     },
 
     // Type 124: Protection from NM (triggers protection ring)
@@ -1050,7 +1055,7 @@ static const std::array<effect_definition, 93> s_definitions = {{
 
     // Type 130: Fire Strike (projectile)
     // Legacy: speed=50, frame_time=20, no trail, impact=type 5
-    // Legacy spawns 4 fire explosions with offsets; we spawn 1 and let composite handle children
+    // Legacy renders m_cFrame (=0), not direction
     {
         .type_id = effect_type_id::spell_fire_strike,
         .behavior = effect_behavior::projectile,
@@ -1060,7 +1065,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
-        .directional = true,
         .projectile_speed = 50,
         .impact_effect = effect_type_id::fire_explosion,
     },
@@ -1101,6 +1105,19 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .child_count = 1,
     },
 
+    // Type 134: Detect Invisibility
+    // Legacy: reveal/detection aura - sprite 4, transparent, frame_time=80
+    {
+        .type_id = effect_type_id::spell_detect_invis,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::transparent,
+        .sprite_pak_index = 4,
+        .max_frames = 14,
+        .frame_time_ms = 80,
+        .emits_light = true,
+        .light_radius = 15,
+    },
+
     // Type 135: Paralyze (triggers hold twist)
     {
         .type_id = effect_type_id::spell_paralyze,
@@ -1130,6 +1147,7 @@ static const std::array<effect_definition, 93> s_definitions = {{
 
     // Type 137: Lightning Arrow (projectile)
     // Legacy: speed=50, frame_time=20, trail=type 8 x3, impact=type 10
+    // Legacy renders m_cFrame (=0), not direction
     {
         .type_id = effect_type_id::spell_lightning_arrow,
         .behavior = effect_behavior::projectile,
@@ -1139,7 +1157,6 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 20,
         .emits_light = true,
         .light_radius = 15,
-        .directional = true,
         .projectile_speed = 50,
         .impact_effect = effect_type_id::lightning_arrow_exp,
         .trail_effect = effect_type_id::burst_stationary,
@@ -1163,6 +1180,34 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .child_count = 1,
     },
 
+    // Type 142: Confuse Language
+    // Legacy: dark cloud variant for confusion debuffs
+    {
+        .type_id = effect_type_id::spell_confuse_lang,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 38,
+        .max_frames = 6,
+        .frame_time_ms = 50,
+    },
+
+    // Type 144: Great Defense Shield (triggers protection ring)
+    // Legacy: enhanced version of defense shield
+    {
+        .type_id = effect_type_id::spell_great_def_shield,
+        .behavior = effect_behavior::composite,
+        .render_mode = effect_render_mode::alpha_50,
+        .sprite_pak_index = 24,
+        .max_frames = 15,
+        .frame_time_ms = 80,
+        .emits_light = true,
+        .light_radius = 15,
+        .children = {{
+            {effect_type_id::protection_ring, 0, 1, 0, 0, false, 0},
+        }},
+        .child_count = 1,
+    },
+
     // Type 150: Berserk
     // Legacy: frame_time=100
     {
@@ -1174,6 +1219,17 @@ static const std::array<effect_definition, 93> s_definitions = {{
         .frame_time_ms = 100,
         .emits_light = true,
         .light_radius = 15,
+    },
+
+    // Type 152: Mass Poison
+    // Legacy: dark cloud variant for area poison
+    {
+        .type_id = effect_type_id::spell_mass_poison_1,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 38,
+        .max_frames = 6,
+        .frame_time_ms = 50,
     },
 
     // Type 160: Energy Strike (invisible spawner - fires projectiles from caster to target)
@@ -1191,6 +1247,28 @@ static const std::array<effect_definition, 93> s_definitions = {{
             {effect_type_id::energy_strike_proj, -1, 1, 0, 0, true, 50, true},
         }},
         .child_count = 1,
+    },
+
+    // Type 162: Confusion
+    // Legacy: dark cloud variant for confusion debuff
+    {
+        .type_id = effect_type_id::spell_confusion,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 38,
+        .max_frames = 6,
+        .frame_time_ms = 50,
+    },
+
+    // Type 171: Mass Confusion
+    // Legacy: dark cloud variant for area confusion
+    {
+        .type_id = effect_type_id::spell_mass_confusion,
+        .behavior = effect_behavior::static_anim,
+        .render_mode = effect_render_mode::alpha_70,
+        .sprite_pak_index = 38,
+        .max_frames = 6,
+        .frame_time_ms = 50,
     },
 
     // Type 180: Illusion

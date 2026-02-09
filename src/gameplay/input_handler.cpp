@@ -663,36 +663,16 @@ void input_handler::handle_spell_targeting(const input& inp)
         // Trigger cooldown (the ready animation is already playing on the player)
         magic.trigger_cooldown(pending_id);
 
-        // Spawn projectile and/or impact effects using world pixel coordinates
+        // Spawn projectile and/or impact effects at tile center
         if (sp)
         {
             // Source: player's world position
             float src_wx = static_cast<float>(player_t.x);
             float src_wy = static_cast<float>(player_t.y);
 
-            // Destination: entity position or click world position
-            float dest_wx, dest_wy;
-            if (target_id != 0)
-            {
-                entity* target_ent = entities.find(target_id);
-                if (target_ent)
-                {
-                    dest_wx = static_cast<float>(target_ent->transform().x);
-                    dest_wy = static_cast<float>(target_ent->transform().y);
-                }
-                else
-                {
-                    auto [wx, wy] = world.screen_to_world(mouse_x_, mouse_y_);
-                    dest_wx = static_cast<float>(wx);
-                    dest_wy = static_cast<float>(wy);
-                }
-            }
-            else
-            {
-                auto [wx, wy] = world.screen_to_world(mouse_x_, mouse_y_);
-                dest_wx = static_cast<float>(wx);
-                dest_wy = static_cast<float>(wy);
-            }
+            // Destination: target tile center (already computed above)
+            float dest_wx = static_cast<float>(target_x * 32 + 16);
+            float dest_wy = static_cast<float>(target_y * 32 + 16);
 
             if (sp->projectile_effect != 0)
             {

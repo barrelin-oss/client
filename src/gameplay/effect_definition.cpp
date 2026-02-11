@@ -540,8 +540,8 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::chill_wind,
         .behavior = effect_behavior::static_anim,
         .render_mode = effect_render_mode::alpha_50,
-        .sprite_pak_index = 20,
-        .max_frames = 15,
+        .sprite_pak_index = 29,
+        .max_frames = 14,
         .frame_time_ms = 30,
         .sound_id = 45,
     },
@@ -1575,9 +1575,8 @@ static const std::array<effect_definition, 150> s_definitions = {{
             {effect_type_id::chill_wind, 0, 1, 0, 0, false, 0, false, 0},
             {effect_type_id::chill_wind, 0, 1, -30, -15, false, 0, false, -10},
             {effect_type_id::chill_wind, 0, 1, 35, -30, false, 0, false, -6},
-            {effect_type_id::chill_wind, 0, 1, 20, 30, false, 0, false, -3},
         }},
-        .child_count = 4,
+        .child_count = 3,
     },
 
     // Type 147: Triple Energy Bolt Spawner (spawns 3 energy bolt projectiles + impact)

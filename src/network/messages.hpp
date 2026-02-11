@@ -444,7 +444,9 @@ struct enter_game_visible_entity {
     int16_t y = 0;
     int16_t hp_percent = 100;
     int16_t direction = 4;       // Facing direction (0-7: N,NE,E,SE,S,SW,W,NW)
-    uint16_t visual_type = 0;    // NPC/monster type for sprite selection (10=Slime, 11=Skeleton, etc.)
+    int16_t sprite_id = 0;       // Legacy sprite type for rendering (10=Slime, etc.)
+    uint32_t template_id = 0;    // NPC template ID
+    int16_t level = 0;           // NPC level
 
     static enter_game_visible_entity from_json(const json& j) {
         enter_game_visible_entity ent;
@@ -455,7 +457,9 @@ struct enter_game_visible_entity {
         if (j.contains("y")) ent.y = j["y"].get<int16_t>();
         if (j.contains("hp_percent")) ent.hp_percent = j["hp_percent"].get<int16_t>();
         if (j.contains("direction")) ent.direction = j["direction"].get<int16_t>();
-        if (j.contains("visual_type")) ent.visual_type = j["visual_type"].get<uint16_t>();
+        if (j.contains("sprite_id")) ent.sprite_id = j["sprite_id"].get<int16_t>();
+        if (j.contains("template_id")) ent.template_id = j["template_id"].get<uint32_t>();
+        if (j.contains("level")) ent.level = j["level"].get<int16_t>();
         return ent;
     }
 };
@@ -883,6 +887,7 @@ struct entity_info_response_data {
 
     // NPC-specific fields
     uint32_t template_id = 0;
+    int16_t sprite_id = 0;      // Legacy sprite type for rendering (10=Slime, etc.)
 
     static entity_info_response_data from_json(const json& j) {
         entity_info_response_data data;
@@ -911,6 +916,7 @@ struct entity_info_response_data {
 
                 // NPC-specific
                 if (e.contains("template_id")) data.template_id = e["template_id"].get<uint32_t>();
+                if (e.contains("sprite_id")) data.sprite_id = e["sprite_id"].get<int16_t>();
             }
         }
         return data;
@@ -1297,6 +1303,7 @@ struct entity_spawn_data {
 struct npc_spawn_data {
     uint32_t entity_id = 0;
     uint32_t template_id = 0;
+    int16_t sprite_id = 0;      // Legacy sprite type for rendering (10=Slime, etc.)
     std::string name;
     int16_t x = 0;
     int16_t y = 0;
@@ -1311,6 +1318,7 @@ struct npc_spawn_data {
             const auto& d = j["data"];
             if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
             if (d.contains("template_id")) data.template_id = d["template_id"].get<uint32_t>();
+            if (d.contains("sprite_id")) data.sprite_id = d["sprite_id"].get<int16_t>();
             if (d.contains("name")) data.name = d["name"].get<std::string>();
             if (d.contains("x")) data.x = d["x"].get<int16_t>();
             if (d.contains("y")) data.y = d["y"].get<int16_t>();

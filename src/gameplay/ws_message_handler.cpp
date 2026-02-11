@@ -473,8 +473,9 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         // Skip entities that already exist (handles self + ID collisions)
         if (entities.get_entity(ent.entity_id)) continue;
 
+        // NPCs use monster type for rendering (has stats, combat, movement)
         entity_type type = entity_type::character;
-        if (ent.type == "npc") type = entity_type::npc;
+        if (ent.type == "npc") type = entity_type::monster;
         else if (ent.type == "monster") type = entity_type::monster;
 
         auto& world_entity = entities.create_entity_with_id(ent.entity_id, type);
@@ -482,8 +483,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         auto& ent_transform = world_entity.transform();
         ent_transform.tile_x = ent.x;
         ent_transform.tile_y = ent.y;
-        ent_transform.x = ent.x * 32;
-        ent_transform.y = ent.y * 32;
+        ent_transform.x = ent.x * hb::tile_width + 16;
+        ent_transform.y = ent.y * hb::tile_height + 16;
         ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
 
         if (world_entity.has_name())
@@ -491,13 +492,18 @@ void ws_message_handler::handle_enter_game_response(const json& message)
             world_entity.name().name = ent.name;
         }
 
-        if (ent.visual_type > 0)
+        // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
+        uint16_t visual_type = ent.sprite_id > 0
+            ? static_cast<uint16_t>(ent.sprite_id)
+            : static_cast<uint16_t>(ent.template_id);
+
+        if (visual_type > 0)
         {
-            world_entity.set_type(ent.visual_type);
+            world_entity.set_type(visual_type);
             if (world_entity.has_npc())
-                world_entity.npc().npc_type = ent.visual_type;
+                world_entity.npc().npc_type = visual_type;
             else if (world_entity.has_monster())
-                world_entity.monster().monster_type = ent.visual_type;
+                world_entity.monster().monster_type = visual_type;
         }
 
         if (world_entity.has_stats())
@@ -505,6 +511,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
             auto& ent_stats = world_entity.stats();
             ent_stats.hp = ent.hp_percent;
             ent_stats.max_hp = 100;
+            ent_stats.level = static_cast<uint16_t>(ent.level);
         }
     }
     spdlog::debug("Spawned {} nearby entities", response.world.entities.size());
@@ -822,6 +829,11 @@ void ws_message_handler::handle_npc_move(const json& message)
         t.moving = true;
         t.move_progress = 0.0f;
 
+        // Set movement target so idle reset triggers on arrival
+        auto& m = ent->movement();
+        m.target_x = data.x;
+        m.target_y = data.y;
+
         ent->set_action(object_action::move_peace);
     }
 
@@ -862,13 +874,19 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent.name().name = data.name;
     }
 
-    if (data.template_id > 0)
+    // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
+    // Falls back to template_id if sprite_id not provided
+    uint16_t visual_type = data.sprite_id > 0
+        ? static_cast<uint16_t>(data.sprite_id)
+        : static_cast<uint16_t>(data.template_id);
+
+    if (visual_type > 0)
     {
-        ent.set_type(static_cast<uint16_t>(data.template_id));
+        ent.set_type(visual_type);
         if (ent.has_npc())
-            ent.npc().npc_type = static_cast<uint16_t>(data.template_id);
+            ent.npc().npc_type = visual_type;
         else if (ent.has_monster())
-            ent.monster().monster_type = static_cast<uint16_t>(data.template_id);
+            ent.monster().monster_type = visual_type;
     }
 
     if (ent.has_stats())
@@ -879,8 +897,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent_stats.level = static_cast<uint16_t>(data.level);
     }
 
-    spdlog::info("Created entity {} ({}) '{}' at ({},{}) from info response",
-                 data.entity_id, data.entity_type, data.name, data.x, data.y);
+    spdlog::info("Created entity {} ({}) '{}' at ({},{}) sprite={} from info response",
+                 data.entity_id, data.entity_type, data.name, data.x, data.y, visual_type);
 }
 
 void ws_message_handler::request_characters()
@@ -1314,7 +1332,13 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
             if (data.is_ranged())
                 attacker->set_action(object_action::attack_combat_bow);
             else
-                attacker->set_action(object_action::attack_peace);
+            {
+                // Use combat-mode-aware animation for local player
+                if (attacker->id() == entities.local_player_id())
+                    attacker->set_action_with_combat_mode(object_action::attack_peace, game_->is_combat_mode());
+                else
+                    attacker->set_action(object_action::attack_peace);
+            }
         }
 
         attacker->set_target(data.target_id);
@@ -1761,8 +1785,9 @@ void ws_message_handler::handle_player_teleport(const json& message)
     {
         if (entities.get_entity(ent.entity_id)) continue;
 
+        // NPCs use monster type for rendering (has stats, combat, movement)
         entity_type type = entity_type::character;
-        if (ent.type == "npc") type = entity_type::npc;
+        if (ent.type == "npc") type = entity_type::monster;
         else if (ent.type == "monster") type = entity_type::monster;
 
         auto& world_entity = entities.create_entity_with_id(ent.entity_id, type);
@@ -1770,20 +1795,25 @@ void ws_message_handler::handle_player_teleport(const json& message)
         auto& ent_transform = world_entity.transform();
         ent_transform.tile_x = ent.x;
         ent_transform.tile_y = ent.y;
-        ent_transform.x = ent.x * 32;
-        ent_transform.y = ent.y * 32;
+        ent_transform.x = ent.x * hb::tile_width + 16;
+        ent_transform.y = ent.y * hb::tile_height + 16;
         ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
 
         if (world_entity.has_name())
             world_entity.name().name = ent.name;
 
-        if (ent.visual_type > 0)
+        // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
+        uint16_t visual_type = ent.sprite_id > 0
+            ? static_cast<uint16_t>(ent.sprite_id)
+            : static_cast<uint16_t>(ent.template_id);
+
+        if (visual_type > 0)
         {
-            world_entity.set_type(ent.visual_type);
+            world_entity.set_type(visual_type);
             if (world_entity.has_npc())
-                world_entity.npc().npc_type = ent.visual_type;
+                world_entity.npc().npc_type = visual_type;
             else if (world_entity.has_monster())
-                world_entity.monster().monster_type = ent.visual_type;
+                world_entity.monster().monster_type = visual_type;
         }
 
         if (world_entity.has_stats())
@@ -1791,6 +1821,7 @@ void ws_message_handler::handle_player_teleport(const json& message)
             auto& ent_stats = world_entity.stats();
             ent_stats.hp = ent.hp_percent;
             ent_stats.max_hp = 100;
+            ent_stats.level = static_cast<uint16_t>(ent.level);
         }
     }
 
@@ -1857,8 +1888,8 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.x = data.x * 32;
-    t.y = data.y * 32;
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     if (ent.has_name())
@@ -1893,20 +1924,26 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
-    t.x = data.x * 32;
-    t.y = data.y * 32;
+    t.x = data.x * hb::tile_width + 16;
+    t.y = data.y * hb::tile_height + 16;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     if (ent.has_name())
         ent.name().name = data.name;
 
-    if (data.template_id > 0)
+    // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
+    // Falls back to template_id if sprite_id not provided
+    uint16_t visual_type = data.sprite_id > 0
+        ? static_cast<uint16_t>(data.sprite_id)
+        : static_cast<uint16_t>(data.template_id);
+
+    if (visual_type > 0)
     {
-        ent.set_type(static_cast<uint16_t>(data.template_id));
+        ent.set_type(visual_type);
         if (ent.has_npc())
-            ent.npc().npc_type = static_cast<uint16_t>(data.template_id);
+            ent.npc().npc_type = visual_type;
         if (ent.has_monster())
-            ent.monster().monster_type = static_cast<uint16_t>(data.template_id);
+            ent.monster().monster_type = visual_type;
     }
 
     if (ent.has_stats())
@@ -1918,8 +1955,8 @@ void ws_message_handler::handle_npc_spawn(const json& message)
 
     ent.animation().set_state(entity_anim_state::stop);
 
-    spdlog::info("NPC spawned: '{}' id={} template={} at ({},{}) hp={}/{}",
-                 data.name, data.entity_id, data.template_id, data.x, data.y,
+    spdlog::info("NPC spawned: '{}' id={} sprite={} at ({},{}) hp={}/{}",
+                 data.name, data.entity_id, visual_type, data.x, data.y,
                  data.hp, data.max_hp);
 }
 

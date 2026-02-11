@@ -591,6 +591,22 @@ static void init_npc_frame_table()
     set(69, act_damage, 3, 60);
     set(69, act_dying, 6, 65);    // 3+3
 
+    // Legacy inherited defaults for NPC types (MapData.cpp lines 44-55):
+    // RUN = MOVE, DAMAGEMOVE = DAMAGE, ATTACKMOVE = ATTACK, MAGIC = STOP, GETITEM = STOP
+    for (int i = 0; i < npc_type_count; i++)
+    {
+        auto& tbl = npc_frame_table[i];
+        tbl[act_run] = tbl[act_move];
+        tbl[act_damagemove] = tbl[act_damage];
+        tbl[act_attackmove] = tbl[act_attack];
+
+        // MAGIC and GETITEM inherit from STOP only if not already set
+        if (tbl[act_magic].max_frame < 0)
+            tbl[act_magic] = tbl[act_stop];
+        if (tbl[act_getitem].max_frame < 0)
+            tbl[act_getitem] = tbl[act_stop];
+    }
+
     npc_frame_table_ready = true;
 }
 
@@ -1447,16 +1463,26 @@ void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprit
     const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
     if (npc_spr) {
+        // Clamp frame to actual sprite frame count to avoid invisible frames
+        uint32_t frame = a.current_frame;
+        if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count()) {
+            frame = frame % npc_spr->frame_count();
+        }
+
         if (s.alpha < 1.0f) {
-            rend.draw_sprite_alpha(*npc_spr, screen_x, screen_y, a.current_frame, s.alpha);
+            rend.draw_sprite_alpha(*npc_spr, screen_x, screen_y, frame, s.alpha);
         } else {
-            rend.draw_sprite(*npc_spr, screen_x, screen_y, a.current_frame);
+            rend.draw_sprite(*npc_spr, screen_x, screen_y, frame);
         }
     }
 
     // Effect overlay
     if (s.effect_sprite) {
-        rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
+        uint32_t effect_frame = a.current_frame;
+        if (s.effect_sprite->frame_count() > 0 && effect_frame >= s.effect_sprite->frame_count()) {
+            effect_frame = effect_frame % s.effect_sprite->frame_count();
+        }
+        rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, effect_frame);
     }
 }
 

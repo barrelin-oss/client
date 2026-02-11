@@ -177,6 +177,19 @@ void input_handler::handle_movement_input(const input& inp)
         return;
     }
 
+    // Don't process movement while in a non-interruptible animation
+    {
+        auto state = player->animation().state;
+        if (!player->animation().finished &&
+            (state == entity_anim_state::attack ||
+             state == entity_anim_state::damage ||
+             state == entity_anim_state::magic ||
+             state == entity_anim_state::magic_attack))
+        {
+            return;
+        }
+    }
+
     auto& world = game_->game_world();
     auto& entities = game_->entities();
     auto& sprites = game_->sprites();
@@ -736,7 +749,7 @@ void input_handler::handle_combat_input(const input& inp)
                     if (atk_type == static_cast<uint8_t>(attack_type::ranged))
                         player->set_action(object_action::attack_combat_bow);
                     else
-                        player->set_action(object_action::attack_peace);
+                        player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
                 }
             }
             else

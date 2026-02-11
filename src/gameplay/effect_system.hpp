@@ -14,6 +14,18 @@ class sound_manager;
 class world;
 class renderer;
 
+// Tunable parameters for thunder bolt rendering (debug)
+struct thunder_params
+{
+    float offset_pct = 0.10f;       // max offset as fraction of bolt length (0.01 - 0.25)
+    float offset_cap = 20.0f;       // max offset cap in pixels (5 - 80)
+    float offset_min = 5.0f;        // min offset in pixels (1 - 20)
+    float segment_size = 20.0f;     // pixels per segment (2 - 20)
+    int32_t jag_chance = 10;        // 1-in-N chance of large jag (1 - 20)
+    float jag_multiplier = 1.5f;    // large jag scale factor (1.0 - 3.0)
+    int32_t thin_bolt_count = 4;    // companion thin bolts (0 - 4)
+};
+
 class effect_system
 {
 public:
@@ -56,6 +68,10 @@ public:
     // How many effects are currently active
     size_t active_count() const;
 
+    // Debug: permanent on-screen lightning bolt for parameter tuning
+    bool debug_thunder_enabled = false;
+    thunder_params debug_thunder;
+
 private:
     int32_t find_free_slot() const;
     void init_effect(effect& eff, const effect_definition& def,
@@ -75,6 +91,11 @@ private:
     void play_effect_sound(const effect_definition& def, float world_x, float world_y);
     void trigger_shake(const effect_definition& def);
     const sprite* resolve_sprite(const effect_definition& def);
+    void render_thunder(renderer& rend, float sx, float sy, float dx, float dy,
+                        int8_t rx, int8_t ry);
+    void render_overlay(renderer& rend, const effect& eff,
+                        const effect_definition::sprite_overlay& ov,
+                        int32_t screen_x, int32_t screen_y);
 
     std::array<effect, max_effects> effects_{};
     std::array<const sprite*, max_effect_sprites> effect_sprites_{};

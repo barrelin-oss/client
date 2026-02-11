@@ -69,8 +69,6 @@ bool magic_system::can_cast_at_target(uint16_t spell_id, uint32_t caster_id, uin
     // Check range
     if (!check_range(caster_id, target_id, s->range)) return false;
 
-    // Self-target spells must target self
-    if (s->target_type == spell_target::self && caster_id != target_id) return false;
 
     return true;
 }
@@ -672,7 +670,7 @@ void magic_system::load_default_spells() {
 
     add({.id = spell_id::create_food, .name = "Create Food",
          .description = "Conjure food from nothing",
-         .category = spell_category::utility, .target_type = spell_target::self,
+         .category = spell_category::utility, .target_type = spell_target::single,
          .type = magic_type::create,
          .int_req = 18, .mp_cost = 18,
          .effect_sprite = 102, .cast_time = 1.0f});
@@ -695,7 +693,7 @@ void magic_system::load_default_spells() {
 
     add({.id = spell_id::recall, .name = "Recall",
          .description = "Teleport to town",
-         .category = spell_category::utility, .target_type = spell_target::self,
+         .category = spell_category::utility, .target_type = spell_target::single,
          .type = magic_type::teleport,
          .int_req = 20, .mp_cost = 15,
          .effect_sprite = 112, .cast_time = 5.0f});
@@ -756,21 +754,21 @@ void magic_system::load_default_spells() {
          .category = spell_category::debuff, .target_type = spell_target::single,
          .type = magic_type::possession,
          .int_req = 26, .mp_cost = 25, .range = 6,
-         .effect_sprite = 62, .cast_time = 1.5f});
+         .effect_sprite = 126, .cast_time = 1.5f});
 
     add({.id = spell_id::poison, .name = "Poison",
          .description = "Damage over time",
          .category = spell_category::debuff, .target_type = spell_target::single,
          .type = magic_type::poison, .element = magic_element::earth,
          .int_req = 29, .mp_cost = 28, .base_damage = 15, .range = 8,
-         .effect_sprite = 62, .cast_time = 0.8f});
+         .effect_sprite = 127, .cast_time = 0.8f});
 
     add({.id = spell_id::great_staminar_recovery, .name = "Great Stamina Recovery",
          .description = "Restore large amount of stamina",
          .category = spell_category::healing, .target_type = spell_target::single,
          .type = magic_type::sp_up_area,
          .int_req = 30, .mp_cost = 45, .base_healing = 80, .range = 8,
-         .effect_sprite = 123, .cast_time = 1.0f});
+         .effect_sprite = 128, .cast_time = 1.0f});
 
     // === Level 4 (IDs 30-39) ===
 
@@ -790,7 +788,7 @@ void magic_system::load_default_spells() {
 
     add({.id = spell_id::invisibility, .name = "Invisibility",
          .description = "Become invisible",
-         .category = spell_category::buff, .target_type = spell_target::self,
+         .category = spell_category::buff, .target_type = spell_target::single,
          .type = magic_type::invisibility,
          .int_req = 30, .mp_cost = 31, .duration = 60.0f,
          .effect_sprite = 132, .cast_time = 2.0f});
@@ -804,7 +802,7 @@ void magic_system::load_default_spells() {
 
     add({.id = spell_id::detect_invisibility, .name = "Detect Invisibility",
          .description = "Reveal invisible creatures",
-         .category = spell_category::utility, .target_type = spell_target::self,
+         .category = spell_category::utility, .target_type = spell_target::single,
          .type = magic_type::invisibility,
          .int_req = 30, .mp_cost = 33,
          .effect_sprite = 134, .cast_time = 0.8f});
@@ -865,21 +863,21 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::single,
          .type = magic_type::damage_spot, .element = magic_element::lightning,
          .int_req = 47, .mp_cost = 44, .base_damage = 40, .range = 8,
-         .projectile_effect = 137, .effect_sprite = 63, .cast_time = 0.5f});
+         .effect_sprite = 143, .cast_time = 0.5f});
 
     add({.id = spell_id::great_defense_shield, .name = "Great Defense Shield",
          .description = "Powerful defense buff",
          .category = spell_category::buff, .target_type = spell_target::single,
          .type = magic_type::protect,
          .int_req = 46, .mp_cost = 45, .duration = 40.0f, .range = 6,
-         .effect_sprite = 52, .cast_time = 1.0f});
+         .effect_sprite = 144, .cast_time = 1.0f});
 
     add({.id = spell_id::chill_wind, .name = "Chill Wind",
          .description = "Icy wind that damages and slows",
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::ice, .element = magic_element::ice,
          .int_req = 50, .mp_cost = 48, .base_damage = 22, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 40, .cast_time = 1.0f});
+         .effect_sprite = 145, .cast_time = 1.0f});
 
     add({.id = spell_id::poison_cloud, .name = "Poison Cloud",
          .description = "Create a cloud of poison",
@@ -893,13 +891,13 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area, .element = magic_element::lightning,
          .int_req = 45, .mp_cost = 40, .base_damage = 14, .range = 8, .aoe_radius = 2,
-         .projectile_effect = 110, .effect_sprite = 6, .cast_time = 0.8f});
+         .projectile_effect = 147, .cast_time = 0.8f});
 
     // === Level 6 (IDs 50-59) ===
 
     add({.id = spell_id::berserk, .name = "Berserk",
          .description = "Enter a berserk rage",
-         .category = spell_category::buff, .target_type = spell_target::self,
+         .category = spell_category::buff, .target_type = spell_target::single,
          .type = magic_type::berserk,
          .int_req = 59, .mp_cost = 57, .duration = 40.0f,
          .effect_sprite = 150, .cast_time = 1.5f});
@@ -909,7 +907,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area, .element = magic_element::lightning,
          .int_req = 58, .mp_cost = 58, .base_damage = 36, .range = 8, .aoe_radius = 2,
-         .projectile_effect = 137, .effect_sprite = 63, .cast_time = 0.8f});
+         .projectile_effect = 151, .cast_time = 0.8f});
 
     add({.id = spell_id::mass_poison, .name = "Mass Poison",
          .description = "Poison multiple targets",
@@ -930,21 +928,21 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::ground,
          .type = magic_type::create_dynamic, .element = magic_element::ice,
          .int_req = 59, .mp_cost = 58, .duration = 30.0f, .range = 8,
-         .effect_sprite = 40, .cast_time = 1.5f});
+         .cast_time = 1.5f});
 
     add({.id = spell_id::mass_lightning_arrow, .name = "Mass Lightning Arrow",
          .description = "Lightning strikes all nearby",
          .category = spell_category::attack, .target_type = spell_target::single,
          .type = magic_type::damage_spot, .element = magic_element::lightning,
          .int_req = 53, .mp_cost = 55, .base_damage = 50, .range = 8,
-         .projectile_effect = 137, .effect_sprite = 63, .cast_time = 0.5f});
+         .projectile_effect = 156, .cast_time = 0.5f});
 
     add({.id = spell_id::ice_strike, .name = "Ice Strike",
          .description = "Powerful ice attack",
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::ice, .element = magic_element::ice,
          .int_req = 60, .mp_cost = 59, .base_damage = 42, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 40, .cast_time = 1.0f});
+         .effect_sprite = 157, .cast_time = 1.0f});
 
     // === Level 7 (IDs 60-69) ===
 
@@ -960,7 +958,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area, .element = magic_element::fire,
          .int_req = 85, .mp_cost = 80, .base_damage = 54, .range = 8, .aoe_radius = 2,
-         .projectile_effect = 120, .effect_sprite = 5, .cast_time = 1.5f});
+         .projectile_effect = 161, .cast_time = 1.5f});
 
     add({.id = spell_id::confusion, .name = "Confusion",
          .description = "Confuse nearby enemies",
@@ -974,28 +972,28 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::ice, .element = magic_element::ice,
          .int_req = 93, .mp_cost = 90, .base_damage = 48, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 40, .cast_time = 1.5f});
+         .effect_sprite = 163, .cast_time = 1.5f});
 
     add({.id = spell_id::earthworm_strike, .name = "Earthworm Strike",
          .description = "Earth erupts under enemies",
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::earthworm_strike, .element = magic_element::earth,
          .int_req = 97, .mp_cost = 80, .base_damage = 59, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 68, .cast_time = 1.5f});
+         .effect_sprite = 164, .cast_time = 1.5f});
 
     add({.id = spell_id::absolute_magic_protection, .name = "Absolute Magic Protection",
          .description = "Immunity to magic",
          .category = spell_category::buff, .target_type = spell_target::single,
          .type = magic_type::protect,
          .int_req = 112, .mp_cost = 90, .duration = 60.0f, .range = 6,
-         .effect_sprite = 52, .cast_time = 1.5f});
+         .effect_sprite = 165, .cast_time = 1.5f});
 
     add({.id = spell_id::armor_break, .name = "Armor Break",
          .description = "Destroy target armor",
          .category = spell_category::debuff, .target_type = spell_target::single,
          .type = magic_type::armor_break, .element = magic_element::earth,
          .int_req = 97, .mp_cost = 90, .base_damage = 59, .range = 6,
-         .effect_sprite = 32, .cast_time = 1.0f});
+         .effect_sprite = 166, .cast_time = 1.0f});
 
     // === Level 8 (IDs 70-79) ===
 
@@ -1004,7 +1002,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::bloody_shock_wave, .element = magic_element::lightning,
          .int_req = 105, .mp_cost = 180, .base_damage = 60, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 6, .cast_time = 2.0f});
+         .projectile_effect = 170, .cast_time = 2.0f});
 
     add({.id = spell_id::mass_confusion, .name = "Mass Confusion",
          .description = "Confuse all nearby enemies",
@@ -1018,7 +1016,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::ice, .element = magic_element::ice,
          .int_req = 133, .mp_cost = 120, .base_damage = 59, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 40, .cast_time = 1.5f});
+         .effect_sprite = 172, .cast_time = 1.5f});
 
     add({.id = spell_id::cloud_kill, .name = "Cloud Kill",
          .description = "Deadly poison cloud",
@@ -1032,21 +1030,21 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area_no_spot, .element = magic_element::lightning,
          .int_req = 123, .mp_cost = 90, .base_damage = 69, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 63, .cast_time = 1.0f});
+         .projectile_effect = 174, .cast_time = 1.0f});
 
     add({.id = spell_id::cancellation, .name = "Cancellation",
          .description = "Remove all buffs from target",
          .category = spell_category::debuff, .target_type = spell_target::single,
          .type = magic_type::cancellation,
          .int_req = 135, .mp_cost = 120, .duration = 30.0f, .range = 6,
-         .effect_sprite = 62, .cast_time = 1.0f});
+         .effect_sprite = 176, .cast_time = 1.0f});
 
     add({.id = spell_id::illusion_movement, .name = "Illusion Movement",
          .description = "Create moving illusion",
          .category = spell_category::debuff, .target_type = spell_target::area,
          .type = magic_type::confuse,
          .int_req = 160, .mp_cost = 150, .duration = 30.0f, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 62, .cast_time = 1.5f});
+         .effect_sprite = 177, .cast_time = 1.5f});
 
     // === Level 9 (IDs 80-89) ===
 
@@ -1062,21 +1060,21 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::damage_area, .element = magic_element::fire,
          .int_req = 169, .mp_cost = 120, .base_damage = 72, .range = 10, .aoe_radius = 2,
-         .effect_sprite = 61, .cast_time = 3.0f});
+         .effect_sprite = 60, .cast_time = 3.0f});
 
     add({.id = spell_id::mass_magic_missile, .name = "Mass Magic Missile",
          .description = "Magic missiles strike all",
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::mass_magic_missile, .element = magic_element::lightning,
          .int_req = 185, .mp_cost = 160, .base_damage = 72, .range = 8, .aoe_radius = 2,
-         .projectile_effect = 100, .effect_sprite = 7, .cast_time = 1.5f});
+         .projectile_effect = 182, .effect_sprite = 36, .cast_time = 1.5f});
 
     add({.id = spell_id::inhibition_casting, .name = "Inhibition Casting",
          .description = "Prevent target from casting",
          .category = spell_category::debuff, .target_type = spell_target::single,
          .type = magic_type::inhibition_casting,
          .int_req = 172, .mp_cost = 160, .duration = 40.0f, .range = 6,
-         .effect_sprite = 62, .cast_time = 1.5f});
+         .effect_sprite = 183, .cast_time = 1.5f});
 
     // === Level 10 (IDs 90-99) ===
 
@@ -1092,7 +1090,7 @@ void magic_system::load_default_spells() {
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::blizzard, .element = magic_element::ice,
          .int_req = 195, .mp_cost = 170, .base_damage = 72, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 72, .cast_time = 2.5f});
+         .projectile_effect = 191, .cast_time = 2.5f});
 
     add({.id = spell_id::resurrection, .name = "Resurrection",
          .description = "Bring the dead back to life",
@@ -1106,14 +1104,14 @@ void magic_system::load_default_spells() {
          .category = spell_category::debuff, .target_type = spell_target::area,
          .type = magic_type::confuse,
          .int_req = 200, .mp_cost = 200, .duration = 60.0f, .range = 10, .aoe_radius = 3,
-         .effect_sprite = 62, .cast_time = 2.0f});
+         .effect_sprite = 195, .cast_time = 2.0f});
 
     add({.id = spell_id::earth_shock_wave, .name = "Earth Shock Wave",
          .description = "Devastating earth attack",
          .category = spell_category::attack, .target_type = spell_target::area,
          .type = magic_type::earth_shock_wave, .element = magic_element::earth,
          .int_req = 200, .mp_cost = 180, .base_damage = 72, .range = 8, .aoe_radius = 2,
-         .effect_sprite = 66, .cast_time = 2.0f});
+         .projectile_effect = 196, .cast_time = 2.0f});
 }
 
 } // namespace hb

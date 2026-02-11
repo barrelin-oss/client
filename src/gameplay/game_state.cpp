@@ -55,6 +55,11 @@ static constexpr std::array effect_paks =
     effect_pak_entry{"effect7",     45, 12, 0},   // effect7.pak:    global 45-56
     effect_pak_entry{"effect8",     57,  9, 0},   // effect8.pak:    global 57-65
     effect_pak_entry{"effect9",     66, 21, 0},   // effect9.pak:    global 66-86
+    effect_pak_entry{"effect10",    87,  2, 0},   // effect10.pak:   global 87-88
+    effect_pak_entry{"effect11",    89, 14, 0},   // Effect11.pak:   global 89-102
+    effect_pak_entry{"effect11s",  104,  1, 0},   // effect11s.pak:  global 104
+    effect_pak_entry{"effect13",   105,  3, 0},   // Effect13.pak:   global 105-107
+    effect_pak_entry{"effect12",   148,  4, 0},   // Effect12.pak:   global 148-151 (slates auras)
 };
 
 // Monster/NPC PAK loading table

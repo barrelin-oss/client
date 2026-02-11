@@ -43,8 +43,10 @@ enum class effect_type_id : uint16_t
     mass_fire_strike_main = 30,
     mass_fire_strike_secondary = 31,
     breaking_effect = 32,
-    mass_magic_attack = 33,
-    moving_ice_bolt = 34,
+    blood_particle = 33,
+    blood_projectile = 34,
+    mass_magic_missile_aura1 = 35,
+    mass_magic_missile_explosion = 36,
     chill_wind = 40,
     meteor_large_1 = 41,
     meteor_large_2 = 42,
@@ -97,6 +99,9 @@ enum class effect_type_id : uint16_t
     spell_stamina_recovery_1 = 123,
     spell_protection_nm = 124,
     spell_hold_person = 125,
+    spell_possession = 126,
+    spell_poison = 127,
+    spell_great_stamina_recovery = 128,
     spell_fire_strike = 130,
     spell_summon = 131,
     spell_invisibility = 132,
@@ -107,17 +112,40 @@ enum class effect_type_id : uint16_t
     spell_lightning_arrow = 137,
     spell_tremor = 138,
     spell_confuse_lang = 142,
+    spell_lightning_thunder = 143,
     spell_great_def_shield = 144,
-    spell_energy_strike = 160,
+    spell_chill_wind_spawner = 145,
+    spell_triple_energy_bolt_spawner = 147,
     spell_berserk = 150,
+    spell_lightning_bolt_thunder = 151,
     spell_mass_poison_1 = 152,
     spell_mass_poison_2 = 153,
+    spell_mass_lightning_arrow_timer = 156,
+    spell_ice_strike_spawner = 157,
+    spell_energy_strike = 160,
+    spell_mass_fire_strike_proj = 161,
     spell_confusion = 162,
-    spell_special_165 = 165,
+    spell_mass_chill_wind_spawner = 163,
+    spell_earthworm_strike_spawner = 164,
+    spell_absolute_magic_protection = 165,
+    spell_armor_break = 166,
+    spell_bloody_shock_wave_timer = 170,
     spell_mass_confusion = 171,
+    spell_mass_ice_strike_spawner = 172,
+    spell_lightning_strike_timer = 174,
+    spell_cancellation = 176,
+    spell_illusion_movement = 177,
     spell_illusion = 180,
     spell_special_meteor = 181,
+    spell_mass_magic_missile_proj = 182,
+    spell_inhibition_casting = 183,
     spell_mass_illusion = 190,
+    spell_blizzard_timer = 191,
+    spell_mass_illusion_movement = 195,
+    spell_earth_shock_wave = 196,
+
+    // Misc effects
+    earth_shock_wave_particle = 80,
 };
 
 // Effect behavior categories
@@ -138,6 +166,8 @@ enum class effect_render_mode : uint8_t
     alpha_50,       // 50% alpha
     alpha_70,       // 70% alpha
     fade,           // Fade out over lifetime
+    thunder,        // Procedural lightning bolt (line segments, no sprite)
+    arrow_trail,    // Multi-point fading trail behind projectile (lightning arrow)
 };
 
 // Detail level filter

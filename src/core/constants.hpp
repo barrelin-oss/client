@@ -12,7 +12,7 @@ inline constexpr uint32_t screen_height = 480;
 // Resource limits
 inline constexpr std::size_t max_sprites = 20000;
 inline constexpr std::size_t max_tiles = 500;
-inline constexpr std::size_t max_effect_sprites = 100;
+inline constexpr std::size_t max_effect_sprites = 152;
 inline constexpr std::size_t max_sound_effects = 110;
 
 // Chat and messages

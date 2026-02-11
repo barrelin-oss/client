@@ -1,4 +1,5 @@
 #include "ui/dialogs/system_menu_dialog.hpp"
+#include "gameplay/effect_system.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
 #include "core/constants.hpp"
@@ -453,6 +454,24 @@ void settings_dialog::update(float delta_time, const input& inp)
         {
             ui_scale_ = 0.5f + value * 2.5f;  // 0.5 to 3.0 range
             if (on_ui_scale_change_) on_ui_scale_change_(ui_scale_);
+        }
+        else if (thunder_params_)
+        {
+            auto& p = *thunder_params_;
+            if (dragging_slider_index_ == elem_thunder_offset_pct)
+                p.offset_pct = 0.01f + value * 0.24f;
+            else if (dragging_slider_index_ == elem_thunder_offset_cap)
+                p.offset_cap = 5.0f + value * 75.0f;
+            else if (dragging_slider_index_ == elem_thunder_offset_min)
+                p.offset_min = 1.0f + value * 19.0f;
+            else if (dragging_slider_index_ == elem_thunder_segment)
+                p.segment_size = 2.0f + value * 18.0f;
+            else if (dragging_slider_index_ == elem_thunder_jag_chance)
+                p.jag_chance = 1 + static_cast<int32_t>(value * 19.0f);
+            else if (dragging_slider_index_ == elem_thunder_jag_mult)
+                p.jag_multiplier = 1.0f + value * 2.0f;
+            else if (dragging_slider_index_ == elem_thunder_bolts)
+                p.thin_bolt_count = static_cast<int32_t>(value * 4.0f + 0.5f);
         }
     }
     else
@@ -909,6 +928,39 @@ void settings_dialog::render_system_tab(renderer& rend, int32_t content_y)
                          sf::Color(90, 50, 50), sf::Color(120, 60, 60), sf::Color(160, 90, 90));
 }
 
+// Renders a slider with custom value label (not just percentage)
+static void render_debug_slider(renderer& rend, int32_t bounds_x, int32_t y,
+                                 const char* label, float norm_value, const std::string& value_str,
+                                 bool hovered)
+{
+    constexpr int32_t content_padding = 15;
+    constexpr int32_t dialog_width = 500;
+
+    int32_t label_x = bounds_x + content_padding + 10;
+    int32_t slider_x = bounds_x + content_padding + 120;
+    int32_t slider_width = dialog_width - content_padding * 2 - 120 - 60;
+    int32_t slider_height = 16;
+
+    rend.draw_text(label, label_x, y + 2, sf::Color(200, 200, 220), 11);
+
+    sf::Color track_bg = hovered ? sf::Color(50, 50, 70) : sf::Color(35, 35, 50);
+    rend.draw_rect(slider_x, y, slider_width, slider_height, track_bg, true);
+    rend.draw_rect(slider_x, y, slider_width, slider_height, sf::Color(80, 80, 100), false);
+
+    int32_t fill_width = static_cast<int32_t>(slider_width * norm_value);
+    if (fill_width > 0)
+    {
+        sf::Color fill_color = hovered ? sf::Color(80, 120, 180) : sf::Color(60, 100, 160);
+        rend.draw_rect(slider_x, y, fill_width, slider_height, fill_color, true);
+    }
+
+    int32_t handle_x = slider_x + fill_width - 4;
+    handle_x = std::clamp(handle_x, slider_x, slider_x + slider_width - 8);
+    rend.draw_rect(handle_x, y - 2, 8, slider_height + 4, sf::Color(200, 200, 220), true);
+
+    rend.draw_text(value_str, slider_x + slider_width + 10, y + 2, sf::Color(150, 150, 180), 10);
+}
+
 void settings_dialog::render_debug_tab(renderer& rend, int32_t content_y)
 {
     int32_t y = content_y;
@@ -919,6 +971,67 @@ void settings_dialog::render_debug_tab(renderer& rend, int32_t content_y)
     render_checkbox(rend, y, "Show Debug Stats", show_debug_stats_, hovered_element_ == elem_debug_stats);
     y += checkbox_row_height;
     render_checkbox(rend, y, "Show FPS Counter", show_fps_, hovered_element_ == elem_show_fps_cb);
+    y += checkbox_row_height;
+
+    if (!thunder_params_) return;
+
+    y += 5;
+    render_section_header(rend, y, "Thunder Bolt Tuning");
+    y += section_header_height;
+
+    bool enabled = thunder_enabled_ ? *thunder_enabled_ : false;
+    render_checkbox(rend, y, "Show Debug Bolt", enabled, hovered_element_ == elem_thunder_enabled);
+    y += checkbox_row_height;
+
+    auto& p = *thunder_params_;
+
+    // offset_pct: 0.01 - 0.25
+    float norm_pct = (p.offset_pct - 0.01f) / 0.24f;
+    render_debug_slider(rend, bounds_.x, y, "Offset %",
+                        norm_pct, std::format("{:.2f}", p.offset_pct),
+                        hovered_element_ == elem_thunder_offset_pct);
+    y += slider_row_height;
+
+    // offset_cap: 5 - 80
+    float norm_cap = (p.offset_cap - 5.0f) / 75.0f;
+    render_debug_slider(rend, bounds_.x, y, "Offset Cap",
+                        norm_cap, std::format("{:.0f}px", p.offset_cap),
+                        hovered_element_ == elem_thunder_offset_cap);
+    y += slider_row_height;
+
+    // offset_min: 1 - 20
+    float norm_min = (p.offset_min - 1.0f) / 19.0f;
+    render_debug_slider(rend, bounds_.x, y, "Offset Min",
+                        norm_min, std::format("{:.0f}px", p.offset_min),
+                        hovered_element_ == elem_thunder_offset_min);
+    y += slider_row_height;
+
+    // segment_size: 2 - 20
+    float norm_seg = (p.segment_size - 2.0f) / 18.0f;
+    render_debug_slider(rend, bounds_.x, y, "Segment Size",
+                        norm_seg, std::format("{:.0f}px", p.segment_size),
+                        hovered_element_ == elem_thunder_segment);
+    y += slider_row_height;
+
+    // jag_chance: 1 - 20
+    float norm_jag = static_cast<float>(p.jag_chance - 1) / 19.0f;
+    render_debug_slider(rend, bounds_.x, y, "Jag Chance",
+                        norm_jag, std::format("1/{}", p.jag_chance),
+                        hovered_element_ == elem_thunder_jag_chance);
+    y += slider_row_height;
+
+    // jag_multiplier: 1.0 - 3.0
+    float norm_mult = (p.jag_multiplier - 1.0f) / 2.0f;
+    render_debug_slider(rend, bounds_.x, y, "Jag Mult",
+                        norm_mult, std::format("{:.1f}x", p.jag_multiplier),
+                        hovered_element_ == elem_thunder_jag_mult);
+    y += slider_row_height;
+
+    // thin_bolt_count: 0 - 4
+    float norm_bolts = static_cast<float>(p.thin_bolt_count) / 4.0f;
+    render_debug_slider(rend, bounds_.x, y, "Thin Bolts",
+                        norm_bolts, std::format("{}", p.thin_bolt_count),
+                        hovered_element_ == elem_thunder_bolts);
 }
 
 // =============================================================================
@@ -1287,6 +1400,28 @@ int32_t settings_dialog::get_hovered_element_debug(int32_t mx, int32_t my, int32
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_debug_stats;
     y += checkbox_row_height;
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_fps_cb;
+    y += checkbox_row_height;
+
+    if (!thunder_params_) return -1;
+
+    y += 5 + section_header_height; // gap + "Thunder Bolt Tuning" header
+
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_thunder_enabled;
+    y += checkbox_row_height;
+
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_offset_pct;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_offset_cap;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_offset_min;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_segment;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_jag_chance;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_jag_mult;
+    y += slider_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + slider_row_height) return elem_thunder_bolts;
 
     return -1;
 }
@@ -1775,6 +1910,19 @@ bool settings_dialog::handle_debug_tab_click(int32_t elem)
         case elem_show_fps_cb:
             show_fps_ = !show_fps_;
             if (on_show_fps_change_) on_show_fps_change_(show_fps_);
+            return true;
+        case elem_thunder_enabled:
+            if (thunder_enabled_) *thunder_enabled_ = !*thunder_enabled_;
+            return true;
+        case elem_thunder_offset_pct:
+        case elem_thunder_offset_cap:
+        case elem_thunder_offset_min:
+        case elem_thunder_segment:
+        case elem_thunder_jag_chance:
+        case elem_thunder_jag_mult:
+        case elem_thunder_bolts:
+            dragging_slider_ = true;
+            dragging_slider_index_ = elem;
             return true;
         default:
             return false;

@@ -622,38 +622,22 @@ void input_handler::handle_spell_targeting(const input& inp)
         int32_t target_y = 0;
         uint32_t target_id = 0;
 
-        switch (sp->target_type)
+        // Target the clicked tile; if an entity is under cursor, use their tile position
         {
-            case spell_target::self:
+            entity* target = entities.get_entity_at_screen_pos(
+                mouse_x_, mouse_y_,
+                world.camera_x(), world.camera_y());
+            if (target && target->id() != entities.local_player_id())
             {
-                target_id = entities.local_player_id();
-                target_x = player_t.tile_x;
-                target_y = player_t.tile_y;
-                break;
+                target_id = target->id();
+                target_x = target->transform().tile_x;
+                target_y = target->transform().tile_y;
             }
-
-            case spell_target::single:
-            case spell_target::ground:
-            case spell_target::area:
-            default:
+            else
             {
-                // Target the clicked tile; if an entity is under cursor, use their tile position
-                entity* target = entities.get_entity_at_screen_pos(
-                    mouse_x_, mouse_y_,
-                    world.camera_x(), world.camera_y());
-                if (target && target->id() != entities.local_player_id())
-                {
-                    target_id = target->id();
-                    target_x = target->transform().tile_x;
-                    target_y = target->transform().tile_y;
-                }
-                else
-                {
-                    auto [tx, ty] = world.screen_to_tile(mouse_x_, mouse_y_);
-                    target_x = tx;
-                    target_y = ty;
-                }
-                break;
+                auto [tx, ty] = world.screen_to_tile(mouse_x_, mouse_y_);
+                target_x = tx;
+                target_y = ty;
             }
         }
 

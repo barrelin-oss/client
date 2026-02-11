@@ -8,6 +8,8 @@
 
 namespace hb {
 
+struct thunder_params;
+
 // Resolution option for settings
 struct resolution_option {
     uint32_t width;
@@ -103,6 +105,7 @@ public:
     // Debug tab
     void set_show_debug_stats(bool v) { show_debug_stats_ = v; }
     void set_show_fps(bool v) { show_fps_ = v; }
+    void set_thunder_debug(bool* enabled, thunder_params* params) { thunder_enabled_ = enabled; thunder_params_ = params; }
 
     // GM flag (controls debug tab visibility)
     void set_is_gm(bool v) { is_gm_ = v; }
@@ -303,6 +306,8 @@ private:
     // === Debug tab state ===
     bool show_debug_stats_ = false;
     bool show_fps_ = false;
+    bool* thunder_enabled_ = nullptr;
+    thunder_params* thunder_params_ = nullptr;
 
     // === Callbacks ===
     // Game
@@ -413,6 +418,14 @@ private:
     // Debug tab elements
     static constexpr int32_t elem_debug_stats = 90;
     static constexpr int32_t elem_show_fps_cb = 91;
+    static constexpr int32_t elem_thunder_enabled = 92;
+    static constexpr int32_t elem_thunder_offset_pct = 93;
+    static constexpr int32_t elem_thunder_offset_cap = 94;
+    static constexpr int32_t elem_thunder_offset_min = 95;
+    static constexpr int32_t elem_thunder_segment = 96;
+    static constexpr int32_t elem_thunder_jag_chance = 97;
+    static constexpr int32_t elem_thunder_jag_mult = 98;
+    static constexpr int32_t elem_thunder_bolts = 99;
 
     // Dropdown item base indices
     static constexpr int32_t elem_monitor_item_base = 100;

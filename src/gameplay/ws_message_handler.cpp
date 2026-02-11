@@ -133,10 +133,44 @@ void ws_message_handler::handle_message(const json& message)
             {} // Ack from server, already handled via local echo
         else if (type == msg_type::environment_update)
             handle_environment_update(message);
-        else if (type == "view_range_update")
+        else if (type == msg_type::view_range_update)
             handle_view_range_update(message);
-        else if (type == "command_response")
+        else if (type == msg_type::command_response)
             handle_command_response(message);
+        else if (type == msg_type::entity_spawn)
+            handle_entity_spawn(message);
+        else if (type == msg_type::npc_spawn)
+            handle_npc_spawn(message);
+        else if (type == msg_type::npc_despawn)
+            handle_npc_despawn(message);
+        else if (type == msg_type::ground_item_spawn)
+            handle_ground_item_spawn(message);
+        else if (type == msg_type::stat_update)
+            handle_stat_update(message);
+        else if (type == msg_type::entity_hp_update)
+            handle_entity_hp_update(message);
+        else if (type == msg_type::equipment_change_broadcast)
+            handle_equipment_change_broadcast(message);
+        else if (type == msg_type::player_equip_response)
+            handle_player_equip_response(message);
+        else if (type == msg_type::player_unequip_response)
+            handle_player_unequip_response(message);
+        else if (type == msg_type::npc_death)
+            handle_npc_death(message);
+        else if (type == msg_type::inventory_data)
+            handle_inventory_data(message);
+        else if (type == msg_type::equipment_data)
+            handle_equipment_data(message);
+        else if (type == msg_type::skills_data)
+            handle_skills_data(message);
+        else if (type == msg_type::player_skill_response)
+            handle_player_skill_response(message);
+        else if (type == msg_type::player_interact_response)
+            handle_player_interact_response(message);
+        else if (type == msg_type::pong)
+            handle_pong(message);
+        else if (type == msg_type::error_msg)
+            handle_error(message);
         else
             spdlog::warn("Unknown message type: {}", type);
     }
@@ -573,7 +607,8 @@ void ws_message_handler::handle_player_position_update(const json& message)
     entity* ent = entities.get_entity(data.entity_id);
     if (!ent)
     {
-        spdlog::debug("Position update for unknown entity {}", data.entity_id);
+        spdlog::debug("Position update for unknown entity {}, requesting info", data.entity_id);
+        request_entity_info(data.entity_id);
         return;
     }
 
@@ -1544,9 +1579,19 @@ void ws_message_handler::handle_combat_effect(const json& message)
         }
         else if (sp->effect_sprite != 0)
         {
+            // Area/ground spells always render at the target tile position
+            // Single-target spells with no target entity render on the caster
+            float fx = dest_wx;
+            float fy = dest_wy;
+            if (data.target_id == 0
+                && sp->target_type == spell_target::single)
+            {
+                fx = src_wx;
+                fy = src_wy;
+            }
             game_->effects().add_effect_at_pixel(
                 static_cast<effect_type_id>(sp->effect_sprite),
-                dest_wx, dest_wy);
+                fx, fy);
         }
     }
 
@@ -1772,6 +1817,415 @@ void ws_message_handler::handle_environment_update(const json& message)
         game_->game_world().set_clock(hour, minute);
 
         game_->game_world().set_time(hour_to_time_of_day(hour));
+    }
+}
+
+void ws_message_handler::handle_entity_spawn(const json& message)
+{
+    auto data = entity_spawn_data::from_json(message);
+    auto& entities = game_->entities();
+
+    // Skip if entity already exists
+    if (entities.get_entity(data.entity_id))
+    {
+        spdlog::debug("entity_spawn: entity {} already exists, ignoring", data.entity_id);
+        return;
+    }
+
+    // Skip spawning ourselves
+    if (data.entity_id == entities.local_player_id())
+        return;
+
+    entity_type type = entity_type::character;
+    if (data.type == "npc") type = entity_type::npc;
+    else if (data.type == "monster") type = entity_type::monster;
+
+    auto& ent = entities.create_entity_with_id(data.entity_id, type);
+
+    auto& t = ent.transform();
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.x = data.x * 32;
+    t.y = data.y * 32;
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
+
+    if (ent.has_name())
+        ent.name().name = data.name;
+
+    if (ent.has_stats())
+    {
+        ent.stats().hp = data.hp_percent;
+        ent.stats().max_hp = 100;
+    }
+
+    ent.animation().set_state(entity_anim_state::stop);
+
+    spdlog::info("Entity spawned: {} '{}' id={} at ({},{})",
+                 data.type, data.name, data.entity_id, data.x, data.y);
+}
+
+void ws_message_handler::handle_npc_spawn(const json& message)
+{
+    auto data = npc_spawn_data::from_json(message);
+    auto& entities = game_->entities();
+
+    // Skip if entity already exists
+    if (entities.get_entity(data.entity_id))
+    {
+        spdlog::debug("npc_spawn: entity {} already exists, ignoring", data.entity_id);
+        return;
+    }
+
+    auto& ent = entities.create_entity_with_id(data.entity_id, entity_type::monster);
+
+    auto& t = ent.transform();
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.x = data.x * 32;
+    t.y = data.y * 32;
+    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
+
+    if (ent.has_name())
+        ent.name().name = data.name;
+
+    if (data.template_id > 0)
+    {
+        ent.set_type(static_cast<uint16_t>(data.template_id));
+        if (ent.has_npc())
+            ent.npc().npc_type = static_cast<uint16_t>(data.template_id);
+        if (ent.has_monster())
+            ent.monster().monster_type = static_cast<uint16_t>(data.template_id);
+    }
+
+    if (ent.has_stats())
+    {
+        ent.stats().hp = data.hp;
+        ent.stats().max_hp = data.max_hp;
+        ent.stats().level = static_cast<uint16_t>(data.level);
+    }
+
+    ent.animation().set_state(entity_anim_state::stop);
+
+    spdlog::info("NPC spawned: '{}' id={} template={} at ({},{}) hp={}/{}",
+                 data.name, data.entity_id, data.template_id, data.x, data.y,
+                 data.hp, data.max_hp);
+}
+
+void ws_message_handler::handle_npc_despawn(const json& message)
+{
+    auto data = npc_despawn_data::from_json(message);
+
+    spdlog::debug("NPC despawned: id={}", data.entity_id);
+    game_->entities().destroy(data.entity_id);
+}
+
+void ws_message_handler::handle_ground_item_spawn(const json& message)
+{
+    auto data = ground_item_spawn_data::from_json(message);
+    auto& entities = game_->entities();
+
+    // Skip if entity already exists (duplicate spawn)
+    if (entities.get_entity(data.item_id))
+    {
+        spdlog::debug("ground_item_spawn: item {} already exists, ignoring", data.item_id);
+        return;
+    }
+
+    auto& ent = entities.create_entity_with_id(data.item_id, entity_type::item);
+
+    auto& t = ent.transform();
+    t.tile_x = data.x;
+    t.tile_y = data.y;
+    t.x = data.x * 32 + 16;
+    t.y = data.y * 32 + 16;
+
+    if (ent.has_item())
+    {
+        auto& item_comp = ent.item();
+        item_comp.item_id = data.item_id;
+        item_comp.item_type = static_cast<uint16_t>(data.template_id);
+        item_comp.amount = static_cast<uint32_t>(data.count);
+    }
+
+    // Items don't get a name component by default, but add one for hover/tooltip
+    if (!ent.has_name())
+        ent.add_name();
+    ent.name().name = data.item_name;
+
+    spdlog::debug("Ground item spawned: '{}' id={} x{} at ({},{})",
+                  data.item_name, data.item_id, data.count, data.x, data.y);
+}
+
+void ws_message_handler::handle_stat_update(const json& message)
+{
+    auto data = stat_update_data::from_json(message);
+
+    entity* player = game_->local_player();
+    if (!player) return;
+
+    auto& stats = player->stats();
+    stats.max_hp = data.max_hp;
+    stats.max_mp = data.max_mp;
+    stats.max_sp = data.max_sp;
+    stats.attack_power = data.attack_power;
+    stats.magic_power = data.magic_power;
+    stats.defense = data.defense;
+    stats.magic_resist = data.magic_defense;
+    stats.hit_ratio = data.hit_rate;
+    stats.dodge_ratio = data.dodge_rate;
+    stats.critical_ratio = data.critical_rate;
+
+    game_->update_icon_panel();
+
+    spdlog::debug("Stats updated: max_hp={} max_mp={} max_sp={} atk={} def={}",
+                  data.max_hp, data.max_mp, data.max_sp, data.attack_power, data.defense);
+}
+
+void ws_message_handler::handle_entity_hp_update(const json& message)
+{
+    auto data = entity_hp_update_data::from_json(message);
+    auto& entities = game_->entities();
+
+    entity* ent = entities.get_entity(data.entity_id);
+    if (!ent)
+    {
+        spdlog::debug("HP update for unknown entity {}", data.entity_id);
+        return;
+    }
+
+    if (ent->has_stats())
+    {
+        ent->stats().hp = data.hp;
+        ent->stats().max_hp = data.hp_max;
+    }
+
+    // Update HUD if this is the local player
+    if (data.entity_id == entities.local_player_id())
+        game_->update_icon_panel();
+
+    spdlog::debug("Entity {} HP: {}/{}", data.entity_id, data.hp, data.hp_max);
+}
+
+void ws_message_handler::handle_equipment_change_broadcast(const json& message)
+{
+    auto data = equipment_change_broadcast_data::from_json(message);
+
+    // Skip our own changes — handled by equip/unequip response
+    if (data.entity_id == game_->entities().local_player_id())
+        return;
+
+    spdlog::debug("Entity {} equipment slot {} changed: item={} template={}",
+                  data.entity_id, data.slot, data.item_id, data.template_id);
+
+    // TODO: Update other player's visual equipment when character rendering supports it
+}
+
+void ws_message_handler::handle_player_equip_response(const json& message)
+{
+    auto data = player_equip_response_data::from_json(message);
+
+    if (!data.success)
+    {
+        spdlog::debug("Equip failed: {}", data.error);
+        return;
+    }
+
+    spdlog::info("Equipped '{}' to slot {}", data.item_name, data.slot);
+
+    // Server will send stat_update and inventory_data/equipment_data
+    // to refresh our state, so we don't need to manually update here
+}
+
+void ws_message_handler::handle_player_unequip_response(const json& message)
+{
+    auto data = player_unequip_response_data::from_json(message);
+
+    if (!data.success)
+    {
+        spdlog::debug("Unequip failed: {}", data.error);
+        return;
+    }
+
+    spdlog::info("Unequipped '{}' from slot {} -> inventory slot {}",
+                 data.item_name, data.slot, data.inventory_slot);
+}
+
+void ws_message_handler::handle_npc_death(const json& message)
+{
+    auto data = npc_death_data::from_json(message);
+
+    entity* ent = game_->entities().get_entity(data.entity_id);
+    if (ent)
+    {
+        if (ent->has_stats())
+            ent->stats().hp = 0;
+
+        ent->set_action(object_action::dying);
+    }
+
+    spdlog::debug("NPC {} died at ({},{}) killed by {}",
+                  data.entity_id, data.x, data.y, data.killer_id);
+}
+
+void ws_message_handler::handle_inventory_data(const json& message)
+{
+    auto data = inventory_data_msg::from_json(message);
+
+    auto& inventory = game_->inventory();
+    inventory.clear();
+    inventory.set_gold(static_cast<uint32_t>(data.gold));
+
+    for (const auto& inv_item : data.items)
+    {
+        item itm;
+        itm.id = inv_item.item_id;
+        itm.type_id = static_cast<uint16_t>(inv_item.item_id);
+        itm.name = inv_item.name;
+        itm.amount = static_cast<uint32_t>(inv_item.count);
+        itm.durability = static_cast<uint16_t>(inv_item.durability);
+        itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
+        inventory.set_item_at(inv_item.slot, itm);
+    }
+
+    spdlog::debug("Inventory refreshed: {} items, {} gold", data.items.size(), data.gold);
+}
+
+void ws_message_handler::handle_equipment_data(const json& message)
+{
+    auto data = equipment_data_msg::from_json(message);
+
+    auto& inventory = game_->inventory();
+
+    // Clear all equipped slots first
+    for (int i = 1; i <= 11; ++i)
+        inventory.clear_equipped(static_cast<equip_slot>(i));
+
+    for (const auto& eq_item : data.equipment)
+    {
+        item itm;
+        itm.id = eq_item.item_id;
+        itm.type_id = static_cast<uint16_t>(eq_item.item_id);
+        itm.name = eq_item.name;
+        itm.durability = static_cast<uint16_t>(eq_item.durability);
+        itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
+
+        equip_slot slot = equip_slot::none;
+        switch (eq_item.slot)
+        {
+            case 0: slot = equip_slot::head; break;
+            case 1: slot = equip_slot::body; break;
+            case 2: slot = equip_slot::arms; break;
+            case 3: slot = equip_slot::pants; break;
+            case 4: slot = equip_slot::boots; break;
+            case 5: slot = equip_slot::right_hand; break;
+            case 6: slot = equip_slot::left_hand; break;
+            case 7: slot = equip_slot::right_finger; break;
+            case 8: slot = equip_slot::left_finger; break;
+            case 9: slot = equip_slot::neck; break;
+            case 10: slot = equip_slot::back; break;
+            default: break;
+        }
+        if (slot != equip_slot::none)
+            inventory.set_equipped(slot, itm);
+    }
+
+    spdlog::debug("Equipment refreshed: {} items", data.equipment.size());
+}
+
+void ws_message_handler::handle_skills_data(const json& message)
+{
+    auto data = skills_data_msg::from_json(message);
+
+    auto& skills = game_->skills();
+    for (const auto& sk : data.skills)
+    {
+        uint8_t mastery = static_cast<uint8_t>(std::min(static_cast<int16_t>(100), static_cast<int16_t>(sk.level / 2)));
+        skills.set_mastery(sk.skill_id, mastery);
+    }
+
+    spdlog::debug("Skills refreshed: {} skills", data.skills.size());
+}
+
+void ws_message_handler::handle_player_skill_response(const json& message)
+{
+    if (message.contains("data"))
+    {
+        const auto& d = message["data"];
+        bool success = d.value("success", false);
+        if (!success)
+        {
+            std::string error = d.value("error", "Unknown error");
+            spdlog::debug("Skill use failed: {}", error);
+            return;
+        }
+
+        if (d.contains("result"))
+        {
+            const auto& r = d["result"];
+            uint32_t skill_id = r.value("skill_id", 0u);
+            int32_t effect = r.value("effect_value", 0);
+            spdlog::debug("Skill {} used, effect={}", skill_id, effect);
+        }
+    }
+}
+
+void ws_message_handler::handle_player_interact_response(const json& message)
+{
+    if (!message.contains("data")) return;
+    const auto& d = message["data"];
+
+    bool success = d.value("success", false);
+    if (!success)
+    {
+        std::string error = d.value("error", "Interaction failed");
+        spdlog::debug("Interaction failed: {}", error);
+        return;
+    }
+
+    if (!d.contains("result")) return;
+    const auto& result = d["result"];
+
+    std::string interaction_type = result.value("interaction_type", "");
+
+    if (interaction_type == "shop")
+    {
+        spdlog::info("Shop opened: {}", result["interaction_data"].value("npc_name", ""));
+        // TODO: Open shop dialog with items from interaction_data
+    }
+    else if (interaction_type == "bank")
+    {
+        spdlog::info("Bank opened: {}", result["interaction_data"].value("npc_name", ""));
+        // TODO: Open bank dialog with items from interaction_data
+    }
+    else if (interaction_type == "dialog")
+    {
+        spdlog::info("NPC dialog: {}", result["interaction_data"].value("npc_name", ""));
+        // TODO: Open NPC dialog with text and options from interaction_data
+    }
+    else
+    {
+        spdlog::debug("Unknown interaction type: {}", interaction_type);
+    }
+}
+
+void ws_message_handler::handle_pong(const json& message)
+{
+    if (message.contains("data"))
+    {
+        int64_t timestamp = message["data"].value("timestamp", static_cast<int64_t>(0));
+        (void)timestamp;
+        // Could calculate latency here if we stored the ping send time
+    }
+}
+
+void ws_message_handler::handle_error(const json& message)
+{
+    if (message.contains("data"))
+    {
+        const auto& d = message["data"];
+        std::string code = d.value("error_code", "UNKNOWN");
+        std::string msg = d.value("message", "Unknown error");
+        spdlog::warn("Server error [{}]: {}", code, msg);
     }
 }
 

@@ -80,6 +80,23 @@ private:
     void handle_player_teleport(const json& message);
     void handle_player_magic_response(const json& message);
     void handle_spell_list_update(const json& message);
+    void handle_entity_spawn(const json& message);
+    void handle_npc_spawn(const json& message);
+    void handle_npc_despawn(const json& message);
+    void handle_ground_item_spawn(const json& message);
+    void handle_stat_update(const json& message);
+    void handle_entity_hp_update(const json& message);
+    void handle_equipment_change_broadcast(const json& message);
+    void handle_player_equip_response(const json& message);
+    void handle_player_unequip_response(const json& message);
+    void handle_npc_death(const json& message);
+    void handle_inventory_data(const json& message);
+    void handle_equipment_data(const json& message);
+    void handle_skills_data(const json& message);
+    void handle_player_skill_response(const json& message);
+    void handle_player_interact_response(const json& message);
+    void handle_pong(const json& message);
+    void handle_error(const json& message);
 
     game_state_manager* game_ = nullptr;
 

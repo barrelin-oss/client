@@ -42,11 +42,19 @@ struct effect
     float velocity_x = 0.0f;
     float velocity_y = 0.0f;
 
+    // Sub-frame interpolation offset (smooth movement between frame ticks)
+    float interp_x = 0.0f;
+    float interp_y = 0.0f;
+
     // Direction index (0-7 for directional sprites)
     uint8_t direction_index = 0;
 
     // Sprite reference
     const sprite* sprite_ptr = nullptr;
+
+    // Thunder bolt perturbation (randomized each frame)
+    int8_t rx = 0;
+    int8_t ry = 0;
 
     // Generic value (attacker height, spawn count, etc.)
     int32_t value = 0;

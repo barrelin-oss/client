@@ -246,6 +246,9 @@ public:
         ws_handler_.request_enter_game(character_id, force_disconnect);
     }
 
+    // HUD updates
+    void update_icon_panel();
+
 private:
     // State handlers
     void enter_state(game_state state);
@@ -274,9 +277,6 @@ private:
     void handle_enter_game(packet_reader& reader);
     void handle_player_data(packet_reader& reader);
     void handle_map_data(packet_reader& reader);
-
-    // HUD updates
-    void update_icon_panel();
 
     // Clear all in-game data (map, entities, etc.) for clean re-entry
     void clear_game_data();

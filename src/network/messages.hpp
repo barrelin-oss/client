@@ -38,9 +38,42 @@ namespace msg_type {
 
     // Player state updates
     inline constexpr const char* hunger_update = "hunger_update";
+    inline constexpr const char* stat_update = "stat_update";
+    inline constexpr const char* entity_hp_update = "entity_hp_update";
+
+    // Equipment
+    inline constexpr const char* player_equip_response = "player_equip_response";
+    inline constexpr const char* player_unequip_response = "player_unequip_response";
+    inline constexpr const char* equipment_change_broadcast = "equipment_change_broadcast";
+    inline constexpr const char* inventory_data = "inventory_data";
+    inline constexpr const char* equipment_data = "equipment_data";
+
+    // Skills
+    inline constexpr const char* skills_data = "skills_data";
+    inline constexpr const char* player_skill_response = "player_skill_response";
 
     // NPC messages
     inline constexpr const char* npc_move = "npc_move";
+    inline constexpr const char* npc_spawn = "npc_spawn";
+    inline constexpr const char* npc_despawn = "npc_despawn";
+    inline constexpr const char* npc_death = "npc_death";
+
+    // Entity visibility
+    inline constexpr const char* entity_spawn = "entity_spawn";
+
+    // Ground items
+    inline constexpr const char* ground_item_spawn = "ground_item_spawn";
+
+    // NPC interaction
+    inline constexpr const char* player_interact_response = "player_interact_response";
+
+    // System
+    inline constexpr const char* pong = "pong";
+    inline constexpr const char* error_msg = "error";
+
+    // View range (fixing literal strings in dispatch)
+    inline constexpr const char* view_range_update = "view_range_update";
+    inline constexpr const char* command_response = "command_response";
 
     // Entity info request/response (for when we receive updates for unknown entities)
     inline constexpr const char* entity_info_request = "entity_info_request";
@@ -1223,5 +1256,334 @@ inline json make_player_respawn_request() {
     return message_builder(msg_type::player_respawn_request)
         .build();
 }
+
+// Entity spawn data (player entered visibility range)
+struct entity_spawn_data {
+    uint32_t entity_id = 0;
+    std::string type;       // "player", "npc", "monster"
+    std::string name;
+    int16_t x = 0;
+    int16_t y = 0;
+    int32_t hp_percent = 100;
+    int16_t direction = 4;  // south default
+
+    static entity_spawn_data from_json(const json& j) {
+        entity_spawn_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("type")) data.type = d["type"].get<std::string>();
+            if (d.contains("name")) data.name = d["name"].get<std::string>();
+            if (d.contains("x")) data.x = d["x"].get<int16_t>();
+            if (d.contains("y")) data.y = d["y"].get<int16_t>();
+            if (d.contains("hp_percent")) data.hp_percent = d["hp_percent"].get<int32_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<int16_t>();
+        }
+        return data;
+    }
+};
+
+// NPC spawn data (NPC/monster entered visibility range)
+struct npc_spawn_data {
+    uint32_t entity_id = 0;
+    uint32_t template_id = 0;
+    std::string name;
+    int16_t x = 0;
+    int16_t y = 0;
+    int16_t direction = 4;
+    int32_t hp = 0;
+    int32_t max_hp = 0;
+    int16_t level = 0;
+
+    static npc_spawn_data from_json(const json& j) {
+        npc_spawn_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("template_id")) data.template_id = d["template_id"].get<uint32_t>();
+            if (d.contains("name")) data.name = d["name"].get<std::string>();
+            if (d.contains("x")) data.x = d["x"].get<int16_t>();
+            if (d.contains("y")) data.y = d["y"].get<int16_t>();
+            if (d.contains("direction")) data.direction = d["direction"].get<int16_t>();
+            if (d.contains("hp")) data.hp = d["hp"].get<int32_t>();
+            if (d.contains("max_hp")) data.max_hp = d["max_hp"].get<int32_t>();
+            if (d.contains("level")) data.level = d["level"].get<int16_t>();
+        }
+        return data;
+    }
+};
+
+// NPC despawn data
+struct npc_despawn_data {
+    uint32_t entity_id = 0;
+
+    static npc_despawn_data from_json(const json& j) {
+        npc_despawn_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+        }
+        return data;
+    }
+};
+
+// Ground item spawn data
+struct ground_item_spawn_data {
+    uint32_t item_id = 0;
+    uint32_t template_id = 0;
+    std::string item_name;
+    int16_t count = 1;
+    int16_t x = 0;
+    int16_t y = 0;
+
+    static ground_item_spawn_data from_json(const json& j) {
+        ground_item_spawn_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
+            if (d.contains("template_id")) data.template_id = d["template_id"].get<uint32_t>();
+            if (d.contains("item_name")) data.item_name = d["item_name"].get<std::string>();
+            if (d.contains("count")) data.count = d["count"].get<int16_t>();
+            if (d.contains("x")) data.x = d["x"].get<int16_t>();
+            if (d.contains("y")) data.y = d["y"].get<int16_t>();
+        }
+        return data;
+    }
+};
+
+// Stat update data
+struct stat_update_data {
+    int32_t max_hp = 0;
+    int32_t max_mp = 0;
+    int32_t max_sp = 0;
+    int32_t attack_power = 0;
+    int32_t magic_power = 0;
+    int32_t defense = 0;
+    int32_t magic_defense = 0;
+    int32_t hit_rate = 0;
+    int32_t dodge_rate = 0;
+    int32_t critical_rate = 0;
+
+    static stat_update_data from_json(const json& j) {
+        stat_update_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("max_hp")) data.max_hp = d["max_hp"].get<int32_t>();
+            if (d.contains("max_mp")) data.max_mp = d["max_mp"].get<int32_t>();
+            if (d.contains("max_sp")) data.max_sp = d["max_sp"].get<int32_t>();
+            if (d.contains("attack_power")) data.attack_power = d["attack_power"].get<int32_t>();
+            if (d.contains("magic_power")) data.magic_power = d["magic_power"].get<int32_t>();
+            if (d.contains("defense")) data.defense = d["defense"].get<int32_t>();
+            if (d.contains("magic_defense")) data.magic_defense = d["magic_defense"].get<int32_t>();
+            if (d.contains("hit_rate")) data.hit_rate = d["hit_rate"].get<int32_t>();
+            if (d.contains("dodge_rate")) data.dodge_rate = d["dodge_rate"].get<int32_t>();
+            if (d.contains("critical_rate")) data.critical_rate = d["critical_rate"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Entity HP update data
+struct entity_hp_update_data {
+    uint32_t entity_id = 0;
+    int32_t hp = 0;
+    int32_t hp_max = 0;
+
+    static entity_hp_update_data from_json(const json& j) {
+        entity_hp_update_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("hp")) data.hp = d["hp"].get<int32_t>();
+            if (d.contains("hp_max")) data.hp_max = d["hp_max"].get<int32_t>();
+        }
+        return data;
+    }
+};
+
+// Equipment change broadcast data
+struct equipment_change_broadcast_data {
+    uint32_t entity_id = 0;
+    uint8_t slot = 0;
+    uint32_t item_id = 0;
+    uint32_t template_id = 0;
+
+    static equipment_change_broadcast_data from_json(const json& j) {
+        equipment_change_broadcast_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("slot")) data.slot = d["slot"].get<uint8_t>();
+            if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
+            if (d.contains("template_id")) data.template_id = d["template_id"].get<uint32_t>();
+        }
+        return data;
+    }
+};
+
+// Player equip response data
+struct player_equip_response_data {
+    bool success = false;
+    uint8_t slot = 0;
+    uint32_t item_id = 0;
+    std::string item_name;
+    int16_t durability = 0;
+    int16_t max_durability = 0;
+    uint32_t swapped_item_id = 0;
+    uint8_t swapped_to_inv_slot = 0;
+    std::string error;
+
+    static player_equip_response_data from_json(const json& j) {
+        player_equip_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("slot")) data.slot = d["slot"].get<uint8_t>();
+            if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
+            if (d.contains("item_name")) data.item_name = d["item_name"].get<std::string>();
+            if (d.contains("durability")) data.durability = d["durability"].get<int16_t>();
+            if (d.contains("max_durability")) data.max_durability = d["max_durability"].get<int16_t>();
+            if (d.contains("swapped_item_id")) data.swapped_item_id = d["swapped_item_id"].get<uint32_t>();
+            if (d.contains("swapped_to_inv_slot")) data.swapped_to_inv_slot = d["swapped_to_inv_slot"].get<uint8_t>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Player unequip response data
+struct player_unequip_response_data {
+    bool success = false;
+    uint8_t slot = 0;
+    uint32_t item_id = 0;
+    std::string item_name;
+    uint8_t inventory_slot = 0;
+    std::string error;
+
+    static player_unequip_response_data from_json(const json& j) {
+        player_unequip_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("slot")) data.slot = d["slot"].get<uint8_t>();
+            if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
+            if (d.contains("item_name")) data.item_name = d["item_name"].get<std::string>();
+            if (d.contains("inventory_slot")) data.inventory_slot = d["inventory_slot"].get<uint8_t>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// NPC death data
+struct npc_death_data {
+    uint32_t entity_id = 0;
+    uint32_t killer_id = 0;
+    int16_t x = 0;
+    int16_t y = 0;
+
+    static npc_death_data from_json(const json& j) {
+        npc_death_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("killer_id")) data.killer_id = d["killer_id"].get<uint32_t>();
+            if (d.contains("x")) data.x = d["x"].get<int16_t>();
+            if (d.contains("y")) data.y = d["y"].get<int16_t>();
+        }
+        return data;
+    }
+};
+
+// Inventory data (full refresh)
+struct inventory_data_msg {
+    struct inv_item {
+        uint8_t slot = 0;
+        uint32_t item_id = 0;
+        std::string name;
+        int16_t count = 1;
+        int16_t durability = 100;
+        int16_t max_durability = 100;
+    };
+    std::vector<inv_item> items;
+    int32_t gold = 0;
+
+    static inventory_data_msg from_json(const json& j) {
+        inventory_data_msg data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("gold")) data.gold = d["gold"].get<int32_t>();
+            if (d.contains("items") && d["items"].is_array()) {
+                for (const auto& item_j : d["items"]) {
+                    inv_item itm;
+                    if (item_j.contains("slot")) itm.slot = item_j["slot"].get<uint8_t>();
+                    if (item_j.contains("item_id")) itm.item_id = item_j["item_id"].get<uint32_t>();
+                    if (item_j.contains("name")) itm.name = item_j["name"].get<std::string>();
+                    if (item_j.contains("count")) itm.count = item_j["count"].get<int16_t>();
+                    if (item_j.contains("durability")) itm.durability = item_j["durability"].get<int16_t>();
+                    if (item_j.contains("max_durability")) itm.max_durability = item_j["max_durability"].get<int16_t>();
+                    data.items.push_back(std::move(itm));
+                }
+            }
+        }
+        return data;
+    }
+};
+
+// Equipment data (full refresh)
+struct equipment_data_msg {
+    struct equip_item {
+        uint8_t slot = 0;
+        uint32_t item_id = 0;
+        std::string name;
+        int16_t durability = 100;
+        int16_t max_durability = 100;
+    };
+    std::vector<equip_item> equipment;
+
+    static equipment_data_msg from_json(const json& j) {
+        equipment_data_msg data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("equipment") && d["equipment"].is_array()) {
+                for (const auto& eq_j : d["equipment"]) {
+                    equip_item itm;
+                    if (eq_j.contains("slot")) itm.slot = eq_j["slot"].get<uint8_t>();
+                    if (eq_j.contains("item_id")) itm.item_id = eq_j["item_id"].get<uint32_t>();
+                    if (eq_j.contains("name")) itm.name = eq_j["name"].get<std::string>();
+                    if (eq_j.contains("durability")) itm.durability = eq_j["durability"].get<int16_t>();
+                    if (eq_j.contains("max_durability")) itm.max_durability = eq_j["max_durability"].get<int16_t>();
+                    data.equipment.push_back(std::move(itm));
+                }
+            }
+        }
+        return data;
+    }
+};
+
+// Skills data (full refresh)
+struct skills_data_msg {
+    struct skill_entry {
+        uint8_t skill_id = 0;
+        int16_t level = 0;
+    };
+    std::vector<skill_entry> skills;
+
+    static skills_data_msg from_json(const json& j) {
+        skills_data_msg data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("skills") && d["skills"].is_array()) {
+                for (const auto& sk_j : d["skills"]) {
+                    skill_entry sk;
+                    if (sk_j.contains("skill_id")) sk.skill_id = sk_j["skill_id"].get<uint8_t>();
+                    if (sk_j.contains("level")) sk.level = sk_j["level"].get<int16_t>();
+                    data.skills.push_back(sk);
+                }
+            }
+        }
+        return data;
+    }
+};
 
 } // namespace hb

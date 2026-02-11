@@ -18,6 +18,8 @@ struct child_effect_spec
     bool random_offset = false;
     int16_t random_range = 0;
     bool as_projectile = false;     // Spawn as projectile from parent src to parent dest
+    int8_t start_frame = 0;         // Start frame for first copy (negative = delay)
+    int8_t start_frame_step = 0;    // Increment per copy (e.g. -1 for cascading delays)
 };
 
 // Static definition for each effect type (replaces the giant bAddNewEffect switch)
@@ -40,11 +42,31 @@ struct effect_definition
     bool emits_light = false;
     uint8_t light_radius = 0;
 
-    int8_t gravity = 0;             // For physics particles (positive = downward)
+    int8_t gravity = 0;             // For physics/falling effects (positive = downward)
+    uint8_t fall_start_frame = 0;   // Frame at which gravity falling begins (composite/static)
+    int16_t fall_initial_speed = 0; // Initial vertical speed when falling starts
+    int16_t fall_initial_speed_x = 0; // Initial horizontal speed when falling starts
     bool uses_tile_coords = true;   // Convert tile->pixel on creation
-    int16_t height_offset = -40;    // Default head-height offset in pixels
+    int16_t x_offset = 0;           // Horizontal pixel offset from tile origin
+    int16_t height_offset = 0;      // Vertical pixel offset from tile origin
 
     bool directional = false;       // Use direction for sprite frame offset
+    uint8_t frame_offset = 0;       // Base frame offset (for multi-variant PAK sprites)
+    uint8_t frames_per_direction = 0; // Directional frame stride override (0 = max_frames+1)
+    bool randomize_direction_frame = false; // Randomize within direction frame range
+
+    // Sprite overlays rendered on top of the primary sprite
+    struct sprite_overlay
+    {
+        uint8_t pak_index = 255;        // 255 = unused
+        int16_t offset_x = 0;
+        int16_t offset_y = 0;
+        effect_render_mode render_mode = effect_render_mode::transparent;
+        uint8_t frame_offset = 0;       // Override frame offset (0 = use parent's frame_offset)
+    };
+    static constexpr size_t max_overlays = 4;
+    std::array<sprite_overlay, max_overlays> overlays{};
+    uint8_t overlay_count = 0;
 
     // Projectile speed: pixels per Bresenham step (legacy GetPoint step param)
     // Arrow=70, spell projectiles=50, fire strike proj=50

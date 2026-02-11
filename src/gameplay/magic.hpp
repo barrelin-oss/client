@@ -39,12 +39,9 @@ enum class spell_category : uint8_t {
 
 // Spell target type
 enum class spell_target : uint8_t {
-    self = 0,
-    single = 1,      // Single target (enemy or ally)
-    area = 2,        // Area of effect
-    ground = 3,      // Target location
-    party = 4,       // All party members
-    all_enemies = 5, // All enemies in range
+    single = 0,      // Single target (enemy or ally)
+    area = 1,        // Area of effect
+    ground = 2,      // Target location
 };
 
 // Casting state

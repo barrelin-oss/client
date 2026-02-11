@@ -528,6 +528,10 @@ void dialog_callbacks::setup_callbacks()
             config::instance().save();
         });
 
+        // Thunder debug: give dialog direct pointers to effect_system params
+        settings_dlg->set_thunder_debug(&game_->effects().debug_thunder_enabled,
+                                        &game_->effects().debug_thunder);
+
         // === System tab callbacks ===
         settings_dlg->set_on_logout([this]() {
             spdlog::info("Logout requested");

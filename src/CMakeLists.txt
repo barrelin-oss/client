@@ -94,6 +94,7 @@ add_library(helbreath_core STATIC
     ui/dialogs/gauge_panel_dialog.cpp
     ui/dialogs/levelup_dialog.cpp
     ui/dialogs/system_menu_dialog.cpp
+    ui/dialogs/fishing_dialog.cpp
 
     # Gameplay
     gameplay/action_queue.cpp

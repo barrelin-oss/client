@@ -843,6 +843,13 @@ void ui_system::create_levelup_dialog() {
     dialog_order_.push_back(ptr);
 }
 
+void ui_system::create_fishing_dialog() {
+    auto dlg = std::make_unique<fishing_dialog>();
+    dialog* ptr = dlg.get();
+    dialogs_[dialog_type::fishing] = std::move(dlg);
+    dialog_order_.push_back(ptr);
+}
+
 void ui_system::show_connection_dialog(std::function<void()> on_cancel) {
     // Remove existing connection dialog if any
     hide_connection_dialog();

@@ -927,6 +927,12 @@ void input_handler::handle_hotkey_input(const input& inp)
     if (inp.is_key_pressed(sf::Keyboard::Key::P)) ui.toggle_dialog(dialog_type::party);
     if (inp.is_key_pressed(sf::Keyboard::Key::G)) ui.toggle_dialog(dialog_type::guild);
 
+    // Fishing (F key)
+    if (inp.is_key_pressed(sf::Keyboard::Key::F))
+    {
+        game_->ws_handler().request_fish_skill();
+    }
+
     // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab))
     {

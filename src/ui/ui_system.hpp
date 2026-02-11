@@ -105,6 +105,7 @@ public:
     void create_icon_panel_dialog();
     void create_gauge_panel_dialog();
     void create_levelup_dialog();
+    void create_fishing_dialog();
 
     // Tooltip
     void show_tooltip(std::string_view text, int32_t x, int32_t y);

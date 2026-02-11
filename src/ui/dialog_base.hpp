@@ -58,6 +58,7 @@ enum class dialog_type {
     icon_panel,
     gauge_panel,
     levelup,
+    fishing,
 };
 
 // Controls how a dialog is clamped to the screen during dragging

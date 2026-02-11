@@ -477,6 +477,66 @@ void effect_system::clear()
     {
         eff.clear();
     }
+    fish_nodes_.clear();
+}
+
+void effect_system::add_fish_node(uint32_t fish_index, int32_t tile_x, int32_t tile_y)
+{
+    // Remove existing node with same index
+    remove_fish_node(fish_index);
+
+    // Use effect type 8 (water ripple) as a looping fish node indicator
+    auto type_id = static_cast<effect_type_id>(8);
+    const auto* def = get_effect_definition(type_id);
+    if (!def)
+    {
+        spdlog::warn("No effect definition for fish node visual");
+        return;
+    }
+
+    int32_t slot = find_free_slot();
+    if (slot < 0)
+    {
+        spdlog::warn("No free effect slot for fish node {}", fish_index);
+        return;
+    }
+
+    // Convert tile coords to world pixels (tile center)
+    float wx = static_cast<float>(tile_x * 32 + 16);
+    float wy = static_cast<float>(tile_y * 32 + 16);
+
+    auto& eff = effects_[slot];
+    init_effect(eff, *def, wx, wy, wx, wy, 0, 1);
+    eff.looping = true;
+    fish_nodes_[fish_index] = slot;
+    spdlog::debug("Fish node {} spawned at ({},{}) in slot {}", fish_index, tile_x, tile_y, slot);
+}
+
+void effect_system::remove_fish_node(uint32_t fish_index)
+{
+    auto it = fish_nodes_.find(fish_index);
+    if (it != fish_nodes_.end())
+    {
+        int32_t slot = it->second;
+        if (slot >= 0 && slot < static_cast<int32_t>(effects_.size()))
+        {
+            effects_[slot].clear();
+        }
+        fish_nodes_.erase(it);
+        spdlog::debug("Fish node {} removed", fish_index);
+    }
+}
+
+void effect_system::clear_fish_nodes()
+{
+    for (auto& [fish_index, slot] : fish_nodes_)
+    {
+        if (slot >= 0 && slot < static_cast<int32_t>(effects_.size()))
+        {
+            effects_[slot].clear();
+        }
+    }
+    fish_nodes_.clear();
 }
 
 size_t effect_system::active_count() const
@@ -604,8 +664,15 @@ void effect_system::update_static(effect& eff, float delta_time)
 
         if (eff.current_frame > eff.max_frame)
         {
-            eff.active = false;
-            return;
+            if (eff.looping)
+            {
+                eff.current_frame = 0;
+            }
+            else
+            {
+                eff.active = false;
+                return;
+            }
         }
     }
 }

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 
 namespace hb {
 
@@ -61,6 +62,11 @@ public:
     // Clear all active effects
     void clear();
 
+    // Fish node management
+    void add_fish_node(uint32_t fish_index, int32_t tile_x, int32_t tile_y);
+    void remove_fish_node(uint32_t fish_index);
+    void clear_fish_nodes();
+
     // Detail level: 0 = low (skip particles), 1 = medium, 2 = high
     void set_detail_level(uint8_t level) { detail_level_ = level; }
     uint8_t detail_level() const { return detail_level_; }
@@ -111,6 +117,9 @@ private:
     world* world_ = nullptr;
     uint8_t detail_level_ = 2;
     thunder_params thunder_params_;
+
+    // Fish node tracking: fish_index -> effect slot index
+    std::unordered_map<uint32_t, int32_t> fish_nodes_;
 };
 
 } // namespace hb

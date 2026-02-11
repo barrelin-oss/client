@@ -59,6 +59,9 @@ struct effect
     // Generic value (attacker height, spawn count, etc.)
     int32_t value = 0;
 
+    // Looping flag (for persistent effects like fish nodes)
+    bool looping = false;
+
     void clear()
     {
         *this = effect{};

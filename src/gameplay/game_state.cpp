@@ -422,6 +422,15 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
     }});
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_gauge_panel_dialog(); }});
     init_steps_.push_back({"Creating dialogs...", [this]() { ui_.create_levelup_dialog(); }});
+    init_steps_.push_back({"Creating dialogs...", [this]() {
+        ui_.create_fishing_dialog();
+        if (auto* dlg = dynamic_cast<fishing_dialog*>(ui_.get_dialog(dialog_type::fishing)))
+        {
+            dlg->set_on_catch_clicked([this]() {
+                ws_handler_.request_fish_catch();
+            });
+        }
+    }});
     init_steps_.push_back({"Creating dialogs...", [this]() { dialog_callbacks_.setup_callbacks(); }});
 
     // Wire chat input overlay

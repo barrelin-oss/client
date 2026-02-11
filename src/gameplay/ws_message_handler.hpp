@@ -50,6 +50,10 @@ public:
     void send_chat_message(std::string_view content, std::string_view channel,
                            std::string_view recipient = "");
 
+    // Fishing
+    void request_fish_skill();
+    void request_fish_catch();
+
 private:
     // Individual message handlers
     void handle_login_response_ws(const json& message);
@@ -95,6 +99,12 @@ private:
     void handle_skills_data(const json& message);
     void handle_player_skill_response(const json& message);
     void handle_player_interact_response(const json& message);
+    void handle_fish_skill_response(const json& message);
+    void handle_fish_engaged(const json& message);
+    void handle_fish_chance_update(const json& message);
+    void handle_fish_catch_response(const json& message);
+    void handle_fish_spawn_broadcast(const json& message);
+    void handle_fish_despawn_broadcast(const json& message);
     void handle_pong(const json& message);
     void handle_error(const json& message);
 

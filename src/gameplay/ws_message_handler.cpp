@@ -167,6 +167,18 @@ void ws_message_handler::handle_message(const json& message)
             handle_player_skill_response(message);
         else if (type == msg_type::player_interact_response)
             handle_player_interact_response(message);
+        else if (type == msg_type::fish_skill_response)
+            handle_fish_skill_response(message);
+        else if (type == msg_type::fish_engaged)
+            handle_fish_engaged(message);
+        else if (type == msg_type::fish_chance_update)
+            handle_fish_chance_update(message);
+        else if (type == msg_type::fish_catch_response)
+            handle_fish_catch_response(message);
+        else if (type == msg_type::fish_spawn_broadcast)
+            handle_fish_spawn_broadcast(message);
+        else if (type == msg_type::fish_despawn_broadcast)
+            handle_fish_despawn_broadcast(message);
         else if (type == msg_type::pong)
             handle_pong(message);
         else if (type == msg_type::error_msg)
@@ -2227,6 +2239,104 @@ void ws_message_handler::handle_error(const json& message)
         std::string msg = d.value("message", "Unknown error");
         spdlog::warn("Server error [{}]: {}", code, msg);
     }
+}
+
+// =============================================================================
+// Fishing
+// =============================================================================
+
+void ws_message_handler::request_fish_skill()
+{
+    json msg = make_fish_skill_request();
+    game_->ws_connection().send(msg);
+    spdlog::debug("Sent fish_skill_request");
+}
+
+void ws_message_handler::request_fish_catch()
+{
+    json msg = make_fish_catch_request();
+    game_->ws_connection().send(msg);
+    spdlog::debug("Sent fish_catch_request");
+}
+
+void ws_message_handler::handle_fish_skill_response(const json& message)
+{
+    auto data = fish_skill_response_data::from_json(message);
+
+    if (!data.success)
+    {
+        spdlog::info("Fish skill failed: {}", data.error);
+        game_->get_status_log().add_event(data.error, message_color::red);
+        return;
+    }
+
+    spdlog::info("Fish skill activated - waiting for fish...");
+}
+
+void ws_message_handler::handle_fish_engaged(const json& message)
+{
+    auto data = fish_engaged_data::from_json(message);
+
+    if (auto* dlg = dynamic_cast<fishing_dialog*>(game_->ui().get_dialog(dialog_type::fishing)))
+    {
+        dlg->open_fishing(data.fish_name, data.visual_type, data.catch_chance);
+    }
+}
+
+void ws_message_handler::handle_fish_chance_update(const json& message)
+{
+    auto data = fish_chance_update_data::from_json(message);
+
+    if (auto* dlg = dynamic_cast<fishing_dialog*>(game_->ui().get_dialog(dialog_type::fishing)))
+    {
+        if (dlg->is_open())
+        {
+            dlg->update_catch_chance(data.catch_chance);
+        }
+    }
+}
+
+void ws_message_handler::handle_fish_catch_response(const json& message)
+{
+    auto data = fish_catch_response_data::from_json(message);
+
+    // Close the fishing dialog
+    if (auto* dlg = dynamic_cast<fishing_dialog*>(game_->ui().get_dialog(dialog_type::fishing)))
+    {
+        dlg->close_fishing();
+    }
+
+    if (data.result == "success")
+    {
+        std::string msg = "Caught " + data.item_name + "!";
+        if (data.exp_gained > 0)
+        {
+            msg += " (+" + std::to_string(data.exp_gained) + " exp)";
+        }
+        spdlog::info("{}", msg);
+        game_->get_status_log().add_event(msg, message_color::green);
+    }
+    else if (data.result == "fail")
+    {
+        spdlog::info("Fish got away!");
+        game_->get_status_log().add_event("The fish got away!", message_color::yellow);
+    }
+    else if (data.result == "canceled")
+    {
+        spdlog::info("Fishing canceled");
+    }
+}
+
+void ws_message_handler::handle_fish_spawn_broadcast(const json& message)
+{
+    auto data = fish_spawn_broadcast_data::from_json(message);
+    game_->effects().add_fish_node(data.fish_index, data.x, data.y);
+}
+
+void ws_message_handler::handle_fish_despawn_broadcast(const json& message)
+{
+    auto data = fish_despawn_broadcast_data::from_json(message);
+    game_->effects().remove_fish_node(data.fish_index);
 }
 
 } // namespace hb

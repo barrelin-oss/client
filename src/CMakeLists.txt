@@ -1,5 +1,5 @@
-add_executable(helbreath_client
-    main.cpp
+# Shared source library (used by client and tools)
+add_library(helbreath_core STATIC
     application.cpp
 
     # Core
@@ -125,11 +125,11 @@ add_executable(helbreath_client
     debug/debug_stats.cpp
 )
 
-target_include_directories(helbreath_client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(helbreath_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(OpenGL REQUIRED)
 
-target_link_libraries(helbreath_client PRIVATE
+target_link_libraries(helbreath_core PUBLIC
     SFML::Graphics
     SFML::Window
     SFML::System
@@ -147,33 +147,43 @@ target_link_libraries(helbreath_client PRIVATE
     ixwebsocket::ixwebsocket
 )
 
+# Main client executable
+add_executable(helbreath_client main.cpp)
+target_link_libraries(helbreath_client PRIVATE helbreath_core)
+
+# Effect test tool
+add_executable(effect_test_tool
+    tools/effect_test_main.cpp
+    tools/effect_test_app.cpp
+)
+target_link_libraries(effect_test_tool PRIVATE helbreath_core)
+
 # Windows-specific settings
 if(WIN32)
-    target_compile_definitions(helbreath_client PRIVATE
+    target_compile_definitions(helbreath_core PUBLIC
         WIN32_LEAN_AND_MEAN
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
     )
-    # Link Windows system libraries needed by ixwebsocket/mbedtls
-    target_link_libraries(helbreath_client PRIVATE bcrypt)
+    target_link_libraries(helbreath_core PUBLIC bcrypt)
 endif()
 
 # Linux-specific settings
 if(UNIX AND NOT APPLE)
     find_package(X11 REQUIRED)
-    target_link_libraries(helbreath_client PRIVATE X11::X11 X11::Xrandr)
+    target_link_libraries(helbreath_core PUBLIC X11::X11 X11::Xrandr)
 endif()
 
 # Compiler warnings
 if(MSVC)
-    target_compile_options(helbreath_client PRIVATE /W4 /MP)
+    target_compile_options(helbreath_core PRIVATE /W4 /MP)
 else()
-    target_compile_options(helbreath_client PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(helbreath_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Hot-reload feature flag
 if(HB_HOT_RELOAD)
-    target_compile_definitions(helbreath_client PRIVATE HB_HOT_RELOAD_ENABLED)
+    target_compile_definitions(helbreath_core PUBLIC HB_HOT_RELOAD_ENABLED)
 endif()
 
 # Debug overlay feature flag
@@ -181,32 +191,29 @@ endif()
 # ON: always enabled
 # OFF: always disabled
 if(HB_DEBUG_OVERLAY STREQUAL "ON")
-    # Always enabled
-    target_compile_definitions(helbreath_client PRIVATE HB_DEBUG_OVERLAY_ENABLED)
+    target_compile_definitions(helbreath_core PUBLIC HB_DEBUG_OVERLAY_ENABLED)
     message(STATUS "Debug overlay: ENABLED (always)")
 elseif(HB_DEBUG_OVERLAY STREQUAL "OFF")
-    # Always disabled
     message(STATUS "Debug overlay: DISABLED")
 else()
-    # AUTO mode - enabled in Debug builds only (using generator expression for multi-config)
-    target_compile_definitions(helbreath_client PRIVATE
+    target_compile_definitions(helbreath_core PUBLIC
         $<$<CONFIG:Debug>:HB_DEBUG_OVERLAY_ENABLED>
     )
     message(STATUS "Debug overlay: AUTO (Debug builds only)")
 endif()
 
-# Copy DLLs to bin/ directory after build
+# Copy DLLs and set debugger working directory
 if(WIN32)
-    add_custom_command(TARGET helbreath_client POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:helbreath_client>
-            $<TARGET_FILE_DIR:helbreath_client>
-        COMMAND_EXPAND_LISTS
-    )
-
-    # Set Visual Studio debugger working directory to bin/
-    set_target_properties(helbreath_client PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-    )
+    foreach(target helbreath_client effect_test_tool)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${target}>
+                $<TARGET_FILE_DIR:${target}>
+            COMMAND_EXPAND_LISTS
+        )
+        set_target_properties(${target} PROPERTIES
+            VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+        )
+    endforeach()
 endif()
 

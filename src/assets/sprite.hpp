@@ -97,6 +97,10 @@ public:
     // Set PAK source for on-demand loading
     void set_pak_source(pak_file* pak, uint32_t index) { pak_source_ = pak; pak_index_ = index; }
 
+    // Effect sprite flag (enables additive blending)
+    bool is_effect_sprite() const { return is_effect_sprite_; }
+    void set_effect_sprite(bool value) { is_effect_sprite_ = value; }
+
 private:
     // Textures (only populated when bitmap is loaded)
     sf::Texture texture_;              // Texture WITH color key applied (transparent)
@@ -115,6 +119,7 @@ private:
     // State flags
     bool metadata_loaded_ = false;
     bool bitmap_loaded_ = false;
+    bool is_effect_sprite_ = false;
 
     // Memory management - mutable for const draw methods
     mutable std::chrono::steady_clock::time_point last_used_;

@@ -182,7 +182,7 @@ bool sprite::load_from_data(const pak_sprite_data& data) {
         return false;
     }
 
-    // Apply color key mask for transparent texture
+    // Apply color key mask for transparent texture (sets alpha=0 for color key pixels)
     image.createMaskFromColor(color_key_);
 
     if (!texture_.loadFromImage(image)) {
@@ -256,8 +256,9 @@ bool sprite::load_bitmap() {
         return false;
     }
 
-    // Create color-keyed texture
+    // Create color-keyed texture (sets alpha=0 for color key pixels)
     image.createMaskFromColor(color_key_);
+
     if (!texture_.loadFromImage(image)) {
         spdlog::error("Failed to create texture");
         return false;

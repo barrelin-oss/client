@@ -226,27 +226,62 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
         }
 
         // Render primary sprite on top
+        // Default: additive blending for all effects (unless definition opts out)
+        // Test tool override can force additive on/off and apply alpha multiplier
+        bool use_additive;
+        float alpha_mul;
+        if (render_override_.active)
+        {
+            use_additive = render_override_.force_additive && !eff.def->no_additive;
+            alpha_mul = render_override_.alpha_multiplier;
+        }
+        else
+        {
+            use_additive = !eff.def->no_additive;
+            alpha_mul = 1.0f;
+        }
+
         switch (eff.def->render_mode)
         {
             case effect_render_mode::normal:
-                rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
-                break;
-
             case effect_render_mode::transparent:
-                rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                else if (alpha_mul < 1.0f)
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                else
+                    rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
                 break;
 
             case effect_render_mode::alpha_25:
-                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, 0.25f);
+            {
+                float a = 0.25f * alpha_mul;
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                else
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
+            }
 
             case effect_render_mode::alpha_50:
-                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, 0.5f);
+            {
+                float a = 0.5f * alpha_mul;
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                else
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
+            }
 
             case effect_render_mode::alpha_70:
-                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, 0.7f);
+            {
+                float a = 0.7f * alpha_mul;
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                else
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
+            }
 
             case effect_render_mode::fade:
             {
@@ -259,7 +294,11 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                     alpha = 1.0f - (eff.elapsed / total_time);
                     if (alpha < 0.0f) alpha = 0.0f;
                 }
-                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
+                alpha *= alpha_mul;
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
+                else
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
                 break;
             }
 
@@ -294,11 +333,20 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                     uint32_t tf = static_cast<uint32_t>(eff.direction_index) * stride
                                 + static_cast<uint32_t>(std::rand() % stride)
                                 + eff.def->frame_offset;
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, tx, ty, tf, pt.alpha);
+                    float a = pt.alpha * alpha_mul;
+                    if (use_additive)
+                        rend.draw_sprite_additive_alpha(*eff.sprite_ptr, tx, ty, tf, a);
+                    else
+                        rend.draw_sprite_alpha(*eff.sprite_ptr, tx, ty, tf, a);
                 }
 
                 // Head at full opacity
-                rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
+                if (use_additive)
+                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                else if (alpha_mul < 1.0f)
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                else
+                    rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
                 break;
             }
 
@@ -307,25 +355,6 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
         }
     }
 
-    // Debug: permanent lightning bolt for parameter tuning
-    if (debug_thunder_enabled)
-    {
-        // Draw a bolt diagonally across center of screen
-        int32_t cx = screen_w / 2;
-        int32_t cy = screen_h / 2;
-        int32_t bolt_sx = cx - 150;
-        int32_t bolt_sy = cy - 80;
-        int32_t bolt_dx = cx + 150;
-        int32_t bolt_dy = cy + 80;
-
-        draw_thunder_bolt(rend, bolt_sx, bolt_sy, bolt_dx, bolt_dy, 0, true, debug_thunder);
-        static constexpr int32_t companion_seeds[] = {3, -2, 5, -4};
-        for (int32_t i = 0; i < debug_thunder.thin_bolt_count && i < 4; ++i)
-        {
-            draw_thunder_bolt(rend, bolt_sx, bolt_sy, bolt_dx, bolt_dy,
-                              companion_seeds[i], false, debug_thunder);
-        }
-    }
 }
 
 void effect_system::add_effect(effect_type_id type_id,
@@ -978,15 +1007,15 @@ void effect_system::render_thunder(renderer& rend,
     int32_t x1 = static_cast<int32_t>(dx);
     int32_t y1 = static_cast<int32_t>(dy);
 
-    draw_thunder_bolt(rend, x0, y0, x1, y1, static_cast<int32_t>(rx), true, debug_thunder);
+    draw_thunder_bolt(rend, x0, y0, x1, y1, static_cast<int32_t>(rx), true, thunder_params_);
 
     // Thin companion bolts
     static constexpr int32_t companion_seeds[] = {3, -2, 5, -4};
-    for (int32_t i = 0; i < debug_thunder.thin_bolt_count && i < 4; ++i)
+    for (int32_t i = 0; i < thunder_params_.thin_bolt_count && i < 4; ++i)
     {
         int32_t seed = (i == 0) ? static_cast<int32_t>(rx) + companion_seeds[i]
                                 : static_cast<int32_t>(ry) + companion_seeds[i];
-        draw_thunder_bolt(rend, x0, y0, x1, y1, seed, false, debug_thunder);
+        draw_thunder_bolt(rend, x0, y0, x1, y1, seed, false, thunder_params_);
     }
 }
 
@@ -1006,16 +1035,14 @@ void effect_system::render_overlay(renderer& rend, const effect& eff,
     switch (ov.render_mode)
     {
         case effect_render_mode::normal:
-            rend.draw_sprite(*spr, ox, oy, frame);
-            break;
         case effect_render_mode::transparent:
-            rend.draw_sprite(*spr, ox, oy, frame);
+            rend.draw_sprite_additive(*spr, ox, oy, frame);
             break;
         case effect_render_mode::alpha_50:
-            rend.draw_sprite_alpha(*spr, ox, oy, frame, 0.5f);
+            rend.draw_sprite_additive_alpha(*spr, ox, oy, frame, 0.5f);
             break;
         default:
-            rend.draw_sprite(*spr, ox, oy, frame);
+            rend.draw_sprite_additive(*spr, ox, oy, frame);
             break;
     }
 }

@@ -106,6 +106,14 @@ public:
     void draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
 
+    // Additive blending for effect sprites (GPU shader + BlendAdd)
+    void draw_sprite_additive(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
+    void draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
+
+    // Global intensity scale for additive blending (0.0 - 1.0, default 0.7)
+    void set_additive_intensity(float intensity) { additive_intensity_ = intensity; }
+    float additive_intensity() const { return additive_intensity_; }
+
     // Sprite drawing without color key (for backgrounds, etc.)
     void draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
@@ -208,6 +216,14 @@ private:
     std::chrono::steady_clock::time_point boundary_start_time_;
 
     text_renderer text_renderer_;
+
+    float additive_intensity_ = 2.0f;
+
+    // Additive blending shader (lazy-loaded)
+    static sf::Shader additive_shader_;
+    static bool additive_shader_loaded_;
+    static bool additive_shader_init_attempted_;
+    static bool load_additive_shader();
 };
 
 } // namespace hb

@@ -54,6 +54,7 @@ struct effect_definition
     uint8_t frame_offset = 0;       // Base frame offset (for multi-variant PAK sprites)
     uint8_t frames_per_direction = 0; // Directional frame stride override (0 = max_frames+1)
     bool randomize_direction_frame = false; // Randomize within direction frame range
+    bool no_additive = false;           // Skip additive blending (earth effects etc.)
 
     // Sprite overlays rendered on top of the primary sprite
     struct sprite_overlay

@@ -14,16 +14,16 @@ class sound_manager;
 class world;
 class renderer;
 
-// Tunable parameters for thunder bolt rendering (debug)
+// Parameters for thunder bolt rendering
 struct thunder_params
 {
-    float offset_pct = 0.10f;       // max offset as fraction of bolt length (0.01 - 0.25)
-    float offset_cap = 20.0f;       // max offset cap in pixels (5 - 80)
-    float offset_min = 5.0f;        // min offset in pixels (1 - 20)
-    float segment_size = 20.0f;     // pixels per segment (2 - 20)
-    int32_t jag_chance = 10;        // 1-in-N chance of large jag (1 - 20)
-    float jag_multiplier = 1.5f;    // large jag scale factor (1.0 - 3.0)
-    int32_t thin_bolt_count = 4;    // companion thin bolts (0 - 4)
+    float offset_pct = 0.10f;
+    float offset_cap = 20.0f;
+    float offset_min = 5.0f;
+    float segment_size = 20.0f;
+    int32_t jag_chance = 10;
+    float jag_multiplier = 1.5f;
+    int32_t thin_bolt_count = 4;
 };
 
 class effect_system
@@ -68,9 +68,14 @@ public:
     // How many effects are currently active
     size_t active_count() const;
 
-    // Debug: permanent on-screen lightning bolt for parameter tuning
-    bool debug_thunder_enabled = false;
-    thunder_params debug_thunder;
+    // Render overrides for effect test tool
+    struct render_override
+    {
+        bool active = false;
+        bool force_additive = false;  // Use additive blending for all primary sprites
+        float alpha_multiplier = 1.0f; // Multiply all alpha values by this
+    };
+    render_override render_override_;
 
 private:
     int32_t find_free_slot() const;
@@ -105,6 +110,7 @@ private:
     sound_manager* sounds_ = nullptr;
     world* world_ = nullptr;
     uint8_t detail_level_ = 2;
+    thunder_params thunder_params_;
 };
 
 } // namespace hb

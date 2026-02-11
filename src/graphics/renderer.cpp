@@ -21,6 +21,11 @@
 
 namespace hb {
 
+// Static shader members
+sf::Shader renderer::additive_shader_;
+bool renderer::additive_shader_loaded_ = false;
+bool renderer::additive_shader_init_attempted_ = false;
+
 bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen,
                           bool borderless, int32_t monitor_x, int32_t monitor_y) {
     width_ = width;
@@ -664,6 +669,93 @@ void renderer::draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y,
 
 void renderer::draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha) {
     spr.draw_alpha_no_color_key(*active_target_, x, y, frame, alpha);
+    ++draw_call_count_;
+}
+
+// ---------------------------------------------------------------------------
+// Additive blending (effect sprites)
+// ---------------------------------------------------------------------------
+
+bool renderer::load_additive_shader()
+{
+    // Shader handles color key transparency directly: multiplies RGB by src.a
+    // so color-keyed pixels (alpha=0) produce zero color output regardless of
+    // blend mode. Uses One+One blend mode for pure additive compositing.
+    static const char* fragment_shader = R"(
+        uniform sampler2D texture;
+        uniform float alpha;
+
+        void main()
+        {
+            vec4 src = texture2D(texture, gl_TexCoord[0].xy);
+            gl_FragColor = vec4(src.rgb * src.a * alpha, 0.0) * gl_Color;
+        }
+    )";
+
+    if (!sf::Shader::isAvailable())
+    {
+        spdlog::warn("Shaders not available - additive blending disabled");
+        return false;
+    }
+
+    if (!additive_shader_.loadFromMemory(fragment_shader, sf::Shader::Type::Fragment))
+    {
+        spdlog::error("Failed to load additive blending shader");
+        return false;
+    }
+
+    spdlog::info("Additive blending shader loaded");
+    return true;
+}
+
+void renderer::draw_sprite_additive(const sprite& spr, int32_t x, int32_t y, uint32_t frame)
+{
+    draw_sprite_additive_alpha(spr, x, y, frame, 1.0f);
+}
+
+void renderer::draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t y,
+                                           uint32_t frame, float alpha)
+{
+    // Lazy-load shader on first use
+    if (!additive_shader_init_attempted_)
+    {
+        additive_shader_init_attempted_ = true;
+        additive_shader_loaded_ = load_additive_shader();
+    }
+
+    // Fallback to standard alpha if shader unavailable or not an effect sprite
+    if (!additive_shader_loaded_ || !spr.is_effect_sprite())
+    {
+        draw_sprite_alpha(spr, x, y, frame, alpha);
+        return;
+    }
+
+    if (!spr.ensure_loaded() || frame >= spr.frame_count())
+    {
+        return;
+    }
+
+    const auto& f = spr.get_frame(frame);
+    sf::Sprite sf_spr(spr.texture(), f.source_rect);
+    sf_spr.setPosition({
+        static_cast<float>(x + f.pivot_x),
+        static_cast<float>(y + f.pivot_y)
+    });
+
+    // One+One blend: shader already handles alpha (color key + opacity),
+    // so blend mode just adds shader output directly to destination.
+    static const sf::BlendMode additive_blend(
+        sf::BlendMode::Factor::One, sf::BlendMode::Factor::One, sf::BlendMode::Equation::Add,
+        sf::BlendMode::Factor::One, sf::BlendMode::Factor::One, sf::BlendMode::Equation::Add
+    );
+
+    sf::RenderStates states;
+    states.blendMode = additive_blend;
+    additive_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+    additive_shader_.setUniform("alpha", alpha * additive_intensity_);
+    states.shader = &additive_shader_;
+
+    active_target_->draw(sf_spr, states);
     ++draw_call_count_;
 }
 

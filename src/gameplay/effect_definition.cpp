@@ -79,18 +79,21 @@ static const std::array<effect_definition, 150> s_definitions = {{
     },
 
     // Type 7: Magic Missile Explosion
+    // Legacy: sprite [6] (effect.pak #6), 5 frames, 50ms, sound E3
+    // Legacy: at frame 1 spawns 3x BURST_MEDIUM (type 9) at ±5 random offset
+    // Legacy render: alpha 50% for frames 0-3, fade-to-dark for frames 4-5
     {
         .type_id = effect_type_id::magic_missile_exp,
         .behavior = effect_behavior::composite,
-        .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 0,
+        .render_mode = effect_render_mode::alpha_50,
+        .sprite_pak_index = 6,
         .max_frames = 5,
         .frame_time_ms = 50,
         .sound_id = 3,
         .emits_light = true,
         .light_radius = 10,
         .children = {{
-            {effect_type_id::burst_stationary, 1, 3, 0, 0, true, 30},
+            {effect_type_id::burst_physics, 1, 3, 0, 0, true, 5},
         }},
         .child_count = 1,
     },
@@ -190,17 +193,20 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .frame_offset = 28,
     },
 
-    // Type 15: Fire Trail (skipped at low detail)
+    // Type 15: Fire Trail / Red Cloud Particles (skipped at low detail)
+    // Legacy: sprite [11], frame 33+currentFrame, maxFrame=16, 80ms, alpha 50%
     {
         .type_id = effect_type_id::fire_trail,
         .behavior = effect_behavior::static_anim,
-        .render_mode = effect_render_mode::transparent,
+        .render_mode = effect_render_mode::alpha_50,
         .detail_level = effect_detail::high_only,
         .sprite_pak_index = 11,
         .max_frames = 16,
         .frame_time_ms = 80,
         .emits_light = true,
         .light_radius = 6,
+        .uses_tile_coords = false,
+        .frame_offset = 33,
     },
 
     // Type 16: Energy Strike Projectile
@@ -387,31 +393,55 @@ static const std::array<effect_definition, 150> s_definitions = {{
 
     // === Spell Effects (30-77) ===
 
-    // Type 30: Mass Fire Strike Main
+    // Type 30: Mass Fire Strike Main (primary impact explosion)
+    // Legacy: sprite [14] (effect3.pak #1), maxFrame=9 (10 frames), 40ms, alpha 50%
+    // Legacy: sound E4, camera shake sDist*2
+    // Legacy: frame 1 spawns 5x BURST_LARGE, frame 7 spawns 3x RED_CLOUD_PARTICLES
+    // Legacy: projectile impact also spawns 3x type 31 at pixel offsets with staggered starts
     {
         .type_id = effect_type_id::mass_fire_strike_main,
-        .behavior = effect_behavior::static_anim,
-        .render_mode = effect_render_mode::transparent,
+        .behavior = effect_behavior::composite,
+        .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 14,
         .max_frames = 9,
-        .frame_time_ms = 30,
+        .frame_time_ms = 40,
+        .sound_id = 4,
         .shake_intensity = 3,
         .shake_multiplier = 2,
         .emits_light = true,
         .light_radius = 30,
+        .uses_tile_coords = false,
+        .children = {{
+            {effect_type_id::mass_fire_strike_secondary, 0, 1, -30, -15, false, 0, false, -7, 0},
+            {effect_type_id::mass_fire_strike_secondary, 0, 1, 35, -30, false, 0, false, -5, 0},
+            {effect_type_id::mass_fire_strike_secondary, 0, 1, 20, 30, false, 0, false, -3, 0},
+            {effect_type_id::fire_burst, 1, 5, 0, 0, true, 5},
+            {effect_type_id::fire_trail, 7, 3, 0, 0, true, 5},
+        }},
+        .child_count = 5,
     },
 
-    // Type 31: Mass Fire Strike Secondary
+    // Type 31: Mass Fire Strike Secondary (3 offset explosions spawned by type 30)
+    // Legacy: sprite [15] (effect3.pak #2), maxFrame=8 (9 frames), 40ms, alpha 50%
+    // Legacy: sound E4, camera shake sDist
+    // Legacy: frame 1 spawns 5x BURST_LARGE, frame 7 spawns 3x RED_CLOUD_PARTICLES
     {
         .type_id = effect_type_id::mass_fire_strike_secondary,
-        .behavior = effect_behavior::static_anim,
-        .render_mode = effect_render_mode::transparent,
+        .behavior = effect_behavior::composite,
+        .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 15,
         .max_frames = 8,
-        .frame_time_ms = 30,
+        .frame_time_ms = 40,
+        .sound_id = 4,
         .shake_intensity = 2,
         .emits_light = true,
         .light_radius = 20,
+        .uses_tile_coords = false,
+        .children = {{
+            {effect_type_id::fire_burst, 1, 5, 0, 0, true, 5},
+            {effect_type_id::fire_trail, 7, 3, 0, 0, true, 5},
+        }},
+        .child_count = 2,
     },
 
     // Type 32: Breaking Effect
@@ -901,15 +931,15 @@ static const std::array<effect_definition, 150> s_definitions = {{
     },
 
     // Type 64: Resurrection Effect
-    // Legacy DrawEffects: m_pEffectSpr[34]->PutTransSprite_NoColorKey
-    // Legacy bAddNewEffect: maxFrame=15, frameTime=20
+    // Legacy: sprite [99] (effect11.pak #10), 31 frames (maxFrame=30), 40ms
+    // Legacy render: Alpha(0.5f) — 50% alpha blend
     {
         .type_id = effect_type_id::resurrection_effect,
         .behavior = effect_behavior::static_anim,
-        .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 34,
-        .max_frames = 15,
-        .frame_time_ms = 20,
+        .render_mode = effect_render_mode::alpha_50,
+        .sprite_pak_index = 99,
+        .max_frames = 31,
+        .frame_time_ms = 40,
         .emits_light = true,
         .light_radius = 20,
     },
@@ -966,6 +996,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .frame_time_ms = 30,
         .shake_intensity = 2,
         .uses_tile_coords = false,
+        .no_additive = true,
         .overlays = {{
             {41, 0, 0, effect_render_mode::alpha_50},
             {44, -2, -3, effect_render_mode::transparent},
@@ -1082,11 +1113,11 @@ static const std::array<effect_definition, 150> s_definitions = {{
 
     // Type 100: Magic Missile (projectile)
     // Legacy: speed=50, frame_time=20, trail=type 8 x1, impact=type 7
-    // Legacy renders m_cFrame (=0) not direction, so directional=false
+    // Legacy renders sprite [0] at alpha 50%, frame 0 always
     {
         .type_id = effect_type_id::spell_magic_missile,
         .behavior = effect_behavior::projectile,
-        .render_mode = effect_render_mode::transparent,
+        .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 0,
         .max_frames = 0,
         .frame_time_ms = 20,
@@ -1541,10 +1572,10 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .frame_time_ms = 10,
         .uses_tile_coords = true,
         .children = {{
-            {effect_type_id::chill_wind, 0, 1, 0, 0, false, 0},
-            {effect_type_id::chill_wind, 0, 1, -30, -15, false, 0},
-            {effect_type_id::chill_wind, 0, 1, 35, -30, false, 0},
-            {effect_type_id::chill_wind, 0, 1, 20, 30, false, 0},
+            {effect_type_id::chill_wind, 0, 1, 0, 0, false, 0, false, 0},
+            {effect_type_id::chill_wind, 0, 1, -30, -15, false, 0, false, -10},
+            {effect_type_id::chill_wind, 0, 1, 35, -30, false, 0, false, -6},
+            {effect_type_id::chill_wind, 0, 1, 20, 30, false, 0, false, -3},
         }},
         .child_count = 4,
     },
@@ -1690,13 +1721,12 @@ static const std::array<effect_definition, 150> s_definitions = {{
     },
 
     // Type 161: Mass Fire Strike (projectile)
-    // Legacy bAddNewEffect: sX*32, sY*32-40, maxFrame=0, frameTime=20, dir calculated, sound='E' 1
-    // Legacy DrawEffects: m_pEffectSpr[5] with (dir-1)*4+rand()%4
-    // Legacy bEffectFrameCounter: projectile speed=50, on impact spawns 30+3x31
+    // Legacy: sprite [5], (dir-1)*4+rand()%4, alpha 50%, speed=50
+    // Legacy: on impact spawns 1x type 30 + 3x type 31 (handled by type 30 composite)
     {
         .type_id = effect_type_id::spell_mass_fire_strike_proj,
         .behavior = effect_behavior::projectile,
-        .render_mode = effect_render_mode::transparent,
+        .render_mode = effect_render_mode::alpha_50,
         .sprite_pak_index = 5,
         .max_frames = 0,
         .frame_time_ms = 20,
@@ -1735,11 +1765,11 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .frame_time_ms = 10,
         .uses_tile_coords = true,
         .children = {{
-            {effect_type_id::mass_chill_wind, 0, 1, 0, 0, false, 0},
-            {effect_type_id::mass_chill_wind, 0, 1, -30, -15, false, 0},
-            {effect_type_id::mass_chill_wind, 0, 1, 35, -30, false, 0},
-            {effect_type_id::mass_chill_wind, 0, 1, 20, 30, false, 0},
-            {effect_type_id::mass_chill_wind, 0, 4, 0, 0, true, 50},
+            {effect_type_id::mass_chill_wind, 0, 1, 0, 0, false, 0, false, 0},
+            {effect_type_id::mass_chill_wind, 0, 1, -30, -15, false, 0, false, -10},
+            {effect_type_id::mass_chill_wind, 0, 1, 35, -30, false, 0, false, -6},
+            {effect_type_id::mass_chill_wind, 0, 1, 20, 30, false, 0, false, -3},
+            {effect_type_id::mass_chill_wind, 0, 4, 0, 0, true, 50, false, -2, -2},
         }},
         .child_count = 5,
     },
@@ -2040,6 +2070,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .max_frames = 30,
         .frame_time_ms = 25,
         .shake_intensity = 3,
+        .no_additive = true,
         .overlays = {{
             {92, 0, 0, effect_render_mode::transparent},
         }},
@@ -2062,6 +2093,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .frame_time_ms = 25,
         .shake_intensity = 3,
         .uses_tile_coords = false,
+        .no_additive = true,
         .overlays = {{
             {92, 0, 0, effect_render_mode::transparent},
         }},

@@ -31,34 +31,36 @@ void motion_handler::handle_motion_response(packet_reader& reader) {
         if (x && y && dir) {
             auto& t = player->transform();
 
-            // Update destination (server is authoritative)
-            t.dest_tile_x = *x;
-            t.dest_tile_y = *y;
+            // tile_x/y is already the destination; verify it matches server
             t.facing = static_cast<direction>(*dir);
 
             // Rubber-band correction if server position differs significantly
-            int32_t dx = std::abs(t.tile_x - *x);
-            int32_t dy = std::abs(t.tile_y - *y);
-            if (dx > 1 || dy > 1) {
+            int32_t dx_diff = std::abs(t.tile_x - *x);
+            int32_t dy_diff = std::abs(t.tile_y - *y);
+            if (dx_diff > 1 || dy_diff > 1) {
                 // Snap to server position
                 t.tile_x = *x;
                 t.tile_y = *y;
-                t.x = *x * 32 + 16;  // Tile center X
-                t.y = *y * 32 + 32;  // Tile bottom Y
+                t.move_start_x = *x;
+                t.move_start_y = *y;
+                t.x = *x * 32 + 16;
+                t.y = *y * 32 + 16;
                 t.move_progress = 0.0f;
             }
         }
     } else {
-        // Motion REJECTED - cancel prediction
+        // Motion REJECTED - cancel prediction, revert to origin
         spdlog::debug("Motion rejected - code: {}", *result);
 
         auto& t = player->transform();
 
-        // Cancel predicted movement
+        // Revert tile position back to origin
+        t.tile_x = t.move_start_x;
+        t.tile_y = t.move_start_y;
+        t.x = t.tile_x * 32 + 16;
+        t.y = t.tile_y * 32 + 16;
         t.moving = false;
         t.move_progress = 0.0f;
-        t.dest_tile_x = t.tile_x;
-        t.dest_tile_y = t.tile_y;
 
         // Return to idle with current combat stance
         player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
@@ -157,8 +159,10 @@ void motion_handler::process_stop(uint32_t entity_id, packet_reader& reader) {
     auto& t = ent->transform();
     t.tile_x = *x;
     t.tile_y = *y;
-    t.x = *x * 32 + 16;  // Tile center X
-    t.y = *y * 32 + 16;  // Tile center Y (feet position)
+    t.move_start_x = *x;
+    t.move_start_y = *y;
+    t.x = *x * 32 + 16;
+    t.y = *y * 32 + 16;
     t.facing = static_cast<direction>(*dir);
     ent->set_action(object_action::stop_peace);
 }
@@ -184,8 +188,11 @@ void motion_handler::process_move(uint32_t entity_id, packet_reader& reader) {
     }
 
     ent->set_move_target(*x, *y);
-    t.dest_tile_x = *x;
-    t.dest_tile_y = *y;
+    // Save origin, immediately set tile to destination
+    t.move_start_x = t.tile_x;
+    t.move_start_y = t.tile_y;
+    t.tile_x = *x;
+    t.tile_y = *y;
     t.facing = static_cast<direction>(*dir);
     t.moving = true;
     t.move_progress = 0.0f;
@@ -215,8 +222,11 @@ void motion_handler::process_run(uint32_t entity_id, packet_reader& reader) {
     }
 
     ent->set_move_target(*x, *y);
-    t.dest_tile_x = *x;
-    t.dest_tile_y = *y;
+    // Save origin, immediately set tile to destination
+    t.move_start_x = t.tile_x;
+    t.move_start_y = t.tile_y;
+    t.tile_x = *x;
+    t.tile_y = *y;
     t.facing = static_cast<direction>(*dir);
     t.moving = true;
     t.move_progress = 0.0f;
@@ -393,7 +403,9 @@ void motion_handler::process_spawn_object(packet_reader& reader) {
     auto& t = ent.transform();
     t.tile_x = *x;
     t.tile_y = *y;
-    t.x = *x * 32 + 16;  // Initialize world coords from tile coords
+    t.move_start_x = *x;
+    t.move_start_y = *y;
+    t.x = *x * 32 + 16;
     t.y = *y * 32 + 32;
 
     if (dir) {

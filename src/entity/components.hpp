@@ -11,15 +11,18 @@
 namespace hb {
 
 // Transform component - position and movement
+// tile_x/y is the logical position (set to destination IMMEDIATELY when movement starts).
+// move_start_x/y stores the origin tile for rendering interpolation.
+// Interpolation goes from move_start → tile using move_progress (0→1).
 struct transform_component {
-    int32_t x = 0;              // World X position
-    int32_t y = 0;              // World Y position
-    int32_t tile_x = 0;         // Tile X coordinate
-    int32_t tile_y = 0;         // Tile Y coordinate
-    direction facing = direction::south;  // Facing direction
+    int32_t x = 0;              // World X position (interpolated during movement)
+    int32_t y = 0;              // World Y position (interpolated during movement)
+    int32_t tile_x = 0;         // Logical tile position (destination during movement)
+    int32_t tile_y = 0;
+    direction facing = direction::south;
     float move_progress = 0.0f; // 0.0 to 1.0 for smooth movement
-    int32_t dest_tile_x = 0;    // Movement destination
-    int32_t dest_tile_y = 0;
+    int32_t move_start_x = 0;   // Origin tile when movement started
+    int32_t move_start_y = 0;
     bool moving = false;
 };
 

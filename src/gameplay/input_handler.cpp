@@ -381,6 +381,18 @@ void input_handler::handle_movement_input(const input& inp)
             return true;
         };
 
+        // If we're adjacent to (or on) the destination and it's blocked, stop.
+        // Pathfinding should route around obstacles EN ROUTE, not around the destination itself.
+        int32_t dest_dx = std::abs(t.tile_x - move_dest_x_);
+        int32_t dest_dy = std::abs(t.tile_y - move_dest_y_);
+        if (dest_dx <= 1 && dest_dy <= 1 && !is_passable(move_dest_x_, move_dest_y_))
+        {
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
+            player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+            return;
+        }
+
         auto dir = get_next_walkable_dir(
             t.tile_x, t.tile_y, move_dest_x_, move_dest_y_,
             player_turn_, is_passable);
@@ -428,8 +440,11 @@ void input_handler::handle_movement_input(const input& inp)
                          inp.is_key_down(sf::Keyboard::Key::RShift) ||
                          run_mode_enabled_;
 
-        t.dest_tile_x = next_x;
-        t.dest_tile_y = next_y;
+        // Save origin, then immediately set tile to destination
+        t.move_start_x = t.tile_x;
+        t.move_start_y = t.tile_y;
+        t.tile_x = next_x;
+        t.tile_y = next_y;
         t.facing = *dir;
         t.moving = true;
         t.move_progress = 0.0f;
@@ -444,7 +459,8 @@ void input_handler::handle_movement_input(const input& inp)
         object_action base_action = should_run ? object_action::run : object_action::move_peace;
         player->set_action_with_combat_mode(base_action, combat_mode_);
 
-        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol, should_run,
+        // Send origin position (move_start) as source in network message
+        json msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, should_run,
                                             move_dest_x_, move_dest_y_);
         game_->ws_connection().send(msg);
     }
@@ -494,8 +510,11 @@ void input_handler::handle_movement_input(const input& inp)
                          inp.is_key_down(sf::Keyboard::Key::RShift) ||
                          run_mode_enabled_;
 
-        t.dest_tile_x = next_x;
-        t.dest_tile_y = next_y;
+        // Save origin, then immediately set tile to destination
+        t.move_start_x = t.tile_x;
+        t.move_start_y = t.tile_y;
+        t.tile_x = next_x;
+        t.tile_y = next_y;
         t.facing = *move_dir;
         t.moving = true;
         t.move_progress = 0.0f;
@@ -511,7 +530,7 @@ void input_handler::handle_movement_input(const input& inp)
         player->set_action_with_combat_mode(base_action, combat_mode_);
 
         uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*move_dir));
-        json msg = make_player_move_request(t.tile_x, t.tile_y, dir_protocol,
+        json msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol,
                                             should_run, next_x, next_y);
         game_->ws_connection().send(msg);
     }
@@ -543,8 +562,7 @@ void input_handler::update_pathfinding_trace()
 
     if (t.moving)
     {
-        cur_x = t.dest_tile_x;
-        cur_y = t.dest_tile_y;
+        // tile_x/y is already the destination during movement
         trace.emplace_back(cur_x, cur_y);
     }
     bool turn = player_turn_;
@@ -706,6 +724,13 @@ void input_handler::handle_combat_input(const input& inp)
             mouse_x_, mouse_y_,
             world.camera_x(), world.camera_y());
 
+        // Only attack if the click landed on the entity's actual sprite, not just its tile
+        if (target && !entities.is_point_in_entity_sprite(
+                *target, game_->sprites(), world.camera_x(), world.camera_y(), mouse_x_, mouse_y_))
+        {
+            target = nullptr;
+        }
+
         if (target && target->id() != entities.local_player_id() &&
             (target->type() == entity_type::monster || target->type() == entity_type::character))
         {
@@ -728,6 +753,16 @@ void input_handler::handle_combat_input(const input& inp)
                 {
                     atk_type = static_cast<uint8_t>(attack_type::ranged);
                 }
+            }
+
+            // Don't attack if out of range
+            bool ranged = atk_type == static_cast<uint8_t>(attack_type::ranged);
+            auto& cs = game_->combat();
+            entity_id pid = entities.local_player_id();
+            if (ranged ? !cs.is_in_ranged_range(pid, target->id())
+                       : !cs.is_in_melee_range(pid, target->id()))
+            {
+                return;
             }
 
             attack_consumed_ = true;

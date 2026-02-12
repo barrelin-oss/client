@@ -311,6 +311,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     auto& transform = player.transform();
     transform.tile_x = ch.pos_x;
     transform.tile_y = ch.pos_y;
+    transform.move_start_x = ch.pos_x;
+    transform.move_start_y = ch.pos_y;
     transform.x = ch.pos_x * 32 + 16;
     transform.y = ch.pos_y * 32 + 16;
     spdlog::info("PLAYER SPAWN: tile=({},{}) world=({},{})", ch.pos_x, ch.pos_y, transform.x, transform.y);
@@ -483,6 +485,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         auto& ent_transform = world_entity.transform();
         ent_transform.tile_x = ent.x;
         ent_transform.tile_y = ent.y;
+        ent_transform.move_start_x = ent.x;
+        ent_transform.move_start_y = ent.y;
         ent_transform.x = ent.x * hb::tile_width + 16;
         ent_transform.y = ent.y * hb::tile_height + 16;
         ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
@@ -637,14 +641,16 @@ void ws_message_handler::handle_player_position_update(const json& message)
     {
         if (t.moving)
         {
-            spdlog::debug("Ignoring position update for moving local player (server: {},{}, dest: {},{})",
-                          data.x, data.y, t.dest_tile_x, t.dest_tile_y);
+            spdlog::debug("Ignoring position update for moving local player (server: {},{}, tile: {},{})",
+                          data.x, data.y, t.tile_x, t.tile_y);
             return;
         }
     }
 
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
@@ -680,6 +686,8 @@ void ws_message_handler::handle_player_stop_response(const json& message)
     auto& t = player->transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
@@ -703,15 +711,21 @@ void ws_message_handler::handle_player_move_response(const json& message)
         spdlog::debug("Movement rejected: {}", data.error);
 
         auto& t = player->transform();
+        // Revert tile position back to origin
+        t.tile_x = t.move_start_x;
+        t.tile_y = t.move_start_y;
+        t.x = t.tile_x * hb::tile_width + 16;
+        t.y = t.tile_y * hb::tile_height + 16;
         t.moving = false;
         t.move_progress = 0.0f;
-        t.dest_tile_x = t.tile_x;
-        t.dest_tile_y = t.tile_y;
 
         if (data.x != 0 || data.y != 0)
         {
+            // Server says we're actually here - snap to corrective position
             t.tile_x = data.x;
             t.tile_y = data.y;
+            t.move_start_x = data.x;
+            t.move_start_y = data.y;
             t.x = data.x * hb::tile_width + 16;
             t.y = data.y * hb::tile_height + 16;
         }
@@ -741,16 +755,17 @@ void ws_message_handler::handle_player_move_response(const json& message)
     }
 
     auto& t = player->transform();
-    bool position_mismatch = (t.dest_tile_x != data.x || t.dest_tile_y != data.y);
+    // tile_x/y is already the destination in our system
+    bool position_mismatch = (t.tile_x != data.x || t.tile_y != data.y);
 
     if (position_mismatch)
     {
         spdlog::warn("Movement position mismatch: client dest ({},{}) vs server ({},{})",
-                     t.dest_tile_x, t.dest_tile_y, data.x, data.y);
+                     t.tile_x, t.tile_y, data.x, data.y);
         t.tile_x = data.x;
         t.tile_y = data.y;
-        t.dest_tile_x = data.x;
-        t.dest_tile_y = data.y;
+        t.move_start_x = data.x;
+        t.move_start_y = data.y;
         t.x = data.x * hb::tile_width + 16;
         t.y = data.y * hb::tile_height + 16;
         t.moving = false;
@@ -818,14 +833,18 @@ void ws_message_handler::handle_npc_move(const json& message)
         // Snap directly
         t.tile_x = data.x;
         t.tile_y = data.y;
+        t.move_start_x = data.x;
+        t.move_start_y = data.y;
         t.x = data.x * hb::tile_width + 16;
         t.y = data.y * hb::tile_height + 16;
     }
     else
     {
-        // Set up interpolated movement (same as player characters)
-        t.dest_tile_x = data.x;
-        t.dest_tile_y = data.y;
+        // Save origin, immediately set tile to destination
+        t.move_start_x = t.tile_x;
+        t.move_start_y = t.tile_y;
+        t.tile_x = data.x;
+        t.tile_y = data.y;
         t.moving = true;
         t.move_progress = 0.0f;
 
@@ -865,6 +884,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
@@ -1764,10 +1785,10 @@ void ws_message_handler::handle_player_teleport(const json& message)
         auto& t = player->transform();
         t.tile_x = data.dest_x;
         t.tile_y = data.dest_y;
+        t.move_start_x = data.dest_x;
+        t.move_start_y = data.dest_y;
         t.x = data.dest_x * 32 + 16;
         t.y = data.dest_y * 32 + 16;
-        t.dest_tile_x = data.dest_x;
-        t.dest_tile_y = data.dest_y;
         t.moving = false;
         t.move_progress = 0.0f;
         t.facing = direction_from_protocol(data.dest_dir).value_or(direction::south);
@@ -1795,6 +1816,8 @@ void ws_message_handler::handle_player_teleport(const json& message)
         auto& ent_transform = world_entity.transform();
         ent_transform.tile_x = ent.x;
         ent_transform.tile_y = ent.y;
+        ent_transform.move_start_x = ent.x;
+        ent_transform.move_start_y = ent.y;
         ent_transform.x = ent.x * hb::tile_width + 16;
         ent_transform.y = ent.y * hb::tile_height + 16;
         ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
@@ -1888,6 +1911,8 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
@@ -1924,6 +1949,8 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
@@ -1985,6 +2012,8 @@ void ws_message_handler::handle_ground_item_spawn(const json& message)
     auto& t = ent.transform();
     t.tile_x = data.x;
     t.tile_y = data.y;
+    t.move_start_x = data.x;
+    t.move_start_y = data.y;
     t.x = data.x * 32 + 16;
     t.y = data.y * 32 + 16;
 

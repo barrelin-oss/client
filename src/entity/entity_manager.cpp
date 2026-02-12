@@ -1165,9 +1165,9 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
         return;
     }
 
-    // Update facing direction during movement
-    if (t.dest_tile_x != t.tile_x || t.dest_tile_y != t.tile_y) {
-        if (auto dir = calculate_direction(t.tile_x, t.tile_y, t.dest_tile_x, t.dest_tile_y)) {
+    // Update facing direction during movement (from origin toward destination)
+    if (t.move_start_x != t.tile_x || t.move_start_y != t.tile_y) {
+        if (auto dir = calculate_direction(t.move_start_x, t.move_start_y, t.tile_x, t.tile_y)) {
             t.facing = *dir;
         }
     }
@@ -1175,17 +1175,17 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
     // Movement timing based on animation frames (legacy Helbreath system)
     // MOVE: 8 frames @ 70ms = 560ms per tile
     // RUN: 8 frames @ 42ms = 336ms per tile
-    float move_time_ms = m.running ? 336.0f : 560.0f;  // Total time in milliseconds
-    float move_time_sec = move_time_ms / 1000.0f;       // Convert to seconds
+    float move_time_ms = m.running ? 336.0f : 560.0f;
+    float move_time_sec = move_time_ms / 1000.0f;
 
     t.move_progress += delta_time / move_time_sec;
 
     if (t.move_progress >= 1.0f) {
-        // Reached destination tile
-        t.tile_x = t.dest_tile_x;
-        t.tile_y = t.dest_tile_y;
-        t.x = t.tile_x * tile_width + 16;   // Tile center X
-        t.y = t.tile_y * tile_height + 16;  // Tile center Y (feet position)
+        // Arrived at destination - snap to tile position
+        t.move_start_x = t.tile_x;
+        t.move_start_y = t.tile_y;
+        t.x = t.tile_x * tile_width + 16;
+        t.y = t.tile_y * tile_height + 16;
         t.move_progress = 0.0f;
         t.moving = false;
 
@@ -1193,13 +1193,14 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
         if (m.path_index < m.path.size()) {
             auto [next_x, next_y] = m.path[m.path_index++];
             if (w.current_map().is_walkable(next_x, next_y)) {
-                t.dest_tile_x = next_x;
-                t.dest_tile_y = next_y;
+                t.move_start_x = t.tile_x;
+                t.move_start_y = t.tile_y;
+                t.tile_x = next_x;
+                t.tile_y = next_y;
                 t.moving = true;
             } else {
                 m.path.clear();
                 m.path_index = 0;
-                // Return to idle with correct combat stance for local player
                 if (e.id() == local_player_id_) {
                     e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
                 } else {
@@ -1207,31 +1208,25 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
                 }
             }
         } else {
-            // No more path - check if we've reached the final destination
-            // For other players/NPCs, destination is stored in movement component from server broadcasts
             bool reached_destination = (m.target_x < 0 || m.target_y < 0) ||
                                        (t.tile_x == m.target_x && t.tile_y == m.target_y);
 
             if (reached_destination) {
-                // Clear the destination
                 m.target_x = -1;
                 m.target_y = -1;
-                // Return to idle with correct combat stance for local player
                 if (e.id() == local_player_id_) {
                     e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
                 } else {
                     e.set_action(object_action::stop_peace);
                 }
             }
-            // Otherwise, keep moving flag false but don't change animation state
-            // The animation will continue looping until next position update arrives
         }
     } else {
-        // Interpolate position (use tile center for both X and Y - feet should be at tile center)
-        int32_t start_x = t.tile_x * tile_width + 16;
-        int32_t start_y = t.tile_y * tile_height + 16;
-        int32_t end_x = t.dest_tile_x * tile_width + 16;
-        int32_t end_y = t.dest_tile_y * tile_height + 16;
+        // Interpolate world position from move_start toward tile (destination)
+        int32_t start_x = t.move_start_x * tile_width + 16;
+        int32_t start_y = t.move_start_y * tile_height + 16;
+        int32_t end_x = t.tile_x * tile_width + 16;
+        int32_t end_y = t.tile_y * tile_height + 16;
 
         t.x = start_x + static_cast<int32_t>((end_x - start_x) * t.move_progress);
         t.y = start_y + static_cast<int32_t>((end_y - start_y) * t.move_progress);

@@ -114,6 +114,10 @@ public:
     void set_additive_intensity(float intensity) { additive_intensity_ = intensity; }
     float additive_intensity() const { return additive_intensity_; }
 
+    // Color-tinted sprite drawing (additive RGB offset in 0-1 range, for hair color etc.)
+    void draw_sprite_tinted(const sprite& spr, int32_t x, int32_t y, uint32_t frame,
+                            float r_offset, float g_offset, float b_offset);
+
     // Sprite drawing without color key (for backgrounds, etc.)
     void draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
@@ -224,6 +228,12 @@ private:
     static bool additive_shader_loaded_;
     static bool additive_shader_init_attempted_;
     static bool load_additive_shader();
+
+    // Color tint shader (lazy-loaded, for hair color etc.)
+    static sf::Shader tint_shader_;
+    static bool tint_shader_loaded_;
+    static bool tint_shader_init_attempted_;
+    static bool load_tint_shader();
 };
 
 } // namespace hb

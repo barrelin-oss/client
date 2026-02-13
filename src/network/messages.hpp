@@ -255,6 +255,7 @@ struct enter_game_character {
     int16_t hair_style = 0;
     int16_t hair_color = 0;
     int16_t skin_color = 0;
+    int16_t underwear_color = 0;
     int64_t experience = 0;
     int32_t pk_count = 0;
     int32_t hunger_level = 100;
@@ -286,6 +287,7 @@ struct enter_game_character {
         if (j.contains("hair_style")) c.hair_style = j["hair_style"].get<int16_t>();
         if (j.contains("hair_color")) c.hair_color = j["hair_color"].get<int16_t>();
         if (j.contains("skin_color")) c.skin_color = j["skin_color"].get<int16_t>();
+        if (j.contains("underwear_color")) c.underwear_color = j["underwear_color"].get<int16_t>();
         if (j.contains("experience")) c.experience = j["experience"].get<int64_t>();
         if (j.contains("pk_count")) c.pk_count = j["pk_count"].get<int32_t>();
         if (j.contains("hunger_level")) c.hunger_level = j["hunger_level"].get<int32_t>();
@@ -454,6 +456,7 @@ struct enter_game_visible_entity {
     uint32_t template_id = 0;    // NPC template ID
     int16_t level = 0;           // NPC level
     int16_t nation = 0;          // 0=Neutral, 1=Aresden, 2=Elvine
+    std::vector<std::string> attributes; // NPC attributes (e.g. "Berserk", "Clairvoyant")
 
     static enter_game_visible_entity from_json(const json& j) {
         enter_game_visible_entity ent;
@@ -468,6 +471,10 @@ struct enter_game_visible_entity {
         if (j.contains("template_id")) ent.template_id = j["template_id"].get<uint32_t>();
         if (j.contains("level")) ent.level = j["level"].get<int16_t>();
         if (j.contains("nation")) ent.nation = j["nation"].get<int16_t>();
+        if (j.contains("attributes") && j["attributes"].is_array()) {
+            for (const auto& a : j["attributes"])
+                ent.attributes.push_back(a.get<std::string>());
+        }
         return ent;
     }
 };
@@ -1321,6 +1328,7 @@ struct npc_spawn_data {
     int32_t hp = 0;
     int32_t max_hp = 0;
     int16_t level = 0;
+    std::vector<std::string> attributes; // e.g. "Berserk", "Clairvoyant"
 
     static npc_spawn_data from_json(const json& j) {
         npc_spawn_data data;
@@ -1336,6 +1344,10 @@ struct npc_spawn_data {
             if (d.contains("hp")) data.hp = d["hp"].get<int32_t>();
             if (d.contains("max_hp")) data.max_hp = d["max_hp"].get<int32_t>();
             if (d.contains("level")) data.level = d["level"].get<int16_t>();
+            if (d.contains("attributes") && d["attributes"].is_array()) {
+                for (const auto& a : d["attributes"])
+                    data.attributes.push_back(a.get<std::string>());
+            }
         }
         return data;
     }

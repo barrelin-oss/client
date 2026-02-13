@@ -5,6 +5,7 @@
 #include "assets/sprite.hpp"
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <array>
 #include <optional>
 
@@ -322,6 +323,15 @@ struct monster_component {
     bool is_boss = false;
     bool is_summon = false;
     bool is_aggressive = true;
+
+    // Special abilities (1-7): Clairvoyant, Dest. Magic Prot., Anti-Physical,
+    // Anti-Magic, Poisonous, Critical Poisonous, Explosive
+    // Multiple possible but rare; more attributes = more exp
+    std::vector<std::string> attributes;
+
+    // Status effects (can toggle on/off at runtime)
+    bool berserked = false;
+    bool frozen = false;
 
     // Loot
     uint32_t exp_reward = 0;

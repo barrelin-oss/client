@@ -13,6 +13,7 @@ struct equipment_pak_entry {
     const char* pak_name;
     uint32_t sprite_id;
     uint32_t sprite_count;
+    uint32_t pak_start_index;  // Starting index within the PAK file (for multi-variant PAKs)
 };
 
 // Full appearance data for rendering a character preview with equipment
@@ -92,7 +93,8 @@ private:
     void draw_underwear(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
                         uint8_t gender, uint8_t underwear_color, int32_t action, int32_t dir, int32_t frame);
     void draw_hair(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                   uint8_t gender, uint8_t hair_style, int32_t action, int32_t dir, int32_t frame);
+                   uint8_t gender, uint8_t hair_style, uint8_t hair_color,
+                   int32_t action, int32_t dir, int32_t frame);
     void draw_body_armor(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
                          uint8_t gender, uint8_t armor_type, int32_t action, int32_t dir, int32_t frame);
     void draw_arm_armor(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,

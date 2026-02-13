@@ -280,7 +280,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
             }
             for (uint32_t i = 0; i < entry.sprite_count; ++i) {
                 uint16_t global_id = static_cast<uint16_t>(entry.sprite_id + i);
-                sprites_.store_sprite_at_id(global_id, entry.pak_name, i);
+                sprites_.store_sprite_at_id(global_id, entry.pak_name, entry.pak_start_index + i);
             }
         }});
     }
@@ -1209,6 +1209,9 @@ void game_state_manager::render_playing(renderer& rend) {
         entities_.render_single_entity(rend, sprites_, *sorted[idx], cam_x, cam_y, mouse_x, mouse_y);
         ++idx;
     }
+
+    // Draw name/health overlays on top of all sprites and objects
+    entities_.render_name_overlays(rend, sprites_, sorted, cam_x, cam_y, mouse_x, mouse_y);
 
     effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);

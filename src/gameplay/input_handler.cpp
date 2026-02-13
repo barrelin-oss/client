@@ -1202,7 +1202,10 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
         player->movement().target_y = -1;
     }
 
-    // Set attack_move animation (13 frames @ 78ms)
+    // Dash uses the same attack stance as current combat mode (peace or combat).
+    // set_action_with_combat_mode sets current_action_ for sprite rendering, then we override
+    // the anim state to attack_move for the 13-frame timing (sped up attack + hold at end).
+    player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
     player->animation().set_state(entity_anim_state::attack_move);
 
     // Clear pathfinding destination

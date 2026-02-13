@@ -83,6 +83,11 @@ public:
     // Render a single entity (for interleaved rendering)
     void render_single_entity(renderer& rend, sprite_manager& sprites, entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
+    // Render name/health overlays for visible entities (call after all sprites are drawn)
+    void render_name_overlays(renderer& rend, sprite_manager& sprites,
+                              const std::vector<entity*>& visible, int32_t camera_x, int32_t camera_y,
+                              int32_t mouse_x, int32_t mouse_y);
+
     // Global render mode - renders all entities without distance culling
     void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
     bool is_global_render_mode() const { return global_render_mode_; }
@@ -114,6 +119,7 @@ private:
     void render_npc_or_monster(renderer& rend, sprite_manager& sprites, const entity& e, int32_t screen_x, int32_t screen_y, const animation_component& a);
     void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered);
     void render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
+    void render_health_bar_inline(renderer& rend, const entity& e, int32_t center_x, int32_t& cur_y);
 
     // Play footstep sound for an entity
     void play_footstep_sound(const entity& e, bool running);

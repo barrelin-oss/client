@@ -346,6 +346,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     sprite.skin_color = static_cast<uint8_t>(ch.skin_color);
     sprite.hair_style = static_cast<uint8_t>(ch.hair_style);
     sprite.hair_color = static_cast<uint8_t>(ch.hair_color);
+    sprite.underwear_color = static_cast<uint8_t>(ch.underwear_color);
     sprite.gender = (ch.gender == 0) ? 1 : 2;
 
     entities.load_character_sprites(player, sprites);
@@ -534,7 +535,10 @@ void ws_message_handler::handle_enter_game_response(const json& message)
             if (world_entity.has_npc())
                 world_entity.npc().npc_type = visual_type;
             else if (world_entity.has_monster())
+            {
                 world_entity.monster().monster_type = visual_type;
+                world_entity.monster().attributes = ent.attributes;
+            }
         }
 
         if (world_entity.has_stats())
@@ -1866,7 +1870,10 @@ void ws_message_handler::handle_player_teleport(const json& message)
             if (world_entity.has_npc())
                 world_entity.npc().npc_type = visual_type;
             else if (world_entity.has_monster())
+            {
                 world_entity.monster().monster_type = visual_type;
+                world_entity.monster().attributes = ent.attributes;
+            }
         }
 
         if (world_entity.has_stats())
@@ -2003,7 +2010,10 @@ void ws_message_handler::handle_npc_spawn(const json& message)
         if (ent.has_npc())
             ent.npc().npc_type = visual_type;
         if (ent.has_monster())
+        {
             ent.monster().monster_type = visual_type;
+            ent.monster().attributes = data.attributes;
+        }
     }
 
     if (ent.has_stats())

@@ -80,6 +80,46 @@ inline uint16_t calculate_hair_sprite_id(bool is_female, uint8_t hair_style, int
     return static_cast<uint16_t>(base + clamped_style * character_sprite_constants::hair_stride + action);
 }
 
+// Equipment sprites have different frame counts per direction depending on action type.
+// Legacy: OnStop/OnMove/OnRun/OnAttack = 8 frames/dir, OnMagic = 16, OnGetItem/OnDamage = 4
+inline int32_t equipment_frames_per_direction(int32_t action)
+{
+    switch (action)
+    {
+        case 8:  return 16; // magic
+        case 9:  return 4;  // get_item
+        case 10: return 4;  // damage
+        default: return 8;
+    }
+}
+
+// Hair color RGB offsets (from legacy _GetHairColorRGB)
+// Legacy values are for RGB565 (5-bit R, 6-bit G, 5-bit B).
+// Pre-normalized to 0-1 range: R,B divided by 31, G divided by 63.
+struct hair_color_offset
+{
+    float r, g, b;
+};
+
+static constexpr hair_color_offset hair_colors[16] = {
+    { 14.0f/31,  -5.0f/63,  -5.0f/31},  //  0: dark red
+    { 20.0f/31,   0.0f/63,   0.0f/31},  //  1: orange
+    { 22.0f/31,  13.0f/63, -10.0f/31},  //  2: light brown
+    {  0.0f/31,  10.0f/63,   0.0f/31},  //  3: green
+    {  0.0f/31,   0.0f/63,  22.0f/31},  //  4: flashy blue
+    { -5.0f/31,  -5.0f/63,  15.0f/31},  //  5: dark blue
+    { 15.0f/31,  -5.0f/63,  16.0f/31},  //  6: mauve
+    { -6.0f/31,  -6.0f/63,  -6.0f/31},  //  7: black
+    {-10.0f/31,   0.0f/63,   0.0f/31},  //  8: dark
+    {  0.0f/31,   0.0f/63,   0.0f/31},  //  9: natural
+    {  0.0f/31,   0.0f/63,   0.0f/31},  // 10: natural
+    { 22.0f/31,  22.0f/63,  22.0f/31},  // 11: white/bright
+    { 22.0f/31,  17.0f/63,   0.0f/31},  // 12: golden
+    { -5.0f/31,   0.0f/63,  22.0f/31},  // 13: cyan-blue
+    {  0.0f/31,   0.0f/63,   0.0f/31},  // 14: natural
+    {  0.0f/31,  22.0f/63,   0.0f/31},  // 15: green
+};
+
 // Map object_action to NPC action index (0-6)
 // NPC actions: 0=stop, 1=move, 2=attack, 3=damage, 4=dying, 5=dead, 6=magic
 inline int32_t action_to_npc_action_index(object_action action)
@@ -1175,10 +1215,11 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
     // Movement timing based on animation frames (legacy Helbreath system)
     // MOVE: 8 frames @ 70ms = 560ms per tile
     // RUN: 8 frames @ 42ms = 336ms per tile
-    // ATTACK_MOVE (dash): 13 frames @ 78ms = 1014ms per tile
+    // ATTACK_MOVE (dash): approach phase is frames 0-3 @ 78ms = 312ms, then character
+    // stands at destination for the remaining attack frames (4-12).
     float move_time_ms;
     if (e.animation().state == entity_anim_state::attack_move)
-        move_time_ms = 1014.0f;
+        move_time_ms = 312.0f;
     else
         move_time_ms = m.running ? 336.0f : 560.0f;
     float move_time_sec = move_time_ms / 1000.0f;
@@ -1219,10 +1260,15 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
             if (reached_destination) {
                 m.target_x = -1;
                 m.target_y = -1;
-                if (e.id() == local_player_id_) {
-                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
-                } else {
-                    e.set_action(object_action::stop_peace);
+                // During attack_move (dash), the movement arrives early while the
+                // attack animation is still playing. Don't override it with idle —
+                // update_animation will transition to idle when the animation finishes.
+                if (e.animation().state != entity_anim_state::attack_move) {
+                    if (e.id() == local_player_id_) {
+                        e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                    } else {
+                        e.set_action(object_action::stop_peace);
+                    }
                 }
             }
         }
@@ -1286,9 +1332,35 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
             return a->transform().y < b->transform().y;
         });
 
-    // Render sorted entities
+    // Pass 1: Render all entity sprites, collecting hover state
+    struct name_overlay {
+        const entity* ent;
+        int32_t screen_x;
+        int32_t screen_y;
+        bool hovered;
+    };
+    std::vector<name_overlay> name_overlays;
+
     for (entity* e : visible_entities) {
         render_entity(rend, sprites, *e, camera_x, camera_y, mouse_x, mouse_y);
+
+        // Collect entities that need name/health overlay
+        if (e->has_name() && (e->type() == entity_type::player ||
+                              e->type() == entity_type::character ||
+                              e->type() == entity_type::npc ||
+                              e->type() == entity_type::monster))
+        {
+            const auto& t = e->transform();
+            int32_t sx = t.x - camera_x;
+            int32_t sy = t.y - camera_y;
+            bool hovered = is_point_in_entity_sprite(*e, sprites, camera_x, camera_y, mouse_x, mouse_y);
+            name_overlays.push_back({e, sx, sy, hovered});
+        }
+    }
+
+    // Pass 2: Render names (with inline health bars) on top of all sprites
+    for (const auto& overlay : name_overlays) {
+        render_entity_name(rend, *overlay.ent, overlay.screen_x, overlay.screen_y, overlay.hovered);
     }
 }
 
@@ -1341,7 +1413,27 @@ void entity_manager::render_single_entity(renderer& rend, sprite_manager& sprite
     render_entity(rend, sprites, e, camera_x, camera_y, mouse_x, mouse_y);
 }
 
-void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
+void entity_manager::render_name_overlays(renderer& rend, sprite_manager& sprites,
+                                           const std::vector<entity*>& visible, int32_t camera_x, int32_t camera_y,
+                                           int32_t mouse_x, int32_t mouse_y)
+{
+    for (const entity* e : visible)
+    {
+        if (!e->has_name()) continue;
+        if (e->type() != entity_type::player && e->type() != entity_type::character &&
+            e->type() != entity_type::npc && e->type() != entity_type::monster)
+            continue;
+
+        const auto& t = e->transform();
+        int32_t sx = t.x - camera_x;
+        int32_t sy = t.y - camera_y;
+        bool hovered = is_point_in_entity_sprite(*e, sprites, camera_x, camera_y, mouse_x, mouse_y);
+
+        render_entity_name(rend, *e, sx, sy, hovered);
+    }
+}
+
+void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, [[maybe_unused]] int32_t mouse_x, [[maybe_unused]] int32_t mouse_y) {
     const auto& t = e.transform();
     const auto& s = e.sprite();
     const auto& a = e.animation();
@@ -1349,41 +1441,20 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
     int32_t screen_x = t.x - camera_x;
     int32_t screen_y = t.y - camera_y;
 
-    // Check if mouse is hovering over entity using actual sprite bounds
-    bool is_hovered = is_point_in_entity_sprite(e, sprites, camera_x, camera_y, mouse_x, mouse_y);
-
-
-    // Render sprite layers based on entity type
+    // Render sprite layers based on entity type (names/health drawn in separate pass)
     if (e.type() == entity_type::item) {
-        // Items just render their sprite
         if (s.body_sprite) {
             rend.draw_sprite(*s.body_sprite, screen_x - 16, screen_y - 16, s.body_frame);
         }
     } else if (e.type() == entity_type::effect) {
-        // Effects
         if (e.has_effect() && e.effect().effect_sprite) {
             const auto& eff = e.effect();
             rend.draw_sprite(*eff.effect_sprite, screen_x + eff.offset_x, screen_y + eff.offset_y, eff.effect_frame);
         }
     } else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
-        // NPCs and monsters - single sprite rendering
         render_npc_or_monster(rend, sprites, e, screen_x, screen_y, a);
     } else {
-        // Player characters - layered rendering
         render_player_character(rend, sprites, e, screen_x, screen_y, a);
-    }
-
-    // Render name and health bar for characters/monsters
-    if (e.has_name() && (e.type() == entity_type::player ||
-                         e.type() == entity_type::character ||
-                         e.type() == entity_type::npc ||
-                         e.type() == entity_type::monster)) {
-        render_entity_name(rend, e, screen_x, screen_y, is_hovered);
-    }
-
-    if (e.has_stats() && (e.type() == entity_type::character ||
-                          e.type() == entity_type::monster)) {
-        render_entity_health_bar(rend, e, screen_x, screen_y);
     }
 }
 
@@ -1396,8 +1467,20 @@ void entity_manager::render_player_character(renderer& rend, sprite_manager& spr
     int32_t dir = direction_to_sprite_index(t.facing);
     int32_t action = static_cast<int32_t>(e.current_action());
 
-    // Calculate frame index for sprites: (dir-1)*8 + current_frame
-    int32_t frame_index = (dir - 1) * 8 + a.current_frame;
+    // For attack_move (dash), map 13 animation frames to 8 sprite frames.
+    // Legacy: frames 0-3 = approach, 4-9 held on sprite frame 4, 10-12 = strike (5-7).
+    uint8_t sprite_frame = a.current_frame;
+    if (a.state == entity_anim_state::attack_move)
+    {
+        static constexpr uint8_t attack_move_frame_map[] = {
+            0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 5, 6, 7
+        };
+        sprite_frame = (a.current_frame < 13) ? attack_move_frame_map[a.current_frame] : 7;
+    }
+
+    // Equipment frame index varies by action type (different frame counts per direction)
+    int32_t equip_fpd = equipment_frames_per_direction(action);
+    int32_t equip_frame = (dir - 1) * equip_fpd + sprite_frame;
 
     // Calculate sprite IDs using helper functions
     int32_t owner_type = calculate_owner_type(s.gender, s.skin_color);
@@ -1412,26 +1495,33 @@ void entity_manager::render_player_character(renderer& rend, sprite_manager& spr
     uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action);
     const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
 
-    // Draw layers: underwear, body, hair
-    if (underwear_spr) {
-        if (s.alpha < 1.0f) {
-            rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, frame_index, s.alpha);
-        } else {
-            rend.draw_sprite(*underwear_spr, screen_x, screen_y, frame_index);
-        }
-    }
-
+    // Draw layers: body (skin) first, then underwear on top, then hair
     if (body_spr) {
         if (s.alpha < 1.0f) {
-            rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, a.current_frame, s.alpha);
+            rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, sprite_frame, s.alpha);
         } else {
-            rend.draw_sprite(*body_spr, screen_x, screen_y, a.current_frame);
+            rend.draw_sprite(*body_spr, screen_x, screen_y, sprite_frame);
         }
     }
 
-    // Hair (if no helm)
+    if (underwear_spr) {
+        if (s.alpha < 1.0f) {
+            rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, equip_frame, s.alpha);
+        } else {
+            rend.draw_sprite(*underwear_spr, screen_x, screen_y, equip_frame);
+        }
+    }
+
+    // Hair with color tinting (if no helm)
     if (!s.helm_sprite && hair_spr) {
-        rend.draw_sprite(*hair_spr, screen_x, screen_y, frame_index);
+        uint8_t hc = std::clamp(s.hair_color, uint8_t(0), uint8_t(15));
+        const auto& tint = hair_colors[hc];
+        if (tint.r == 0.0f && tint.g == 0.0f && tint.b == 0.0f) {
+            rend.draw_sprite(*hair_spr, screen_x, screen_y, equip_frame);
+        } else {
+            rend.draw_sprite_tinted(*hair_spr, screen_x, screen_y, equip_frame,
+                                    tint.r, tint.g, tint.b);
+        }
     }
 
     // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
@@ -1491,16 +1581,23 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
 
     // Only render name if mouse is hovering
     if (is_hovered) {
+        static constexpr float outline_thickness = 1.5f;
+        static constexpr uint32_t name_font_size = 14;
+        static constexpr uint32_t sub_font_size = 12;
+        static constexpr int32_t line_spacing = 16;
+        static const sf::Color outline_color = sf::Color::Black;
+        static const sf::Color guild_color = sf::Color(160, 160, 160); // Mid-gray
+        static const sf::Color attrib_color = sf::Color(218, 165, 32); // Gold
+
+        // Determine name color based on entity type and faction
         sf::Color name_color = sf::Color::White;
 
         if (e.type() == entity_type::player)
         {
-            // Local player: white
             name_color = sf::Color::White;
         }
         else if (e.type() == entity_type::character)
         {
-            // Other players: color by faction relationship
             int16_t my_nation = 0;
             if (auto* lp = local_player())
             {
@@ -1509,49 +1606,80 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
             }
 
             if (e.has_combat() && e.combat().pk_count > 0)
-            {
-                // PK players always red
                 name_color = sf::Color::Red;
-            }
             else if (name.nation == 0 || my_nation == 0)
-            {
-                // Either party is neutral
-                name_color = sf::Color(80, 160, 255); // Blue
-            }
+                name_color = sf::Color(80, 160, 255); // Blue - neutral
             else if (name.nation == my_nation)
-            {
-                // Same faction: friendly
-                name_color = sf::Color(80, 255, 80); // Green
-            }
+                name_color = sf::Color(80, 255, 80); // Green - friendly
             else
-            {
-                // Different faction: enemy
-                name_color = sf::Color(255, 80, 80); // Red
-            }
+                name_color = sf::Color(255, 80, 80); // Red - enemy
         }
         else if (e.type() == entity_type::npc)
         {
-            // Town NPCs: neutral blue
             name_color = sf::Color(80, 160, 255);
         }
         else if (e.type() == entity_type::monster)
         {
-            // Monsters: enemy red
             name_color = sf::Color(255, 80, 80);
         }
 
-        // Center name below entity feet
-        int32_t name_x = screen_x - static_cast<int32_t>(name.name.length() * 4);
-        int32_t name_y = screen_y + 10;
+        // Position below entity feet
+        int32_t cur_y = screen_y + 10;
+        if (e.type() != entity_type::player)
+            cur_y += 10;
 
-        static constexpr float outline_thickness = 1.5f;
-        rend.draw_text_outlined(name.name, name_x, name_y, name_color, sf::Color::Black, 14, outline_thickness);
+        // Draw name (centered)
+        float name_w = rend.text().measure_width(name.name, name_font_size);
+        int32_t name_x = screen_x - static_cast<int32_t>(name_w * 0.5f);
+        rend.draw_text_outlined(name.name, name_x, cur_y, name_color, outline_color, name_font_size, outline_thickness);
+        cur_y += line_spacing;
 
-        // Render guild name if present (below character name)
-        if (!name.guild_name.empty()) {
+        // Health bar (under name, above guild/attributes)
+        if (e.has_stats() && e.type() != entity_type::player)
+        {
+            render_health_bar_inline(rend, e, screen_x, cur_y);
+        }
+
+        // Players: show guild below name
+        if ((e.type() == entity_type::player || e.type() == entity_type::character)
+            && !name.guild_name.empty())
+        {
             auto guild_text = "<" + name.guild_name + ">";
-            int32_t guild_x = screen_x - static_cast<int32_t>(guild_text.length() * 3);
-            rend.draw_text_outlined(guild_text, guild_x, name_y + 14, sf::Color(100, 200, 100), sf::Color::Black, 12, outline_thickness);
+            float guild_w = rend.text().measure_width(guild_text, sub_font_size);
+            int32_t guild_x = screen_x - static_cast<int32_t>(guild_w * 0.5f);
+            rend.draw_text_outlined(guild_text, guild_x, cur_y, guild_color, outline_color, sub_font_size, outline_thickness);
+            cur_y += line_spacing;
+        }
+
+        // Monsters/NPCs: show attributes below name in gold, then status effects
+        if (e.type() == entity_type::monster && e.has_monster())
+        {
+            const auto& mon = e.monster();
+
+            // Special abilities (gold)
+            for (const auto& attr : mon.attributes)
+            {
+                float attr_w = rend.text().measure_width(attr, sub_font_size);
+                int32_t attr_x = screen_x - static_cast<int32_t>(attr_w * 0.5f);
+                rend.draw_text_outlined(attr, attr_x, cur_y, attrib_color, outline_color, sub_font_size, outline_thickness);
+                cur_y += line_spacing;
+            }
+
+            // Status effects (below attributes so toggling doesn't shift text above)
+            if (mon.berserked || mon.frozen)
+            {
+                std::string status;
+                if (mon.berserked) status = "Berserked";
+                if (mon.frozen)
+                {
+                    if (!status.empty()) status += ", ";
+                    status += "Frozen";
+                }
+                static const sf::Color status_color = sf::Color(255, 120, 120); // Light red
+                float status_w = rend.text().measure_width(status, sub_font_size);
+                int32_t status_x = screen_x - static_cast<int32_t>(status_w * 0.5f);
+                rend.draw_text_outlined(status, status_x, cur_y, status_color, outline_color, sub_font_size, outline_thickness);
+            }
         }
     }
 
@@ -1624,36 +1752,50 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
 }
 
 void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y) {
+    // This overload exists for API compatibility but is no longer called directly.
+    // Health bars are now drawn inline via render_entity_name.
+    int32_t cur_y = screen_y + 26;
+    render_health_bar_inline(rend, e, screen_x, cur_y);
+}
+
+void entity_manager::render_health_bar_inline(renderer& rend, const entity& e, int32_t center_x, int32_t& cur_y) {
+    if (!e.has_stats()) return;
     const auto& stats = e.stats();
 
-    // Health bar position
-    int32_t bar_x = screen_x - 20;
-    int32_t bar_y = screen_y - 70;
-    int32_t bar_width = 40;
-    int32_t bar_height = 4;
+    static constexpr int32_t bar_width = 64;
+    static constexpr int32_t bar_height = 6;
+    static constexpr int32_t border = 1;
 
-    // Background
-    rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(40, 40, 40), true);
+    cur_y += 5;
+    int32_t bar_x = center_x - bar_width / 2;
+    int32_t bar_y = cur_y;
 
-    // Health fill (guard against division by zero)
+    // Outer border (dark)
+    rend.draw_rect(bar_x - border, bar_y - border,
+                   bar_width + border * 2, bar_height + border * 2,
+                   sf::Color(30, 30, 30), true);
+
+    // Background (gray = missing health)
+    rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(80, 80, 80), true);
+
+    // Health fill (red)
     if (stats.max_hp > 0) {
-        float hp_ratio = static_cast<float>(stats.hp) / static_cast<float>(stats.max_hp);
+        float hp_ratio = std::clamp(static_cast<float>(stats.hp) / static_cast<float>(stats.max_hp), 0.0f, 1.0f);
         int32_t fill_width = static_cast<int32_t>(bar_width * hp_ratio);
-
-        sf::Color hp_color = sf::Color::Green;
-        if (hp_ratio < 0.3f) {
-            hp_color = sf::Color::Red;
-        } else if (hp_ratio < 0.6f) {
-            hp_color = sf::Color::Yellow;
-        }
-
         if (fill_width > 0) {
-            rend.draw_rect(bar_x, bar_y, fill_width, bar_height, hp_color, true);
+            rend.draw_rect(bar_x, bar_y, fill_width, bar_height, sf::Color(200, 30, 30), true);
         }
     }
 
-    // Border
-    rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(100, 100, 100), false);
+    // Inner highlight line (subtle shine on top row)
+    rend.draw_rect(bar_x, bar_y, bar_width, 1, sf::Color(255, 255, 255, 40), true);
+
+    // Border outline
+    rend.draw_rect(bar_x - border, bar_y - border,
+                   bar_width + border * 2, bar_height + border * 2,
+                   sf::Color(120, 120, 120), false);
+
+    cur_y += bar_height + border * 2 + 3;
 }
 
 void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites) {

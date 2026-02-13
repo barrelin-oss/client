@@ -30,6 +30,10 @@ sf::Shader renderer::additive_shader_;
 bool renderer::additive_shader_loaded_ = false;
 bool renderer::additive_shader_init_attempted_ = false;
 
+sf::Shader renderer::tint_shader_;
+bool renderer::tint_shader_loaded_ = false;
+bool renderer::tint_shader_init_attempted_ = false;
+
 bool renderer::initialize(uint32_t width, uint32_t height, bool fullscreen,
                           bool borderless, int32_t monitor_x, int32_t monitor_y) {
     width_ = width;
@@ -758,6 +762,77 @@ void renderer::draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t 
     additive_shader_.setUniform("texture", sf::Shader::CurrentTexture);
     additive_shader_.setUniform("alpha", alpha * additive_intensity_);
     states.shader = &additive_shader_;
+
+    active_target_->draw(sf_spr, states);
+    ++draw_call_count_;
+}
+
+bool renderer::load_tint_shader()
+{
+    // Additive RGB offset shader for color tinting (e.g. hair color).
+    // Adds a uniform color_offset to each non-transparent pixel.
+    static const char* fragment_shader = R"(
+        uniform sampler2D texture;
+        uniform vec3 color_offset;
+
+        void main()
+        {
+            vec4 src = texture2D(texture, gl_TexCoord[0].xy);
+            if (src.a > 0.0)
+            {
+                src.rgb = clamp(src.rgb + color_offset, 0.0, 1.0);
+            }
+            gl_FragColor = src * gl_Color;
+        }
+    )";
+
+    if (!sf::Shader::isAvailable())
+    {
+        spdlog::warn("Shaders not available - color tinting disabled");
+        return false;
+    }
+
+    if (!tint_shader_.loadFromMemory(fragment_shader, sf::Shader::Type::Fragment))
+    {
+        spdlog::error("Failed to load color tint shader");
+        return false;
+    }
+
+    spdlog::info("Color tint shader loaded");
+    return true;
+}
+
+void renderer::draw_sprite_tinted(const sprite& spr, int32_t x, int32_t y, uint32_t frame,
+                                   float r_offset, float g_offset, float b_offset)
+{
+    if (!tint_shader_init_attempted_)
+    {
+        tint_shader_init_attempted_ = true;
+        tint_shader_loaded_ = load_tint_shader();
+    }
+
+    if (!tint_shader_loaded_)
+    {
+        draw_sprite(spr, x, y, frame);
+        return;
+    }
+
+    if (!spr.ensure_loaded() || frame >= spr.frame_count())
+    {
+        return;
+    }
+
+    const auto& f = spr.get_frame(frame);
+    sf::Sprite sf_spr(spr.texture(), f.source_rect);
+    sf_spr.setPosition({
+        static_cast<float>(x + f.pivot_x),
+        static_cast<float>(y + f.pivot_y)
+    });
+
+    sf::RenderStates states;
+    tint_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+    tint_shader_.setUniform("color_offset", sf::Glsl::Vec3(r_offset, g_offset, b_offset));
+    states.shader = &tint_shader_;
 
     active_target_->draw(sf_spr, states);
     ++draw_call_count_;

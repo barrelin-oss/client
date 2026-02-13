@@ -268,16 +268,31 @@ void input_handler::handle_movement_input(const input& inp)
 
     if (inp.is_mouse_down(sf::Mouse::Button::Left))
     {
-        auto [dest_x, dest_y] = world.screen_to_tile(mouse_x_, mouse_y_);
+        // During a one-shot animation (pickup, attack), don't re-evaluate the
+        // mouse — sprite bounds shift mid-animation and would cause false
+        // movement targets. Wait until the animation finishes to decide.
+        const auto& anim = player->animation();
+        if (!anim.looping && !anim.finished)
+        {
+            return;
+        }
 
         bool hovering_self = entities.is_point_in_entity_sprite(
             *player, sprites, world.camera_x(), world.camera_y(),
             mouse_x_, mouse_y_);
         if (hovering_self)
         {
+            auto& t = player->transform();
+            if (action_q.can_perform_action())
+            {
+                game_->request_pickup(t.tile_x, t.tile_y);
+            }
+            move_dest_x_ = -1;
+            move_dest_y_ = -1;
             return;
         }
 
+        auto [dest_x, dest_y] = world.screen_to_tile(mouse_x_, mouse_y_);
         auto& t = player->transform();
         if (dest_x == t.tile_x && dest_y == t.tile_y)
         {

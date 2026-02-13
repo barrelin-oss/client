@@ -786,12 +786,12 @@ void effect_system::update_composite(effect& eff, float delta_time)
             eff.ry = static_cast<int8_t>((std::rand() % 11) - 5);
         }
 
-        // Velocity/gravity movement: apply after fall_start_frame, not on death frame
+        // Velocity/gravity movement: apply after fall_start_frame, including death frame
+        // (legacy applies physics before the death check, so the final position is correct)
         if ((eff.def->fall_initial_speed != 0 || eff.def->fall_initial_speed_x != 0
              || eff.def->gravity != 0)
             && eff.current_frame >= eff.def->fall_start_frame
-            && eff.current_frame > 0
-            && eff.current_frame <= eff.max_frame)
+            && eff.current_frame > 0)
         {
             eff.pos_x += eff.velocity_x;
             eff.pos_y += eff.velocity_y;

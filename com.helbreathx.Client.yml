@@ -27,7 +27,6 @@ modules:
     build-commands:
       - install -Dm755 helbreath_client /app/bin/helbreath_client
       - cp -r assets /app/bin/assets
-      - cp -r config /app/bin/config
       - install -Dm644 config.json /app/bin/config.json
       - install -Dm644 com.helbreathx.Client.desktop /app/share/applications/com.helbreathx.Client.desktop
       - install -Dm644 com.helbreathx.Client.metainfo.xml /app/share/metainfo/com.helbreathx.Client.metainfo.xml

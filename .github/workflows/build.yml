@@ -46,9 +46,8 @@ jobs:
         run: |
           mkdir -p flatpak-staging
           cp bin/helbreath_client flatpak-staging/
-          cp -r bin/assets flatpak-staging/assets
-          cp -r bin/config flatpak-staging/config
-          cp bin/config.json flatpak-staging/config.json
+          cp -r /data/hbx/assets flatpak-staging/assets
+          cp /data/hbx/config.json flatpak-staging/config.json
           cp com.helbreathx.Client.desktop flatpak-staging/
           cp com.helbreathx.Client.metainfo.xml flatpak-staging/
           cp hbx.png flatpak-staging/com.helbreathx.Client.png

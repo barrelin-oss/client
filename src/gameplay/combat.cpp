@@ -401,11 +401,8 @@ void combat_system::apply_damage(entity_id target, int32_t damage) {
     auto& stats = tgt->stats();
     stats.hp = std::max(0, stats.hp - damage);
 
-    // Set damage animation
+    // Set damage animation (hurt sound plays from update_animation at frame 5)
     tgt->set_action(object_action::damage);
-
-    // Play hurt sound for players/characters
-    play_hurt_sound(target);
 
     spdlog::debug("Entity {} took {} damage, HP: {}/{}", target, damage, stats.hp, stats.max_hp);
 }
@@ -448,14 +445,11 @@ void combat_system::kill_entity(entity_id entity) {
     class entity* ent = entities_->get_entity(entity);
     if (!ent) return;
 
-    // Set death state
+    // Set death state (death sound plays from update_animation at frame 7)
     ent->set_action(object_action::dying);
     if (ent->has_stats()) {
         ent->stats().hp = 0;
     }
-
-    // Play death sound for players/characters
-    play_death_sound(entity);
 
     // Trigger death callback
     if (callbacks_.on_death) {

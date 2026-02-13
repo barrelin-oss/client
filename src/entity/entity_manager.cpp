@@ -1104,6 +1104,24 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
     }
 }
 
+// Structs defined here so update_animation can use get_monster_sounds for damage frame lookup.
+// Full lookup table is defined below play_footstep_sound.
+struct monster_sound_entry
+{
+    char type;
+    int16_t num;
+};
+
+struct monster_sounds
+{
+    monster_sound_entry move;
+    monster_sound_entry attack;
+    monster_sound_entry damage;
+    int8_t damage_frame;
+};
+
+static monster_sounds get_monster_sounds(uint16_t visual_type);
+
 void entity_manager::update_animation(entity& e, float delta_time, bool local_player_combat_mode) {
     auto& anim = e.animation();
 
@@ -1165,6 +1183,14 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             }
         }
 
+        // Play monster movement sound on frame 1
+        if (anim.current_frame == 1 &&
+            (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+            (anim.state == entity_anim_state::move || anim.state == entity_anim_state::run))
+        {
+            play_monster_sound(e, monster_sound_type::move);
+        }
+
         // Check for attack trigger frame (frame 4 for attacks)
         if (anim.state == entity_anim_state::attack ||
             anim.state == entity_anim_state::attack_move ||
@@ -1172,6 +1198,54 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             if (anim.current_frame == 4 && !anim.attack_triggered) {
                 anim.attack_triggered = true;
                 // Attack damage would be triggered here through callback
+            }
+        }
+
+        // Play monster attack sound on frame 1
+        if (anim.current_frame == 1 &&
+            (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+            (anim.state == entity_anim_state::attack || anim.state == entity_anim_state::attack_move))
+        {
+            play_monster_sound(e, monster_sound_type::attack);
+        }
+
+        // Play monster damage sound (frame varies by monster type)
+        if ((e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+            (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move))
+        {
+            uint16_t vtype = get_entity_visual_type(e);
+            auto sounds = get_monster_sounds(vtype);
+            if (sounds.damage.type != 0 && anim.current_frame == sounds.damage_frame)
+            {
+                play_monster_sound(e, monster_sound_type::damage);
+            }
+        }
+
+        // Play player/character hurt sound on frame 5 of damage animation
+        if (anim.current_frame == 5 &&
+            (e.type() == entity_type::player || e.type() == entity_type::character) &&
+            (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move))
+        {
+            if (sounds_)
+            {
+                int ptype = static_cast<int>(e.visual_type());
+                character_sound sound = get_hurt_sound(ptype);
+                const auto& t = e.transform();
+                sounds_->play_character_sound_at(sound, t.x, t.y);
+            }
+        }
+
+        // Play player/character death sound on frame 7 of dying animation
+        if (anim.current_frame == 7 &&
+            (e.type() == entity_type::player || e.type() == entity_type::character) &&
+            anim.state == entity_anim_state::dying)
+        {
+            if (sounds_)
+            {
+                int ptype = static_cast<int>(e.visual_type());
+                character_sound sound = get_death_sound(ptype);
+                const auto& t = e.transform();
+                sounds_->play_character_sound_at(sound, t.x, t.y);
             }
         }
 
@@ -1857,6 +1931,107 @@ void entity_manager::play_footstep_sound(const entity& e, bool running) {
     const auto& t = e.transform();
     character_sound sound = running ? character_sound::run_step : character_sound::walk_step;
     sounds_->play_character_sound_at(sound, t.x, t.y);
+}
+
+// Lookup monster sounds by visual type. Returns move, attack, and damage sounds.
+// Derived from legacy MapData.cpp DEF_OBJECTMOVE, DEF_OBJECTATTACK, DEF_OBJECTDAMAGE blocks.
+// Damage frame: older monsters (10-53) use frame 5, newer monsters (55+) use frame 1.
+static monster_sounds get_monster_sounds(uint16_t visual_type)
+{
+    //                      move          attack        damage        dmg_frame
+    switch (visual_type)
+    {
+        // clang-format off
+        case 10: return {{'M',   1}, {'M',   2}, {'M',   3}, 5};  // Slime
+        case 11: return {{'M',  13}, {'M',  14}, {'M',  15}, 5};  // Skeleton
+        case 12: return {{'M',  33}, {'M',  34}, {'M',  35}, 5};  // Stone Golem
+        case 13: return {{'M',  41}, {'M',  42}, {'M',  43}, 5};  // Cyclops
+        case 14: return {{'M',   9}, {'M',  10}, {'M',  11}, 5};  // Orc
+        case 16: return {{'M',  29}, {'M',  30}, {'M',  31}, 5};  // Ant
+        case 17: return {{'M',  21}, {'M',  22}, {'M',  23}, 5};  // Scorpion
+        case 18: return {{'M',  17}, {'M',  18}, {'M',  19}, 5};  // Zombie
+        case 22: return {{'M',  25}, {'M',  26}, {'M',  27}, 5};  // Snake
+        case 23: return {{'M',  37}, {'M',  38}, {'M',  39}, 5};  // Clay Golem
+        case 27: return {{'M',   5}, {'M',   6}, {'M',   7}, 5};  // Hell Hound
+        case 28: return {{'M',  46}, {'M',  47}, {'M',  48}, 5};  // Troll
+        case 29: return {{'M',  51}, {'M',  52}, {'M',  53}, 5};  // Ogre
+        case 30: return {{'M',  55}, {'M',  56}, {'M',  57}, 5};  // Liche
+        case 31: return {{'M',  59}, {'M',  60}, {'M',  61}, 5};  // Demon
+        case 32: return {{'M',  63}, {'M',  64}, {'M',  65}, 5};  // Unicorn
+        case 33: return {{'M',  67}, {'M',  68}, {'M',  69}, 5};  // Werewolf
+        case 34: return {{  0,   0}, {  0,   0}, {'M',   2}, 5};  // Dummy
+        case 35: return {{  0,   0}, {  0,   0}, {'M',   2}, 5};  // Energy Ball
+        case 43: return {{'M',  29}, {'M',  30}, {'M',  31}, 5};  // LW Beetle (same as Ant)
+        case 44: return {{  0,   0}, {'C',   2}, {  0,   0}, 5};  // GHK (attack only)
+        case 45: return {{'M',  63}, {'C',   2}, {  0,   0}, 5};  // GHKABS
+        case 46: return {{  0,   0}, {'C',   2}, {  0,   0}, 5};  // TK (attack only)
+        case 47: return {{'M',  33}, {'M',  34}, {  0,   0}, 5};  // Beholder Giant
+        case 48: return {{'M',   9}, {'M',  10}, {'M',  11}, 5};  // Skeleton Knight (same as Orc)
+        case 49: return {{'M',  41}, {'M',  42}, {'M',  43}, 5};  // Hell Cyclops (same as Cyclops)
+        case 50: return {{'M',   1}, {'C',   1}, {  0,   0}, 5};  // Tree Warrior
+        case 52: return {{'M',  37}, {'C',   2}, {'M',  43}, 5};  // Gargoyle (dmg same as Cyclops)
+        case 53: return {{  0,   0}, {'E',  46}, {'M',   3}, 5};  // Beholder (dmg same as Slime)
+        case 55: return {{'M',  71}, {'M',  75}, {'M',  79}, 1};  // Rabbit
+        case 56: return {{'M',  72}, {'M',  76}, {'M',  80}, 1};  // Cat
+        case 57: return {{'M',  73}, {'M',  77}, {'M',  81}, 1};  // Giant Frog
+        case 58: return {{'M',  87}, {'M',  88}, {'M',  89}, 1};  // Mountain Giant
+        case 59: return {{'M',  91}, {'M',  92}, {'M',  93}, 1};  // Ettin
+        case 60: return {{'M',  95}, {'M',  96}, {'M',  97}, 1};  // Cannibal Plant
+        case 61: return {{'C',  11}, {'M',  38}, {'M',  69}, 1};  // Rudolph
+        case 62: return {{'M',  87}, {'M',  68}, {'M',  78}, 1};  // Dire Boar
+        case 63: return {{'M',  25}, {'C',   4}, {'C',  13}, 1};  // Frost
+        case 65: return {{'M',  33}, {'M',  34}, {'M',  35}, 5};  // Ice Golem (same as Stone Golem)
+        case 70: return {{'M', 130}, {'M', 131}, {'M', 128}, 1};  // Dragon
+        case 71: return {{'M', 117}, {'M', 119}, {'M', 116}, 1};  // Centaurus
+        case 72: return {{'M', 114}, {'M', 115}, {'M', 112}, 1};  // Claw Turtle
+        case 73: return {{'M', 106}, {'M', 107}, {  0,   0}, 0};  // Fire Wyvern (no damage sound)
+        case 74: return {{'M',  87}, {'M', 100}, {'M', 101}, 1};  // Giant Crayfish
+        case 75: return {{'M', 126}, {'M', 127}, {'M', 124}, 1};  // Giant Lizard
+        case 76: return {{'M', 122}, {'M', 123}, {'M', 120}, 1};  // Giant Tree
+        case 77: return {{'M',  91}, {'M',  78}, {'M',  89}, 1};  // Master Mage Orc (dmg same as Mt Giant)
+        case 78: return {{'M',  46}, {'M', 104}, {'M', 102}, 1};  // Minaus
+        case 79: return {{'M', 134}, {'M', 135}, {'M', 132}, 1};  // Nizie
+        case 80: return {{'M', 110}, {'M', 111}, {'M', 108}, 1};  // Tentacle
+        case 81: return {{'M', 136}, {'M', 137}, {'M', 138}, 1};  // Abaddon
+        case 82: return {{'M', 149}, {  0,   0}, {'M', 116}, 1};  // Sorceress (dmg same as Centaurus)
+        case 83: return {{'M', 142}, {'M', 140}, {'M', 143}, 1};  // ATK
+        case 84: return {{'C',  10}, {'C',   8}, {'C',   7}, 1};  // Master Elf
+        case 85: return {{'M', 147}, {'M', 145}, {'M', 148}, 1};  // DSK
+        case 86: return {{'M', 151}, {'M', 151}, {  0,   0}, 0};  // Heavy Battle Tank (no damage sound)
+        case 87: return {{'M', 153}, {'M', 153}, {  0,   0}, 0};  // Crossbow Turret (no damage sound)
+        case 88: return {{'M',  87}, {'M',  78}, {'M', 144}, 1};  // Barbarian
+        case 89: return {{'M', 155}, {'M', 155}, {  0,   0}, 0};  // Cannon Turret (no damage sound)
+        case 95: return {{'M', 149}, {'M', 149}, {'M', 129}, 1};  // Willowisp
+        case 96: return {{'E',   6}, {'M', 149}, {'M', 129}, 1};  // Air Elemental
+        case 97: return {{'E',   9}, {'E',   1}, {'E',  15}, 1};  // Fire Elemental
+        case 99: return {{'E',   6}, {'M', 149}, {'M', 129}, 1};  // Ice Elemental
+        // clang-format on
+
+        default: return {{0, 0}, {'C', 2}, {0, 0}, 0};
+    }
+}
+
+void entity_manager::play_monster_sound(const entity& e, monster_sound_type sound_type)
+{
+    if (!sounds_) return;
+    if (e.type() != entity_type::npc && e.type() != entity_type::monster) return;
+
+    uint16_t vtype = get_entity_visual_type(e);
+    if (vtype == 0) return;
+
+    auto sounds = get_monster_sounds(vtype);
+    monster_sound_entry entry;
+    switch (sound_type)
+    {
+        case monster_sound_type::move:   entry = sounds.move; break;
+        case monster_sound_type::attack: entry = sounds.attack; break;
+        case monster_sound_type::damage: entry = sounds.damage; break;
+    }
+
+    if (entry.type == 0) return;
+
+    const auto& t = e.transform();
+    sounds_->play_sound_at(entry.type, entry.num, t.x, t.y);
 }
 
 } // namespace hb

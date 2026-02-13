@@ -124,6 +124,10 @@ private:
     // Play footstep sound for an entity
     void play_footstep_sound(const entity& e, bool running);
 
+    // Play monster-specific sound (movement, attack, or damage)
+    enum class monster_sound_type : uint8_t { move, attack, damage };
+    void play_monster_sound(const entity& e, monster_sound_type sound_type);
+
     std::unordered_map<entity_id, std::unique_ptr<entity>> entities_;
     entity_id next_entity_id_ = 1;
     entity_id local_player_id_ = invalid_entity_id;

@@ -692,11 +692,13 @@ bool renderer::load_additive_shader()
     static const char* fragment_shader = R"(
         uniform sampler2D texture;
         uniform float alpha;
+        uniform vec3 rgb_offset;
 
         void main()
         {
             vec4 src = texture2D(texture, gl_TexCoord[0].xy);
-            gl_FragColor = vec4(src.rgb * src.a * alpha, 0.0) * gl_Color;
+            vec3 tinted = clamp(src.rgb + rgb_offset, 0.0, 1.0);
+            gl_FragColor = vec4(tinted * src.a * alpha, 0.0) * gl_Color;
         }
     )";
 
@@ -731,8 +733,8 @@ void renderer::draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t 
         additive_shader_loaded_ = load_additive_shader();
     }
 
-    // Fallback to standard alpha if shader unavailable or not an effect sprite
-    if (!additive_shader_loaded_ || !spr.is_effect_sprite())
+    // Fallback to standard alpha if shader unavailable
+    if (!additive_shader_loaded_)
     {
         draw_sprite_alpha(spr, x, y, frame, alpha);
         return;
@@ -761,6 +763,57 @@ void renderer::draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t 
     states.blendMode = additive_blend;
     additive_shader_.setUniform("texture", sf::Shader::CurrentTexture);
     additive_shader_.setUniform("alpha", alpha * additive_intensity_);
+    additive_shader_.setUniform("rgb_offset", sf::Glsl::Vec3(0.0f, 0.0f, 0.0f));
+    states.shader = &additive_shader_;
+
+    active_target_->draw(sf_spr, states);
+    ++draw_call_count_;
+}
+
+void renderer::draw_sprite_additive_tinted(const sprite& spr, int32_t x, int32_t y,
+                                            uint32_t frame, float alpha,
+                                            int16_t r_offset, int16_t g_offset, int16_t b_offset)
+{
+    // Lazy-load shader on first use
+    if (!additive_shader_init_attempted_)
+    {
+        additive_shader_init_attempted_ = true;
+        additive_shader_loaded_ = load_additive_shader();
+    }
+
+    // Fallback to standard alpha if shader unavailable
+    if (!additive_shader_loaded_)
+    {
+        draw_sprite_alpha(spr, x, y, frame, alpha);
+        return;
+    }
+
+    if (!spr.ensure_loaded() || frame >= spr.frame_count())
+    {
+        return;
+    }
+
+    const auto& f = spr.get_frame(frame);
+    sf::Sprite sf_spr(spr.texture(), f.source_rect);
+    sf_spr.setPosition({
+        static_cast<float>(x + f.pivot_x),
+        static_cast<float>(y + f.pivot_y)
+    });
+
+    static const sf::BlendMode additive_blend(
+        sf::BlendMode::Factor::One, sf::BlendMode::Factor::One, sf::BlendMode::Equation::Add,
+        sf::BlendMode::Factor::One, sf::BlendMode::Factor::One, sf::BlendMode::Equation::Add
+    );
+
+    sf::RenderStates states;
+    states.blendMode = additive_blend;
+    additive_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+    additive_shader_.setUniform("alpha", alpha * additive_intensity_);
+    additive_shader_.setUniform("rgb_offset", sf::Glsl::Vec3(
+        static_cast<float>(r_offset) / 255.0f,
+        static_cast<float>(g_offset) / 255.0f,
+        static_cast<float>(b_offset) / 255.0f
+    ));
     states.shader = &additive_shader_;
 
     active_target_->draw(sf_spr, states);

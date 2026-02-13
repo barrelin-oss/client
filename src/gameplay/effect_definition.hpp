@@ -56,6 +56,12 @@ struct effect_definition
     bool randomize_direction_frame = false; // Randomize within direction frame range
     bool no_additive = false;           // Skip additive blending (earth effects etc.)
 
+    // Per-channel color offset for PutTransSpriteRGB effects (fire=red, ice=blue, etc.)
+    // Values in 0-255 range, converted to 0.0-1.0 in shader
+    int16_t rgb_tint_r = 0;
+    int16_t rgb_tint_g = 0;
+    int16_t rgb_tint_b = 0;
+
     // Sprite overlays rendered on top of the primary sprite
     struct sprite_overlay
     {

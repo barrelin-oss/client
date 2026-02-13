@@ -6,6 +6,32 @@ namespace hb {
 
 const sprite_frame sprite::null_frame_ = {sf::IntRect({0, 0}, {0, 0}), 0, 0};
 
+// No-colorkey shader statics
+sf::Shader sprite::no_colorkey_shader_;
+bool sprite::no_colorkey_shader_loaded_ = false;
+bool sprite::no_colorkey_shader_init_attempted_ = false;
+
+bool sprite::load_no_colorkey_shader()
+{
+    static const char* fragment_shader = R"(
+        uniform sampler2D texture;
+
+        void main()
+        {
+            vec4 src = texture2D(texture, gl_TexCoord[0].xy);
+            gl_FragColor = vec4(src.rgb, 1.0) * gl_Color;
+        }
+    )";
+
+    if (!sf::Shader::isAvailable()) return false;
+    if (!no_colorkey_shader_.loadFromMemory(fragment_shader, sf::Shader::Type::Fragment))
+    {
+        spdlog::error("Failed to load no-colorkey shader");
+        return false;
+    }
+    return true;
+}
+
 // === Metadata-only loading ===
 
 bool sprite::load_metadata_from_pak(pak_file& pak, uint32_t index) {
@@ -176,12 +202,6 @@ bool sprite::load_from_data(const pak_sprite_data& data) {
         color_key_ = image.getPixel({0, 0});
     }
 
-    // Create texture WITHOUT color key first
-    if (!texture_no_colorkey_.loadFromImage(image)) {
-        spdlog::error("Failed to create no-colorkey texture from image");
-        return false;
-    }
-
     // Apply color key mask for transparent texture (sets alpha=0 for color key pixels)
     image.createMaskFromColor(color_key_);
 
@@ -250,12 +270,6 @@ bool sprite::load_bitmap() {
         color_key_ = image.getPixel({0, 0});
     }
 
-    // Create no-colorkey texture
-    if (!texture_no_colorkey_.loadFromImage(image)) {
-        spdlog::error("Failed to create no-colorkey texture");
-        return false;
-    }
-
     // Create color-keyed texture (sets alpha=0 for color key pixels)
     image.createMaskFromColor(color_key_);
 
@@ -273,11 +287,10 @@ bool sprite::load_bitmap() {
 void sprite::unload_bitmap() {
     if (!bitmap_loaded_) return;
 
-    // Create empty 1x1 textures to release GPU memory
+    // Create empty 1x1 texture to release GPU memory
     sf::Image empty;
     empty.resize({1, 1});
     (void)texture_.loadFromImage(empty);
-    (void)texture_no_colorkey_.loadFromImage(empty);
 
     bitmap_loaded_ = false;
 }
@@ -307,8 +320,8 @@ float sprite::seconds_since_use() const {
 size_t sprite::memory_usage() const {
     if (!bitmap_loaded_) return 0;
 
-    // Approximate: 2 textures * width * height * 4 bytes per pixel
-    return 2 * bitmap_width_ * bitmap_height_ * 4;
+    // Approximate: width * height * 4 bytes per pixel (single texture)
+    return bitmap_width_ * bitmap_height_ * 4;
 }
 
 // === Frame access ===
@@ -387,13 +400,32 @@ void sprite::draw_no_color_key(sf::RenderTarget& target, int32_t x, int32_t y, u
         return;
     }
 
+    if (!no_colorkey_shader_init_attempted_)
+    {
+        no_colorkey_shader_init_attempted_ = true;
+        no_colorkey_shader_loaded_ = load_no_colorkey_shader();
+    }
+
     const auto& f = frames_[frame];
 
-    sf::Sprite spr(texture_no_colorkey_, f.source_rect);
-    float draw_x = static_cast<float>(x + f.pivot_x);
-    float draw_y = static_cast<float>(y + f.pivot_y);
-    spr.setPosition({draw_x, draw_y});
-    target.draw(spr);
+    sf::Sprite spr(texture_, f.source_rect);
+    spr.setPosition({
+        static_cast<float>(x + f.pivot_x),
+        static_cast<float>(y + f.pivot_y)
+    });
+
+    if (no_colorkey_shader_loaded_)
+    {
+        sf::RenderStates states;
+        no_colorkey_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+        states.shader = &no_colorkey_shader_;
+        target.draw(spr, states);
+    }
+    else
+    {
+        // Fallback: draw with color key (color key pixels will be transparent)
+        target.draw(spr);
+    }
 }
 
 void sprite::draw_alpha_no_color_key(sf::RenderTarget& target, int32_t x, int32_t y,
@@ -402,9 +434,15 @@ void sprite::draw_alpha_no_color_key(sf::RenderTarget& target, int32_t x, int32_
         return;
     }
 
+    if (!no_colorkey_shader_init_attempted_)
+    {
+        no_colorkey_shader_init_attempted_ = true;
+        no_colorkey_shader_loaded_ = load_no_colorkey_shader();
+    }
+
     const auto& f = frames_[frame];
 
-    sf::Sprite spr(texture_no_colorkey_, f.source_rect);
+    sf::Sprite spr(texture_, f.source_rect);
     spr.setPosition({
         static_cast<float>(x + f.pivot_x),
         static_cast<float>(y + f.pivot_y)
@@ -413,7 +451,17 @@ void sprite::draw_alpha_no_color_key(sf::RenderTarget& target, int32_t x, int32_
     uint8_t alpha_byte = static_cast<uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
     spr.setColor(sf::Color(255, 255, 255, alpha_byte));
 
-    target.draw(spr);
+    if (no_colorkey_shader_loaded_)
+    {
+        sf::RenderStates states;
+        no_colorkey_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+        states.shader = &no_colorkey_shader_;
+        target.draw(spr, states);
+    }
+    else
+    {
+        target.draw(spr);
+    }
 }
 
 sf::IntRect sprite::get_bounds(int32_t x, int32_t y, uint32_t frame) const {

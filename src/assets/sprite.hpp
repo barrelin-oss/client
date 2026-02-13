@@ -97,14 +97,9 @@ public:
     // Set PAK source for on-demand loading
     void set_pak_source(pak_file* pak, uint32_t index) { pak_source_ = pak; pak_index_ = index; }
 
-    // Effect sprite flag (enables additive blending)
-    bool is_effect_sprite() const { return is_effect_sprite_; }
-    void set_effect_sprite(bool value) { is_effect_sprite_ = value; }
-
 private:
-    // Textures (only populated when bitmap is loaded)
+    // Texture (only populated when bitmap is loaded)
     sf::Texture texture_;              // Texture WITH color key applied (transparent)
-    sf::Texture texture_no_colorkey_;  // Texture WITHOUT color key (original colors)
 
     // Metadata (loaded first, always kept)
     std::vector<sprite_frame> frames_;
@@ -119,12 +114,16 @@ private:
     // State flags
     bool metadata_loaded_ = false;
     bool bitmap_loaded_ = false;
-    bool is_effect_sprite_ = false;
-
     // Memory management - mutable for const draw methods
     mutable std::chrono::steady_clock::time_point last_used_;
 
     static const sprite_frame null_frame_;
+
+    // No-colorkey shader (forces alpha=1.0, shared across all sprites)
+    static sf::Shader no_colorkey_shader_;
+    static bool no_colorkey_shader_loaded_;
+    static bool no_colorkey_shader_init_attempted_;
+    static bool load_no_colorkey_shader();
 };
 
 } // namespace hb

@@ -106,9 +106,14 @@ public:
     void draw_sprite(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
 
-    // Additive blending for effect sprites (GPU shader + BlendAdd)
+    // Additive blending (GPU shader + BlendAdd)
     void draw_sprite_additive(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
+
+    // Additive blending with RGB color offset (for fire, ice, poison effects)
+    void draw_sprite_additive_tinted(const sprite& spr, int32_t x, int32_t y,
+                                      uint32_t frame, float alpha,
+                                      int16_t r_offset, int16_t g_offset, int16_t b_offset);
 
     // Global intensity scale for additive blending (0.0 - 1.0, default 0.7)
     void set_additive_intensity(float intensity) { additive_intensity_ = intensity; }

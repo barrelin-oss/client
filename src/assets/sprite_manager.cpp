@@ -110,17 +110,6 @@ sprite* sprite_manager::get_sprite(std::string_view pak_name, uint32_t index) {
 
     auto spr = std::make_unique<sprite>();
 
-    // Tag effect sprites for additive blending before loading bitmap data
-    {
-        std::string lower_name(pak_name);
-        std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
-                        [](unsigned char c) { return std::tolower(c); });
-        if (lower_name.find("effect") != std::string::npos)
-        {
-            spr->set_effect_sprite(true);
-        }
-    }
-
     if (!spr->load_from_pak(*pak, index)) {
         spdlog::error("Failed to load sprite: {}[{}]", pak_name, index);
         return nullptr;
@@ -312,17 +301,6 @@ void sprite_manager::preload_metadata_range(std::string_view pak_name, uint32_t 
         }
 
         auto spr = std::make_unique<sprite>();
-
-        // Tag effect sprites for additive blending
-        {
-            std::string lower_name(pak_name);
-            std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(),
-                            [](unsigned char c) { return std::tolower(c); });
-            if (lower_name.find("effect") != std::string::npos)
-            {
-                spr->set_effect_sprite(true);
-            }
-        }
 
         if (spr->load_metadata_from_pak(*pak, i)) {
             sprite_cache_[key] = std::move(spr);

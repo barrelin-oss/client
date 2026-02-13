@@ -13,6 +13,17 @@
 
 namespace hb {
 
+// Helper: draw an effect sprite with additive blending, using tinted variant when tint is set
+static void draw_additive(renderer& rend, const effect& eff, const sprite& spr,
+                           int32_t x, int32_t y, uint32_t frame, float alpha)
+{
+    if (eff.def->rgb_tint_r != 0 || eff.def->rgb_tint_g != 0 || eff.def->rgb_tint_b != 0)
+        rend.draw_sprite_additive_tinted(spr, x, y, frame, alpha,
+                                          eff.def->rgb_tint_r, eff.def->rgb_tint_g, eff.def->rgb_tint_b);
+    else
+        rend.draw_sprite_additive_alpha(spr, x, y, frame, alpha);
+}
+
 // Forward declaration (defined below render_thunder)
 static void draw_thunder_bolt(renderer& rend,
                                int32_t sx, int32_t sy, int32_t dx, int32_t dy,
@@ -246,7 +257,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             case effect_render_mode::normal:
             case effect_render_mode::transparent:
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
                 else if (alpha_mul < 1.0f)
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
                 else
@@ -257,7 +268,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             {
                 float a = 0.25f * alpha_mul;
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
                 else
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
@@ -267,7 +278,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             {
                 float a = 0.5f * alpha_mul;
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
                 else
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
@@ -277,7 +288,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             {
                 float a = 0.7f * alpha_mul;
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
                 else
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
                 break;
@@ -296,7 +307,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                 }
                 alpha *= alpha_mul;
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha);
                 else
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
                 break;
@@ -335,14 +346,14 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                                 + eff.def->frame_offset;
                     float a = pt.alpha * alpha_mul;
                     if (use_additive)
-                        rend.draw_sprite_additive_alpha(*eff.sprite_ptr, tx, ty, tf, a);
+                        draw_additive(rend, eff, *eff.sprite_ptr, tx, ty, tf, a);
                     else
                         rend.draw_sprite_alpha(*eff.sprite_ptr, tx, ty, tf, a);
                 }
 
                 // Head at full opacity
                 if (use_additive)
-                    rend.draw_sprite_additive_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
                 else if (alpha_mul < 1.0f)
                     rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
                 else

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
+#include <unordered_map>
 
 namespace hb {
 
@@ -106,26 +108,72 @@ void world::reset_zoom_view(renderer& rend)
     }
 }
 
+// Cached directory listing for case-insensitive AMD file lookups on Linux.
+// Maps lowercase_filename -> actual_path within the mapdata directory.
+static std::unordered_map<std::string, std::string> amd_file_cache;
+static bool amd_cache_built = false;
+
+static std::string find_amd_case_insensitive(const std::string& dir, const std::string& lowercase_filename)
+{
+    if (!amd_cache_built)
+    {
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator(dir, ec))
+        {
+            auto name = entry.path().filename().string();
+            std::string lower = name;
+            std::transform(lower.begin(), lower.end(), lower.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            amd_file_cache[lower] = entry.path().string();
+        }
+        amd_cache_built = true;
+    }
+
+    auto it = amd_file_cache.find(lowercase_filename);
+    if (it != amd_file_cache.end())
+    {
+        return it->second;
+    }
+    return {};
+}
+
 bool world::load_map(std::string_view map_name)
 {
-    // Convert map name to lowercase (AMD files are all lowercase)
+    // Convert map name to lowercase for file lookup
     std::string name_lower(map_name);
     std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     // AMD files are in assets/data/mapdata/ directory relative to the binary
-    std::string path = "./assets/data/mapdata/" + name_lower + ".amd";
+    std::string mapdata_dir = "./assets/data/mapdata";
+    std::string path = mapdata_dir + "/" + name_lower + ".amd";
+
+    // Case-insensitive fallback (handles ARESDEN.AMD vs aresden.amd on Linux)
+    if (!std::filesystem::exists(path))
+    {
+        auto resolved = find_amd_case_insensitive(mapdata_dir, name_lower + ".amd");
+        if (!resolved.empty())
+        {
+            path = resolved;
+            spdlog::debug("AMD case-insensitive match: {}.amd -> {}", name_lower,
+                         std::filesystem::path(resolved).filename().string());
+        }
+    }
 
     std::string old_name(current_map_.name());
-
-    // Set the name first (in case the file doesn't include it)
-    current_map_.set_name(map_name);
 
     if (!current_map_.load(path))
     {
         spdlog::error("Failed to load map: {} (path: {})", map_name, path);
+        // Set name so we know what map we're supposed to be on, but clear tile data
+        // so is_loaded() returns false and we can retry later
+        current_map_.clear();
+        current_map_.set_name(map_name);
         return false;
     }
+
+    // Set name after successful load
+    current_map_.set_name(map_name);
 
     if (events_.on_map_changed)
     {

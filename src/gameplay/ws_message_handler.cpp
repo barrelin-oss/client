@@ -556,7 +556,6 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     if (!world.load_map(ch.map_name))
     {
         spdlog::warn("Failed to load map data for '{}', continuing without tile data", ch.map_name);
-        world.current_map_mut().set_name(ch.map_name);
     }
 
     // Apply initial environment state from enter_game_response
@@ -1798,13 +1797,13 @@ void ws_message_handler::handle_player_teleport(const json& message)
     for (auto id : to_remove)
         entities.remove_entity(id);
 
-    // Load new map if different
-    if (!data.dest_map.empty() && data.dest_map != world.current_map().name())
+    // Load new map if different, or if current map data isn't loaded (retry failed loads)
+    if (!data.dest_map.empty() &&
+        (data.dest_map != world.current_map().name() || !world.current_map().is_loaded()))
     {
         if (!world.load_map(data.dest_map))
         {
             spdlog::warn("Failed to load map '{}' during teleport", data.dest_map);
-            world.current_map_mut().set_name(data.dest_map);
         }
     }
 

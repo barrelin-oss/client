@@ -514,20 +514,20 @@ void icon_panel_dialog::render_classic_action_buttons(renderer& rend) {
 
     // Render combat mode indicator if in combat
     if (combat_mode_) {
-        int32_t combat_y = get_combat_y();
+        int32_t cy = get_combat_y();
         uint32_t combat_frame = safe_attack_mode_ ?
             classic_sprites::combat_safe_mode : classic_sprites::combat_pk_mode;
 
         if (icon_spr && icon_spr->frame_count() > combat_frame) {
-            icon_spr->draw(rend.window(), classic_layout::combat_x, combat_y, combat_frame);
+            icon_spr->draw(rend.window(), classic_layout::combat_x, cy, combat_frame);
         } else {
             // Fallback combat indicator
             sf::Color indicator_color = safe_attack_mode_ ?
                 sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
-            rend.draw_rect(classic_layout::combat_x, combat_y, 30, 30, indicator_color, true);
-            rend.draw_rect(classic_layout::combat_x, combat_y, 30, 30, sf::Color(150, 150, 150), false);
+            rend.draw_rect(classic_layout::combat_x, cy, 30, 30, indicator_color, true);
+            rend.draw_rect(classic_layout::combat_x, cy, 30, 30, sf::Color(150, 150, 150), false);
             const char* mode_text = safe_attack_mode_ ? "S" : "P";
-            rend.draw_text(mode_text, classic_layout::combat_x + 10, combat_y + 8, sf::Color::White, 12);
+            rend.draw_text(mode_text, classic_layout::combat_x + 10, cy + 8, sf::Color::White, 12);
         }
     }
 }

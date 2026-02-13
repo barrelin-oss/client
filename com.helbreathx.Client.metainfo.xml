@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.helbreathx.Client</id>
+  <name>Helbreath</name>
+  <summary>Classic 2D MMORPG</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <description>
+    <p>Helbreath is a classic late-1990s 2D MMORPG, modernized with a C++20 client.</p>
+  </description>
+  <url type="homepage">https://helbreathx.net</url>
+  <launchable type="desktop-id">com.helbreathx.Client.desktop</launchable>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-fantasy">moderate</content_attribute>
+    <content_attribute id="social-chat">intense</content_attribute>
+  </content_rating>
+</component>

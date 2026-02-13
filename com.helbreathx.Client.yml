@@ -1,0 +1,34 @@
+app-id: com.helbreathx.Client
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: helbreath_client
+
+finish-args:
+  # GPU access for OpenGL rendering
+  - --device=dri
+  # Display
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  # Audio
+  - --socket=pulseaudio
+  # Network access for game server
+  - --share=network
+  # Game config/saves
+  - --persist=.config/helbreathx
+
+modules:
+  - name: helbreath-client
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: flatpak-staging
+    build-commands:
+      - install -Dm755 helbreath_client /app/bin/helbreath_client
+      - cp -r assets /app/bin/assets
+      - cp -r config /app/bin/config
+      - install -Dm644 config.json /app/bin/config.json
+      - install -Dm644 com.helbreathx.Client.desktop /app/share/applications/com.helbreathx.Client.desktop
+      - install -Dm644 com.helbreathx.Client.metainfo.xml /app/share/metainfo/com.helbreathx.Client.metainfo.xml
+      - install -Dm644 com.helbreathx.Client.png /app/share/icons/hicolor/512x512/apps/com.helbreathx.Client.png

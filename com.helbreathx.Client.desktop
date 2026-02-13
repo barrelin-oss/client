@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Helbreath
+Comment=Classic 2D MMORPG
+Exec=helbreath_client
+Icon=com.helbreathx.Client
+Categories=Game;RolePlaying;

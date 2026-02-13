@@ -9,8 +9,12 @@
 #include <cmath>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #else
 #include <X11/Xlib.h>
@@ -844,7 +848,7 @@ void renderer::draw_line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, sf::Col
 void renderer::push_scissor(int32_t x, int32_t y, int32_t w, int32_t h) {
     // Flush SFML's render queue before changing OpenGL state
     if (rendering_scene_ && scene_rt_) {
-        scene_rt_->setActive(true);
+        (void)scene_rt_->setActive(true);
     } else {
         (void)window_.setActive(true);
     }

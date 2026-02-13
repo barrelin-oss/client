@@ -132,16 +132,16 @@ void action_queue::process_pending()
                                               pending_action_.target_id);
 
             // Play cast effects locally
-            entity* player = game_->local_player();
-            if (player)
+            entity* caster = game_->local_player();
+            if (caster)
             {
-                player->set_action(object_action::magic);
+                caster->set_action(object_action::magic);
                 game_->magic().trigger_cooldown(pending_action_.spell_id);
 
                 const spell* sp = game_->magic().get_spell(pending_action_.spell_id);
                 if (sp)
                 {
-                    const auto& pt = player->transform();
+                    const auto& pt = caster->transform();
                     float src_wx = static_cast<float>(pt.x);
                     float src_wy = static_cast<float>(pt.y);
 

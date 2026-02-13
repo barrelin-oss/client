@@ -4,6 +4,7 @@
 #include "graphics/color_utils.hpp"
 #include "core/config.hpp"
 #include "core/direction_utils.hpp"
+#include "core/game_enums.hpp"
 #include "chat/chat_message.hpp"
 #include "ui/dialogs/chat_dialog.hpp"
 #include "ui/dialogs/skills_dialog.hpp"
@@ -320,7 +321,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
 
     auto& name = player.name();
     name.name = ch.name;
-    name.nation = ch.nation;
+    name.faction = ch.faction;
 
     auto& stats = player.stats();
     stats.level = static_cast<uint16_t>(ch.level);
@@ -521,7 +522,9 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         if (world_entity.has_name())
         {
             world_entity.name().name = ent.name;
-            world_entity.name().nation = ent.nation;
+            world_entity.name().faction = ent.faction;
+            world_entity.name().hostile = hostility_from_string(ent.hostility);
+            world_entity.name().pk = pk_status_from_string(ent.pk_status);
         }
 
         // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
@@ -539,6 +542,12 @@ void ws_message_handler::handle_enter_game_response(const json& message)
                 world_entity.monster().monster_type = visual_type;
                 world_entity.monster().attributes = ent.attributes;
             }
+        }
+
+        if (world_entity.has_monster())
+        {
+            world_entity.monster().category = ent.category;
+            world_entity.monster().hostile = hostility_from_string(ent.hostility);
         }
 
         if (world_entity.has_stats())
@@ -1854,7 +1863,9 @@ void ws_message_handler::handle_player_teleport(const json& message)
         if (world_entity.has_name())
         {
             world_entity.name().name = ent.name;
-            world_entity.name().nation = ent.nation;
+            world_entity.name().faction = ent.faction;
+            world_entity.name().hostile = hostility_from_string(ent.hostility);
+            world_entity.name().pk = pk_status_from_string(ent.pk_status);
         }
 
         // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
@@ -1872,6 +1883,12 @@ void ws_message_handler::handle_player_teleport(const json& message)
                 world_entity.monster().monster_type = visual_type;
                 world_entity.monster().attributes = ent.attributes;
             }
+        }
+
+        if (world_entity.has_monster())
+        {
+            world_entity.monster().category = ent.category;
+            world_entity.monster().hostile = hostility_from_string(ent.hostility);
         }
 
         if (world_entity.has_stats())
@@ -1955,7 +1972,9 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     if (ent.has_name())
     {
         ent.name().name = data.name;
-        ent.name().nation = data.nation;
+        ent.name().faction = data.faction;
+        ent.name().hostile = hostility_from_string(data.hostility);
+        ent.name().pk = pk_status_from_string(data.pk_status);
     }
 
     if (ent.has_stats())
@@ -1966,8 +1985,8 @@ void ws_message_handler::handle_entity_spawn(const json& message)
 
     ent.animation().set_state(entity_anim_state::stop);
 
-    spdlog::info("Entity spawned: {} '{}' id={} nation={} at ({},{})",
-                 data.type, data.name, data.entity_id, data.nation, data.x, data.y);
+    spdlog::info("Entity spawned: {} '{}' id={} faction={} at ({},{})",
+                 data.type, data.name, data.entity_id, data.faction, data.x, data.y);
 }
 
 void ws_message_handler::handle_npc_spawn(const json& message)
@@ -1994,7 +2013,10 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     if (ent.has_name())
+    {
         ent.name().name = data.name;
+        ent.name().hostile = hostility_from_string(data.hostility);
+    }
 
     // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
     // Falls back to template_id if sprite_id not provided
@@ -2011,6 +2033,8 @@ void ws_message_handler::handle_npc_spawn(const json& message)
         {
             ent.monster().monster_type = visual_type;
             ent.monster().attributes = data.attributes;
+            ent.monster().category = data.category;
+            ent.monster().hostile = hostility_from_string(data.hostility);
         }
     }
 

@@ -234,7 +234,7 @@ struct enter_game_character {
     std::string name;
     int16_t level = 1;
     int16_t class_type = 0;      // 0=Warrior, 1=Mage
-    int16_t nation = 0;          // 0=Neutral, 1=Aresden, 2=Elvine
+    std::string faction;          // "neutral", "aresden", "elvine"
     int16_t gender = 0;          // 0=Male, 1=Female
     std::string map_name;
     int16_t pos_x = 0;
@@ -266,7 +266,7 @@ struct enter_game_character {
         if (j.contains("name")) c.name = j["name"].get<std::string>();
         if (j.contains("level")) c.level = j["level"].get<int16_t>();
         if (j.contains("class_type")) c.class_type = j["class_type"].get<int16_t>();
-        if (j.contains("nation")) c.nation = j["nation"].get<int16_t>();
+        if (j.contains("faction")) c.faction = j["faction"].get<std::string>();
         if (j.contains("gender")) c.gender = j["gender"].get<int16_t>();
         if (j.contains("map_name")) c.map_name = j["map_name"].get<std::string>();
         if (j.contains("pos_x")) c.pos_x = j["pos_x"].get<int16_t>();
@@ -455,7 +455,10 @@ struct enter_game_visible_entity {
     int16_t sprite_id = 0;       // Legacy sprite type for rendering (10=Slime, etc.)
     uint32_t template_id = 0;    // NPC template ID
     int16_t level = 0;           // NPC level
-    int16_t nation = 0;          // 0=Neutral, 1=Aresden, 2=Elvine
+    std::string faction;
+    std::string hostility;
+    std::string pk_status;
+    std::string category;
     std::vector<std::string> attributes; // NPC attributes (e.g. "Berserk", "Clairvoyant")
 
     static enter_game_visible_entity from_json(const json& j) {
@@ -470,7 +473,10 @@ struct enter_game_visible_entity {
         if (j.contains("sprite_id")) ent.sprite_id = j["sprite_id"].get<int16_t>();
         if (j.contains("template_id")) ent.template_id = j["template_id"].get<uint32_t>();
         if (j.contains("level")) ent.level = j["level"].get<int16_t>();
-        if (j.contains("nation")) ent.nation = j["nation"].get<int16_t>();
+        if (j.contains("faction")) ent.faction = j["faction"].get<std::string>();
+        if (j.contains("hostility")) ent.hostility = j["hostility"].get<std::string>();
+        if (j.contains("pk_status")) ent.pk_status = j["pk_status"].get<std::string>();
+        if (j.contains("category")) ent.category = j["category"].get<std::string>();
         if (j.contains("attributes") && j["attributes"].is_array()) {
             for (const auto& a : j["attributes"])
                 ent.attributes.push_back(a.get<std::string>());
@@ -1297,7 +1303,9 @@ struct entity_spawn_data {
     int16_t y = 0;
     int32_t hp_percent = 100;
     int16_t direction = 4;  // south default
-    int16_t nation = 0;     // 0=Neutral, 1=Aresden, 2=Elvine
+    std::string faction;
+    std::string hostility;
+    std::string pk_status;
 
     static entity_spawn_data from_json(const json& j) {
         entity_spawn_data data;
@@ -1310,7 +1318,9 @@ struct entity_spawn_data {
             if (d.contains("y")) data.y = d["y"].get<int16_t>();
             if (d.contains("hp_percent")) data.hp_percent = d["hp_percent"].get<int32_t>();
             if (d.contains("direction")) data.direction = d["direction"].get<int16_t>();
-            if (d.contains("nation")) data.nation = d["nation"].get<int16_t>();
+            if (d.contains("faction")) data.faction = d["faction"].get<std::string>();
+            if (d.contains("hostility")) data.hostility = d["hostility"].get<std::string>();
+            if (d.contains("pk_status")) data.pk_status = d["pk_status"].get<std::string>();
         }
         return data;
     }
@@ -1328,6 +1338,8 @@ struct npc_spawn_data {
     int32_t hp = 0;
     int32_t max_hp = 0;
     int16_t level = 0;
+    std::string category;
+    std::string hostility;
     std::vector<std::string> attributes; // e.g. "Berserk", "Clairvoyant"
 
     static npc_spawn_data from_json(const json& j) {
@@ -1344,6 +1356,8 @@ struct npc_spawn_data {
             if (d.contains("hp")) data.hp = d["hp"].get<int32_t>();
             if (d.contains("max_hp")) data.max_hp = d["max_hp"].get<int32_t>();
             if (d.contains("level")) data.level = d["level"].get<int16_t>();
+            if (d.contains("category")) data.category = d["category"].get<std::string>();
+            if (d.contains("hostility")) data.hostility = d["hostility"].get<std::string>();
             if (d.contains("attributes") && d["attributes"].is_array()) {
                 for (const auto& a : d["attributes"])
                     data.attributes.push_back(a.get<std::string>());

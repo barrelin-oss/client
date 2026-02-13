@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace hb {
 
@@ -194,5 +195,25 @@ enum class character_result : uint16_t {
     already_exists = 0x0F1E,
     deleted = 0x0F1F
 };
+
+// Entity hostility (server-authoritative)
+enum class hostility : uint8_t { neutral = 0, friendly = 1, enemy = 2 };
+
+// Player PK status
+enum class pk_status : uint8_t { innocent = 0, criminal = 1, murderer = 2 };
+
+inline hostility hostility_from_string(std::string_view s)
+{
+    if (s == "friendly") return hostility::friendly;
+    if (s == "enemy") return hostility::enemy;
+    return hostility::neutral;
+}
+
+inline pk_status pk_status_from_string(std::string_view s)
+{
+    if (s == "criminal") return pk_status::criminal;
+    if (s == "murderer") return pk_status::murderer;
+    return pk_status::innocent;
+}
 
 } // namespace hb

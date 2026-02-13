@@ -267,8 +267,9 @@ struct name_component {
     std::string guild_rank;
     uint32_t guild_id = 0;
 
-    // Faction: 0=Neutral, 1=Aresden, 2=Elvine
-    int16_t nation = 0;
+    std::string faction;                                    // "neutral", "aresden", "elvine"
+    enum hostility hostile = hostility::neutral;            // server-authoritative
+    enum pk_status pk = pk_status::innocent;
 
     // Chat bubble
     std::string chat_message;
@@ -328,6 +329,9 @@ struct monster_component {
     // Anti-Magic, Poisonous, Critical Poisonous, Explosive
     // Multiple possible but rare; more attributes = more exp
     std::vector<std::string> attributes;
+
+    std::string category;                                   // "monster", "boss", "guard", "merchant", etc.
+    enum hostility hostile = hostility::enemy;              // default enemy for monsters
 
     // Status effects (can toggle on/off at runtime)
     bool berserked = false;

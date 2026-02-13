@@ -1667,7 +1667,7 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
         static const sf::Color guild_color = sf::Color(160, 160, 160); // Mid-gray
         static const sf::Color attrib_color = sf::Color(218, 165, 32); // Gold
 
-        // Determine name color based on entity type and faction
+        // Determine name color based on hostility and pk status
         sf::Color name_color = sf::Color::White;
 
         if (e.type() == entity_type::player)
@@ -1676,29 +1676,25 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
         }
         else if (e.type() == entity_type::character)
         {
-            int16_t my_nation = 0;
-            if (auto* lp = local_player())
-            {
-                if (lp->has_name())
-                    my_nation = lp->name().nation;
-            }
-
-            if (e.has_combat() && e.combat().pk_count > 0)
+            if (name.pk == pk_status::murderer)
                 name_color = sf::Color::Red;
-            else if (name.nation == 0 || my_nation == 0)
-                name_color = sf::Color(80, 160, 255); // Blue - neutral
-            else if (name.nation == my_nation)
-                name_color = sf::Color(80, 255, 80); // Green - friendly
+            else if (name.pk == pk_status::criminal)
+                name_color = sf::Color(255, 165, 0);  // Orange
+            else if (name.hostile == hostility::friendly)
+                name_color = sf::Color(80, 255, 80);  // Green
+            else if (name.hostile == hostility::enemy)
+                name_color = sf::Color(255, 80, 80);  // Red
             else
-                name_color = sf::Color(255, 80, 80); // Red - enemy
+                name_color = sf::Color(80, 160, 255); // Blue - neutral
         }
-        else if (e.type() == entity_type::npc)
+        else if (e.type() == entity_type::npc || e.type() == entity_type::monster)
         {
-            name_color = sf::Color(80, 160, 255);
-        }
-        else if (e.type() == entity_type::monster)
-        {
-            name_color = sf::Color(255, 80, 80);
+            if (name.hostile == hostility::friendly)
+                name_color = sf::Color(80, 255, 80);  // Green
+            else if (name.hostile == hostility::neutral)
+                name_color = sf::Color(80, 160, 255); // Blue
+            else
+                name_color = sf::Color(255, 80, 80);  // Red - enemy (default)
         }
 
         // Position below entity feet

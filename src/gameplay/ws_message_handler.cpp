@@ -417,16 +417,16 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     spdlog::info("enter_game_response contains {} skills", response.skills.size());
     for (const auto& sk : response.skills)
     {
-        uint8_t mastery = static_cast<uint8_t>(std::min(sk.level / 2, 100));
+        uint8_t mastery = static_cast<uint8_t>(std::min(static_cast<int16_t>(100), sk.level));
         skills.set_mastery(sk.skill_id, mastery);
 
         float progress = 0.0f;
-        if (sk.exp_to_next_level > 0)
-            progress = static_cast<float>(sk.experience) / static_cast<float>(sk.exp_to_next_level);
+        if (sk.uses_to_next_level > 0)
+            progress = static_cast<float>(sk.uses_this_level) / static_cast<float>(sk.uses_to_next_level);
         skills.set_sub_progress(sk.skill_id, progress);
 
-        spdlog::info("  enter_game skill: id={} level={} mastery={} exp={} exp_next={} progress={:.2f}",
-                     sk.skill_id, sk.level, mastery, sk.experience, sk.exp_to_next_level, progress);
+        spdlog::info("  enter_game skill: id={} level={} mastery={} uses={}/{} progress={:.2f}",
+                     sk.skill_id, sk.level, mastery, sk.uses_this_level, sk.uses_to_next_level, progress);
     }
 
     // Populate skills dialog
@@ -2253,16 +2253,16 @@ void ws_message_handler::handle_skills_data(const json& message)
     auto& skills = game_->skills();
     for (const auto& sk : data.skills)
     {
-        uint8_t mastery = static_cast<uint8_t>(std::min(static_cast<int16_t>(100), static_cast<int16_t>(sk.level / 2)));
+        uint8_t mastery = static_cast<uint8_t>(std::min(static_cast<int16_t>(100), sk.level));
         skills.set_mastery(sk.skill_id, mastery);
 
         float progress = 0.0f;
-        if (sk.exp_to_next_level > 0)
-            progress = static_cast<float>(sk.experience) / static_cast<float>(sk.exp_to_next_level);
+        if (sk.uses_to_next_level > 0)
+            progress = static_cast<float>(sk.uses_this_level) / static_cast<float>(sk.uses_to_next_level);
         skills.set_sub_progress(sk.skill_id, progress);
 
-        spdlog::info("  skill_id={} level={} mastery={} exp={} exp_next={} progress={:.2f}",
-                     sk.skill_id, sk.level, mastery, sk.experience, sk.exp_to_next_level, progress);
+        spdlog::info("  skill_id={} level={} mastery={} uses={}/{} progress={:.2f}",
+                     sk.skill_id, sk.level, mastery, sk.uses_this_level, sk.uses_to_next_level, progress);
     }
 
     // Push skill data to the dialog
@@ -2433,10 +2433,6 @@ void ws_message_handler::handle_fish_catch_response(const json& message)
     if (data.result == "success")
     {
         std::string msg = "Caught " + data.item_name + "!";
-        if (data.exp_gained > 0)
-        {
-            msg += " (+" + std::to_string(data.exp_gained) + " exp)";
-        }
         spdlog::info("{}", msg);
         game_->get_status_log().add_event(msg, message_color::green);
     }

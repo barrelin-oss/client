@@ -292,13 +292,14 @@ void skills_dialog::set_skills(const std::vector<skill>& skills)
     clamp_scroll();
 }
 
-void skills_dialog::update_skill(uint16_t skill_id, uint32_t experience)
+void skills_dialog::update_skill(uint16_t skill_id, uint8_t mastery, float sub_progress)
 {
     for (auto& sk : skills_)
     {
         if (sk.id == skill_id)
         {
-            sk.experience = experience;
+            sk.mastery = mastery;
+            sk.sub_progress = sub_progress;
             break;
         }
     }

@@ -21,7 +21,7 @@ public:
 
     // Set skills data
     void set_skills(const std::vector<skill>& skills);
-    void update_skill(uint16_t skill_id, uint32_t experience);
+    void update_skill(uint16_t skill_id, uint8_t mastery, float sub_progress);
     void clear_skills();
 
     // Category filter

@@ -353,16 +353,18 @@ struct enter_game_equipment_item {
 // Skill entry from enter_game_response
 struct enter_game_skill {
     uint8_t skill_id = 0;
-    int16_t level = 0;              // Skill mastery level (0-200)
-    int32_t experience = 0;         // Current experience toward next level
-    int32_t exp_to_next_level = 0;  // Total experience required for next level
+    int16_t level = 0;               // Skill mastery level (0-200)
+    int32_t total_uses = 0;          // Lifetime use count
+    int32_t uses_this_level = 0;     // Uses accumulated at current level (progress numerator)
+    int32_t uses_to_next_level = 0;  // Uses required to reach next level (progress denominator)
 
     static enter_game_skill from_json(const json& j) {
         enter_game_skill skill;
         if (j.contains("skill_id")) skill.skill_id = j["skill_id"].get<uint8_t>();
         if (j.contains("level")) skill.level = j["level"].get<int16_t>();
-        if (j.contains("experience")) skill.experience = j["experience"].get<int32_t>();
-        if (j.contains("exp_to_next_level")) skill.exp_to_next_level = j["exp_to_next_level"].get<int32_t>();
+        if (j.contains("total_uses")) skill.total_uses = j["total_uses"].get<int32_t>();
+        if (j.contains("uses_this_level")) skill.uses_this_level = j["uses_this_level"].get<int32_t>();
+        if (j.contains("uses_to_next_level")) skill.uses_to_next_level = j["uses_to_next_level"].get<int32_t>();
         return skill;
     }
 };
@@ -1592,8 +1594,9 @@ struct skills_data_msg {
     struct skill_entry {
         uint8_t skill_id = 0;
         int16_t level = 0;
-        int32_t experience = 0;         // Current experience toward next level
-        int32_t exp_to_next_level = 0;  // Total experience required for next level
+        int32_t total_uses = 0;          // Lifetime use count
+        int32_t uses_this_level = 0;     // Uses accumulated at current level (progress numerator)
+        int32_t uses_to_next_level = 0;  // Uses required to reach next level (progress denominator)
     };
     std::vector<skill_entry> skills;
 
@@ -1606,8 +1609,9 @@ struct skills_data_msg {
                     skill_entry sk;
                     if (sk_j.contains("skill_id")) sk.skill_id = sk_j["skill_id"].get<uint8_t>();
                     if (sk_j.contains("level")) sk.level = sk_j["level"].get<int16_t>();
-                    if (sk_j.contains("experience")) sk.experience = sk_j["experience"].get<int32_t>();
-                    if (sk_j.contains("exp_to_next_level")) sk.exp_to_next_level = sk_j["exp_to_next_level"].get<int32_t>();
+                    if (sk_j.contains("total_uses")) sk.total_uses = sk_j["total_uses"].get<int32_t>();
+                    if (sk_j.contains("uses_this_level")) sk.uses_this_level = sk_j["uses_this_level"].get<int32_t>();
+                    if (sk_j.contains("uses_to_next_level")) sk.uses_to_next_level = sk_j["uses_to_next_level"].get<int32_t>();
                     data.skills.push_back(sk);
                 }
             }
@@ -1669,8 +1673,6 @@ struct fish_catch_response_data {
     std::string result;          // "success", "fail", "canceled"
     std::string item_name;
     int32_t template_id = 0;
-    int32_t exp_gained = 0;
-    int16_t levels_gained = 0;
 
     static fish_catch_response_data from_json(const json& j) {
         fish_catch_response_data data;
@@ -1679,8 +1681,6 @@ struct fish_catch_response_data {
             if (d.contains("result")) data.result = d["result"].get<std::string>();
             if (d.contains("item_name")) data.item_name = d["item_name"].get<std::string>();
             if (d.contains("template_id")) data.template_id = d["template_id"].get<int32_t>();
-            if (d.contains("exp_gained")) data.exp_gained = d["exp_gained"].get<int32_t>();
-            if (d.contains("levels_gained")) data.levels_gained = d["levels_gained"].get<int16_t>();
         }
         return data;
     }

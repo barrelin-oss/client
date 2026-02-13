@@ -353,12 +353,16 @@ struct enter_game_equipment_item {
 // Skill entry from enter_game_response
 struct enter_game_skill {
     uint8_t skill_id = 0;
-    int16_t level = 0;           // Skill mastery level (0-200)
+    int16_t level = 0;              // Skill mastery level (0-200)
+    int32_t experience = 0;         // Current experience toward next level
+    int32_t exp_to_next_level = 0;  // Total experience required for next level
 
     static enter_game_skill from_json(const json& j) {
         enter_game_skill skill;
         if (j.contains("skill_id")) skill.skill_id = j["skill_id"].get<uint8_t>();
         if (j.contains("level")) skill.level = j["level"].get<int16_t>();
+        if (j.contains("experience")) skill.experience = j["experience"].get<int32_t>();
+        if (j.contains("exp_to_next_level")) skill.exp_to_next_level = j["exp_to_next_level"].get<int32_t>();
         return skill;
     }
 };
@@ -447,6 +451,7 @@ struct enter_game_visible_entity {
     int16_t sprite_id = 0;       // Legacy sprite type for rendering (10=Slime, etc.)
     uint32_t template_id = 0;    // NPC template ID
     int16_t level = 0;           // NPC level
+    int16_t nation = 0;          // 0=Neutral, 1=Aresden, 2=Elvine
 
     static enter_game_visible_entity from_json(const json& j) {
         enter_game_visible_entity ent;
@@ -460,6 +465,7 @@ struct enter_game_visible_entity {
         if (j.contains("sprite_id")) ent.sprite_id = j["sprite_id"].get<int16_t>();
         if (j.contains("template_id")) ent.template_id = j["template_id"].get<uint32_t>();
         if (j.contains("level")) ent.level = j["level"].get<int16_t>();
+        if (j.contains("nation")) ent.nation = j["nation"].get<int16_t>();
         return ent;
     }
 };
@@ -1282,6 +1288,7 @@ struct entity_spawn_data {
     int16_t y = 0;
     int32_t hp_percent = 100;
     int16_t direction = 4;  // south default
+    int16_t nation = 0;     // 0=Neutral, 1=Aresden, 2=Elvine
 
     static entity_spawn_data from_json(const json& j) {
         entity_spawn_data data;
@@ -1294,6 +1301,7 @@ struct entity_spawn_data {
             if (d.contains("y")) data.y = d["y"].get<int16_t>();
             if (d.contains("hp_percent")) data.hp_percent = d["hp_percent"].get<int32_t>();
             if (d.contains("direction")) data.direction = d["direction"].get<int16_t>();
+            if (d.contains("nation")) data.nation = d["nation"].get<int16_t>();
         }
         return data;
     }
@@ -1584,6 +1592,8 @@ struct skills_data_msg {
     struct skill_entry {
         uint8_t skill_id = 0;
         int16_t level = 0;
+        int32_t experience = 0;         // Current experience toward next level
+        int32_t exp_to_next_level = 0;  // Total experience required for next level
     };
     std::vector<skill_entry> skills;
 
@@ -1596,6 +1606,8 @@ struct skills_data_msg {
                     skill_entry sk;
                     if (sk_j.contains("skill_id")) sk.skill_id = sk_j["skill_id"].get<uint8_t>();
                     if (sk_j.contains("level")) sk.level = sk_j["level"].get<int16_t>();
+                    if (sk_j.contains("experience")) sk.experience = sk_j["experience"].get<int32_t>();
+                    if (sk_j.contains("exp_to_next_level")) sk.exp_to_next_level = sk_j["exp_to_next_level"].get<int32_t>();
                     data.skills.push_back(sk);
                 }
             }

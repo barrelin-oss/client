@@ -4,6 +4,7 @@
 
 namespace hb {
 
+class entity;
 class game_state_manager;
 class input;
 
@@ -28,6 +29,9 @@ public:
     void set_combat_mode(bool v) { combat_mode_ = v; }
     void toggle_combat_mode();
     bool is_safe_attack_mode() const { return safe_attack_mode_; }
+
+    // Force attack mode (Ctrl+A toggle)
+    bool is_force_attack_mode() const { return force_attack_mode_; }
 
     // Camera drag lock
     bool is_camera_drag_locked() const { return camera_drag_locked_; }
@@ -54,6 +58,7 @@ private:
     void handle_hotkey_input(const input& inp);
     void handle_spell_targeting(const input& inp);
     void update_pathfinding_trace();
+    void execute_dash_attack(entity* target, const input& inp);
 
     game_state_manager* game_ = nullptr;
 
@@ -75,6 +80,7 @@ private:
     // Combat mode state
     bool combat_mode_ = false;
     bool safe_attack_mode_ = false;
+    bool force_attack_mode_ = false;
 
     // Run mode toggle
     bool run_mode_enabled_ = false;

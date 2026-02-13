@@ -24,6 +24,7 @@ void input_handler::clear()
     mouse_y_ = 0;
     combat_mode_ = false;
     safe_attack_mode_ = false;
+    force_attack_mode_ = false;
     run_mode_enabled_ = false;
     suppress_until_release_ = false;
     camera_drag_locked_ = false;
@@ -182,6 +183,7 @@ void input_handler::handle_movement_input(const input& inp)
         auto state = player->animation().state;
         if (!player->animation().finished &&
             (state == entity_anim_state::attack ||
+             state == entity_anim_state::attack_move ||
              state == entity_anim_state::damage ||
              state == entity_anim_state::magic ||
              state == entity_anim_state::magic_attack))
@@ -718,8 +720,24 @@ void input_handler::handle_combat_input(const input& inp)
     auto& world = game_->game_world();
     auto& action_q = game_->action_queue();
 
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
+    if (inp.is_mouse_down(sf::Mouse::Button::Left))
     {
+        // Don't start a new attack while a non-interruptible animation is still playing
+        entity* player = game_->local_player();
+        if (player)
+        {
+            auto& anim = player->animation();
+            if (!anim.finished &&
+                (anim.state == entity_anim_state::attack ||
+                 anim.state == entity_anim_state::attack_move ||
+                 anim.state == entity_anim_state::magic ||
+                 anim.state == entity_anim_state::magic_attack))
+            {
+                attack_consumed_ = true;  // Still block movement while attacking
+                return;
+            }
+        }
+
         entity* target = entities.get_entity_at_screen_pos(
             mouse_x_, mouse_y_,
             world.camera_x(), world.camera_y());
@@ -759,9 +777,28 @@ void input_handler::handle_combat_input(const input& inp)
             bool ranged = atk_type == static_cast<uint8_t>(attack_type::ranged);
             auto& cs = game_->combat();
             entity_id pid = entities.local_player_id();
-            if (ranged ? !cs.is_in_ranged_range(pid, target->id())
-                       : !cs.is_in_melee_range(pid, target->id()))
+            if (ranged)
             {
+                if (!cs.is_in_ranged_range(pid, target->id()))
+                    return;
+            }
+            else if (!cs.is_in_melee_range(pid, target->id()))
+            {
+                // Not adjacent — check for dash attack (2-tile range)
+                bool ctrl_held_now = inp.is_key_down(sf::Keyboard::Key::LControl) ||
+                                     inp.is_key_down(sf::Keyboard::Key::RControl);
+                if ((ctrl_held_now || force_attack_mode_) &&
+                    cs.is_in_dash_range(pid, target->id()) &&
+                    cs.can_dash_attack(pid))
+                {
+                    entity* player_ent = game_->local_player();
+                    if (player_ent && !player_ent->transform().moving &&
+                        action_q.can_perform_action())
+                    {
+                        execute_dash_attack(target, inp);
+                        attack_consumed_ = true;
+                    }
+                }
                 return;
             }
 
@@ -772,7 +809,6 @@ void input_handler::handle_combat_input(const input& inp)
                 game_->network().request_attack(target->id(), atk_type);
 
                 // Immediate local attack animation (don't wait for server round-trip)
-                entity* player = game_->local_player();
                 if (player)
                 {
                     auto dir = calculate_direction(
@@ -981,6 +1017,14 @@ void input_handler::handle_hotkey_input(const input& inp)
         game_->ws_handler().request_fish_skill();
     }
 
+    // Toggle force attack mode (Ctrl+A) - dash attacks without holding Ctrl
+    if ((inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl)) &&
+        inp.is_key_pressed(sf::Keyboard::Key::A))
+    {
+        force_attack_mode_ = !force_attack_mode_;
+        spdlog::debug("Force attack mode: {}", force_attack_mode_ ? "ON" : "OFF");
+    }
+
     // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab))
     {
@@ -1079,6 +1123,103 @@ void input_handler::handle_hotkey_input(const input& inp)
             status_log.add_event("Floating text spawned!", message_color::yellow);
         }
     }
+}
+
+void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
+{
+    entity* player = game_->local_player();
+    if (!player) return;
+
+    auto& t = player->transform();
+    auto& world = game_->game_world();
+    auto& entities = game_->entities();
+
+    // Get direct direction toward target (straight line, no obstacle avoidance)
+    auto direct_dir = get_next_move_dir(t.tile_x, t.tile_y,
+                                         target->transform().tile_x, target->transform().tile_y);
+    if (!direct_dir) return;
+
+    // Passability check for the intermediate tile (1 step toward target)
+    auto is_passable = [&](int32_t x, int32_t y) -> bool
+    {
+        if (!world.current_map().is_walkable(x, y))
+            return false;
+        for (auto* e : entities.get_entities_on_tile(x, y))
+        {
+            if (e && e->is_alive() && e != player)
+                return false;
+        }
+        return true;
+    };
+
+    // Try direct direction first, then CW and CCW rotations
+    std::optional<direction> dash_dir;
+    auto [ddx, ddy] = direction_offset(*direct_dir);
+    if (is_passable(t.tile_x + ddx, t.tile_y + ddy))
+    {
+        dash_dir = *direct_dir;
+    }
+    else
+    {
+        // Try CW rotation
+        direction cw = rotate_cw(*direct_dir);
+        auto [cwx, cwy] = direction_offset(cw);
+        if (is_passable(t.tile_x + cwx, t.tile_y + cwy))
+        {
+            dash_dir = cw;
+        }
+        else
+        {
+            // Try CCW rotation
+            direction ccw = rotate_ccw(*direct_dir);
+            auto [ccwx, ccwy] = direction_offset(ccw);
+            if (is_passable(t.tile_x + ccwx, t.tile_y + ccwy))
+            {
+                dash_dir = ccw;
+            }
+        }
+    }
+
+    if (!dash_dir) return;  // All 3 directions blocked
+
+    auto [dx, dy] = direction_offset(*dash_dir);
+    int32_t dash_x = t.tile_x + dx;
+    int32_t dash_y = t.tile_y + dy;
+
+    // Set up movement to intermediate tile
+    t.move_start_x = t.tile_x;
+    t.move_start_y = t.tile_y;
+    t.tile_x = dash_x;
+    t.tile_y = dash_y;
+    t.facing = *dash_dir;
+    t.moving = true;
+    t.move_progress = 0.0f;
+
+    if (player->has_movement())
+    {
+        player->movement().running = false;
+        player->movement().target_x = -1;
+        player->movement().target_y = -1;
+    }
+
+    // Set attack_move animation (13 frames @ 78ms)
+    player->animation().set_state(entity_anim_state::attack_move);
+
+    // Clear pathfinding destination
+    move_dest_x_ = -1;
+    move_dest_y_ = -1;
+
+    // Send move request (to advance tile)
+    uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*dash_dir));
+    json move_msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, false,
+                                              dash_x, dash_y);
+    game_->ws_connection().send(move_msg);
+
+    // Send attack request with dash attack type
+    game_->network().request_attack(target->id(), static_cast<uint8_t>(attack_type::dash));
+
+    spdlog::debug("Dash attack: moving ({},{}) -> ({},{}) and attacking entity {}",
+                  t.move_start_x, t.move_start_y, dash_x, dash_y, target->id());
 }
 
 } // namespace hb

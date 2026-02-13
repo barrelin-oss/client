@@ -34,6 +34,7 @@ inline bool is_bow_weapon(uint16_t weapon_type) { return weapon_type >= 40; }
 enum class attack_type : uint8_t {
     normal = 1,      // Standard melee attack
     ranged = 2,      // Bow/arrow attack
+    dash = 3,        // Dash/lunge attack (2-tile range, requires mastered weapon skill)
     super_1 = 20,    // First super attack (100% mastery)
     super_2 = 21,    // Second super attack
     super_3 = 22,    // Third super attack
@@ -146,8 +147,12 @@ public:
 
     // Range checking
     bool is_in_melee_range(entity_id attacker, entity_id target) const;
+    bool is_in_dash_range(entity_id attacker, entity_id target) const;
     bool is_in_ranged_range(entity_id attacker, entity_id target) const;
     int32_t get_attack_range(attack_type type, uint16_t weapon_type) const;
+
+    // Dash attack check - requires mastered weapon skill and non-bow weapon
+    bool can_dash_attack(entity_id attacker) const;
 
     // Super attack requirements
     bool can_use_super_attack(entity_id attacker, attack_type super_type) const;

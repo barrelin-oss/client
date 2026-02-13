@@ -40,12 +40,15 @@ struct skill {
     uint16_t sp_cost = 0;
     float cooldown = 0.0f;
 
+    // Sub-level progress toward next level (0.0-1.0), sent by server
+    float sub_progress = 0.0f;
+
     // Get skill level (0-100)
     uint8_t level() const {
         return static_cast<uint8_t>(experience / 10000);
     }
 
-    // Get percentage progress
+    // Get percentage progress (overall 0-100%)
     float progress() const {
         return static_cast<float>(experience) / static_cast<float>(max_experience) * 100.0f;
     }
@@ -70,6 +73,7 @@ public:
     void add_skill_experience(uint16_t skill_id, uint32_t exp);
     void set_skill_experience(uint16_t skill_id, uint32_t exp);
     void set_mastery(uint16_t skill_id, uint8_t mastery);  // Set skill level (0-100)
+    void set_sub_progress(uint16_t skill_id, float progress);  // Set sub-level progress (0.0-1.0)
     uint8_t get_skill_level(uint16_t skill_id) const;
 
     // Check skill-based bonuses

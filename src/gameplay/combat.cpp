@@ -279,6 +279,49 @@ bool combat_system::is_in_melee_range(entity_id attacker, entity_id target) cons
     return dx <= 1 && dy <= 1;
 }
 
+bool combat_system::is_in_dash_range(entity_id attacker, entity_id target) const {
+    if (!entities_) return false;
+
+    entity* att = entities_->get_entity(attacker);
+    entity* tgt = entities_->get_entity(target);
+
+    if (!att || !tgt) return false;
+
+    const auto& att_t = att->transform();
+    const auto& tgt_t = tgt->transform();
+
+    int32_t dx = att_t.tile_x - tgt_t.tile_x;
+    int32_t dy = att_t.tile_y - tgt_t.tile_y;
+    int32_t adx = std::abs(dx);
+    int32_t ady = std::abs(dy);
+
+    // Chebyshev distance must be exactly 2
+    if (std::max(adx, ady) != 2) return false;
+
+    // Must be cardinal or diagonal (not L-shaped)
+    // Cardinal: one axis is 0, other is 2
+    // Diagonal: both axes are 2
+    return adx == 0 || ady == 0 || adx == ady;
+}
+
+bool combat_system::can_dash_attack(entity_id attacker) const {
+    if (!entities_ || !skills_ || !inventory_) return false;
+
+    entity* att = entities_->get_entity(attacker);
+    if (!att) return false;
+
+    // Get equipped weapon type
+    const auto* weapon = inventory_->get_equipped(equip_slot::right_hand);
+    uint16_t weapon_type = weapon ? weapon->type_id : 0;
+
+    // Bows cannot dash
+    if (is_bow_weapon(weapon_type)) return false;
+
+    // Check if weapon skill is mastered (level 100)
+    weapon_skill skill = get_weapon_skill(weapon_type);
+    return skills_->is_skill_mastered(static_cast<uint16_t>(skill));
+}
+
 bool combat_system::is_in_ranged_range(entity_id attacker, entity_id target) const {
     if (!entities_) return false;
 

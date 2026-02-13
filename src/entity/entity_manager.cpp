@@ -1175,7 +1175,12 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
     // Movement timing based on animation frames (legacy Helbreath system)
     // MOVE: 8 frames @ 70ms = 560ms per tile
     // RUN: 8 frames @ 42ms = 336ms per tile
-    float move_time_ms = m.running ? 336.0f : 560.0f;
+    // ATTACK_MOVE (dash): 13 frames @ 78ms = 1014ms per tile
+    float move_time_ms;
+    if (e.animation().state == entity_anim_state::attack_move)
+        move_time_ms = 1014.0f;
+    else
+        move_time_ms = m.running ? 336.0f : 560.0f;
     float move_time_sec = move_time_ms / 1000.0f;
 
     t.move_progress += delta_time / move_time_sec;
@@ -1488,28 +1493,65 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
     if (is_hovered) {
         sf::Color name_color = sf::Color::White;
 
-        if (e.type() == entity_type::npc) {
-            name_color = sf::Color::Yellow;
-        } else if (e.type() == entity_type::monster) {
-            if (e.has_monster() && e.monster().is_boss) {
-                name_color = sf::Color::Red;
-            } else {
-                name_color = sf::Color(255, 128, 0); // Orange
+        if (e.type() == entity_type::player)
+        {
+            // Local player: white
+            name_color = sf::Color::White;
+        }
+        else if (e.type() == entity_type::character)
+        {
+            // Other players: color by faction relationship
+            int16_t my_nation = 0;
+            if (auto* lp = local_player())
+            {
+                if (lp->has_name())
+                    my_nation = lp->name().nation;
             }
-        } else if (e.has_combat() && e.combat().pk_count > 0) {
-            name_color = sf::Color::Red;
+
+            if (e.has_combat() && e.combat().pk_count > 0)
+            {
+                // PK players always red
+                name_color = sf::Color::Red;
+            }
+            else if (name.nation == 0 || my_nation == 0)
+            {
+                // Either party is neutral
+                name_color = sf::Color(80, 160, 255); // Blue
+            }
+            else if (name.nation == my_nation)
+            {
+                // Same faction: friendly
+                name_color = sf::Color(80, 255, 80); // Green
+            }
+            else
+            {
+                // Different faction: enemy
+                name_color = sf::Color(255, 80, 80); // Red
+            }
+        }
+        else if (e.type() == entity_type::npc)
+        {
+            // Town NPCs: neutral blue
+            name_color = sf::Color(80, 160, 255);
+        }
+        else if (e.type() == entity_type::monster)
+        {
+            // Monsters: enemy red
+            name_color = sf::Color(255, 80, 80);
         }
 
         // Center name below entity feet
         int32_t name_x = screen_x - static_cast<int32_t>(name.name.length() * 4);
         int32_t name_y = screen_y + 10;
 
-        rend.draw_text(name.name, name_x, name_y, name_color);
+        static constexpr float outline_thickness = 1.5f;
+        rend.draw_text_outlined(name.name, name_x, name_y, name_color, sf::Color::Black, 14, outline_thickness);
 
         // Render guild name if present (below character name)
         if (!name.guild_name.empty()) {
-            int32_t guild_x = screen_x - static_cast<int32_t>(name.guild_name.length() * 3);
-            rend.draw_text("<" + name.guild_name + ">", guild_x, name_y + 14, sf::Color(100, 200, 100));
+            auto guild_text = "<" + name.guild_name + ">";
+            int32_t guild_x = screen_x - static_cast<int32_t>(guild_text.length() * 3);
+            rend.draw_text_outlined(guild_text, guild_x, name_y + 14, sf::Color(100, 200, 100), sf::Color::Black, 12, outline_thickness);
         }
     }
 

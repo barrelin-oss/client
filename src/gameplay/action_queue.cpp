@@ -116,7 +116,7 @@ void action_queue::process_pending()
                     if (pending_action_.attack_type == static_cast<uint8_t>(attack_type::ranged))
                         player->set_action(object_action::attack_combat_bow);
                     else
-                        player->set_action(object_action::attack_peace);
+                        player->set_action_with_combat_mode(object_action::attack_peace, combat_mode);
                 }
             }
             break;

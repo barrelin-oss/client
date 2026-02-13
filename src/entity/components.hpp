@@ -266,6 +266,9 @@ struct name_component {
     std::string guild_rank;
     uint32_t guild_id = 0;
 
+    // Faction: 0=Neutral, 1=Aresden, 2=Elvine
+    int16_t nation = 0;
+
     // Chat bubble
     std::string chat_message;
     float chat_timer = 0.0f;

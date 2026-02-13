@@ -8,7 +8,7 @@
 
 namespace hb {
 
-// Skills dialog - displays skill levels and mastery
+// Skills dialog - displays skill levels and progress
 class skills_dialog : public dialog {
 public:
     skills_dialog();
@@ -41,8 +41,10 @@ public:
     void set_on_skill_click(skill_callback callback) { on_skill_click_ = std::move(callback); }
 
 private:
+    void rebuild_filtered();
     void render_skill_row(renderer& rend, const skill& sk, int32_t y, bool hovered);
     std::optional<size_t> skill_index_at(int32_t x, int32_t y) const;
+    void clamp_scroll();
 
     std::vector<skill> skills_;
     std::vector<skill> filtered_skills_;
@@ -53,8 +55,9 @@ private:
 
     skill_callback on_skill_click_;
 
-    static constexpr int32_t row_height = 28;
-    static constexpr int32_t visible_rows = 10;
+    // Each row: skill name + level on first line, progress bar on second line
+    static constexpr int32_t row_height = 36;
+    static constexpr int32_t visible_rows = 8;
     int32_t content_start_y_ = 0;
 };
 

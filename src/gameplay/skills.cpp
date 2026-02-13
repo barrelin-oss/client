@@ -80,6 +80,13 @@ void skills_system::set_mastery(uint16_t skill_id, uint8_t mastery) {
     }
 }
 
+void skills_system::set_sub_progress(uint16_t skill_id, float progress) {
+    auto it = skills_.find(skill_id);
+    if (it != skills_.end()) {
+        it->second.sub_progress = std::clamp(progress, 0.0f, 1.0f);
+    }
+}
+
 uint8_t skills_system::get_skill_level(uint16_t skill_id) const {
     auto it = skills_.find(skill_id);
     if (it != skills_.end()) {

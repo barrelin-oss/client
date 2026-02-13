@@ -6,6 +6,7 @@
 #include "core/direction_utils.hpp"
 #include "chat/chat_message.hpp"
 #include "ui/dialogs/chat_dialog.hpp"
+#include "ui/dialogs/skills_dialog.hpp"
 #include "ui/dialogs/spellbook_dialog.hpp"
 #include "world/tile.hpp"
 #include <spdlog/spdlog.h>
@@ -319,6 +320,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
 
     auto& name = player.name();
     name.name = ch.name;
+    name.nation = ch.nation;
 
     auto& stats = player.stats();
     stats.level = static_cast<uint16_t>(ch.level);
@@ -412,12 +414,36 @@ void ws_message_handler::handle_enter_game_response(const json& message)
 
     // Set skill levels
     auto& skills = game_->skills();
+    spdlog::info("enter_game_response contains {} skills", response.skills.size());
     for (const auto& sk : response.skills)
     {
         uint8_t mastery = static_cast<uint8_t>(std::min(sk.level / 2, 100));
         skills.set_mastery(sk.skill_id, mastery);
+
+        float progress = 0.0f;
+        if (sk.exp_to_next_level > 0)
+            progress = static_cast<float>(sk.experience) / static_cast<float>(sk.exp_to_next_level);
+        skills.set_sub_progress(sk.skill_id, progress);
+
+        spdlog::info("  enter_game skill: id={} level={} mastery={} exp={} exp_next={} progress={:.2f}",
+                     sk.skill_id, sk.level, mastery, sk.experience, sk.exp_to_next_level, progress);
     }
-    spdlog::debug("Loaded {} skills", response.skills.size());
+
+    // Populate skills dialog
+    if (auto* skill_dlg = dynamic_cast<skills_dialog*>(game_->ui().get_dialog(dialog_type::skills)))
+    {
+        auto all = skills.get_all_skills();
+        std::vector<skill> skill_list;
+        skill_list.reserve(all.size());
+        for (const auto* s : all)
+            skill_list.push_back(*s);
+        skill_dlg->set_skills(skill_list);
+        spdlog::info("Pushed {} skills to dialog from enter_game", skill_list.size());
+    }
+    else
+    {
+        spdlog::warn("Skills dialog not found during enter_game!");
+    }
 
     // Set known spells from server
     auto& magic = game_->magic();
@@ -494,6 +520,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         if (world_entity.has_name())
         {
             world_entity.name().name = ent.name;
+            world_entity.name().nation = ent.nation;
         }
 
         // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
@@ -1823,7 +1850,10 @@ void ws_message_handler::handle_player_teleport(const json& message)
         ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
 
         if (world_entity.has_name())
+        {
             world_entity.name().name = ent.name;
+            world_entity.name().nation = ent.nation;
+        }
 
         // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
         uint16_t visual_type = ent.sprite_id > 0
@@ -1918,7 +1948,10 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     if (ent.has_name())
+    {
         ent.name().name = data.name;
+        ent.name().nation = data.nation;
+    }
 
     if (ent.has_stats())
     {
@@ -1928,8 +1961,8 @@ void ws_message_handler::handle_entity_spawn(const json& message)
 
     ent.animation().set_state(entity_anim_state::stop);
 
-    spdlog::info("Entity spawned: {} '{}' id={} at ({},{})",
-                 data.type, data.name, data.entity_id, data.x, data.y);
+    spdlog::info("Entity spawned: {} '{}' id={} nation={} at ({},{})",
+                 data.type, data.name, data.entity_id, data.nation, data.x, data.y);
 }
 
 void ws_message_handler::handle_npc_spawn(const json& message)
@@ -2212,16 +2245,41 @@ void ws_message_handler::handle_equipment_data(const json& message)
 
 void ws_message_handler::handle_skills_data(const json& message)
 {
+    spdlog::info("Received skills_data message: {}", message.dump());
+
     auto data = skills_data_msg::from_json(message);
+    spdlog::info("Parsed {} skill entries", data.skills.size());
 
     auto& skills = game_->skills();
     for (const auto& sk : data.skills)
     {
         uint8_t mastery = static_cast<uint8_t>(std::min(static_cast<int16_t>(100), static_cast<int16_t>(sk.level / 2)));
         skills.set_mastery(sk.skill_id, mastery);
+
+        float progress = 0.0f;
+        if (sk.exp_to_next_level > 0)
+            progress = static_cast<float>(sk.experience) / static_cast<float>(sk.exp_to_next_level);
+        skills.set_sub_progress(sk.skill_id, progress);
+
+        spdlog::info("  skill_id={} level={} mastery={} exp={} exp_next={} progress={:.2f}",
+                     sk.skill_id, sk.level, mastery, sk.experience, sk.exp_to_next_level, progress);
     }
 
-    spdlog::debug("Skills refreshed: {} skills", data.skills.size());
+    // Push skill data to the dialog
+    if (auto* dlg = dynamic_cast<skills_dialog*>(game_->ui().get_dialog(dialog_type::skills)))
+    {
+        auto all = skills.get_all_skills();
+        std::vector<skill> skill_list;
+        skill_list.reserve(all.size());
+        for (const auto* s : all)
+            skill_list.push_back(*s);
+        dlg->set_skills(skill_list);
+        spdlog::info("Pushed {} skills to dialog", skill_list.size());
+    }
+    else
+    {
+        spdlog::warn("Skills dialog not found when trying to push data");
+    }
 }
 
 void ws_message_handler::handle_player_skill_response(const json& message)

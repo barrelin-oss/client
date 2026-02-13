@@ -2,7 +2,6 @@
 
 #include "core/game_enums.hpp"
 #include "core/launch_options.hpp"
-#include "gameplay/action_queue.hpp"
 #include "gameplay/combat.hpp"
 #include "gameplay/dialog_callbacks.hpp"
 #include "gameplay/input_handler.hpp"
@@ -175,7 +174,6 @@ public:
     weather_system& weather() { return weather_system_; }
 
     // Extracted subsystems
-    hb::action_queue& action_queue() { return action_queue_; }
     hb::input_handler& input_handler() { return input_handler_; }
     ws_message_handler& ws_handler() { return ws_handler_; }
     chat_input_overlay& chat_input() { return chat_input_; }
@@ -313,7 +311,6 @@ private:
     quest_log quests_;
 
     // Extracted subsystems
-    hb::action_queue action_queue_;
     hb::input_handler input_handler_;
     dialog_callbacks dialog_callbacks_;
     ws_message_handler ws_handler_;

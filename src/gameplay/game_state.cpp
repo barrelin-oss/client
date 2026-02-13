@@ -264,7 +264,6 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
 
     init_steps_.push_back({"Setting up network...", [this]() {
         setup_network_handlers();
-        action_queue_.initialize(*this);
         input_handler_.initialize(*this);
         dialog_callbacks_.initialize(*this);
         ws_handler_.initialize(*this);
@@ -853,7 +852,6 @@ void game_state_manager::clear_game_data() {
     world_.set_zoom_mode_enabled(false);
 
     // Clear extracted subsystems
-    action_queue_.clear();
     input_handler_.clear();
     ws_handler_.clear();
 
@@ -924,7 +922,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         mouse_world_y - world_.camera_y());
 
     // Update blocked movement cooldown
-    action_queue_.update_cooldown(delta_time);
+    input_handler_.update_cooldown(delta_time);
 
     // Chat input overlay runs first - when active it consumes keyboard input.
     // Skip overlay activation when a dialog has text focus (e.g. chat search).
@@ -963,9 +961,6 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
     // Update entities
     entities_.update(delta_time, world_, input_handler_.is_combat_mode());
-
-    // Process queued actions
-    action_queue_.process_pending();
 
     // Update camera to follow local player
     if (entity* player = local_player()) {

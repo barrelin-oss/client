@@ -734,7 +734,6 @@ void ws_message_handler::handle_player_move_response(const json& message)
     entity* player = game_->local_player();
     if (!player) return;
 
-    auto& action_q = game_->action_queue();
     auto& input = game_->input_handler();
 
     if (!data.success)
@@ -765,7 +764,7 @@ void ws_message_handler::handle_player_move_response(const json& message)
 
         if (data.error == "blocked_occupied")
         {
-            action_q.set_blocked_movement_cooldown(action_queue::blocked_movement_cooldown_duration);
+            input.set_blocked_movement_cooldown(input_handler::blocked_movement_cooldown_duration);
             input.set_move_dest(-1, -1);
 
             uint8_t gender = player->sprite().gender;
@@ -777,7 +776,7 @@ void ws_message_handler::handle_player_move_response(const json& message)
 
         if (data.error == "blocked_terrain")
         {
-            action_q.set_blocked_movement_cooldown(action_queue::blocked_movement_cooldown_duration);
+            input.set_blocked_movement_cooldown(input_handler::blocked_movement_cooldown_duration);
             input.set_move_dest(-1, -1);
             spdlog::debug("Movement blocked by terrain (server), cooldown applied");
         }
@@ -803,7 +802,7 @@ void ws_message_handler::handle_player_move_response(const json& message)
         t.move_progress = 0.0f;
         player->set_action_with_combat_mode(object_action::stop_peace, input.is_combat_mode());
 
-        action_q.set_blocked_movement_cooldown(action_queue::blocked_movement_cooldown_duration);
+        input.set_blocked_movement_cooldown(input_handler::blocked_movement_cooldown_duration);
         input.set_move_dest(-1, -1);
     }
 

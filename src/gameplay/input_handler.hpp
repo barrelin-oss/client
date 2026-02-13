@@ -19,10 +19,18 @@ public:
     void update(float delta_time);
     void clear();
 
-    // Movement destination accessors (used by action_queue::process_pending)
+    // Movement destination accessors
     int32_t move_dest_x() const { return move_dest_x_; }
     int32_t move_dest_y() const { return move_dest_y_; }
     void set_move_dest(int32_t x, int32_t y);
+
+    // Check if the player can perform a new action right now
+    bool can_perform_action() const;
+
+    // Blocked movement cooldown (set by server move rejection)
+    void update_cooldown(float delta_time);
+    void set_blocked_movement_cooldown(float v) { blocked_movement_cooldown_ = v; }
+    static constexpr float blocked_movement_cooldown_duration = 0.25f;
 
     // Combat mode
     bool is_combat_mode() const { return combat_mode_; }
@@ -96,6 +104,9 @@ private:
 
     // Attack consumed this frame (prevents left-click movement when attacking)
     bool attack_consumed_ = false;
+
+    // Blocked movement cooldown (prevents wall-spam after server rejection)
+    float blocked_movement_cooldown_ = 0.0f;
 };
 
 } // namespace hb

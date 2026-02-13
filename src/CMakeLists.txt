@@ -97,7 +97,6 @@ add_library(helbreath_core STATIC
     ui/dialogs/fishing_dialog.cpp
 
     # Gameplay
-    gameplay/action_queue.cpp
     gameplay/combat.cpp
     gameplay/dialog_callbacks.cpp
     gameplay/effect_definition.cpp

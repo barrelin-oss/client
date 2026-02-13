@@ -30,12 +30,39 @@ void input_handler::clear()
     camera_drag_locked_ = false;
     spell_targeting_active_ = false;
     attack_consumed_ = false;
+    blocked_movement_cooldown_ = 0.0f;
 }
 
 void input_handler::update(float /*delta_time*/)
 {
-    // Currently no per-frame update needed beyond what handle_input does.
-    // Cooldown is managed by action_queue.
+}
+
+bool input_handler::can_perform_action() const
+{
+    if (blocked_movement_cooldown_ > 0.0f)
+        return false;
+
+    const entity* player = game_->local_player();
+    if (!player) return false;
+
+    if (player->transform().moving)
+        return false;
+
+    const auto& anim = player->animation();
+    if (!anim.looping && !anim.finished)
+        return false;
+
+    return true;
+}
+
+void input_handler::update_cooldown(float delta_time)
+{
+    if (blocked_movement_cooldown_ > 0.0f)
+    {
+        blocked_movement_cooldown_ -= delta_time;
+        if (blocked_movement_cooldown_ < 0.0f)
+            blocked_movement_cooldown_ = 0.0f;
+    }
 }
 
 void input_handler::set_move_dest(int32_t x, int32_t y)
@@ -195,7 +222,6 @@ void input_handler::handle_movement_input(const input& inp)
     auto& world = game_->game_world();
     auto& entities = game_->entities();
     auto& sprites = game_->sprites();
-    auto& action_q = game_->action_queue();
 
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
@@ -226,19 +252,11 @@ void input_handler::handle_movement_input(const input& inp)
                             atk_type = static_cast<uint8_t>(attack_type::ranged);
                     }
 
-                    if (action_q.can_perform_action())
+                    if (can_perform_action())
                     {
                         spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
                         game_->network().request_attack(target->id(), atk_type);
                         player->transform().facing = direction::north;
-                    }
-                    else
-                    {
-                        queued_action action;
-                        action.type = queued_action_type::attack;
-                        action.target_id = target->id();
-                        action.attack_type = atk_type;
-                        action_q.queue_action(action);
                     }
                 }
                 else
@@ -248,18 +266,10 @@ void input_handler::handle_movement_input(const input& inp)
             }
             else
             {
-                if (action_q.can_perform_action())
+                if (can_perform_action())
                 {
                     spdlog::debug("Click on self: sending pickup request at ({},{})", t.tile_x, t.tile_y);
                     game_->request_pickup(t.tile_x, t.tile_y);
-                }
-                else
-                {
-                    queued_action action;
-                    action.type = queued_action_type::pickup;
-                    action.target_x = t.tile_x;
-                    action.target_y = t.tile_y;
-                    action_q.queue_action(action);
                 }
             }
             return;
@@ -283,7 +293,7 @@ void input_handler::handle_movement_input(const input& inp)
         if (hovering_self)
         {
             auto& t = player->transform();
-            if (action_q.can_perform_action())
+            if (can_perform_action())
             {
                 game_->request_pickup(t.tile_x, t.tile_y);
             }
@@ -306,11 +316,6 @@ void input_handler::handle_movement_input(const input& inp)
             prev_tile_x_ = -1;
             prev_tile_y_ = -1;
         }
-    }
-
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Right))
-    {
-        action_q.pending().type = queued_action_type::stop;
     }
 
     if (inp.is_mouse_down(sf::Mouse::Button::Right))
@@ -349,18 +354,11 @@ void input_handler::handle_movement_input(const input& inp)
         {
             t.facing = *face_dir;
 
-            if (action_q.can_perform_action())
+            if (can_perform_action())
             {
                 json msg = make_player_stop_request(t.tile_x, t.tile_y,
                                                     static_cast<uint8_t>(direction_to_protocol(*face_dir)));
                 game_->ws_connection().send(msg);
-            }
-            else
-            {
-                queued_action action;
-                action.type = queued_action_type::face_direction;
-                action.face_dir = face_dir;
-                action_q.queue_action(action);
             }
         }
     }
@@ -382,7 +380,7 @@ void input_handler::handle_movement_input(const input& inp)
     }
 
     // Continue moving toward destination (pathfinding)
-    if (move_dest_x_ >= 0 && move_dest_y_ >= 0 && !player->transform().moving && action_q.can_perform_action())
+    if (move_dest_x_ >= 0 && move_dest_y_ >= 0 && !player->transform().moving && can_perform_action())
     {
         auto& t = player->transform();
 
@@ -495,7 +493,7 @@ void input_handler::handle_movement_input(const input& inp)
         move_dest_y_ = -1;
     }
 
-    if ((dx != 0 || dy != 0) && !player->transform().moving && action_q.can_perform_action())
+    if ((dx != 0 || dy != 0) && !player->transform().moving && can_perform_action())
     {
         auto& t = player->transform();
         auto& world_ref = game_->game_world();
@@ -733,7 +731,6 @@ void input_handler::handle_combat_input(const input& inp)
 {
     auto& entities = game_->entities();
     auto& world = game_->game_world();
-    auto& action_q = game_->action_queue();
 
     if (inp.is_mouse_down(sf::Mouse::Button::Left))
     {
@@ -808,7 +805,7 @@ void input_handler::handle_combat_input(const input& inp)
                 {
                     entity* player_ent = game_->local_player();
                     if (player_ent && !player_ent->transform().moving &&
-                        action_q.can_perform_action())
+                        can_perform_action())
                     {
                         execute_dash_attack(target, inp);
                         attack_consumed_ = true;
@@ -819,7 +816,7 @@ void input_handler::handle_combat_input(const input& inp)
 
             attack_consumed_ = true;
 
-            if (action_q.can_perform_action())
+            if (can_perform_action())
             {
                 game_->network().request_attack(target->id(), atk_type);
 
@@ -837,14 +834,6 @@ void input_handler::handle_combat_input(const input& inp)
                     else
                         player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
                 }
-            }
-            else
-            {
-                queued_action action;
-                action.type = queued_action_type::attack;
-                action.target_id = target->id();
-                action.attack_type = atk_type;
-                action_q.queue_action(action);
             }
         }
     }

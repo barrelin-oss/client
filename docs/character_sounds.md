@@ -14,30 +14,30 @@ Sound files are located in `bin/assets/data/sounds/` as WAV files (C1.wav throug
 
 | Sound | File | Description | Trigger | Frame | Status |
 |-------|------|-------------|---------|-------|--------|
-| C1 | C1.wav | Small sword swing | Attack with weapon types 1-2 (two-hand) | 5 | Active |
-| C2 | C2.wav | Large sword swing | Attack with weapon types 3-19 (swords) | 5 | Active |
-| C3 | C3.wav | Bow attack | Attack with weapon types 40-59 (archery) | 5 | Active |
-| C4 | C4.wav | Arrow/projectile release | Ranged attack projectile fired, Frost spell | 2 | Active |
-| C5 | C5.wav | Punch (unarmed) | Unarmed attack (weapon type 0) | 5 | Unused |
+| C1 | C1.wav | Small sword swing | Attack with weapon types 1-2 (two-hand) | 5 | Partial (local player, wrong frame) |
+| C2 | C2.wav | Large sword swing | Attack with weapon types 3-19 (swords) | 5 | Partial (local player, wrong frame) |
+| C3 | C3.wav | Bow attack | Attack with weapon types 40-59 (archery) | 3 | Partial (local player, wrong frame) |
+| C4 | C4.wav | Arrow/projectile release | Ranged attack projectile fired, Frost spell | 2 | Unused |
+| C5 | C5.wav | Punch (unarmed) | Unarmed attack (weapon type 0) | 5 | Partial (local player, wrong frame) |
 | C6 | C6.wav | Sword impact | Melee damage dealt to target | - | Unused |
-| C7 | C7.wav | Arrow impact | Ranged damage dealt to target | - | Unused |
+| C7 | C7.wav | Arrow impact | Ranged damage dealt to target | - | Used by Master Elf damage |
 | C8 | C8.wav | Walk footstep | Walking animation | 1, 3 | Active |
-| C9 | C9.wav | Monster footstep | Monster walking animation | - | Unused |
-| C10 | C10.wav | Run footstep | Running animation | varies | Active |
-| C11 | C11.wav | Weapon impact / Rudolph | Rudolph attack, generic weapon impact | - | Active |
-| C12 | C12.wav | Male hurt | Male player (types 1-3) takes damage | 5 | Active |
-| C13 | C13.wav | Female hurt | Female player (types 4-6) takes damage | 5 | Active |
-| C14 | C14.wav | Male death | Male player death animation | 7 | Active |
-| C15 | C15.wav | Female death | Female player death animation | 7 | Active |
-| C16 | C16.wav | Magic cast begin | Spell casting starts | 1 | Active |
-| C17 | C17.wav | Magic failed | Spell casting fails/fizzles | - | Active |
-| C18 | C18.wav | Mace swing | Attack with weapon types 20-39 (axes/maces) | 5 | Active |
-| C19 | C19.wav | Female eat food | Female consumes food item | - | Active |
-| C20 | C20.wav | Male eat food | Male consumes food item | - | Active |
-| C21 | C21.wav | Male level up | Male gains level, skill, or contribution | - | Active |
-| C22 | C22.wav | Female level up | Female gains level, skill, or contribution | - | Active |
-| C23 | C23.wav | Male critical hit | Male super attack (m_sV3 >= 20) | 2 | Active |
-| C24 | C24.wav | Female critical hit | Female super attack (m_sV3 >= 20) | 2 | Active |
+| C9 | C9.wav | Monster footstep | Monster walking animation | - | Unused (monsters use M-type sounds) |
+| C10 | C10.wav | Run footstep | Running animation | 1, 3 | Active |
+| C11 | C11.wav | Weapon impact / Rudolph | Rudolph move sound | 1 | Active (monster sound table) |
+| C12 | C12.wav | Male hurt | Male player (types 1-3) takes damage | 5 | Active (frame-driven) |
+| C13 | C13.wav | Female hurt | Female player (types 4-6) takes damage | 5 | Active (frame-driven) |
+| C14 | C14.wav | Male death | Male player death animation | 7 | Active (frame-driven) |
+| C15 | C15.wav | Female death | Female player death animation | 7 | Active (frame-driven) |
+| C16 | C16.wav | Magic cast begin | Spell casting starts | 1 | Active (frame-driven) |
+| C17 | C17.wav | Magic failed | Spell casting fails/fizzles | - | Unused |
+| C18 | C18.wav | Mace swing | Attack with weapon types 20-39 (axes/maces) | 2 | Partial (local player, wrong frame) |
+| C19 | C19.wav | Female eat food | Female consumes food item | - | Unused |
+| C20 | C20.wav | Male eat food | Male consumes food item | - | Unused |
+| C21 | C21.wav | Male level up | Male gains level, skill, or contribution | - | Partial (local player only) |
+| C22 | C22.wav | Female level up | Female gains level, skill, or contribution | - | Partial (local player only) |
+| C23 | C23.wav | Male critical hit | Male super attack (m_sV3 >= 20) | 2 | Partial (local player, wrong frame) |
+| C24 | C24.wav | Female critical hit | Female super attack (m_sV3 >= 20) | 2 | Partial (local player, wrong frame) |
 
 ---
 

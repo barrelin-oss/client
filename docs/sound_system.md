@@ -889,16 +889,41 @@ All audio failures are **non-fatal** -- the game continues without sound.
 
 ---
 
-## Known Gaps
+## Sound Wiring Status
 
-1. **Monster sounds loaded but never played.** ~155 monster WAV files (M1-M156) are loaded into memory at startup, but no code path calls `play_sound('M', ...)`.
+### Working
 
-2. **Most effect sounds loaded but unused.** Only E14 (button click) is triggered. E1-E53 are loaded but not wired to any game logic (spell effects, environmental sounds, etc.).
+| Sound | Trigger | Location |
+|-------|---------|----------|
+| C8 walk footstep | Frames 1, 3 of walk animation (players only) | `entity_manager::update_animation` |
+| C10 run footstep | Frames 1, 3 of run animation (players only) | `entity_manager::update_animation` |
+| C12/C13 hurt (male/female) | Frame 5 of damage/damage_move (players) | `entity_manager::update_animation` |
+| C14/C15 death (male/female) | Frame 7 of dying animation (players) | `entity_manager::update_animation` |
+| C16 magic cast | Frame 1 of magic animation | `entity_manager::update_animation` |
+| C1/C2/C3/C5/C18 weapon swing | Attack initiation (local player only, wrong frame) | `combat_system::initiate_attack` |
+| C23/C24 critical hit | Attack initiation (local player only, wrong frame) | `combat_system::initiate_attack` |
+| C21/C22 level up | Level up event (local player only) | `combat_system::add_experience` |
+| M1-M156 monster move | Frame 1 of move/run animation | `entity_manager::update_animation` |
+| M1-M156 monster attack | Frame 1 of attack animation | `entity_manager::update_animation` |
+| M1-M156 monster damage | Frame 1 or 5 of damage animation (per type) | `entity_manager::update_animation` |
+| E14 button click | UI button press | `game_state`, `dialog_callbacks` |
 
-3. **No battle or boss music.** Multiple tracks exist on disk (battle1-10.ogg, boss.ogg) but `select_bgm_track()` does not map to them.
+### Known Gaps
 
-4. **Magic sounds not wired.** C16 (cast) and C17 (fail) have enum entries and WAV files but are not triggered by the magic system.
+1. **Player weapon swing sounds fire at wrong time.** `combat_system::initiate_attack` plays C1/C2/C3/C5/C18 immediately on attack start instead of at the correct animation frame (frame 5 for melee swords, frame 2 for bows, frame 3 for axes). Fix requires storing weapon type on entity so `update_animation` can determine which sound to play.
 
-5. **Eat/food sounds not wired.** C19/C20 have enum entries, helper functions, and WAV files but are not triggered by item usage.
+2. **Player weapon swing sounds only play for local player.** Remote players' attacks (received via network) don't play weapon swing sounds because `combat_system::initiate_attack` is only called locally, and entities don't store weapon type for frame-driven playback. Fix: add `weapon_type` field to entity (from appearance data or attack broadcast).
 
-6. **Impact sounds not wired.** C6 (sword impact) and C7 (arrow impact) are not played on hit -- combat plays swing sounds but not impact confirmation.
+3. **Player critical hit sounds fire at wrong time and only for local player.** Should play at frame 2 of attack animation. Same root cause as weapon swing: need attack metadata on entity for frame-driven playback.
+
+4. **Level up sound only plays for local player.** Network handlers for stat updates don't go through `combat_system::add_experience`. Fix: trigger from the network message handler that processes level-up notifications.
+
+5. **Most effect sounds loaded but unused.** Only E14 (button click) is triggered. E1-E53 are loaded but not wired to spell effects, environmental sounds, etc.
+
+6. **No battle or boss music.** Multiple tracks exist on disk (battle1-10.ogg, boss.ogg) but `select_bgm_track()` does not map to them.
+
+7. **Magic failed sound not wired.** C17 has an enum entry and WAV file but is not triggered when spell casting fails.
+
+8. **Eat/food sounds not wired.** C19/C20 have enum entries, helper functions, and WAV files but are not triggered by item usage.
+
+9. **Impact sounds not wired.** C6 (sword impact) and C7 (arrow impact) are not played on hit -- only swing sounds play, not impact confirmation.

@@ -205,6 +205,10 @@ void ws_message_handler::handle_message(const json& message)
             handle_guild_info_response(message);
         else if (type == msg_type::guild_update)
             handle_guild_update(message);
+        else if (type == msg_type::available_commands)
+            handle_available_commands(message);
+        else if (type == msg_type::command_availability_update)
+            handle_command_availability_update(message);
         else if (type == msg_type::pong)
             handle_pong(message);
         else if (type == msg_type::error_msg)
@@ -2874,6 +2878,50 @@ void ws_message_handler::handle_guild_update(const json& message)
     {
         game_->get_status_log().add_event("Guild MOTD: " + data.motd, message_color::green);
         request_guild_info();
+    }
+}
+
+void ws_message_handler::handle_available_commands(const json& message)
+{
+    if (!message.contains("data") || !message["data"].contains("commands"))
+    {
+        spdlog::warn("available_commands: missing data.commands");
+        return;
+    }
+
+    std::vector<command_entry> commands;
+    for (const auto& cmd_json : message["data"]["commands"])
+    {
+        command_entry entry;
+        if (cmd_json.contains("name")) entry.name = cmd_json["name"].get<std::string>();
+        if (cmd_json.contains("description")) entry.description = cmd_json["description"].get<std::string>();
+        if (cmd_json.contains("usage")) entry.usage = cmd_json["usage"].get<std::string>();
+        if (cmd_json.contains("category")) entry.category = cmd_json["category"].get<std::string>();
+        if (cmd_json.contains("enabled")) entry.enabled = cmd_json["enabled"].get<bool>();
+        commands.push_back(std::move(entry));
+    }
+
+    spdlog::info("Received {} available commands from server", commands.size());
+    game_->chat_input().set_commands(std::move(commands));
+}
+
+void ws_message_handler::handle_command_availability_update(const json& message)
+{
+    if (!message.contains("data") || !message["data"].contains("commands"))
+    {
+        spdlog::warn("command_availability_update: missing data.commands");
+        return;
+    }
+
+    auto& chat = game_->chat_input();
+    for (const auto& cmd_json : message["data"]["commands"])
+    {
+        if (cmd_json.contains("name") && cmd_json.contains("enabled"))
+        {
+            chat.update_command_availability(
+                cmd_json["name"].get<std::string>(),
+                cmd_json["enabled"].get<bool>());
+        }
     }
 }
 

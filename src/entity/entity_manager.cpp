@@ -1340,11 +1340,15 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
                     m.target_x = -1;
                     m.target_y = -1;
                 }
-                // Always transition to idle on arrival when no path remains.
-                // The input handler will re-evaluate and start the next step
-                // on the next frame if a movement destination is still active.
+                // For the local player in a movement animation (run/walk), defer
+                // the idle transition to avoid a 1-frame animation flash between
+                // tiles during continuous movement. The input handler will either
+                // continue movement or transition to idle on the next frame.
                 if (e.id() == local_player_id_) {
-                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                    auto anim_state = e.animation().state;
+                    if (anim_state != entity_anim_state::run && anim_state != entity_anim_state::move) {
+                        e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
+                    }
                 } else {
                     e.set_action(object_action::stop_peace);
                 }

@@ -129,6 +129,8 @@ private:
     void handle_guild_set_motd_response(const json& message);
     void handle_guild_info_response(const json& message);
     void handle_guild_update(const json& message);
+    void handle_available_commands(const json& message);
+    void handle_command_availability_update(const json& message);
     void handle_pong(const json& message);
     void handle_error(const json& message);
 

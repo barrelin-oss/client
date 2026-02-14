@@ -549,6 +549,32 @@ void input_handler::handle_movement_input(const input& inp)
                                             should_run, next_x, next_y);
         game_->ws_connection().send(msg);
     }
+
+    // Deferred idle: when the movement system skips the idle transition at tile
+    // arrival (to avoid a 1-frame animation flash between tiles), we handle the
+    // transition here. If no movement input is active, go to idle now.
+    if (!player->transform().moving)
+    {
+        auto state = player->animation().state;
+        if (state == entity_anim_state::run || state == entity_anim_state::move)
+        {
+            bool has_movement_input =
+                move_dest_x_ >= 0 ||
+                inp.is_key_down(sf::Keyboard::Key::W) ||
+                inp.is_key_down(sf::Keyboard::Key::S) ||
+                inp.is_key_down(sf::Keyboard::Key::A) ||
+                inp.is_key_down(sf::Keyboard::Key::D) ||
+                inp.is_key_down(sf::Keyboard::Key::Up) ||
+                inp.is_key_down(sf::Keyboard::Key::Down) ||
+                inp.is_key_down(sf::Keyboard::Key::Left) ||
+                inp.is_key_down(sf::Keyboard::Key::Right);
+
+            if (!has_movement_input)
+            {
+                player->set_action_with_combat_mode(object_action::stop_peace, combat_mode_);
+            }
+        }
+    }
 }
 
 void input_handler::update_pathfinding_trace()

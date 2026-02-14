@@ -6,6 +6,137 @@
 
 namespace hb {
 
+// ============================================================
+// Command autocomplete helpers
+// ============================================================
+
+void chat_input_overlay::set_commands(std::vector<command_entry> commands)
+{
+    // Add client-side commands that never go to the server
+    commands.push_back({"to", "Whisper to a player", "/to <player>", "chat", true});
+    commands.push_back({"tooff", "Stop whispering", "/tooff", "chat", true});
+
+    // Sort by category display order, then alphabetically within each category
+    std::sort(commands.begin(), commands.end(), [](const command_entry& a, const command_entry& b)
+    {
+        int oa = category_sort_order(a.category);
+        int ob = category_sort_order(b.category);
+        if (oa != ob) return oa < ob;
+        return a.name < b.name;
+    });
+
+    commands_ = std::move(commands);
+    spdlog::info("Chat autocomplete: received {} commands", commands_.size());
+}
+
+void chat_input_overlay::update_command_availability(const std::string& name, bool enabled)
+{
+    for (auto& cmd : commands_)
+    {
+        if (cmd.name == name)
+        {
+            cmd.enabled = enabled;
+            return;
+        }
+    }
+}
+
+int32_t chat_input_overlay::category_sort_order(const std::string& cat)
+{
+    if (cat == "general") return 0;
+    if (cat == "chat") return 1;
+    if (cat == "guild") return 2;
+    if (cat == "gm") return 3;
+    if (cat == "admin") return 4;
+    return 5;
+}
+
+sf::Color chat_input_overlay::category_stripe_color(const std::string& cat)
+{
+    if (cat == "general") return sf::Color(200, 200, 200);
+    if (cat == "guild") return sf::Color(100, 200, 100);
+    if (cat == "chat") return sf::Color(120, 180, 255);
+    if (cat == "gm") return sf::Color(0, 220, 220);
+    if (cat == "admin") return sf::Color(220, 100, 100);
+    return sf::Color(140, 140, 140);
+}
+
+sf::Color chat_input_overlay::category_tint_color(const std::string& cat)
+{
+    auto c = category_stripe_color(cat);
+    return sf::Color(c.r, c.g, c.b, 18);
+}
+
+void chat_input_overlay::update_popup_filter()
+{
+    popup_filtered_.clear();
+
+    // Popup only when input starts with "/" and has no space yet
+    if (input_text_.empty() || input_text_[0] != '/')
+    {
+        popup_visible_ = false;
+        return;
+    }
+    if (input_text_.find(' ') != std::string::npos)
+    {
+        popup_visible_ = false;
+        return;
+    }
+
+    // Extract the prefix after "/"
+    std::string prefix = input_text_.substr(1);
+    // Convert to lowercase for case-insensitive matching
+    for (char& c : prefix)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    for (const auto& cmd : commands_)
+    {
+        if (!cmd.enabled) continue;
+
+        // Match if command name starts with prefix
+        if (prefix.empty())
+        {
+            popup_filtered_.push_back(&cmd);
+        }
+        else
+        {
+            std::string lower_name = cmd.name;
+            for (char& c : lower_name)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (lower_name.starts_with(prefix))
+                popup_filtered_.push_back(&cmd);
+        }
+    }
+
+    popup_visible_ = !popup_filtered_.empty();
+
+    // Clamp selection
+    if (popup_selected_ >= static_cast<int32_t>(popup_filtered_.size()))
+        popup_selected_ = std::max(0, static_cast<int32_t>(popup_filtered_.size()) - 1);
+
+    // Clamp scroll
+    int32_t max_scroll = std::max(0, static_cast<int32_t>(popup_filtered_.size()) - popup_max_visible);
+    if (popup_scroll_offset_ > max_scroll)
+        popup_scroll_offset_ = max_scroll;
+}
+
+void chat_input_overlay::select_popup_command()
+{
+    if (popup_selected_ < 0 || popup_selected_ >= static_cast<int32_t>(popup_filtered_.size()))
+        return;
+
+    const auto* cmd = popup_filtered_[popup_selected_];
+    input_text_ = "/" + cmd->name + " ";
+    cursor_pos_ = input_text_.size();
+    popup_visible_ = false;
+    popup_selected_ = 0;
+    popup_scroll_offset_ = 0;
+}
+
+// ============================================================
+// Activation / deactivation
+// ============================================================
+
 void chat_input_overlay::activate()
 {
     active_ = true;
@@ -13,6 +144,10 @@ void chat_input_overlay::activate()
     cursor_pos_ = 0;
     blink_timer_ = 0.0f;
     cursor_visible_ = true;
+    popup_visible_ = false;
+    popup_selected_ = 0;
+    popup_scroll_offset_ = 0;
+    popup_hovered_ = -1;
 
     // If whisper mode is persistent, keep it; otherwise default to say
     if (!whisper_active_)
@@ -26,7 +161,12 @@ void chat_input_overlay::deactivate()
     active_ = false;
     input_text_.clear();
     cursor_pos_ = 0;
+    popup_visible_ = false;
 }
+
+// ============================================================
+// Update
+// ============================================================
 
 bool chat_input_overlay::update(float delta_time, const input& inp)
 {
@@ -61,6 +201,7 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
                     activate();
                     input_text_ = "/";
                     cursor_pos_ = 1;
+                    update_popup_filter();
                     return true;
                 default:
                     // Type-to-chat: any printable character opens chat and seeds input
@@ -88,21 +229,104 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
         cursor_visible_ = !cursor_visible_;
     }
 
-    // Escape cancels
-    if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+    // --- Popup input interception ---
+    if (popup_visible_)
     {
-        deactivate();
-        return true;
+        // Mouse hover detection
+        int32_t mx = inp.mouse_x();
+        int32_t my = inp.mouse_y();
+        if (mx >= popup_x_ && mx < popup_x_ + popup_width_ &&
+            my >= popup_y_ && my < popup_y_ + popup_height_)
+        {
+            int32_t row = (my - popup_y_) / popup_row_height + popup_scroll_offset_;
+            if (row >= 0 && row < static_cast<int32_t>(popup_filtered_.size()))
+                popup_hovered_ = row;
+            else
+                popup_hovered_ = -1;
+
+            // Mouse click selects
+            if (inp.is_mouse_pressed(sf::Mouse::Button::Left) && popup_hovered_ >= 0)
+            {
+                popup_selected_ = popup_hovered_;
+                select_popup_command();
+                update_popup_filter();
+                return true;
+            }
+        }
+        else
+        {
+            popup_hovered_ = -1;
+        }
+
+        // Mouse wheel scrolls popup
+        int32_t wheel = inp.wheel_delta();
+        if (wheel != 0)
+        {
+            popup_scroll_offset_ -= wheel;
+            int32_t max_scroll = std::max(0, static_cast<int32_t>(popup_filtered_.size()) - popup_max_visible);
+            popup_scroll_offset_ = std::clamp(popup_scroll_offset_, 0, max_scroll);
+        }
+
+        // Up/Down navigate selection
+        if (inp.is_key_pressed(sf::Keyboard::Key::Up))
+        {
+            popup_selected_--;
+            if (popup_selected_ < 0)
+                popup_selected_ = static_cast<int32_t>(popup_filtered_.size()) - 1;
+            // Adjust scroll to keep selection visible
+            if (popup_selected_ < popup_scroll_offset_)
+                popup_scroll_offset_ = popup_selected_;
+            if (popup_selected_ >= popup_scroll_offset_ + popup_max_visible)
+                popup_scroll_offset_ = popup_selected_ - popup_max_visible + 1;
+            return true;
+        }
+        if (inp.is_key_pressed(sf::Keyboard::Key::Down))
+        {
+            popup_selected_++;
+            if (popup_selected_ >= static_cast<int32_t>(popup_filtered_.size()))
+                popup_selected_ = 0;
+            // Adjust scroll to keep selection visible
+            if (popup_selected_ < popup_scroll_offset_)
+                popup_scroll_offset_ = popup_selected_;
+            if (popup_selected_ >= popup_scroll_offset_ + popup_max_visible)
+                popup_scroll_offset_ = popup_selected_ - popup_max_visible + 1;
+            return true;
+        }
+
+        // Enter or Tab selects highlighted command
+        if (inp.is_key_pressed(sf::Keyboard::Key::Enter) ||
+            inp.is_key_pressed(sf::Keyboard::Key::Tab))
+        {
+            select_popup_command();
+            update_popup_filter();
+            return true;
+        }
+
+        // Escape closes popup (not the chat bar)
+        if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+        {
+            popup_visible_ = false;
+            return true;
+        }
+    }
+    else
+    {
+        // Popup not visible — normal Escape cancels chat
+        if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+        {
+            deactivate();
+            return true;
+        }
+
+        // Enter sends
+        if (inp.is_key_pressed(sf::Keyboard::Key::Enter))
+        {
+            send_current();
+            return true;
+        }
     }
 
-    // Enter sends
-    if (inp.is_key_pressed(sf::Keyboard::Key::Enter))
-    {
-        send_current();
-        return true;
-    }
-
-    // Navigation keys
+    // Navigation keys (always active)
     if (inp.is_key_pressed(sf::Keyboard::Key::Backspace) && cursor_pos_ > 0)
     {
         input_text_.erase(cursor_pos_ - 1, 1);
@@ -147,8 +371,15 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
         blink_timer_ = 0.0f;
     }
 
+    // Update popup filter after any text change
+    update_popup_filter();
+
     return true;  // Consuming all input while active
 }
+
+// ============================================================
+// Render
+// ============================================================
 
 void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t screen_height)
 {
@@ -210,7 +441,97 @@ void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t sc
         int32_t cursor_x = text_x + static_cast<int32_t>(rend.text().measure_width(cursor_sub, font_size));
         rend.draw_line(cursor_x, bar_y + 3, cursor_x, bar_y + bar_height - 3, sf::Color::White);
     }
+
+    // --- Command autocomplete popup ---
+    if (popup_visible_ && !popup_filtered_.empty())
+    {
+        int32_t visible_count = std::min(static_cast<int32_t>(popup_filtered_.size()), popup_max_visible);
+        int32_t ph = visible_count * popup_row_height;
+        int32_t px = bar_x;
+        int32_t py = bar_y - ph - 2;
+        int32_t pw = bar_width;
+
+        // Cache geometry for mouse hit testing
+        popup_x_ = px;
+        popup_y_ = py;
+        popup_width_ = pw;
+        popup_height_ = ph;
+
+        // Background
+        rend.draw_rect(px, py, pw, ph, sf::Color(20, 20, 30, 230), true);
+        rend.draw_rect(px, py, pw, ph, sf::Color(60, 60, 80), false);
+
+        constexpr int32_t stripe_width = 3;
+        constexpr int32_t name_offset_x = stripe_width + 6;
+
+        for (int32_t i = 0; i < visible_count; ++i)
+        {
+            int32_t idx = i + popup_scroll_offset_;
+            if (idx < 0 || idx >= static_cast<int32_t>(popup_filtered_.size())) break;
+
+            const auto* cmd = popup_filtered_[idx];
+            int32_t row_y = py + i * popup_row_height;
+
+            // Category background tint
+            rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
+                category_tint_color(cmd->category), true);
+
+            // Selection or hover highlight
+            if (idx == popup_selected_)
+            {
+                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
+                    sf::Color(60, 60, 120, 200), true);
+            }
+            else if (idx == popup_hovered_)
+            {
+                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
+                    sf::Color(50, 50, 90, 150), true);
+            }
+
+            // Category color stripe (left edge)
+            rend.draw_rect(px + 1, row_y, stripe_width, popup_row_height,
+                category_stripe_color(cmd->category), true);
+
+            int32_t text_y = row_y + 3;
+
+            // Command name
+            std::string name_str = "/" + cmd->name;
+            rend.draw_text(name_str, px + name_offset_x, text_y,
+                sf::Color::White, font_size);
+
+            // Description (after command name, with gap)
+            float name_w = rend.text().measure_width(name_str, font_size);
+            int32_t desc_x = px + name_offset_x + static_cast<int32_t>(name_w) + 12;
+            rend.draw_text(cmd->description, desc_x, text_y,
+                sf::Color(160, 160, 160), font_size);
+
+            // Usage (right-aligned)
+            float usage_w = rend.text().measure_width(cmd->usage, font_size);
+            int32_t usage_x = px + pw - static_cast<int32_t>(usage_w) - 8;
+            // Only draw if it wouldn't overlap description
+            if (usage_x > desc_x + 40)
+            {
+                rend.draw_text(cmd->usage, usage_x, text_y,
+                    sf::Color(100, 100, 100), font_size);
+            }
+        }
+
+        // Scroll indicator: draw a subtle line if there are more items above/below
+        if (popup_scroll_offset_ > 0)
+        {
+            rend.draw_line(px + 4, py + 1, px + pw - 4, py + 1, sf::Color(100, 100, 140));
+        }
+        int32_t total = static_cast<int32_t>(popup_filtered_.size());
+        if (popup_scroll_offset_ + popup_max_visible < total)
+        {
+            rend.draw_line(px + 4, py + ph - 1, px + pw - 4, py + ph - 1, sf::Color(100, 100, 140));
+        }
+    }
 }
+
+// ============================================================
+// Chat logic (unchanged)
+// ============================================================
 
 void chat_input_overlay::send_current()
 {

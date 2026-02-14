@@ -203,6 +203,28 @@ When working on the client:
 
 ---
 
+## Documentation Requirements
+
+### Protocol Changes
+
+Any change to the client/server protocol **MUST** be documented in:
+- `docs/JSON_PROTOCOL.md` - Message format specification
+- `docs/protocol/` - Detailed protocol documentation
+
+### Progress Tracking
+
+- Major features **MUST** be checked off in `docs/PROGRESS.md`
+- All changes **SHOULD** be logged in `docs/PROGRESS.md` under `## Recent Changes` using:
+
+```
+### YYYY-MM-DD: Summary
+- Individual items
+- Individual items
+...
+```
+
+---
+
 ## AI Assistant Guidelines
 
 **Ask questions frequently.** Use AskUserQuestion liberally to ensure proper guidance:

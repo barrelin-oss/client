@@ -142,6 +142,10 @@ namespace msg_type {
     inline constexpr const char* guild_info_request = "guild_info_request";
     inline constexpr const char* guild_info_response = "guild_info_response";
     inline constexpr const char* guild_update = "guild_update";
+
+    // Command autocomplete
+    inline constexpr const char* available_commands = "available_commands";
+    inline constexpr const char* command_availability_update = "command_availability_update";
 }
 
 // Character info from server (used in get_characters_response)

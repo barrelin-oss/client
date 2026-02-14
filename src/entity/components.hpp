@@ -239,6 +239,7 @@ struct combat_component {
     };
 
     combat_mode mode = combat_mode::attack_monster;
+    bool combat_stance = false;  // Visual combat stance (combat idle/walk animations)
     uint32_t target_id = 0;
     uint8_t attack_type = 0;
     bool is_attacking = false;

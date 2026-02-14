@@ -103,6 +103,10 @@ namespace msg_type {
     inline constexpr const char* player_death_info = "player_death_info";
     inline constexpr const char* player_respawn_request = "player_respawn_request";
     inline constexpr const char* player_teleport = "player_teleport";
+    inline constexpr const char* combat_mode_change_request = "combat_mode_change_request";
+    inline constexpr const char* combat_mode_change_response = "combat_mode_change_response";
+    inline constexpr const char* combat_mode_change_broadcast = "combat_mode_change_broadcast";
+    inline constexpr const char* player_action_broadcast = "player_action_broadcast";
 
     // Magic
     inline constexpr const char* player_magic_request = "player_magic_request";
@@ -1148,6 +1152,10 @@ inline json make_chat_message_request(std::string_view content, std::string_view
 
 // Convenience function to build a player attack request
 // target_type: 1 = player, 2 = npc
+inline json make_combat_mode_change_request() {
+    return message_builder(msg_type::combat_mode_change_request).build();
+}
+
 inline json make_player_attack_request(uint32_t target_id, uint8_t target_type,
                                         int32_t player_x, int32_t player_y,
                                         uint8_t attack_type = 0, uint8_t direction = 0) {
@@ -1342,6 +1350,7 @@ struct entity_spawn_data {
     std::string pk_status;
     std::string guild_name;
     std::string guild_tag;
+    bool combat_mode = false;
 
     static entity_spawn_data from_json(const json& j) {
         entity_spawn_data data;
@@ -1359,6 +1368,7 @@ struct entity_spawn_data {
             if (d.contains("pk_status")) data.pk_status = d["pk_status"].get<std::string>();
             if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
             if (d.contains("guild_tag")) data.guild_tag = d["guild_tag"].get<std::string>();
+            if (d.contains("combat_mode")) data.combat_mode = d["combat_mode"].get<bool>();
         }
         return data;
     }
@@ -1508,6 +1518,58 @@ struct equipment_change_broadcast_data {
             if (d.contains("slot")) data.slot = d["slot"].get<uint8_t>();
             if (d.contains("item_id")) data.item_id = d["item_id"].get<uint32_t>();
             if (d.contains("template_id")) data.template_id = d["template_id"].get<uint32_t>();
+        }
+        return data;
+    }
+};
+
+// Combat mode change broadcast data
+struct combat_mode_change_broadcast_data {
+    uint32_t entity_id = 0;
+    bool combat_mode = false;
+
+    static combat_mode_change_broadcast_data from_json(const json& j) {
+        combat_mode_change_broadcast_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("combat_mode")) data.combat_mode = d["combat_mode"].get<bool>();
+        }
+        return data;
+    }
+};
+
+// Combat mode change response data
+struct combat_mode_change_response_data {
+    bool combat_mode = false;
+
+    static combat_mode_change_response_data from_json(const json& j) {
+        combat_mode_change_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("combat_mode")) data.combat_mode = d["combat_mode"].get<bool>();
+        }
+        return data;
+    }
+};
+
+// Player action broadcast data
+struct player_action_broadcast_data {
+    uint32_t entity_id = 0;
+    std::string action;
+    int16_t direction = 0;
+    uint32_t target_id = 0;
+    uint32_t spell_id = 0;
+
+    static player_action_broadcast_data from_json(const json& j) {
+        player_action_broadcast_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("entity_id")) data.entity_id = d["entity_id"].get<uint32_t>();
+            if (d.contains("action")) data.action = d["action"].get<std::string>();
+            if (d.contains("direction")) data.direction = d["direction"].get<int16_t>();
+            if (d.contains("target_id")) data.target_id = d["target_id"].get<uint32_t>();
+            if (d.contains("spell_id")) data.spell_id = d["spell_id"].get<uint32_t>();
         }
         return data;
     }

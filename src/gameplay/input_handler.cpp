@@ -125,7 +125,7 @@ void input_handler::handle_playing_input(const input& inp)
         // Auto-switch to attack mode when readying a spell
         if (!combat_mode_)
         {
-            combat_mode_ = true;
+            game_->toggle_combat_mode();
             spdlog::debug("Combat mode auto-enabled for spell targeting");
         }
 
@@ -1064,7 +1064,7 @@ void input_handler::handle_hotkey_input(const input& inp)
     // Toggle attack mode (Tab)
     if (inp.is_key_pressed(sf::Keyboard::Key::Tab))
     {
-        combat_mode_ = !combat_mode_;
+        game_->toggle_combat_mode();
         spdlog::debug("Combat mode toggled: {}", combat_mode_ ? "attack" : "peace");
 
         entity* player = game_->local_player();

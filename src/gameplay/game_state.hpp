@@ -206,7 +206,7 @@ public:
 
     // Combat mode (forwarded to input_handler)
     bool is_combat_mode() const { return input_handler_.is_combat_mode(); }
-    void toggle_combat_mode() { input_handler_.toggle_combat_mode(); }
+    void toggle_combat_mode() { input_handler_.toggle_combat_mode(); ws_handler_.request_combat_mode_toggle(); }
 
     // Camera drag lock (forwarded to input_handler)
     void set_camera_drag_locked(bool locked) { input_handler_.set_camera_drag_locked(locked); }

@@ -1148,10 +1148,11 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             case entity_anim_state::magic_attack:
             case entity_anim_state::get_item:
                 // Return to idle after these animations (combat idle if in combat mode)
-                if (e.id() == local_player_id_) {
-                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
-                } else {
-                    e.set_action(object_action::stop_peace);
+                {
+                    bool combat = (e.id() == local_player_id_)
+                        ? local_player_combat_mode
+                        : (e.has_combat() && e.combat().combat_stance);
+                    e.set_action_with_combat_mode(object_action::stop_peace, combat);
                 }
                 break;
             case entity_anim_state::dying:
@@ -1321,10 +1322,11 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
             } else {
                 m.path.clear();
                 m.path_index = 0;
-                if (e.id() == local_player_id_) {
-                    e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
-                } else {
-                    e.set_action(object_action::stop_peace);
+                {
+                    bool combat = (e.id() == local_player_id_)
+                        ? local_player_combat_mode
+                        : (e.has_combat() && e.combat().combat_stance);
+                    e.set_action_with_combat_mode(object_action::stop_peace, combat);
                 }
             }
         } else {
@@ -1350,7 +1352,8 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
                         e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
                     }
                 } else {
-                    e.set_action(object_action::stop_peace);
+                    bool combat = e.has_combat() && e.combat().combat_stance;
+                    e.set_action_with_combat_mode(object_action::stop_peace, combat);
                 }
             }
         }

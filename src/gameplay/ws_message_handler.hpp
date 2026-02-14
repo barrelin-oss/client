@@ -41,6 +41,7 @@ public:
     void send_chat_preferences();
 
     // Combat
+    void request_combat_mode_toggle();
     void request_attack(uint32_t target_id, uint8_t attack_type = 0);
 
     // Magic
@@ -103,6 +104,9 @@ private:
     void handle_stat_update(const json& message);
     void handle_entity_hp_update(const json& message);
     void handle_equipment_change_broadcast(const json& message);
+    void handle_combat_mode_change_response(const json& message);
+    void handle_combat_mode_change_broadcast(const json& message);
+    void handle_player_action_broadcast(const json& message);
     void handle_player_equip_response(const json& message);
     void handle_player_unequip_response(const json& message);
     void handle_npc_death(const json& message);

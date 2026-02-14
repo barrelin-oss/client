@@ -153,6 +153,12 @@ void ws_message_handler::handle_message(const json& message)
             handle_entity_hp_update(message);
         else if (type == msg_type::equipment_change_broadcast)
             handle_equipment_change_broadcast(message);
+        else if (type == msg_type::combat_mode_change_response)
+            handle_combat_mode_change_response(message);
+        else if (type == msg_type::combat_mode_change_broadcast)
+            handle_combat_mode_change_broadcast(message);
+        else if (type == msg_type::player_action_broadcast)
+            handle_player_action_broadcast(message);
         else if (type == msg_type::player_equip_response)
             handle_player_equip_response(message);
         else if (type == msg_type::player_unequip_response)
@@ -723,21 +729,74 @@ void ws_message_handler::handle_player_position_update(const json& message)
         }
     }
 
-    t.tile_x = data.x;
-    t.tile_y = data.y;
-    t.move_start_x = data.x;
-    t.move_start_y = data.y;
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
-    t.x = data.x * hb::tile_width + 16;
-    t.y = data.y * hb::tile_height + 16;
 
-    if (ent->has_movement())
+    bool is_local = (data.entity_id == entities.local_player_id());
+    bool has_dest = (data.dest_x >= 0 && data.dest_y >= 0)
+                    && (data.dest_x != data.x || data.dest_y != data.y);
+
+    if (is_local || !ent->has_movement())
     {
-        ent->movement().running = data.is_running;
-        if (data.dest_x >= 0 && data.dest_y >= 0)
+        // Local player or no movement component: just snap
+        t.tile_x = data.x;
+        t.tile_y = data.y;
+        t.move_start_x = data.x;
+        t.move_start_y = data.y;
+        t.x = data.x * hb::tile_width + 16;
+        t.y = data.y * hb::tile_height + 16;
+    }
+    else
+    {
+        auto& m = ent->movement();
+        m.running = data.is_running;
+
+        if (has_dest)
         {
-            ent->movement().target_x = data.dest_x;
-            ent->movement().target_y = data.dest_y;
+            m.target_x = data.dest_x;
+            m.target_y = data.dest_y;
+        }
+
+        // Already interpolating toward this position — let it finish
+        if (t.moving && t.tile_x == data.x && t.tile_y == data.y)
+        {
+            // Nothing to do — arrival will handle transition
+        }
+        // Adjacent tile (1 step away) — interpolate from current to (x,y)
+        else if (std::abs(t.tile_x - data.x) <= 1 && std::abs(t.tile_y - data.y) <= 1
+                 && (t.tile_x != data.x || t.tile_y != data.y))
+        {
+            t.move_start_x = t.tile_x;
+            t.move_start_y = t.tile_y;
+            t.tile_x = data.x;
+            t.tile_y = data.y;
+            t.moving = true;
+            t.move_progress = 0.0f;
+            m.path.clear();
+            m.path_index = 0;
+
+            if (data.is_running)
+            {
+                ent->set_action(object_action::run);
+            }
+            else
+            {
+                bool combat = ent->has_combat() && ent->combat().combat_stance;
+                ent->set_action_with_combat_mode(object_action::move_peace, combat);
+            }
+        }
+        else
+        {
+            // Too far or same tile — snap
+            t.tile_x = data.x;
+            t.tile_y = data.y;
+            t.move_start_x = data.x;
+            t.move_start_y = data.y;
+            t.x = data.x * hb::tile_width + 16;
+            t.y = data.y * hb::tile_height + 16;
+            t.moving = false;
+            t.move_progress = 0.0f;
+            m.path.clear();
+            m.path_index = 0;
         }
     }
 
@@ -928,7 +987,8 @@ void ws_message_handler::handle_npc_move(const json& message)
         m.target_x = data.x;
         m.target_y = data.y;
 
-        ent->set_action(object_action::move_peace);
+        bool combat = ent->has_combat() && ent->combat().combat_stance;
+        ent->set_action_with_combat_mode(object_action::move_peace, combat);
     }
 
 }
@@ -1054,6 +1114,12 @@ void ws_message_handler::request_entity_info(uint32_t entity_id)
 {
     spdlog::debug("Requesting entity info for entity {}", entity_id);
     json msg = make_entity_info_request(entity_id);
+    game_->ws_connection().send(msg);
+}
+
+void ws_message_handler::request_combat_mode_toggle()
+{
+    json msg = make_combat_mode_change_request();
     game_->ws_connection().send(msg);
 }
 
@@ -2022,10 +2088,19 @@ void ws_message_handler::handle_entity_spawn(const json& message)
         ent.stats().max_hp = 100;
     }
 
-    ent.animation().set_state(entity_anim_state::stop);
+    if (ent.has_combat())
+    {
+        ent.combat().combat_stance = data.combat_mode;
+    }
 
-    spdlog::info("Entity spawned: {} '{}' id={} faction={} at ({},{})",
-                 data.type, data.name, data.entity_id, data.faction, data.x, data.y);
+    ent.animation().set_state(entity_anim_state::stop);
+    if (data.combat_mode)
+    {
+        ent.set_action(object_action::stop_combat);
+    }
+
+    spdlog::info("Entity spawned: {} '{}' id={} faction={} combat={} at ({},{})",
+                 data.type, data.name, data.entity_id, data.faction, data.combat_mode, data.x, data.y);
 }
 
 void ws_message_handler::handle_npc_spawn(const json& message)
@@ -2200,6 +2275,97 @@ void ws_message_handler::handle_equipment_change_broadcast(const json& message)
                   data.entity_id, data.slot, data.item_id, data.template_id);
 
     // TODO: Update other player's visual equipment when character rendering supports it
+}
+
+void ws_message_handler::handle_combat_mode_change_broadcast(const json& message)
+{
+    auto data = combat_mode_change_broadcast_data::from_json(message);
+
+    auto& entities = game_->entities();
+    entity* ent = entities.get_entity(data.entity_id);
+    if (!ent) return;
+
+    if (!ent->has_combat()) return;
+
+    ent->combat().combat_stance = data.combat_mode;
+
+    // Update current animation to reflect the stance change
+    auto& anim = ent->animation();
+    if (anim.state == entity_anim_state::stop)
+    {
+        ent->set_action(data.combat_mode ? object_action::stop_combat : object_action::stop_peace);
+    }
+    else if (anim.state == entity_anim_state::move)
+    {
+        ent->set_action(data.combat_mode ? object_action::move_combat : object_action::move_peace);
+    }
+
+    spdlog::debug("Entity {} combat stance: {}", data.entity_id, data.combat_mode);
+}
+
+void ws_message_handler::handle_combat_mode_change_response(const json& message)
+{
+    auto data = combat_mode_change_response_data::from_json(message);
+
+    // Apply the server-confirmed combat mode to the local player
+    auto& input = game_->input_handler();
+    input.set_combat_mode(data.combat_mode);
+
+    entity* player = game_->local_player();
+    if (player)
+    {
+        if (player->has_combat())
+            player->combat().combat_stance = data.combat_mode;
+
+        auto& anim = player->animation();
+        if (anim.state == entity_anim_state::stop)
+        {
+            player->set_action(data.combat_mode ? object_action::stop_combat : object_action::stop_peace);
+        }
+        else if (anim.state == entity_anim_state::move)
+        {
+            player->set_action(data.combat_mode ? object_action::move_combat : object_action::move_peace);
+        }
+    }
+
+    spdlog::debug("Combat mode confirmed: {}", data.combat_mode);
+}
+
+void ws_message_handler::handle_player_action_broadcast(const json& message)
+{
+    auto data = player_action_broadcast_data::from_json(message);
+    auto& entities = game_->entities();
+
+    // Don't apply to local player — we already play our own animations
+    if (data.entity_id == entities.local_player_id()) return;
+
+    entity* ent = entities.get_entity(data.entity_id);
+    if (!ent) return;
+
+    auto& t = ent->transform();
+    t.facing = direction_from_protocol(data.direction).value_or(t.facing);
+
+    if (data.action == "attack")
+    {
+        bool combat = ent->has_combat() && ent->combat().combat_stance;
+        ent->set_action_with_combat_mode(object_action::attack_peace, combat);
+    }
+    else if (data.action == "dash_attack")
+    {
+        bool combat = ent->has_combat() && ent->combat().combat_stance;
+        ent->set_action_with_combat_mode(object_action::attack_peace, combat);
+        ent->animation().set_state(entity_anim_state::attack_move);
+    }
+    else if (data.action == "magic")
+    {
+        ent->set_action(object_action::magic);
+    }
+    else if (data.action == "pickup")
+    {
+        ent->set_action(object_action::get_item);
+    }
+
+    spdlog::debug("Entity {} action broadcast: {} dir={}", data.entity_id, data.action, data.direction);
 }
 
 void ws_message_handler::handle_player_equip_response(const json& message)

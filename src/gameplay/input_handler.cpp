@@ -3,6 +3,7 @@
 #include "input/input.hpp"
 #include "core/direction_utils.hpp"
 #include "gameplay/pathfinding.hpp"
+#include "audio/sound_types.hpp"
 #include "ui/cursor.hpp"
 #include <spdlog/spdlog.h>
 
@@ -758,7 +759,9 @@ void input_handler::handle_combat_input(const input& inp)
     auto& entities = game_->entities();
     auto& world = game_->game_world();
 
-    if (inp.is_mouse_down(sf::Mouse::Button::Left))
+    bool left_click = inp.is_mouse_down(sf::Mouse::Button::Left);
+    bool right_click = inp.is_mouse_down(sf::Mouse::Button::Right);
+    if (left_click || right_click)
     {
         // Don't start a new attack while a non-interruptible animation is still playing
         entity* player = game_->local_player();
@@ -790,14 +793,15 @@ void input_handler::handle_combat_input(const input& inp)
         if (target && target->id() != entities.local_player_id() &&
             (target->type() == entity_type::monster || target->type() == entity_type::character))
         {
-            // Monsters: attack on plain left-click
+            // Monsters: attack on plain click
             // Players: attack only if Ctrl is held
             bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
                              inp.is_key_down(sf::Keyboard::Key::RControl);
 
             if (target->type() == entity_type::character && !ctrl_held)
             {
-                // Don't attack players without Ctrl - let movement handle this click
+                // Don't attack players without Ctrl — left-click falls through to movement,
+                // right-click falls through to face-direction
                 return;
             }
 
@@ -818,11 +822,16 @@ void input_handler::handle_combat_input(const input& inp)
             if (ranged)
             {
                 if (!cs.is_in_ranged_range(pid, target->id()))
-                    return;
+                    return;  // Out of range — right-click will face via movement handler
             }
             else if (!cs.is_in_melee_range(pid, target->id()))
             {
-                // Not adjacent — check for dash attack (2-tile range)
+                // Not adjacent — right-click never walks/dashes, just return
+                // (face-direction in handle_movement_input will run)
+                if (right_click)
+                    return;
+
+                // Left-click: check for dash attack (2-tile range)
                 bool ctrl_held_now = inp.is_key_down(sf::Keyboard::Key::LControl) ||
                                      inp.is_key_down(sf::Keyboard::Key::RControl);
                 if ((ctrl_held_now || force_attack_mode_) &&
@@ -859,6 +868,14 @@ void input_handler::handle_combat_input(const input& inp)
                         player->set_action(object_action::attack_combat_bow);
                     else
                         player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
+
+                    // Play weapon swing sound
+                    uint16_t weapon_type = 0;
+                    if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+                        weapon_type = weapon->type_id;
+                    character_sound sound = get_weapon_swing_sound(weapon_type);
+                    const auto& t = player->transform();
+                    game_->sounds().play_character_sound_at(sound, t.x, t.y);
                 }
             }
         }
@@ -1243,6 +1260,15 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
     // the anim state to attack_move for the 13-frame timing (sped up attack + hold at end).
     player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
     player->animation().set_state(entity_anim_state::attack_move);
+
+    // Play weapon swing sound
+    {
+        uint16_t weapon_type = 0;
+        if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+            weapon_type = weapon->type_id;
+        character_sound sound = get_weapon_swing_sound(weapon_type);
+        game_->sounds().play_character_sound_at(sound, t.x, t.y);
+    }
 
     // Clear pathfinding destination
     move_dest_x_ = -1;

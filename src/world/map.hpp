@@ -46,7 +46,6 @@ public:
     bool is_valid_position(int32_t x, int32_t y) const;
 
     // Update tile state
-    void set_tile_occupied(int32_t x, int32_t y, bool occupied);
     void set_tile_flag(int32_t x, int32_t y, tile_flag flag, bool set);
 
     // Coordinate conversion

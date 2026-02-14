@@ -2,13 +2,73 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace hb {
 
 class renderer;
 class entity;
+class input;
 
 namespace debug {
+
+// Snapshot of a single entity on the hovered tile (for debug display)
+struct tile_entity_info
+{
+    uint32_t id = 0;
+    std::string name;
+    int type = 0;       // entity_type as int
+    int action = 0;     // current_action as int
+    bool alive = true;
+    bool moving = false;
+    int direction = 0;
+};
+
+// Snapshot of tile state under the mouse cursor
+struct tile_info
+{
+    bool valid = false;
+    int32_t tile_x = 0;
+    int32_t tile_y = 0;
+
+    // Tile attributes
+    int16_t terrain_id = 0;
+    int16_t terrain_frame = 0;
+    int16_t object_id = 0;
+    int16_t object_frame = 0;
+    uint16_t roof_id = 0;
+    uint16_t flags = 0;
+    uint8_t light_level = 255;
+
+    // Decoded flags for display (static map data only)
+    bool walkable = false;
+    bool water = false;
+    bool lava = false;
+    bool ice = false;
+    bool swamp = false;
+    bool teleport = false;
+    bool blocks_sight = false;
+    bool blocks_magic = false;
+    bool safe_zone = false;
+    bool pvp_zone = false;
+
+    // Entities on this tile
+    std::vector<tile_entity_info> entities;
+
+    // Ground item (if any)
+    std::string ground_item_name;
+    uint32_t ground_item_id = 0;
+    int16_t ground_item_count = 0;
+};
+
+enum class debug_tab : uint8_t
+{
+    perf = 0,
+    world,
+    net,
+    input_tab,  // avoid name clash with hb::input
+    count
+};
 
 // Debug statistics overlay - displays FPS, camera info, and other debug data
 // Toggle via Settings dialog
@@ -26,8 +86,11 @@ public:
     void set_visible(bool visible) { visible_ = visible; }
     bool visible() const { return visible_; }
 
-    // Update stats (call every frame)
-    void update(float delta_time);
+    // Update stats (call every frame, before input handling)
+    void update(float delta_time, const hb::input& inp);
+
+    // Whether the debug panel consumed a mouse click this frame
+    bool consumed_mouse_click() const { return consumed_mouse_click_; }
 
     // Render the stats overlay
     void render(renderer& rend);
@@ -69,6 +132,7 @@ public:
     void set_mouse_world_pos(int32_t x, int32_t y) { mouse_world_x_ = x; mouse_world_y_ = y; }
     void set_mouse_tile_pos(int32_t x, int32_t y) { mouse_tile_x_ = x; mouse_tile_y_ = y; }
     void set_hovered_entity(const std::string& info) { hovered_entity_ = info; }
+    void set_hovered_tile(tile_info info) { hovered_tile_ = std::move(info); }
 
     // === Entity Info Overlay ===
     void set_entity_info_visible(bool visible) { entity_info_visible_ = visible; }
@@ -97,9 +161,21 @@ public:
 private:
     debug_stats() = default;
 
+    void handle_input(const hb::input& inp);
     void render_section(renderer& rend, int32_t& y, const char* title);
+    void render_tab_bar(renderer& rend, int32_t x, int32_t y);
+    void render_perf_tab(renderer& rend, int32_t x, int32_t& y);
+    void render_world_tab(renderer& rend, int32_t x, int32_t& y);
+    void render_net_tab(renderer& rend, int32_t x, int32_t& y);
+    void render_input_tab(renderer& rend, int32_t x, int32_t& y);
+    int32_t count_tab_lines(debug_tab tab) const;
 
     bool visible_ = false;
+
+    // Tab state
+    debug_tab active_tab_ = debug_tab::perf;
+    bool consumed_mouse_click_ = false;
+    int32_t last_box_height_ = 0;
 
     // FPS tracking
     float fps_timer_ = 0.0f;
@@ -156,6 +232,7 @@ private:
     int32_t mouse_tile_x_ = 0;
     int32_t mouse_tile_y_ = 0;
     std::string hovered_entity_;
+    tile_info hovered_tile_;
 
     // Game state
     std::string game_state_;
@@ -189,9 +266,10 @@ private:
 
     // Layout
     static constexpr int32_t padding_ = 10;
-    static constexpr int32_t line_height_ = 14;
-    static constexpr int32_t section_spacing_ = 6;
-    static constexpr int32_t box_width_ = 260;
+    static constexpr int32_t line_height_ = 13;
+    static constexpr int32_t section_spacing_ = 4;
+    static constexpr int32_t box_width_ = 240;
+    static constexpr int32_t tab_bar_height_ = 18;
 };
 
 } // namespace debug

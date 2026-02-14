@@ -166,10 +166,6 @@ bool map::is_valid_position(int32_t x, int32_t y) const {
     return x >= 0 && x < width_ && y >= 0 && y < height_;
 }
 
-void map::set_tile_occupied(int32_t x, int32_t y, bool occupied) {
-    set_tile_flag(x, y, tile_flag::occupied, occupied);
-}
-
 void map::set_tile_flag(int32_t x, int32_t y, tile_flag flag, bool set) {
     if (!is_valid_position(x, y)) {
         return;
@@ -188,7 +184,7 @@ bool map::is_walkable(int32_t x, int32_t y) const {
         return false;
     }
     const auto& t = tiles_[tile_index(x, y)];
-    return t.is_walkable() && !t.is_occupied();
+    return t.is_walkable();
 }
 
 bool map::has_line_of_sight(int32_t x1, int32_t y1, int32_t x2, int32_t y2) const {

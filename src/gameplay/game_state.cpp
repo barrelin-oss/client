@@ -185,6 +185,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud) {
 
     // Apply debug stats visibility from config
     debug::debug_stats::instance().set_visible(config::instance().video().show_debug_stats);
+    debug::debug_stats::instance().set_entity_info_visible(config::instance().video().show_entity_info);
 
     // Queue async initialization steps
     init_steps_.clear();
@@ -926,14 +927,18 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Update blocked movement cooldown
     input_handler_.update_cooldown(delta_time);
 
+    // Update debug stats early so consumed_mouse_click() is set before input handling
+    auto& debug_stats = debug::debug_stats::instance();
+    debug_stats.update(delta_time, inp);
+
     // Chat input overlay runs first - when active it consumes keyboard input.
     // Skip overlay activation when a dialog has text focus (e.g. chat search).
     bool chat_active = false;
     if (!ui_.has_text_focus())
         chat_active = chat_input_.update(delta_time, inp);
 
-    // Handle game input only when chat overlay is not active
-    if (!chat_active && !ui_.has_text_focus())
+    // Handle game input only when chat overlay is not active and debug panel didn't consume click
+    if (!chat_active && !ui_.has_text_focus() && !debug_stats.consumed_mouse_click())
         input_handler_.handle_input(inp);
 
     // Track alt key state for super attack indicator
@@ -964,6 +969,12 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Update entities
     entities_.update(delta_time, world_, input_handler_.is_combat_mode());
 
+    // Feed occupied tiles to map renderer for debug overlay
+    if (world_.render_config().show_walkability)
+        world_.set_occupied_tiles(entities_.get_occupied_tiles());
+    else
+        world_.clear_occupied_tiles();
+
     // Update camera to follow local player
     if (entity* player = local_player()) {
         const auto& transform = player->transform();
@@ -981,9 +992,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     // Update HUD
     update_icon_panel();
 
-    // Update debug stats
-    auto& debug_stats = debug::debug_stats::instance();
-    debug_stats.update(delta_time);
+    // Populate debug stats data (update already called earlier for input consumption)
     if (debug_stats.visible()) {
         int32_t cam_x = world_.camera_x();
         int32_t cam_y = world_.camera_y();
@@ -1059,35 +1068,70 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
         auto [tile_x, tile_y] = world_.screen_to_tile(scene_mx, scene_my);
         debug_stats.set_mouse_tile_pos(tile_x, tile_y);
 
+        // Populate hovered tile info
+        {
+            debug::tile_info ti;
+            const auto& m = world_.current_map();
+            if (m.is_loaded() && m.is_valid_position(tile_x, tile_y))
+            {
+                ti.valid = true;
+                ti.tile_x = tile_x;
+                ti.tile_y = tile_y;
+
+                const auto& t = m.get_tile(tile_x, tile_y);
+                ti.terrain_id = t.terrain_id;
+                ti.terrain_frame = t.terrain_frame;
+                ti.object_id = t.object_id;
+                ti.object_frame = t.object_frame;
+                ti.roof_id = t.roof_id;
+                ti.flags = static_cast<uint16_t>(t.flags);
+                ti.light_level = t.light_level;
+
+                ti.walkable = has_flag(t.flags, tile_flag::walkable);
+                ti.water = has_flag(t.flags, tile_flag::water);
+                ti.lava = has_flag(t.flags, tile_flag::lava);
+                ti.ice = has_flag(t.flags, tile_flag::ice);
+                ti.swamp = has_flag(t.flags, tile_flag::swamp);
+                ti.teleport = has_flag(t.flags, tile_flag::teleport);
+                ti.blocks_sight = has_flag(t.flags, tile_flag::blocks_sight);
+                ti.blocks_magic = has_flag(t.flags, tile_flag::blocks_magic);
+                ti.safe_zone = has_flag(t.flags, tile_flag::safe_zone);
+                ti.pvp_zone = has_flag(t.flags, tile_flag::pvp_zone);
+
+                // Entities on this tile
+                auto tile_entities = entities_.get_entities_on_tile(tile_x, tile_y);
+                for (const auto* ent : tile_entities)
+                {
+                    debug::tile_entity_info ei;
+                    ei.id = ent->id();
+                    ei.type = static_cast<int>(ent->type());
+                    ei.action = static_cast<int>(ent->current_action());
+                    ei.alive = ent->is_alive();
+                    ei.moving = ent->transform().moving;
+                    ei.direction = static_cast<int>(ent->transform().facing);
+                    if (ent->has_name())
+                        ei.name = ent->name().name;
+                    ti.entities.push_back(std::move(ei));
+                }
+
+                // Ground item
+                if (auto* item = ground_items_.get_at_tile(
+                        static_cast<int16_t>(tile_x), static_cast<int16_t>(tile_y)))
+                {
+                    ti.ground_item_id = item->item_id;
+                    ti.ground_item_name = item->name;
+                    ti.ground_item_count = item->count;
+                }
+            }
+            debug_stats.set_hovered_tile(std::move(ti));
+        }
+
         entity* hovered = entities_.get_entity_at_screen_pos(
             input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
         if (hovered && hovered->has_name()) {
             debug_stats.set_hovered_entity(hovered->name().name + " (ID:" + std::to_string(hovered->id()) + ")");
         } else {
             debug_stats.set_hovered_entity("");
-        }
-
-        debug_stats.set_hovered_entity_ptr(hovered);
-
-        // Auto-clear pinned entity if it was removed
-        if (debug_stats.pinned_entity() && debug_stats.pinned_entity()->should_remove())
-        {
-            debug_stats.clear_pinned_entity();
-        }
-
-        // Middle-click to pin/unpin entity for debug info
-        if (debug_stats.entity_info_visible() && inp.is_mouse_pressed(sf::Mouse::Button::Middle))
-        {
-            if (hovered && hovered != debug_stats.pinned_entity())
-            {
-                debug_stats.set_pinned_entity(hovered);
-                spdlog::debug("Pinned entity {} for debug info", hovered->id());
-            }
-            else
-            {
-                debug_stats.clear_pinned_entity();
-                spdlog::debug("Unpinned entity debug info");
-            }
         }
 
         // Audio
@@ -1101,6 +1145,42 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
 
         debug_stats.set_game_state("Playing");
         debug_stats.set_combat_mode(input_handler_.is_combat_mode(), input_handler_.is_safe_attack_mode());
+    }
+
+    // Entity info overlay - works independently of the debug stats panel
+    if (debug_stats.entity_info_visible())
+    {
+        int32_t cam_x = world_.camera_x();
+        int32_t cam_y = world_.camera_y();
+
+        entity* hovered = entities_.get_entity_at_screen_pos(
+            input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
+        debug_stats.set_hovered_entity_ptr(hovered);
+
+        // Auto-clear pinned entity if it was removed
+        if (debug_stats.pinned_entity() && debug_stats.pinned_entity()->should_remove())
+        {
+            debug_stats.clear_pinned_entity();
+        }
+
+        // Middle-click to pin/unpin entity for debug info
+        if (inp.is_mouse_pressed(sf::Mouse::Button::Middle))
+        {
+            if (hovered && hovered != debug_stats.pinned_entity())
+            {
+                debug_stats.set_pinned_entity(hovered);
+                spdlog::debug("Pinned entity {} for debug info", hovered->id());
+            }
+            else
+            {
+                debug_stats.clear_pinned_entity();
+                spdlog::debug("Unpinned entity debug info");
+            }
+        }
+    }
+    else
+    {
+        debug_stats.set_hovered_entity_ptr(nullptr);
     }
 
     // Update status log and floating text

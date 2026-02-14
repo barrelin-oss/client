@@ -417,6 +417,7 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_framerate(video.framerate_limit);
         settings_dlg->set_remember_position(video.remember_position);
         settings_dlg->set_show_debug_stats(video.show_debug_stats);
+        settings_dlg->set_show_entity_info(video.show_entity_info);
         settings_dlg->set_show_fps(video.show_fps);
         settings_dlg->set_aspect_mode(video.aspect_mode);
         settings_dlg->set_scale_filter(video.scale_filter);
@@ -624,6 +625,8 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_on_show_entity_info_change([](bool show) {
             spdlog::info("Entity info: {}", show ? "ON" : "OFF");
             debug::debug_stats::instance().set_entity_info_visible(show);
+            config::instance().video().show_entity_info = show;
+            config::instance().save();
         });
 
         settings_dlg->set_on_verbose_logging_change([](bool verbose) {

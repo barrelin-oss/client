@@ -1,11 +1,15 @@
 #include "debug/debug_stats.hpp"
 #include "entity/entity.hpp"
 #include "graphics/renderer.hpp"
+#include "input/input.hpp"
 #include <spdlog/spdlog.h>
 #include <cstdio>
 
 namespace hb {
 namespace debug {
+
+static constexpr const char* tab_labels[] = { "Perf", "World", "Net", "Input" };
+static constexpr int32_t tab_count = static_cast<int32_t>(debug_tab::count);
 
 debug_stats& debug_stats::instance()
 {
@@ -13,7 +17,7 @@ debug_stats& debug_stats::instance()
     return instance;
 }
 
-void debug_stats::update(float delta_time)
+void debug_stats::update(float delta_time, const hb::input& inp)
 {
     // Store delta time for display
     delta_time_ms_ = delta_time * 1000.0f;
@@ -39,6 +43,50 @@ void debug_stats::update(float delta_time)
         net_prev_sent_ = net_total_sent_;
         network_stats_timer_ = 0.0f;
     }
+
+    handle_input(inp);
+}
+
+void debug_stats::handle_input(const hb::input& inp)
+{
+    consumed_mouse_click_ = false;
+
+    if (!visible_)
+        return;
+
+    // Check if any mouse button is down (held) or freshly pressed
+    bool any_down = inp.is_mouse_down(sf::Mouse::Button::Left)
+                 || inp.is_mouse_down(sf::Mouse::Button::Right)
+                 || inp.is_mouse_down(sf::Mouse::Button::Middle);
+    if (!any_down)
+        return;
+
+    int32_t mx = inp.mouse_x();
+    int32_t my = inp.mouse_y();
+
+    // Check if mouse is within the panel bounds (using last frame's height)
+    if (mx < padding_ || mx > padding_ + box_width_ ||
+        my < padding_ || my > padding_ + last_box_height_)
+        return;
+
+    // Any mouse activity inside the panel is consumed
+    consumed_mouse_click_ = true;
+
+    // Left-click press on tab bar switches tabs
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
+    {
+        int32_t tab_bar_y = padding_ + 6 + line_height_ + 2 + section_spacing_;
+        if (my >= tab_bar_y && my < tab_bar_y + tab_bar_height_)
+        {
+            int32_t tab_area_x = mx - padding_;
+            int32_t tab_width = box_width_ / tab_count;
+            int32_t clicked_tab = tab_area_x / tab_width;
+            if (clicked_tab >= 0 && clicked_tab < tab_count)
+            {
+                active_tab_ = static_cast<debug_tab>(clicked_tab);
+            }
+        }
+    }
 }
 
 void debug_stats::render_section(renderer& rend, int32_t& y, const char* title)
@@ -48,68 +96,123 @@ void debug_stats::render_section(renderer& rend, int32_t& y, const char* title)
     y += line_height_;
 }
 
+void debug_stats::render_tab_bar(renderer& rend, int32_t x, int32_t y)
+{
+    int32_t tab_width = box_width_ / tab_count;
+
+    for (int32_t i = 0; i < tab_count; ++i)
+    {
+        int32_t tx = padding_ + i * tab_width;
+        bool active = (static_cast<int32_t>(active_tab_) == i);
+
+        if (active)
+        {
+            // Highlighted background for active tab
+            rend.draw_rect(tx + 1, y, tab_width - 2, tab_bar_height_,
+                           sf::Color(60, 80, 120, 200), true);
+            rend.draw_text(tab_labels[i], tx + (tab_width / 2) - 10, y + 3,
+                           sf::Color(220, 220, 240), 10);
+        }
+        else
+        {
+            rend.draw_text(tab_labels[i], tx + (tab_width / 2) - 10, y + 3,
+                           sf::Color(120, 120, 150), 10);
+        }
+    }
+
+    // Separator line below tab bar
+    rend.draw_line(x, y + tab_bar_height_, x + box_width_ - 16, y + tab_bar_height_,
+                   sf::Color(60, 60, 80));
+}
+
+int32_t debug_stats::count_tab_lines(debug_tab tab) const
+{
+    int32_t lines = 0;
+    int32_t spacings = 0;
+
+    switch (tab)
+    {
+    case debug_tab::perf:
+        // Performance: header + FPS + frame time + draw calls
+        lines += 4;
+        spacings += 1;
+        // Rendering: header + entities + objects + tiles + chunks
+        lines += 5;
+        spacings += 1;
+        // Assets: header + sprite cache + PAK files
+        lines += 3;
+        break;
+
+    case debug_tab::world:
+        // World: header + camera + entities
+        lines += 3;
+        if (!map_name_.empty()) lines += 1;
+        if (zoom_level_ != 1.0f) lines += 1;
+        if (!weather_.empty()) lines += 1;
+        if (!time_of_day_.empty()) lines += 1;
+        spacings += 1;
+        // Player: header + tile + world + movement
+        lines += 4;
+        if (player_level_ > 0) lines += 2;
+        break;
+
+    case debug_tab::net:
+        // Network: header + status + ping + messages
+        lines += 4;
+        spacings += 1;
+        // Game State: header + combat
+        lines += 2;
+        if (!game_state_.empty()) lines += 1;
+        break;
+
+    case debug_tab::input_tab:
+        // Input: header + screen + world + tile
+        lines += 4;
+        if (!hovered_entity_.empty()) lines += 1;
+        spacings += 1;
+        // Tile: header + coords + terrain + object + roof + flags + light
+        if (hovered_tile_.valid)
+        {
+            lines += 7;
+            // Flag detail line
+            lines += 1;
+            // Entities on tile
+            if (!hovered_tile_.entities.empty())
+            {
+                lines += 1; // "Entities:" label
+                lines += static_cast<int32_t>(hovered_tile_.entities.size());
+            }
+            // Ground item
+            if (hovered_tile_.ground_item_id > 0)
+                lines += 1;
+            spacings += 1;
+        }
+        // Audio: header + BGM + sounds
+        lines += 3;
+        spacings += 1;
+        // UI: header + dialogs
+        lines += 2;
+        break;
+
+    default:
+        break;
+    }
+
+    return lines * line_height_ + spacings * section_spacing_;
+}
+
 void debug_stats::render(renderer& rend)
 {
     if (!visible_)
-    {
         return;
-    }
 
-    // Calculate dynamic box height by counting content lines
-    int32_t content_lines = 0;
-    int32_t spacings = 0;
+    // Compute height for active tab content
+    int32_t content_height = count_tab_lines(active_tab_);
 
-    // Title + separator
-    content_lines += 1;
-    spacings += 1;
-
-    // Performance: header + FPS + frame time + draw calls
-    content_lines += 4;
-    spacings += 1;
-
-    // Network: header + status + ping + messages
-    content_lines += 4;
-    spacings += 1;
-
-    // Rendering: header + entities + objects + tiles + chunks
-    content_lines += 5;
-    spacings += 1;
-
-    // Assets: header + sprite cache + PAK files
-    content_lines += 3;
-    spacings += 1;
-
-    // World: header + camera + entities + zoom + weather + time
-    content_lines += 4;
-    if (!map_name_.empty()) content_lines += 1;
-    if (zoom_level_ != 1.0f) content_lines += 1;
-    if (!weather_.empty()) content_lines += 1;
-    if (!time_of_day_.empty()) content_lines += 1;
-    spacings += 1;
-
-    // Player: header + tile + world + movement + optional stats
-    content_lines += 4;
-    if (player_level_ > 0) content_lines += 2;
-    spacings += 1;
-
-    // Input: header + screen + world + tile + optional hover
-    content_lines += 4;
-    if (!hovered_entity_.empty()) content_lines += 1;
-    spacings += 1;
-
-    // Audio: header + BGM + sounds
-    content_lines += 3;
-    spacings += 1;
-
-    // UI: header + dialogs
-    content_lines += 2;
-    spacings += 1;
-
-    // Game State: header + optional state + combat
-    content_lines += 2;
-    if (!game_state_.empty()) content_lines += 1;
-
-    int32_t box_height = padding_ + 6 + content_lines * line_height_ + spacings * section_spacing_ + 2 + padding_;
+    // Total: padding + title + separator + tab bar + separator + content + padding
+    int32_t box_height = padding_ + 6 + line_height_ + 2 + section_spacing_
+                       + tab_bar_height_ + 2
+                       + content_height + padding_;
 
     // Draw semi-transparent background with soft shadow effect
     rend.draw_rect(padding_ + 3, padding_ + 3, box_width_, box_height,
@@ -121,16 +224,36 @@ void debug_stats::render(renderer& rend)
 
     int32_t x = padding_ + 8;
     int32_t y = padding_ + 6;
-    char buf[128];
 
     // Title
     rend.draw_text("Debug Stats", x, y, sf::Color(200, 200, 220), 11);
-    rend.draw_text("(Settings)", x + 80, y, sf::Color(120, 120, 140), 9);
     y += line_height_ + 2;
 
     // Separator
     rend.draw_line(x, y, x + box_width_ - 16, y, sf::Color(60, 60, 80));
     y += section_spacing_;
+
+    // Tab bar
+    render_tab_bar(rend, x, y);
+    y += tab_bar_height_ + 2;
+
+    // Dispatch to active tab
+    switch (active_tab_)
+    {
+    case debug_tab::perf:      render_perf_tab(rend, x, y);  break;
+    case debug_tab::world:     render_world_tab(rend, x, y);  break;
+    case debug_tab::net:       render_net_tab(rend, x, y);    break;
+    case debug_tab::input_tab: render_input_tab(rend, x, y);  break;
+    default: break;
+    }
+
+    // Store box height for next frame's input hit-testing
+    last_box_height_ = box_height;
+}
+
+void debug_stats::render_perf_tab(renderer& rend, int32_t x, int32_t& y)
+{
+    char buf[128];
 
     // === Performance ===
     render_section(rend, y, "Performance");
@@ -150,33 +273,6 @@ void debug_stats::render(renderer& rend)
     y += line_height_;
 
     snprintf(buf, sizeof(buf), "Draw calls: %u", draw_calls_);
-    rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
-    y += line_height_ + section_spacing_;
-
-    // === Network ===
-    render_section(rend, y, "Network");
-
-    const char* conn_status = network_connected_ ? "Connected" : "Disconnected";
-    sf::Color conn_color = network_connected_ ? sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
-    snprintf(buf, sizeof(buf), "Status: %s", conn_status);
-    rend.draw_text(buf, x + 8, y, conn_color, 10);
-    y += line_height_;
-
-    if (network_connected_ && ping_ms_ > 0)
-    {
-        snprintf(buf, sizeof(buf), "Ping: %d ms", ping_ms_);
-        sf::Color ping_color = ping_ms_ <= 50 ? sf::Color(100, 200, 100) :
-                               ping_ms_ <= 150 ? sf::Color(200, 200, 100) :
-                                                 sf::Color(200, 100, 100);
-        rend.draw_text(buf, x + 8, y, ping_color, 10);
-    }
-    else
-    {
-        rend.draw_text("Ping: --", x + 8, y, sf::Color(150, 150, 170), 10);
-    }
-    y += line_height_;
-
-    snprintf(buf, sizeof(buf), "Recv: %d/s  Sent: %d/s", messages_received_per_sec_, messages_sent_per_sec_);
     rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
     y += line_height_ + section_spacing_;
 
@@ -208,7 +304,12 @@ void debug_stats::render(renderer& rend)
 
     snprintf(buf, sizeof(buf), "PAK files: %d", pak_files_loaded_);
     rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
-    y += line_height_ + section_spacing_;
+    y += line_height_;
+}
+
+void debug_stats::render_world_tab(renderer& rend, int32_t x, int32_t& y)
+{
+    char buf[128];
 
     // === World ===
     render_section(rend, y, "World");
@@ -263,7 +364,6 @@ void debug_stats::render(renderer& rend)
     rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
     y += line_height_;
 
-    // Movement state
     if (player_moving_)
     {
         const char* move_type = player_running_ ? "Running" : "Walking";
@@ -291,22 +391,81 @@ void debug_stats::render(renderer& rend)
         rend.draw_text(buf, x + 8, y, hp_color, 10);
         y += line_height_;
     }
+}
 
-    y += section_spacing_;
+void debug_stats::render_net_tab(renderer& rend, int32_t x, int32_t& y)
+{
+    char buf[128];
+
+    // === Network ===
+    render_section(rend, y, "Network");
+
+    const char* conn_status = network_connected_ ? "Connected" : "Disconnected";
+    sf::Color conn_color = network_connected_ ? sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
+    snprintf(buf, sizeof(buf), "Status: %s", conn_status);
+    rend.draw_text(buf, x + 8, y, conn_color, 10);
+    y += line_height_;
+
+    if (network_connected_ && ping_ms_ > 0)
+    {
+        snprintf(buf, sizeof(buf), "Ping: %d ms", ping_ms_);
+        sf::Color ping_color = ping_ms_ <= 50 ? sf::Color(100, 200, 100) :
+                               ping_ms_ <= 150 ? sf::Color(200, 200, 100) :
+                                                 sf::Color(200, 100, 100);
+        rend.draw_text(buf, x + 8, y, ping_color, 10);
+    }
+    else
+    {
+        rend.draw_text("Ping: --", x + 8, y, sf::Color(150, 150, 170), 10);
+    }
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Recv: %d/s  Sent: %d/s", messages_received_per_sec_, messages_sent_per_sec_);
+    rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
+    y += line_height_ + section_spacing_;
+
+    // === Game State ===
+    render_section(rend, y, "Game State");
+
+    if (!game_state_.empty())
+    {
+        snprintf(buf, sizeof(buf), "State: %s", game_state_.c_str());
+        rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
+        y += line_height_;
+    }
+
+    const char* combat_str = combat_mode_ ? "Attack" : "Peace";
+    sf::Color combat_color = combat_mode_ ? sf::Color(200, 100, 100) : sf::Color(100, 200, 100);
+    snprintf(buf, sizeof(buf), "Combat: %s", combat_str);
+    rend.draw_text(buf, x + 8, y, combat_color, 10);
+
+    const char* safe_str = safe_attack_mode_ ? "Safe" : "PK";
+    sf::Color safe_color = safe_attack_mode_ ? sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
+    snprintf(buf, sizeof(buf), "  Mode: %s", safe_str);
+    rend.draw_text(buf, x + 100, y, safe_color, 10);
+    y += line_height_;
+}
+
+void debug_stats::render_input_tab(renderer& rend, int32_t x, int32_t& y)
+{
+    char buf[256];
+    const auto data_color = sf::Color(180, 180, 200);
+    const auto flag_on_color = sf::Color(200, 180, 100);
+    const auto flag_off_color = sf::Color(90, 90, 110);
 
     // === Input ===
     render_section(rend, y, "Input");
 
     snprintf(buf, sizeof(buf), "Mouse screen: (%d, %d)", mouse_screen_x_, mouse_screen_y_);
-    rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
     y += line_height_;
 
     snprintf(buf, sizeof(buf), "Mouse world: (%d, %d)", mouse_world_x_, mouse_world_y_);
-    rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
     y += line_height_;
 
     snprintf(buf, sizeof(buf), "Mouse tile: (%d, %d)", mouse_tile_x_, mouse_tile_y_);
-    rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
     y += line_height_;
 
     if (!hovered_entity_.empty())
@@ -317,6 +476,107 @@ void debug_stats::render(renderer& rend)
     }
 
     y += section_spacing_;
+
+    // === Tile Detail ===
+    if (hovered_tile_.valid)
+    {
+        render_section(rend, y, "Tile");
+
+        snprintf(buf, sizeof(buf), "Pos: (%d, %d)", hovered_tile_.tile_x, hovered_tile_.tile_y);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Terrain: %d (frame %d)",
+                 hovered_tile_.terrain_id, hovered_tile_.terrain_frame);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Object: %d (frame %d)",
+                 hovered_tile_.object_id, hovered_tile_.object_frame);
+        rend.draw_text(buf, x + 8, y, hovered_tile_.object_id ? data_color : flag_off_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Roof: %u", hovered_tile_.roof_id);
+        rend.draw_text(buf, x + 8, y, hovered_tile_.roof_id ? data_color : flag_off_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Light: %u  Flags: 0x%04X",
+                 hovered_tile_.light_level, hovered_tile_.flags);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        // Flag details - render each flag with on/off coloring
+        auto draw_flag = [&](int32_t fx, const char* label, bool on)
+        {
+            rend.draw_text(label, fx, y, on ? flag_on_color : flag_off_color, 9);
+        };
+        // "occupied" is derived: any alive entity on this tile
+        bool occupied = false;
+        for (const auto& ent : hovered_tile_.entities)
+            if (ent.alive) { occupied = true; break; }
+
+        int32_t fx = x + 8;
+        draw_flag(fx, "walk", hovered_tile_.walkable); fx += 30;
+        draw_flag(fx, "water", hovered_tile_.water); fx += 34;
+        draw_flag(fx, "lava", hovered_tile_.lava); fx += 28;
+        draw_flag(fx, "ice", hovered_tile_.ice); fx += 22;
+        draw_flag(fx, "safe", hovered_tile_.safe_zone); fx += 28;
+        draw_flag(fx, "pvp", hovered_tile_.pvp_zone); fx += 24;
+        draw_flag(fx, "occ", occupied);
+        y += line_height_;
+
+        // Entities on this tile
+        if (!hovered_tile_.entities.empty())
+        {
+            snprintf(buf, sizeof(buf), "Entities: %d",
+                     static_cast<int>(hovered_tile_.entities.size()));
+            rend.draw_text(buf, x + 8, y, data_color, 10);
+            y += line_height_;
+
+            for (const auto& ent : hovered_tile_.entities)
+            {
+                const char* alive_str = ent.alive ? "" : " [dead]";
+                const char* move_str = ent.moving ? " [mov]" : "";
+                if (!ent.name.empty())
+                {
+                    snprintf(buf, sizeof(buf), "#%u %s t:%d a:%d d:%d%s%s",
+                             ent.id, ent.name.c_str(), ent.type, ent.action,
+                             ent.direction, alive_str, move_str);
+                }
+                else
+                {
+                    snprintf(buf, sizeof(buf), "#%u t:%d a:%d d:%d%s%s",
+                             ent.id, ent.type, ent.action,
+                             ent.direction, alive_str, move_str);
+                }
+                sf::Color ent_color = ent.alive ? data_color : sf::Color(200, 100, 100);
+                rend.draw_text(buf, x + 16, y, ent_color, 9);
+                y += line_height_;
+            }
+        }
+
+        // Ground item
+        if (hovered_tile_.ground_item_id > 0)
+        {
+            if (hovered_tile_.ground_item_count > 1)
+            {
+                snprintf(buf, sizeof(buf), "Item: %s x%d (#%u)",
+                         hovered_tile_.ground_item_name.c_str(),
+                         hovered_tile_.ground_item_count,
+                         hovered_tile_.ground_item_id);
+            }
+            else
+            {
+                snprintf(buf, sizeof(buf), "Item: %s (#%u)",
+                         hovered_tile_.ground_item_name.c_str(),
+                         hovered_tile_.ground_item_id);
+            }
+            rend.draw_text(buf, x + 8, y, sf::Color(100, 200, 200), 10);
+            y += line_height_;
+        }
+
+        y += section_spacing_;
+    }
 
     // === Audio ===
     render_section(rend, y, "Audio");
@@ -341,28 +601,7 @@ void debug_stats::render(renderer& rend)
 
     snprintf(buf, sizeof(buf), "Open dialogs: %d", open_dialog_count_);
     rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
-    y += line_height_ + section_spacing_;
-
-    // === Game State ===
-    render_section(rend, y, "Game State");
-
-    if (!game_state_.empty())
-    {
-        snprintf(buf, sizeof(buf), "State: %s", game_state_.c_str());
-        rend.draw_text(buf, x + 8, y, sf::Color(180, 180, 200), 10);
-        y += line_height_;
-    }
-
-    // Combat mode
-    const char* combat_str = combat_mode_ ? "Attack" : "Peace";
-    sf::Color combat_color = combat_mode_ ? sf::Color(200, 100, 100) : sf::Color(100, 200, 100);
-    snprintf(buf, sizeof(buf), "Combat: %s", combat_str);
-    rend.draw_text(buf, x + 8, y, combat_color, 10);
-
-    const char* safe_str = safe_attack_mode_ ? "Safe" : "PK";
-    sf::Color safe_color = safe_attack_mode_ ? sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
-    snprintf(buf, sizeof(buf), "  Mode: %s", safe_str);
-    rend.draw_text(buf, x + 100, y, safe_color, 10);
+    y += line_height_;
 }
 
 void debug_stats::set_camera_bounds(int32_t left, int32_t top, int32_t right, int32_t bottom)

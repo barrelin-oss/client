@@ -111,6 +111,9 @@ public:
     size_t entity_count() const { return entities_.size(); }
     size_t entity_count_of_type(entity_type type) const;
 
+    // Get tile positions of all alive entities (for debug overlay)
+    std::vector<std::pair<int32_t, int32_t>> get_occupied_tiles() const;
+
 private:
     void cleanup_removed_entities();
     void update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode);

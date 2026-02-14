@@ -20,6 +20,7 @@ struct video_config {
     uint32_t framerate_limit = 60;  // 0 = unlimited
     bool show_fps = false;
     bool show_debug_stats = false;
+    bool show_entity_info = false;
     bool remember_position = false;
     int32_t window_x = -1;  // -1 = center on primary monitor
     int32_t window_y = -1;

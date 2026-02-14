@@ -164,6 +164,13 @@ public:
     }
     void clear_pathfinding_trace() { map_renderer_.clear_pathfinding_trace(); }
 
+    // Occupied tile debug overlay
+    void set_occupied_tiles(std::vector<std::pair<int32_t, int32_t>> tiles)
+    {
+        map_renderer_.set_occupied_tiles(std::move(tiles));
+    }
+    void clear_occupied_tiles() { map_renderer_.clear_occupied_tiles(); }
+
     // Zoom control
     void set_zoom_mode_enabled(bool enabled);
     bool is_zoom_mode_enabled() const { return zoom_mode_enabled_; }

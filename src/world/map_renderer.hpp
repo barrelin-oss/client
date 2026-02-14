@@ -85,6 +85,13 @@ public:
     }
     void clear_pathfinding_trace() { pathfinding_trace_.clear(); }
 
+    // Occupied tile debug overlay (yellow tint when show_walkability is on)
+    void set_occupied_tiles(std::vector<std::pair<int32_t, int32_t>> tiles)
+    {
+        occupied_tiles_ = std::move(tiles);
+    }
+    void clear_occupied_tiles() { occupied_tiles_.clear(); }
+
     // Invalidate all chunk caches (call when map changes)
     void invalidate_chunks();
 
@@ -128,6 +135,7 @@ private:
     tile_sprite_registry* registry_ = nullptr;
     map_render_config config_;
     std::vector<std::pair<int32_t, int32_t>> pathfinding_trace_;
+    std::vector<std::pair<int32_t, int32_t>> occupied_tiles_;
     int32_t objects_rendered_ = 0;
 
     // Screen dimensions for calculating visible tile range

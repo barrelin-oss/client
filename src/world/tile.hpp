@@ -21,8 +21,6 @@ enum class tile_flag : uint16_t {
     blocks_magic = 1 << 7,
     safe_zone = 1 << 8,
     pvp_zone = 1 << 9,
-    occupied = 1 << 10,  // Entity standing here
-    item_present = 1 << 11,
 };
 
 inline tile_flag operator|(tile_flag a, tile_flag b) {
@@ -52,7 +50,6 @@ struct tile {
     bool is_teleport() const { return has_flag(flags, tile_flag::teleport); }
     bool is_safe_zone() const { return has_flag(flags, tile_flag::safe_zone); }
     bool blocks_sight() const { return has_flag(flags, tile_flag::blocks_sight); }
-    bool is_occupied() const { return has_flag(flags, tile_flag::occupied); }
 };
 
 // Tile animation data

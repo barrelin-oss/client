@@ -207,11 +207,17 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
                     // Green tint for teleport tiles
                     rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(0, 255, 0, 100), true);
                 }
-                else if (t.is_occupied())
-                {
-                    // Yellow tint for occupied tiles
-                    rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(255, 255, 0, 100), true);
-                }
+            }
+        }
+
+        // Occupied tile overlay (yellow)
+        for (const auto& [tx, ty] : occupied_tiles_)
+        {
+            if (tx >= range.start_x && tx < range.end_x &&
+                ty >= range.start_y && ty < range.end_y)
+            {
+                auto [sx, sy] = tile_to_screen(tx, ty, camera_x, camera_y);
+                rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(255, 255, 0, 100), true);
             }
         }
 

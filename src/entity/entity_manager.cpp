@@ -876,6 +876,17 @@ std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_
     return result;
 }
 
+std::vector<std::pair<int32_t, int32_t>> entity_manager::get_occupied_tiles() const {
+    std::vector<std::pair<int32_t, int32_t>> result;
+    for (const auto& [id, e] : entities_) {
+        if (e->should_remove()) continue;
+        if (!e->is_alive()) continue;
+        const auto& t = e->transform();
+        result.emplace_back(t.tile_x, t.tile_y);
+    }
+    return result;
+}
+
 entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y) {
     for (auto& [id, e] : entities_) {
         if (e->should_remove()) continue;

@@ -71,6 +71,7 @@ bool config::load(std::string_view path) {
             if (v.contains("framerate_limit")) video_.framerate_limit = v["framerate_limit"].get<uint32_t>();
             if (v.contains("show_fps")) video_.show_fps = v["show_fps"].get<bool>();
             if (v.contains("show_debug_stats")) video_.show_debug_stats = v["show_debug_stats"].get<bool>();
+            if (v.contains("show_entity_info")) video_.show_entity_info = v["show_entity_info"].get<bool>();
             if (v.contains("remember_position")) video_.remember_position = v["remember_position"].get<bool>();
             if (v.contains("window_x")) video_.window_x = v["window_x"].get<int32_t>();
             if (v.contains("window_y")) video_.window_y = v["window_y"].get<int32_t>();
@@ -184,6 +185,7 @@ bool config::save(std::string_view path) const {
         {"framerate_limit", video_.framerate_limit},
         {"show_fps", video_.show_fps},
         {"show_debug_stats", video_.show_debug_stats},
+        {"show_entity_info", video_.show_entity_info},
         {"remember_position", video_.remember_position},
         {"window_x", video_.window_x},
         {"window_y", video_.window_y},

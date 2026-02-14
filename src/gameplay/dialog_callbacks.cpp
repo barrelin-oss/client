@@ -577,16 +577,14 @@ void dialog_callbacks::setup_callbacks()
         settings_dlg->set_on_music_enabled_change([this](bool enabled) {
             spdlog::info("Music: {}", enabled ? "enabled" : "disabled");
             config::instance().audio().music_enabled = enabled;
-            if (auto* a = game_->get_audio())
-            {
-                if (!enabled) a->stop_music();
-            }
+            game_->sounds().set_music_enabled(enabled);
             config::instance().save();
         });
 
-        settings_dlg->set_on_sfx_enabled_change([](bool enabled) {
+        settings_dlg->set_on_sfx_enabled_change([this](bool enabled) {
             spdlog::info("SFX: {}", enabled ? "enabled" : "disabled");
             config::instance().audio().sfx_enabled = enabled;
+            game_->sounds().set_sfx_enabled(enabled);
             config::instance().save();
         });
 

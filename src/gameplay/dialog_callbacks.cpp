@@ -528,6 +528,11 @@ void dialog_callbacks::setup_callbacks()
             config::instance().save();
         });
 
+        settings_dlg->set_on_show_entity_info_change([](bool show) {
+            spdlog::info("Entity info: {}", show ? "ON" : "OFF");
+            debug::debug_stats::instance().set_entity_info_visible(show);
+        });
+
         // === System tab callbacks ===
         settings_dlg->set_on_logout([this]() {
             spdlog::info("Logout requested");

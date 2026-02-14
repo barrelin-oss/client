@@ -1064,6 +1064,29 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
             debug_stats.set_hovered_entity("");
         }
 
+        debug_stats.set_hovered_entity_ptr(hovered);
+
+        // Auto-clear pinned entity if it was removed
+        if (debug_stats.pinned_entity() && debug_stats.pinned_entity()->should_remove())
+        {
+            debug_stats.clear_pinned_entity();
+        }
+
+        // Middle-click to pin/unpin entity for debug info
+        if (debug_stats.entity_info_visible() && inp.is_mouse_pressed(sf::Mouse::Button::Middle))
+        {
+            if (hovered && hovered != debug_stats.pinned_entity())
+            {
+                debug_stats.set_pinned_entity(hovered);
+                spdlog::debug("Pinned entity {} for debug info", hovered->id());
+            }
+            else
+            {
+                debug_stats.clear_pinned_entity();
+                spdlog::debug("Unpinned entity debug info");
+            }
+        }
+
         // Audio
         if (audio_) {
             debug_stats.set_active_sounds(static_cast<int32_t>(audio_->active_sound_count()));
@@ -1234,6 +1257,8 @@ void game_state_manager::render_playing(renderer& rend) {
     ds.set_objects_rendered(world_.objects_rendered());
 
     ds.render(rend);
+    ds.render_entity_info(rend, static_cast<int32_t>(renderer_->width()),
+                          static_cast<int32_t>(renderer_->height()));
 
     // Server time & weather status bar (top-right corner)
     {

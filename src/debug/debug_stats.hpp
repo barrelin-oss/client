@@ -6,6 +6,7 @@
 namespace hb {
 
 class renderer;
+class entity;
 
 namespace debug {
 
@@ -68,6 +69,15 @@ public:
     void set_mouse_world_pos(int32_t x, int32_t y) { mouse_world_x_ = x; mouse_world_y_ = y; }
     void set_mouse_tile_pos(int32_t x, int32_t y) { mouse_tile_x_ = x; mouse_tile_y_ = y; }
     void set_hovered_entity(const std::string& info) { hovered_entity_ = info; }
+
+    // === Entity Info Overlay ===
+    void set_entity_info_visible(bool visible) { entity_info_visible_ = visible; }
+    bool entity_info_visible() const { return entity_info_visible_; }
+    void set_hovered_entity_ptr(const entity* ent) { hovered_entity_ptr_ = ent; }
+    void set_pinned_entity(const entity* ent) { pinned_entity_ = ent; }
+    const entity* pinned_entity() const { return pinned_entity_; }
+    void clear_pinned_entity() { pinned_entity_ = nullptr; }
+    void render_entity_info(renderer& rend, int32_t screen_width, int32_t screen_height);
 
     // === Game State ===
     void set_game_state(const std::string& state) { game_state_ = state; }
@@ -169,6 +179,13 @@ private:
     // Audio
     int32_t active_sounds_ = 0;
     std::string bgm_track_;
+
+    // Entity info overlay
+    bool entity_info_visible_ = false;
+    const entity* hovered_entity_ptr_ = nullptr;
+    const entity* pinned_entity_ = nullptr;
+    static constexpr int32_t entity_info_width_ = 300;
+    static constexpr int32_t icon_panel_height_ = 46;
 
     // Layout
     static constexpr int32_t padding_ = 10;

@@ -1,4 +1,5 @@
 #include "debug/debug_stats.hpp"
+#include "entity/entity.hpp"
 #include "graphics/renderer.hpp"
 #include <spdlog/spdlog.h>
 #include <cstdio>
@@ -401,6 +402,354 @@ void debug_stats::set_player_movement(const std::string& direction, bool moving,
     player_moving_ = moving;
     player_move_progress_ = progress;
     player_running_ = running;
+}
+
+void debug_stats::render_entity_info(renderer& rend, int32_t screen_width, int32_t screen_height)
+{
+    if (!entity_info_visible_)
+    {
+        return;
+    }
+
+    const entity* ent = pinned_entity_ ? pinned_entity_ : hovered_entity_ptr_;
+    if (!ent)
+    {
+        return;
+    }
+
+    // Colors
+    const auto header_color = sf::Color(140, 180, 220);
+    const auto data_color = sf::Color(180, 180, 200);
+    const auto name_color = sf::Color(200, 200, 100);
+    const auto moving_color = sf::Color(200, 200, 100);
+    const auto low_hp_color = sf::Color(200, 100, 100);
+    const auto status_color = sf::Color(200, 100, 200);
+
+    // Count lines dynamically
+    int32_t content_lines = 0;
+    int32_t spacings = 0;
+
+    // Title + separator
+    content_lines += 1;
+    spacings += 1;
+
+    // Identity: header + ID + type + visual_type + alive + current_action
+    content_lines += 6;
+    spacings += 1;
+
+    // Transform: header + tile/move_start + world + dir/moving/progress
+    content_lines += 4;
+    spacings += 1;
+
+    // Animation: header + state/frame + timer/duration + loop/finished
+    content_lines += 4;
+    spacings += 1;
+
+    // Name (optional)
+    if (ent->has_name())
+    {
+        content_lines += 2; // header + name
+        if (!ent->name().guild_name.empty())
+        {
+            content_lines += 1;
+        }
+        content_lines += 1; // faction/hostile/pk/gm
+        spacings += 1;
+    }
+
+    // Stats (optional)
+    if (ent->has_stats())
+    {
+        content_lines += 6; // header + level/exp + HP/MP/SP + base stats + combat stats (2 lines)
+        spacings += 1;
+    }
+
+    // Combat (optional)
+    if (ent->has_combat())
+    {
+        content_lines += 3; // header + mode/target/attack + status effects
+        spacings += 1;
+    }
+
+    // Movement (optional)
+    if (ent->has_movement())
+    {
+        content_lines += 2; // header + speed/run/running/can_move
+        spacings += 1;
+    }
+
+    // Monster (optional)
+    if (ent->has_monster())
+    {
+        content_lines += 3; // header + type/level/owner + boss/summon/aggro/category
+        spacings += 1;
+    }
+
+    // NPC (optional)
+    if (ent->has_npc())
+    {
+        content_lines += 3; // header + type/id + roles
+        spacings += 1;
+    }
+
+    // Sprite: header + gender/skin/hair/underwear
+    content_lines += 2;
+
+    int32_t box_height = padding_ + 6 + content_lines * line_height_ + spacings * section_spacing_ + 2 + padding_;
+
+    // Position at bottom-right, above icon panel
+    int32_t box_x = screen_width - entity_info_width_ - 10;
+    int32_t box_y = screen_height - icon_panel_height_ - box_height - 10;
+
+    // Draw background (shadow + fill + border)
+    rend.draw_rect(box_x + 3, box_y + 3, entity_info_width_, box_height,
+                   sf::Color(0, 0, 0, 80), true);
+    rend.draw_rect(box_x, box_y, entity_info_width_, box_height,
+                   sf::Color(20, 20, 30, 220), true);
+    rend.draw_rect(box_x, box_y, entity_info_width_, box_height,
+                   sf::Color(60, 60, 80, 220), false);
+
+    int32_t x = box_x + 8;
+    int32_t y = box_y + 6;
+    char buf[256];
+
+    // Title
+    if (pinned_entity_)
+    {
+        rend.draw_text("Entity Info (pinned)", x, y, sf::Color(200, 200, 220), 11);
+    }
+    else
+    {
+        rend.draw_text("Entity Info", x, y, sf::Color(200, 200, 220), 11);
+    }
+    y += line_height_ + 2;
+
+    // Separator
+    rend.draw_line(x, y, x + entity_info_width_ - 16, y, sf::Color(60, 60, 80));
+    y += section_spacing_;
+
+    // === Identity ===
+    rend.draw_text("Identity", x, y, header_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "ID: %u", ent->id());
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Type: %d", static_cast<int>(ent->type()));
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Visual: %u", ent->visual_type());
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Alive: %s", ent->is_alive() ? "yes" : "no");
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Action: %d", static_cast<int>(ent->current_action()));
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_ + section_spacing_;
+
+    // === Transform ===
+    const auto& tf = ent->transform();
+
+    rend.draw_text("Transform", x, y, header_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Tile: (%d,%d)  Start: (%d,%d)",
+             tf.tile_x, tf.tile_y, tf.move_start_x, tf.move_start_y);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "World: (%d,%d)", tf.x, tf.y);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Dir: %d  Moving: %s  Prog: %.0f%%",
+             static_cast<int>(tf.facing), tf.moving ? "yes" : "no",
+             tf.move_progress * 100.0f);
+    sf::Color move_line_color = tf.moving ? moving_color : data_color;
+    rend.draw_text(buf, x + 8, y, move_line_color, 10);
+    y += line_height_ + section_spacing_;
+
+    // === Animation ===
+    const auto& anim = ent->animation();
+
+    rend.draw_text("Animation", x, y, header_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "State: %d  Frame: %d/%d",
+             static_cast<int>(anim.state), anim.current_frame, anim.frame_count);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Timer: %.0fms  Dur: %.0fms",
+             anim.frame_timer * 1000.0f, anim.frame_duration * 1000.0f);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Loop: %s  Finished: %s",
+             anim.looping ? "yes" : "no", anim.finished ? "yes" : "no");
+    rend.draw_text(buf, x + 8, y, data_color, 10);
+    y += line_height_ + section_spacing_;
+
+    // === Name (optional) ===
+    if (ent->has_name())
+    {
+        const auto& nm = ent->name();
+
+        rend.draw_text("Name", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Name: %s", nm.name.c_str());
+        rend.draw_text(buf, x + 8, y, name_color, 10);
+        y += line_height_;
+
+        if (!nm.guild_name.empty())
+        {
+            snprintf(buf, sizeof(buf), "Guild: %s", nm.guild_name.c_str());
+            rend.draw_text(buf, x + 8, y, data_color, 10);
+            y += line_height_;
+        }
+
+        const char* hostile_str = "neutral";
+        if (nm.hostile == hostility::friendly) hostile_str = "friendly";
+        else if (nm.hostile == hostility::enemy) hostile_str = "enemy";
+
+        const char* pk_str = "innocent";
+        if (nm.pk == pk_status::criminal) pk_str = "criminal";
+        else if (nm.pk == pk_status::murderer) pk_str = "murderer";
+
+        snprintf(buf, sizeof(buf), "%s  %s  %s%s",
+                 nm.faction.empty() ? "no-faction" : nm.faction.c_str(),
+                 hostile_str, pk_str,
+                 nm.is_gm ? "  GM" : "");
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === Stats (optional) ===
+    if (ent->has_stats())
+    {
+        const auto& st = ent->stats();
+
+        rend.draw_text("Stats", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Lv: %u  Exp: %u", st.level, st.exp);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        bool hp_low = st.max_hp > 0 && st.hp * 100 / st.max_hp <= 25;
+        snprintf(buf, sizeof(buf), "HP: %d/%d  MP: %d/%d  SP: %d/%d",
+                 st.hp, st.max_hp, st.mp, st.max_mp, st.sp, st.max_sp);
+        rend.draw_text(buf, x + 8, y, hp_low ? low_hp_color : data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "STR:%u VIT:%u DEX:%u INT:%u MAG:%u CHA:%u",
+                 st.strength, st.vitality, st.dexterity,
+                 st.intelligence, st.magic, st.charisma);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "ATK:%d DEF:%d HIT:%d DOD:%d",
+                 st.attack_power, st.defense, st.hit_ratio, st.dodge_ratio);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === Combat (optional) ===
+    if (ent->has_combat())
+    {
+        const auto& cb = ent->combat();
+
+        rend.draw_text("Combat", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Mode: %d  Target: %u  AtkType: %d",
+                 static_cast<int>(cb.mode), cb.target_id, cb.attack_type);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        bool any_status = cb.poisoned || cb.paralyzed || cb.frozen
+                       || cb.invisible || cb.invulnerable;
+        snprintf(buf, sizeof(buf), "PSN:%d PAR:%d FRZ:%d INV:%d INVULN:%d",
+                 cb.poisoned, cb.paralyzed, cb.frozen,
+                 cb.invisible, cb.invulnerable);
+        rend.draw_text(buf, x + 8, y, any_status ? status_color : data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === Movement (optional) ===
+    if (ent->has_movement())
+    {
+        const auto& mv = ent->movement();
+
+        rend.draw_text("Movement", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Spd: %.1f  Run: %.1f  Running: %s  CanMove: %s",
+                 mv.speed, mv.run_speed,
+                 mv.running ? "yes" : "no",
+                 mv.can_move ? "yes" : "no");
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === Monster (optional) ===
+    if (ent->has_monster())
+    {
+        const auto& mon = ent->monster();
+
+        rend.draw_text("Monster", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Type: %u  Lv: %u  Owner: %u",
+                 mon.monster_type, mon.monster_level, mon.owner_id);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Boss:%d Sum:%d Aggro:%d  %s",
+                 mon.is_boss, mon.is_summon, mon.is_aggressive,
+                 mon.category.empty() ? "" : mon.category.c_str());
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === NPC (optional) ===
+    if (ent->has_npc())
+    {
+        const auto& np = ent->npc();
+
+        rend.draw_text("NPC", x, y, header_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "Type: %u  ID: %u", np.npc_type, np.npc_id);
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_;
+
+        snprintf(buf, sizeof(buf), "%s%s%s%s%s",
+                 np.is_shop ? "Shop " : "",
+                 np.is_quest_giver ? "Quest " : "",
+                 np.is_banker ? "Bank " : "",
+                 np.is_warehouse ? "WH " : "",
+                 np.is_skill_trainer ? "Train" : "");
+        rend.draw_text(buf, x + 8, y, data_color, 10);
+        y += line_height_ + section_spacing_;
+    }
+
+    // === Sprite ===
+    const auto& sp = ent->sprite();
+
+    rend.draw_text("Sprite", x, y, header_color, 10);
+    y += line_height_;
+
+    snprintf(buf, sizeof(buf), "Gender:%d Skin:%d Hair:%d/%d Undw:%d",
+             sp.gender, sp.skin_color, sp.hair_style, sp.hair_color,
+             sp.underwear_color);
+    rend.draw_text(buf, x + 8, y, data_color, 10);
 }
 
 } // namespace debug

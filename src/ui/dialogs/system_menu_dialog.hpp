@@ -103,6 +103,7 @@ public:
     // Debug tab
     void set_show_debug_stats(bool v) { show_debug_stats_ = v; }
     void set_show_fps(bool v) { show_fps_ = v; }
+    void set_show_entity_info(bool v) { show_entity_info_ = v; }
     // GM flag (controls debug tab visibility)
     void set_is_gm(bool v) { is_gm_ = v; }
 
@@ -155,6 +156,7 @@ public:
     // Debug tab callbacks
     void set_on_show_debug_stats_change(bool_callback cb) { on_show_debug_stats_change_ = std::move(cb); }
     void set_on_show_fps_change(bool_callback cb) { on_show_fps_change_ = std::move(cb); }
+    void set_on_show_entity_info_change(bool_callback cb) { on_show_entity_info_change_ = std::move(cb); }
 
     // System tab callbacks
     void set_on_logout(callback cb) { on_logout_ = std::move(cb); }
@@ -302,6 +304,7 @@ private:
     // === Debug tab state ===
     bool show_debug_stats_ = false;
     bool show_fps_ = false;
+    bool show_entity_info_ = false;
     // === Callbacks ===
     // Game
     style_callback on_style_change_;
@@ -335,6 +338,7 @@ private:
     // Debug
     bool_callback on_show_debug_stats_change_;
     bool_callback on_show_fps_change_;
+    bool_callback on_show_entity_info_change_;
     // System
     callback on_logout_;
     callback on_exit_;
@@ -411,6 +415,7 @@ private:
     // Debug tab elements
     static constexpr int32_t elem_debug_stats = 90;
     static constexpr int32_t elem_show_fps_cb = 91;
+    static constexpr int32_t elem_show_entity_info = 92;
     // Dropdown item base indices
     static constexpr int32_t elem_monitor_item_base = 100;
     static constexpr int32_t elem_display_mode_item_base = 150;

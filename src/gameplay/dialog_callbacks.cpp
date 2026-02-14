@@ -626,6 +626,11 @@ void dialog_callbacks::setup_callbacks()
             debug::debug_stats::instance().set_entity_info_visible(show);
         });
 
+        settings_dlg->set_on_verbose_logging_change([](bool verbose) {
+            spdlog::info("Verbose logging: {}", verbose ? "ON" : "OFF");
+            spdlog::set_level(verbose ? spdlog::level::debug : spdlog::level::info);
+        });
+
         // === System tab callbacks ===
         settings_dlg->set_on_logout([this]() {
             spdlog::info("Logout requested");

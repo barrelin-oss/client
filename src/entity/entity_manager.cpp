@@ -228,7 +228,7 @@ static void init_npc_frame_table()
     set_ft(10, act_move, 120);
     set(10, act_attack, 3, 90);
     set(10, act_damage, 7, 150);   // 3+4
-    set(10, act_dying, 7, 240);
+    set(10, act_dying, 3, 240);
 
     // Skeleton (11)
     set(11, act_stop, 3, 150);
@@ -752,10 +752,6 @@ entity& entity_manager::create_entity_with_id(entity_id id, entity_type type) {
             e->add_monster();
             break;
 
-        case entity_type::item:
-            e->add_item();
-            break;
-
         case entity_type::effect:
             e->add_effect();
             break;
@@ -799,6 +795,26 @@ void entity_manager::remove_entity(entity_id id) {
     auto it = entities_.find(id);
     if (it != entities_.end()) {
         it->second->mark_for_removal();
+    }
+}
+
+void entity_manager::transition_to_dead(entity_id id) {
+    entity* ent = get_entity(id);
+    if (!ent) return;
+
+    ent->set_alive(false);
+
+    // Enforce 1-dead-per-tile: remove any existing corpse on this tile
+    const auto& t = ent->transform();
+    for (auto& [oid, other] : entities_)
+    {
+        if (oid == id || other->should_remove()) continue;
+        if (!other->is_alive() &&
+            other->transform().tile_x == t.tile_x &&
+            other->transform().tile_y == t.tile_y)
+        {
+            other->mark_for_removal();
+        }
     }
 }
 
@@ -863,6 +879,7 @@ std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_
 entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y) {
     for (auto& [id, e] : entities_) {
         if (e->should_remove()) continue;
+        if (!e->is_alive()) continue;  // Skip dead entities (corpses)
         if (id == local_player_id_) continue;  // Skip local player
 
         const auto& t = e->transform();
@@ -883,20 +900,25 @@ entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t scree
     entity* closest = nullptr;
     int32_t closest_dist_sq = INT32_MAX;
 
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
-        if (e->type() == entity_type::effect) continue; // Skip effects
+    // Two-pass: prefer alive entities, fall back to dead
+    for (int pass = 0; pass < 2; ++pass) {
+        bool want_alive = (pass == 0);
+        for (auto& [id, e] : entities_) {
+            if (e->should_remove()) continue;
+            if (e->type() == entity_type::effect) continue;
+            if (e->is_alive() != want_alive) continue;
 
-        const auto& t = e->transform();
-        int32_t dx = t.x - world_x;
-        int32_t dy = t.y - world_y;
-        int32_t dist_sq = dx * dx + dy * dy;
+            const auto& t = e->transform();
+            int32_t dx = t.x - world_x;
+            int32_t dy = t.y - world_y;
+            int32_t dist_sq = dx * dx + dy * dy;
 
-        // Check if within click radius (32 pixels)
-        if (dist_sq < 32 * 32 && dist_sq < closest_dist_sq) {
-            closest = e.get();
-            closest_dist_sq = dist_sq;
+            if (dist_sq < 32 * 32 && dist_sq < closest_dist_sq) {
+                closest = e.get();
+                closest_dist_sq = dist_sq;
+            }
         }
+        if (closest) break;  // Found alive entity, don't check dead
     }
 
     return closest;
@@ -913,12 +935,7 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
     int32_t screen_y = t.y - camera_y;
 
     // Get sprite bounds based on entity type
-    if (e.type() == entity_type::item) {
-        // Items use a simple 32x32 bounds centered at position
-        return (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 &&
-                mouse_y >= screen_y - 16 && mouse_y < screen_y + 16);
-    }
-    else if (e.type() == entity_type::effect) {
+    if (e.type() == entity_type::effect) {
         // Effects are not clickable
         return false;
     }
@@ -939,7 +956,10 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
         if (npc_spr && npc_spr->has_metadata()) {
-            sf::IntRect bounds = npc_spr->get_bounds(screen_x, screen_y, a.current_frame);
+            uint32_t frame = a.current_frame;
+            if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count())
+                frame = frame % npc_spr->frame_count();
+            sf::IntRect bounds = npc_spr->get_bounds(screen_x, screen_y, frame);
             return (mouse_x >= bounds.position.x && mouse_x < bounds.position.x + bounds.size.x &&
                     mouse_y >= bounds.position.y && mouse_y < bounds.position.y + bounds.size.y);
         }
@@ -958,8 +978,10 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         const sprite* body_spr = sprites.get_sprite_by_id(body_id);
 
         if (body_spr && body_spr->has_metadata()) {
-            // Get actual sprite bounds for current frame
-            sf::IntRect bounds = body_spr->get_bounds(screen_x, screen_y, a.current_frame);
+            uint32_t frame = a.current_frame;
+            if (body_spr->frame_count() > 0 && frame >= body_spr->frame_count())
+                frame = frame % body_spr->frame_count();
+            sf::IntRect bounds = body_spr->get_bounds(screen_x, screen_y, frame);
             return (mouse_x >= bounds.position.x && mouse_x < bounds.position.x + bounds.size.x &&
                     mouse_y >= bounds.position.y && mouse_y < bounds.position.y + bounds.size.y);
         }
@@ -993,7 +1015,12 @@ std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity
         const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
         if (npc_spr && npc_spr->has_metadata())
-            return npc_spr->get_bounds(screen_x, screen_y, a.current_frame);
+        {
+            uint32_t frame = a.current_frame;
+            if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count())
+                frame = frame % npc_spr->frame_count();
+            return npc_spr->get_bounds(screen_x, screen_y, frame);
+        }
     }
     else if (e.type() == entity_type::player || e.type() == entity_type::character)
     {
@@ -1005,7 +1032,12 @@ std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity
         const sprite* body_spr = sprites.get_sprite_by_id(body_id);
 
         if (body_spr && body_spr->has_metadata())
-            return body_spr->get_bounds(screen_x, screen_y, a.current_frame);
+        {
+            uint32_t frame = a.current_frame;
+            if (body_spr->frame_count() > 0 && frame >= body_spr->frame_count())
+                frame = frame % body_spr->frame_count();
+            return body_spr->get_bounds(screen_x, screen_y, frame);
+        }
     }
 
     return std::nullopt;
@@ -1086,14 +1118,6 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
         }
     }
 
-    // Update item pickup timer
-    if (e.has_item()) {
-        auto& item = e.item();
-        if (item.pickup_timer > 0) {
-            item.pickup_timer -= delta_time;
-        }
-    }
-
     // Update effect
     if (e.has_effect()) {
         auto& effect = e.effect();
@@ -1118,6 +1142,8 @@ struct monster_sounds
     monster_sound_entry attack;
     monster_sound_entry damage;
     int8_t damage_frame;
+    monster_sound_entry death;
+    int8_t death_frame;
 };
 
 static monster_sounds get_monster_sounds(uint16_t visual_type);
@@ -1132,6 +1158,10 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             apply_npc_frame_data(anim, vtype);
             // Clamp frame if override reduced frame_count below current position
             if (anim.current_frame >= anim.frame_count) {
+                if (anim.state == entity_anim_state::dying) {
+                    spdlog::warn("Entity {} dying frame CLAMPED: frame={} >= count={} (resetting to 0)",
+                                 e.id(), anim.current_frame, anim.frame_count);
+                }
                 anim.current_frame = 0;
             }
         }
@@ -1156,8 +1186,8 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
                 }
                 break;
             case entity_anim_state::dying:
-                // Transition to dead state
-                anim.set_state(entity_anim_state::dead);
+                // Hold on last frame — transition_to_dead already called at death time
+                anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
                 break;
             default:
                 break;
@@ -1169,6 +1199,11 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
     if (anim.frame_timer >= anim.frame_duration) {
         anim.frame_timer -= anim.frame_duration;
         anim.current_frame++;
+
+        if (!e.is_alive() && anim.state == entity_anim_state::dying) {
+            spdlog::debug("Entity {} dying frame tick: {}/{} (dt={:.3f} dur={:.3f})",
+                          e.id(), anim.current_frame, anim.frame_count, delta_time, anim.frame_duration);
+        }
 
         // Play footstep sounds on walk/run animations
         // Walk: frames 1 and 3 (alternating footsteps)
@@ -1250,6 +1285,18 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             }
         }
 
+        // Play monster/NPC death sound at per-type frame during dying animation
+        if ((e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+            anim.state == entity_anim_state::dying)
+        {
+            uint16_t vtype = get_entity_visual_type(e);
+            auto sounds = get_monster_sounds(vtype);
+            if (sounds.death.type != 0 && anim.current_frame == sounds.death_frame)
+            {
+                play_monster_sound(e, monster_sound_type::death);
+            }
+        }
+
         // Play magic cast sound at frame 1 of magic animation
         if ((anim.state == entity_anim_state::magic ||
              anim.state == entity_anim_state::magic_attack) &&
@@ -1267,6 +1314,10 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             } else {
                 anim.current_frame = anim.frame_count - 1;
                 anim.finished = true;
+                if (anim.state == entity_anim_state::dying) {
+                    spdlog::debug("Entity {} dying animation FINISHED at frame {}/{}",
+                                  e.id(), anim.current_frame, anim.frame_count);
+                }
             }
         }
     }
@@ -1412,9 +1463,13 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     }
 
     // Sort by Y position (entities lower on screen render on top)
+    // Dead entities (corpses) render before alive ones at the same Y
     std::sort(visible_entities.begin(), visible_entities.end(),
         [](const entity* a, const entity* b) {
-            return a->transform().y < b->transform().y;
+            if (a->transform().y != b->transform().y)
+                return a->transform().y < b->transform().y;
+            // Dead entities sort before alive at same Y (render underneath)
+            return !a->is_alive() && b->is_alive();
         });
 
     // Pass 1: Render all entity sprites, collecting hover state
@@ -1486,9 +1541,12 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
         }
     }
 
+    // Dead entities (corpses) render before alive ones at the same Y
     std::sort(visible_entities.begin(), visible_entities.end(),
         [](const entity* a, const entity* b) {
-            return a->transform().y < b->transform().y;
+            if (a->transform().y != b->transform().y)
+                return a->transform().y < b->transform().y;
+            return !a->is_alive() && b->is_alive();
         });
 
     return visible_entities;
@@ -1520,18 +1578,13 @@ void entity_manager::render_name_overlays(renderer& rend, sprite_manager& sprite
 
 void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, [[maybe_unused]] int32_t mouse_x, [[maybe_unused]] int32_t mouse_y) {
     const auto& t = e.transform();
-    const auto& s = e.sprite();
     const auto& a = e.animation();
 
     int32_t screen_x = t.x - camera_x;
     int32_t screen_y = t.y - camera_y;
 
     // Render sprite layers based on entity type (names/health drawn in separate pass)
-    if (e.type() == entity_type::item) {
-        if (s.body_sprite) {
-            rend.draw_sprite(*s.body_sprite, screen_x - 16, screen_y - 16, s.body_frame);
-        }
-    } else if (e.type() == entity_type::effect) {
+    if (e.type() == entity_type::effect) {
         if (e.has_effect() && e.effect().effect_sprite) {
             const auto& eff = e.effect();
             rend.draw_sprite(*eff.effect_sprite, screen_x + eff.offset_x, screen_y + eff.offset_y, eff.effect_frame);
@@ -1941,76 +1994,78 @@ void entity_manager::play_footstep_sound(const entity& e, bool running) {
 // Damage frame: older monsters (10-53) use frame 5, newer monsters (55+) use frame 1.
 static monster_sounds get_monster_sounds(uint16_t visual_type)
 {
-    //                      move          attack        damage        dmg_frame
+    //                      move          attack        damage        dmg_f  death         dth_f
     switch (visual_type)
     {
         // clang-format off
-        case 10: return {{'M',   1}, {'M',   2}, {'M',   3}, 5};  // Slime
-        case 11: return {{'M',  13}, {'M',  14}, {'M',  15}, 5};  // Skeleton
-        case 12: return {{'M',  33}, {'M',  34}, {'M',  35}, 5};  // Stone Golem
-        case 13: return {{'M',  41}, {'M',  42}, {'M',  43}, 5};  // Cyclops
-        case 14: return {{'M',   9}, {'M',  10}, {'M',  11}, 5};  // Orc
-        case 16: return {{'M',  29}, {'M',  30}, {'M',  31}, 5};  // Ant
-        case 17: return {{'M',  21}, {'M',  22}, {'M',  23}, 5};  // Scorpion
-        case 18: return {{'M',  17}, {'M',  18}, {'M',  19}, 5};  // Zombie
-        case 22: return {{'M',  25}, {'M',  26}, {'M',  27}, 5};  // Snake
-        case 23: return {{'M',  37}, {'M',  38}, {'M',  39}, 5};  // Clay Golem
-        case 27: return {{'M',   5}, {'M',   6}, {'M',   7}, 5};  // Hell Hound
-        case 28: return {{'M',  46}, {'M',  47}, {'M',  48}, 5};  // Troll
-        case 29: return {{'M',  51}, {'M',  52}, {'M',  53}, 5};  // Ogre
-        case 30: return {{'M',  55}, {'M',  56}, {'M',  57}, 5};  // Liche
-        case 31: return {{'M',  59}, {'M',  60}, {'M',  61}, 5};  // Demon
-        case 32: return {{'M',  63}, {'M',  64}, {'M',  65}, 5};  // Unicorn
-        case 33: return {{'M',  67}, {'M',  68}, {'M',  69}, 5};  // Werewolf
-        case 34: return {{  0,   0}, {  0,   0}, {'M',   2}, 5};  // Dummy
-        case 35: return {{  0,   0}, {  0,   0}, {'M',   2}, 5};  // Energy Ball
-        case 43: return {{'M',  29}, {'M',  30}, {'M',  31}, 5};  // LW Beetle (same as Ant)
-        case 44: return {{  0,   0}, {'C',   2}, {  0,   0}, 5};  // GHK (attack only)
-        case 45: return {{'M',  63}, {'C',   2}, {  0,   0}, 5};  // GHKABS
-        case 46: return {{  0,   0}, {'C',   2}, {  0,   0}, 5};  // TK (attack only)
-        case 47: return {{'M',  33}, {'M',  34}, {  0,   0}, 5};  // Beholder Giant
-        case 48: return {{'M',   9}, {'M',  10}, {'M',  11}, 5};  // Skeleton Knight (same as Orc)
-        case 49: return {{'M',  41}, {'M',  42}, {'M',  43}, 5};  // Hell Cyclops (same as Cyclops)
-        case 50: return {{'M',   1}, {'C',   1}, {  0,   0}, 5};  // Tree Warrior
-        case 52: return {{'M',  37}, {'C',   2}, {'M',  43}, 5};  // Gargoyle (dmg same as Cyclops)
-        case 53: return {{  0,   0}, {'E',  46}, {'M',   3}, 5};  // Beholder (dmg same as Slime)
-        case 55: return {{'M',  71}, {'M',  75}, {'M',  79}, 1};  // Rabbit
-        case 56: return {{'M',  72}, {'M',  76}, {'M',  80}, 1};  // Cat
-        case 57: return {{'M',  73}, {'M',  77}, {'M',  81}, 1};  // Giant Frog
-        case 58: return {{'M',  87}, {'M',  88}, {'M',  89}, 1};  // Mountain Giant
-        case 59: return {{'M',  91}, {'M',  92}, {'M',  93}, 1};  // Ettin
-        case 60: return {{'M',  95}, {'M',  96}, {'M',  97}, 1};  // Cannibal Plant
-        case 61: return {{'C',  11}, {'M',  38}, {'M',  69}, 1};  // Rudolph
-        case 62: return {{'M',  87}, {'M',  68}, {'M',  78}, 1};  // Dire Boar
-        case 63: return {{'M',  25}, {'C',   4}, {'C',  13}, 1};  // Frost
-        case 65: return {{'M',  33}, {'M',  34}, {'M',  35}, 5};  // Ice Golem (same as Stone Golem)
-        case 70: return {{'M', 130}, {'M', 131}, {'M', 128}, 1};  // Dragon
-        case 71: return {{'M', 117}, {'M', 119}, {'M', 116}, 1};  // Centaurus
-        case 72: return {{'M', 114}, {'M', 115}, {'M', 112}, 1};  // Claw Turtle
-        case 73: return {{'M', 106}, {'M', 107}, {  0,   0}, 0};  // Fire Wyvern (no damage sound)
-        case 74: return {{'M',  87}, {'M', 100}, {'M', 101}, 1};  // Giant Crayfish
-        case 75: return {{'M', 126}, {'M', 127}, {'M', 124}, 1};  // Giant Lizard
-        case 76: return {{'M', 122}, {'M', 123}, {'M', 120}, 1};  // Giant Tree
-        case 77: return {{'M',  91}, {'M',  78}, {'M',  89}, 1};  // Master Mage Orc (dmg same as Mt Giant)
-        case 78: return {{'M',  46}, {'M', 104}, {'M', 102}, 1};  // Minaus
-        case 79: return {{'M', 134}, {'M', 135}, {'M', 132}, 1};  // Nizie
-        case 80: return {{'M', 110}, {'M', 111}, {'M', 108}, 1};  // Tentacle
-        case 81: return {{'M', 136}, {'M', 137}, {'M', 138}, 1};  // Abaddon
-        case 82: return {{'M', 149}, {  0,   0}, {'M', 116}, 1};  // Sorceress (dmg same as Centaurus)
-        case 83: return {{'M', 142}, {'M', 140}, {'M', 143}, 1};  // ATK
-        case 84: return {{'C',  10}, {'C',   8}, {'C',   7}, 1};  // Master Elf
-        case 85: return {{'M', 147}, {'M', 145}, {'M', 148}, 1};  // DSK
-        case 86: return {{'M', 151}, {'M', 151}, {  0,   0}, 0};  // Heavy Battle Tank (no damage sound)
-        case 87: return {{'M', 153}, {'M', 153}, {  0,   0}, 0};  // Crossbow Turret (no damage sound)
-        case 88: return {{'M',  87}, {'M',  78}, {'M', 144}, 1};  // Barbarian
-        case 89: return {{'M', 155}, {'M', 155}, {  0,   0}, 0};  // Cannon Turret (no damage sound)
-        case 95: return {{'M', 149}, {'M', 149}, {'M', 129}, 1};  // Willowisp
-        case 96: return {{'E',   6}, {'M', 149}, {'M', 129}, 1};  // Air Elemental
-        case 97: return {{'E',   9}, {'E',   1}, {'E',  15}, 1};  // Fire Elemental
-        case 99: return {{'E',   6}, {'M', 149}, {'M', 129}, 1};  // Ice Elemental
+        case 10: return {{'M',   1}, {'M',   2}, {'M',   3}, 5, {'M',   4}, 5};  // Slime
+        case 11: return {{'M',  13}, {'M',  14}, {'M',  15}, 5, {'M',  16}, 5};  // Skeleton
+        case 12: return {{'M',  33}, {'M',  34}, {'M',  35}, 5, {'M',  36}, 5};  // Stone Golem
+        case 13: return {{'M',  41}, {'M',  42}, {'M',  43}, 5, {'M',  44}, 5};  // Cyclops
+        case 14: return {{'M',   9}, {'M',  10}, {'M',  11}, 5, {'M',  12}, 5};  // Orc
+        case 16: return {{'M',  29}, {'M',  30}, {'M',  31}, 5, {'M',  32}, 5};  // Ant
+        case 17: return {{'M',  21}, {'M',  22}, {'M',  23}, 5, {'M',  24}, 5};  // Scorpion
+        case 18: return {{'M',  17}, {'M',  18}, {'M',  19}, 5, {'M',  20}, 5};  // Zombie
+        case 22: return {{'M',  25}, {'M',  26}, {'M',  27}, 5, {'M',  28}, 5};  // Snake
+        case 23: return {{'M',  37}, {'M',  38}, {'M',  39}, 5, {'M',  40}, 5};  // Clay Golem
+        case 27: return {{'M',   5}, {'M',   6}, {'M',   7}, 5, {'M',   8}, 5};  // Hell Hound
+        case 28: return {{'M',  46}, {'M',  47}, {'M',  48}, 5, {'M',  49}, 5};  // Troll
+        case 29: return {{'M',  51}, {'M',  52}, {'M',  53}, 5, {'M',  54}, 5};  // Ogre
+        case 30: return {{'M',  55}, {'M',  56}, {'M',  57}, 5, {'M',  58}, 5};  // Liche
+        case 31: return {{'M',  59}, {'M',  60}, {'M',  61}, 5, {'M',  62}, 5};  // Demon
+        case 32: return {{'M',  63}, {'M',  64}, {'M',  65}, 5, {'M',  66}, 5};  // Unicorn
+        case 33: return {{'M',  67}, {'M',  68}, {'M',  69}, 5, {'M',  70}, 5};  // Werewolf
+        case 34: return {{  0,   0}, {  0,   0}, {'M',   2}, 5, {'M',   4}, 5};  // Dummy
+        case 35: return {{  0,   0}, {  0,   0}, {'M',   2}, 5, {'M',   4}, 5};  // Energy Ball
+        case 43: return {{'M',  29}, {'M',  30}, {'M',  31}, 5, {'M',  32}, 5};  // LW Beetle (same as Ant)
+        case 44: return {{  0,   0}, {'C',   2}, {  0,   0}, 5, {  0,   0}, 0};  // GHK (no death sound)
+        case 45: return {{'M',  63}, {'C',   2}, {  0,   0}, 5, {  0,   0}, 0};  // GHKABS
+        case 46: return {{  0,   0}, {'C',   2}, {  0,   0}, 5, {  0,   0}, 0};  // TK (no death sound)
+        case 47: return {{'M',  33}, {'M',  34}, {  0,   0}, 5, {'M',  36}, 5};  // Beholder Giant
+        case 48: return {{'M',   9}, {'M',  10}, {'M',  11}, 5, {'M',  12}, 5};  // Skeleton Knight (same as Orc)
+        case 49: return {{'M',  41}, {'M',  42}, {'M',  43}, 5, {'M',  44}, 5};  // Hell Cyclops (same as Cyclops)
+        case 50: return {{'M',   1}, {'C',   1}, {  0,   0}, 5, {'M',  58}, 5};  // Tree Warrior (same as Liche)
+        case 52: return {{'M',  37}, {'C',   2}, {'M',  43}, 5, {'M',  44}, 5};  // Gargoyle
+        case 53: return {{  0,   0}, {'E',  46}, {'M',   3}, 5, {'M',  39}, 5};  // Beholder
+        case 55: return {{'M',  71}, {'M',  75}, {'M',  79}, 1, {'M',  83}, 1};  // Rabbit
+        case 56: return {{'M',  72}, {'M',  76}, {'M',  80}, 1, {'M',  84}, 1};  // Cat
+        case 57: return {{'M',  73}, {'M',  77}, {'M',  81}, 1, {'M',  85}, 1};  // Giant Frog
+        case 58: return {{'M',  87}, {'M',  88}, {'M',  89}, 1, {'M',  90}, 1};  // Mountain Giant
+        case 59: return {{'M',  91}, {'M',  92}, {'M',  93}, 1, {'M',  94}, 1};  // Ettin
+        case 60: return {{'M',  95}, {'M',  96}, {'M',  97}, 1, {'M',  98}, 1};  // Cannibal Plant
+        case 61: return {{'C',  11}, {'M',  38}, {'M',  69}, 1, {'M',  65}, 1};  // Rudolph
+        case 62: return {{'M',  87}, {'M',  68}, {'M',  78}, 1, {'M',  94}, 1};  // Dire Boar
+        case 63: return {{'M',  25}, {'C',   4}, {'C',  13}, 1, {  0,   0}, 0};  // Frost (no death sound)
+        case 65: return {{'M',  33}, {'M',  34}, {'M',  35}, 5, {'M',  36}, 5};  // Ice Golem (same as Stone Golem)
+        case 66: return {{  0,   0}, {  0,   0}, {  0,   0}, 0, {'E',   7}, 1};  // Wyvern
+        case 70: return {{'M', 130}, {'M', 131}, {'M', 128}, 1, {'M', 129}, 1};  // Dragon
+        case 71: return {{'M', 117}, {'M', 119}, {'M', 116}, 1, {'M', 129}, 1};  // Centaurus
+        case 72: return {{'M', 114}, {'M', 115}, {'M', 112}, 1, {'M', 113}, 1};  // Claw Turtle
+        case 73: return {{'M', 106}, {'M', 107}, {  0,   0}, 0, {'M', 105}, 1};  // Fire Wyvern
+        case 74: return {{'M',  87}, {'M', 100}, {'M', 101}, 1, {'M',  98}, 1};  // Giant Crayfish
+        case 75: return {{'M', 126}, {'M', 127}, {'M', 124}, 1, {'M', 125}, 1};  // Giant Lizard
+        case 76: return {{'M', 122}, {'M', 123}, {'M', 120}, 1, {'M', 121}, 1};  // Giant Tree
+        case 77: return {{'M',  91}, {'M',  78}, {'M',  89}, 1, {'M',  90}, 1};  // Master Mage Orc
+        case 78: return {{'M',  46}, {'M', 104}, {'M', 102}, 1, {'M', 103}, 1};  // Minaus
+        case 79: return {{'M', 134}, {'M', 135}, {'M', 132}, 1, {'M', 133}, 1};  // Nizie
+        case 80: return {{'M', 110}, {'M', 111}, {'M', 108}, 1, {'M', 109}, 1};  // Tentacle
+        case 81: return {{'M', 136}, {'M', 137}, {'M', 138}, 1, {'M', 139}, 1};  // Abaddon
+        case 82: return {{'M', 149}, {  0,   0}, {'M', 116}, 1, {'M', 129}, 1};  // Sorceress
+        case 83: return {{'M', 142}, {'M', 140}, {'M', 143}, 1, {'M', 141}, 1};  // ATK
+        case 84: return {{'C',  10}, {'C',   8}, {'C',   7}, 1, {'M', 150}, 1};  // Master Elf
+        case 85: return {{'M', 147}, {'M', 145}, {'M', 148}, 1, {'M', 146}, 1};  // DSK
+        case 86: return {{'M', 151}, {'M', 151}, {  0,   0}, 0, {'M', 152}, 1};  // Heavy Battle Tank
+        case 87: return {{'M', 153}, {'M', 153}, {  0,   0}, 0, {'M', 154}, 1};  // Crossbow Turret
+        case 88: return {{'M',  87}, {'M',  78}, {'M', 144}, 1, {'M',  94}, 1};  // Barbarian
+        case 89: return {{'M', 155}, {'M', 155}, {  0,   0}, 0, {'M', 156}, 1};  // Cannon Turret
+        case 91: return {{  0,   0}, {  0,   0}, {  0,   0}, 0, {  0,   0}, 0};  // Gate (no death sound)
+        case 95: return {{'M', 149}, {'M', 149}, {'M', 129}, 1, {'E',   4}, 1};  // Willowisp
+        case 96: return {{'E',   6}, {'M', 149}, {'M', 129}, 1, {'M', 129}, 1};  // Air Elemental
+        case 97: return {{'E',   9}, {'E',   1}, {'E',  15}, 1, {'M',  58}, 1};  // Fire Elemental
+        case 99: return {{'E',   6}, {'M', 149}, {'M', 129}, 1, {'M', 129}, 1};  // Ice Elemental
         // clang-format on
 
-        default: return {{0, 0}, {'C', 2}, {0, 0}, 0};
+        default: return {{0, 0}, {'C', 2}, {0, 0}, 0, {'C', 15}, 5};
     }
 }
 
@@ -2029,6 +2084,7 @@ void entity_manager::play_monster_sound(const entity& e, monster_sound_type soun
         case monster_sound_type::move:   entry = sounds.move; break;
         case monster_sound_type::attack: entry = sounds.attack; break;
         case monster_sound_type::damage: entry = sounds.damage; break;
+        case monster_sound_type::death:  entry = sounds.death; break;
     }
 
     if (entry.type == 0) return;

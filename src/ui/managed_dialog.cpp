@@ -20,6 +20,7 @@ managed_dialog::managed_dialog(dialog_definition def)
     set_closeable(definition_.closeable);
     set_has_border(definition_.has_border);
     set_always_on_top(definition_.always_on_top);
+    set_right_click_closeable(definition_.right_click_closeable);
 
     // Set position ID for debug overlay (use "dialog.<yaml_id>" format)
     if (!definition_.id.empty()) {
@@ -486,6 +487,7 @@ void managed_dialog::update_definition(const dialog_definition& new_def) {
     set_closeable(definition_.closeable);
     set_has_border(definition_.has_border);
     set_always_on_top(definition_.always_on_top);
+    set_right_click_closeable(definition_.right_click_closeable);
 
     // Update bounds (apply centering if requested)
     if (definition_.centered) {

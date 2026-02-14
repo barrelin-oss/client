@@ -146,6 +146,7 @@ struct dialog_definition {
     bool has_title_bar = true;  // Show title bar
     bool centered = false;      // Center on screen on open
     bool always_on_top = false; // Always render on top of other dialogs
+    bool right_click_closeable = true; // Right-click closes this dialog
 
     // Visual styling
     std::optional<sf::Color> background_color;

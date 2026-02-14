@@ -17,6 +17,7 @@
 #include "network/handlers/notify_handlers.hpp"
 #include "network/handlers/motion_handlers.hpp"
 #include "entity/entity_manager.hpp"
+#include "world/ground_item.hpp"
 #include "world/world.hpp"
 #include "ui/ui_system.hpp"
 #include "ui/dialogs/dialogs.hpp"
@@ -174,6 +175,7 @@ public:
     hb::status_log& get_status_log() { return status_log_; }
     floating_text_manager& floating_text() { return floating_text_; }
     screen_transition& transition() { return transition_; }
+    ground_item_manager& ground_items() { return ground_items_; }
     weather_system& weather() { return weather_system_; }
 
     // Extracted subsystems
@@ -366,6 +368,9 @@ private:
 
     // Visual effects (spell explosions, projectiles, particles)
     effect_system effects_;
+
+    // Ground items (separate from entity system)
+    ground_item_manager ground_items_;
 
     // Weather particles and day/night overlay
     weather_system weather_system_;

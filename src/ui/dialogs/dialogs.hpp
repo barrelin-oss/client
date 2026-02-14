@@ -2,6 +2,7 @@
 
 // Include all dialog headers
 #include "ui/dialogs/connection_dialog.hpp"
+#include "ui/dialogs/death_dialog.hpp"
 #include "ui/dialogs/character_dialog.hpp"
 #include "ui/dialogs/inventory_dialog.hpp"
 #include "ui/dialogs/equipment_dialog.hpp"

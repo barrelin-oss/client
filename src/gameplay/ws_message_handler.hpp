@@ -94,6 +94,7 @@ private:
     void handle_entity_despawn(const json& message);
     void handle_combat_effect(const json& message);
     void handle_player_death_info(const json& message);
+    void handle_respawn_response(const json& message);
     void handle_player_teleport(const json& message);
     void handle_player_magic_response(const json& message);
     void handle_spell_list_update(const json& message);
@@ -109,7 +110,6 @@ private:
     void handle_player_action_broadcast(const json& message);
     void handle_player_equip_response(const json& message);
     void handle_player_unequip_response(const json& message);
-    void handle_npc_death(const json& message);
     void handle_inventory_data(const json& message);
     void handle_equipment_data(const json& message);
     void handle_skills_data(const json& message);

@@ -1,5 +1,8 @@
 #include "gameplay/ws_message_handler.hpp"
 #include "gameplay/game_state.hpp"
+#include "ui/dialogs/death_dialog.hpp"
+#include "world/ground_item.hpp"
+#include "audio/sound_types.hpp"
 #include "graphics/renderer.hpp"
 #include "graphics/color_utils.hpp"
 #include "core/config.hpp"
@@ -80,6 +83,7 @@ void ws_message_handler::handle_message(const json& message)
         }
 
         std::string type = message["type"].get<std::string>();
+        spdlog::debug("[ws recv] {}: {}", type, message.dump());
 
         if (type == msg_type::login_response)
             handle_login_response_ws(message);
@@ -125,6 +129,8 @@ void ws_message_handler::handle_message(const json& message)
             handle_combat_effect(message);
         else if (type == msg_type::player_death_info)
             handle_player_death_info(message);
+        else if (type == msg_type::respawn_response)
+            handle_respawn_response(message);
         else if (type == msg_type::player_teleport)
             handle_player_teleport(message);
         else if (type == msg_type::player_magic_response)
@@ -163,8 +169,6 @@ void ws_message_handler::handle_message(const json& message)
             handle_player_equip_response(message);
         else if (type == msg_type::player_unequip_response)
             handle_player_unequip_response(message);
-        else if (type == msg_type::npc_death)
-            handle_npc_death(message);
         else if (type == msg_type::inventory_data)
             handle_inventory_data(message);
         else if (type == msg_type::equipment_data)
@@ -540,68 +544,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     spdlog::debug("Loaded {} active quests, {} completed quests",
                   quests.active.size(), quests.completed.size());
 
-    // Spawn nearby entities
-    for (const auto& ent : response.world.entities)
-    {
-        // Skip entities that already exist (handles self + ID collisions)
-        if (entities.get_entity(ent.entity_id)) continue;
-
-        // NPCs use monster type for rendering (has stats, combat, movement)
-        entity_type type = entity_type::character;
-        if (ent.type == "npc") type = entity_type::monster;
-        else if (ent.type == "monster") type = entity_type::monster;
-
-        auto& world_entity = entities.create_entity_with_id(ent.entity_id, type);
-
-        auto& ent_transform = world_entity.transform();
-        ent_transform.tile_x = ent.x;
-        ent_transform.tile_y = ent.y;
-        ent_transform.move_start_x = ent.x;
-        ent_transform.move_start_y = ent.y;
-        ent_transform.x = ent.x * hb::tile_width + 16;
-        ent_transform.y = ent.y * hb::tile_height + 16;
-        ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
-
-        if (world_entity.has_name())
-        {
-            world_entity.name().name = ent.name;
-            world_entity.name().faction = ent.faction;
-            world_entity.name().hostile = hostility_from_string(ent.hostility);
-            world_entity.name().pk = pk_status_from_string(ent.pk_status);
-        }
-
-        // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
-        uint16_t visual_type = ent.sprite_id > 0
-            ? static_cast<uint16_t>(ent.sprite_id)
-            : static_cast<uint16_t>(ent.template_id);
-
-        if (visual_type > 0)
-        {
-            world_entity.set_type(visual_type);
-            if (world_entity.has_npc())
-                world_entity.npc().npc_type = visual_type;
-            else if (world_entity.has_monster())
-            {
-                world_entity.monster().monster_type = visual_type;
-                world_entity.monster().attributes = ent.attributes;
-            }
-        }
-
-        if (world_entity.has_monster())
-        {
-            world_entity.monster().category = ent.category;
-            world_entity.monster().hostile = hostility_from_string(ent.hostility);
-        }
-
-        if (world_entity.has_stats())
-        {
-            auto& ent_stats = world_entity.stats();
-            ent_stats.hp = ent.hp_percent;
-            ent_stats.max_hp = 100;
-            ent_stats.level = static_cast<uint16_t>(ent.level);
-        }
-    }
-    spdlog::debug("Spawned {} nearby entities", response.world.entities.size());
+    // Nearby entities are now sent as individual entity_spawn/npc_spawn/ground_item_spawn
+    // messages by the server, so no entity list parsing needed here.
 
     // Load map
     auto& world = game_->game_world();
@@ -701,7 +645,7 @@ void ws_message_handler::handle_ground_item_removed(const json& message)
     spdlog::debug("Ground item removed: {} picked up {} at ({},{})",
                   data.picker_name, data.item_name, data.x, data.y);
 
-    game_->entities().destroy(data.item_id);
+    game_->ground_items().remove(data.item_id);
 }
 
 void ws_message_handler::handle_player_position_update(const json& message)
@@ -1028,6 +972,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
     if (ent.has_name())
     {
         ent.name().name = data.name;
+        ent.name().faction = data.faction;
+        ent.name().hostile = hostility_from_string(data.hostility);
     }
 
     // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
@@ -1041,8 +987,11 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent.set_type(visual_type);
         if (ent.has_npc())
             ent.npc().npc_type = visual_type;
-        else if (ent.has_monster())
+        if (ent.has_monster())
+        {
             ent.monster().monster_type = visual_type;
+            ent.monster().hostile = hostility_from_string(data.hostility);
+        }
     }
 
     if (ent.has_stats())
@@ -1053,8 +1002,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent_stats.level = static_cast<uint16_t>(data.level);
     }
 
-    spdlog::info("Created entity {} ({}) '{}' at ({},{}) sprite={} from info response",
-                 data.entity_id, data.entity_type, data.name, data.x, data.y, visual_type);
+    spdlog::info("Created entity {} ({}) '{}' at ({},{}) sprite={} hostility={} from info response",
+                 data.entity_id, data.entity_type, data.name, data.x, data.y, visual_type, data.hostility);
 }
 
 void ws_message_handler::request_characters()
@@ -1247,24 +1196,13 @@ void ws_message_handler::handle_player_magic_response(const json& message)
             message_color::blue);
     }
 
-    // Update target HP if target entity exists
+    // Update target animation (HP is updated by entity_hp_update)
     if (data.target_id != 0)
     {
         entity* target = entities.find(data.target_id);
-        if (target && target->has_stats())
+        if (target && target->is_alive() && data.damage > 0)
         {
-            if (data.damage > 0)
-            {
-                target->stats().hp = std::max(0, target->stats().hp - data.damage);
-                if (target->stats().hp <= 0)
-                    target->set_action(object_action::dying);
-                else
-                    target->set_action(object_action::damage);
-            }
-            else if (data.heal > 0)
-            {
-                target->stats().hp = std::min(target->stats().max_hp, target->stats().hp + data.heal);
-            }
+            target->set_action(object_action::damage);
         }
     }
 
@@ -1480,27 +1418,20 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     entity* attacker = entities.find(data.attacker_id);
     if (attacker)
     {
-        // Calculate direction from attacker to target positions
-        auto dir = calculate_direction(data.attacker_x, data.attacker_y, data.target_x, data.target_y);
+        // Use server-authoritative direction if provided, otherwise calculate from positions
+        auto dir = direction_from_protocol(data.direction);
+        if (!dir)
+            dir = calculate_direction(data.attacker_x, data.attacker_y, data.target_x, data.target_y);
         if (dir)
             attacker->transform().facing = *dir;
 
-        // If this is the local player and already in an active attack animation, don't restart it
-        bool skip_anim = (attacker->id() == entities.local_player_id() &&
-                          attacker->animation().state == entity_anim_state::attack &&
-                          !attacker->animation().finished);
-        if (!skip_anim)
+        // Local player handles their own attack animation client-side (input_handler.cpp)
+        if (attacker->id() != entities.local_player_id())
         {
             if (data.is_ranged())
                 attacker->set_action(object_action::attack_combat_bow);
             else
-            {
-                // Use combat-mode-aware animation for local player
-                if (attacker->id() == entities.local_player_id())
-                    attacker->set_action_with_combat_mode(object_action::attack_peace, game_->is_combat_mode());
-                else
-                    attacker->set_action(object_action::attack_peace);
-            }
+                attacker->set_action(object_action::attack_peace);
         }
 
         attacker->set_target(data.target_id);
@@ -1519,22 +1450,10 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     entity* target = entities.find(data.target_id);
     if (target && data.hit && data.damage > 0)
     {
-        if (target->has_stats())
-        {
-            auto& stats = target->stats();
-            stats.hp = std::max(0, stats.hp - data.damage);
-
-            if (stats.hp <= 0)
-                target->set_action(object_action::dying);
-            else
-                target->set_action(object_action::damage);
-        }
-        else
-        {
+        // Flinch animation — only if target is still alive (death animation takes priority)
+        if (target->is_alive())
             target->set_action(object_action::damage);
-        }
 
-        // Show floating damage number
         const auto& t = target->transform();
         if (data.critical)
             game_->floating_text().add_critical(data.damage, static_cast<float>(t.x), static_cast<float>(t.y));
@@ -1543,10 +1462,8 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     }
     else if (target && data.hit && data.damage == 0)
     {
-        // Hit but zero damage (blocked/absorbed)
         const auto& t = target->transform();
         game_->floating_text().add_damage(0, static_cast<float>(t.x), static_cast<float>(t.y));
-        target->set_action(object_action::damage);
     }
     else if (target && !data.hit)
     {
@@ -1554,6 +1471,20 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
         const auto& t = target->transform();
         game_->floating_text().add_text("MISS", static_cast<float>(t.x), static_cast<float>(t.y),
                                         sf::Color(180, 180, 180));
+    }
+
+    // Play weapon hit sound on successful hits
+    if (data.hit && attacker)
+    {
+        uint16_t weapon_type = 0;
+        if (data.attacker_id == entities.local_player_id())
+        {
+            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+                weapon_type = weapon->type_id;
+        }
+        character_sound sound = get_weapon_swing_sound(weapon_type);
+        const auto& at = attacker->transform();
+        game_->sounds().play_character_sound_at(sound, at.x, at.y);
     }
 
     spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
@@ -1577,25 +1508,6 @@ void ws_message_handler::handle_player_attack_response(const json& message)
         if (entity* player = game_->local_player())
         {
             player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
-        }
-        return;
-    }
-
-    // Update ammo count in inventory if applicable
-    if (data.ammo_count >= 0)
-    {
-        spdlog::debug("Ammo remaining: {} (template {})", data.ammo_count, data.ammo_template_id);
-        // TODO: Update inventory arrow count when inventory system supports item count updates
-    }
-
-    // Update target HP if provided
-    if (data.target_id != 0)
-    {
-        entity* target = game_->entities().find(data.target_id);
-        if (target && target->has_stats())
-        {
-            target->stats().hp = data.target_hp;
-            target->stats().max_hp = data.target_hp_max;
         }
     }
 }
@@ -1635,20 +1547,9 @@ void ws_message_handler::handle_npc_attack(const json& message)
     entity* target = entities.find(data.target_id);
     if (target && data.hit() && data.damage > 0)
     {
-        if (target->has_stats())
-        {
-            auto& stats = target->stats();
-            stats.hp = std::max(0, stats.hp - data.damage);
-
-            if (stats.hp <= 0)
-                target->set_action(object_action::dying);
-            else
-                target->set_action(object_action::damage);
-        }
-        else
-        {
+        // Flinch animation — only if target is still alive (death animation takes priority)
+        if (target->is_alive())
             target->set_action(object_action::damage);
-        }
 
         const auto& t = target->transform();
         if (data.critical)
@@ -1675,16 +1576,46 @@ void ws_message_handler::handle_entity_death(const json& message)
 
     auto& entities = game_->entities();
     entity* victim = entities.find(data.victim_id);
-    if (victim)
+    if (!victim) return;
+
+    // NPCs/monsters can only die once; players can "die" multiple times (pretend corpse)
+    bool is_npc = (victim->type() == entity_type::npc || victim->type() == entity_type::monster);
+    if (is_npc && !victim->is_alive()) return;
+
+    if (victim->has_stats())
+        victim->stats().hp = 0;
+
+    // Transition to dead immediately (handles per-tile corpse cleanup),
+    // then play the dying animation once
+    game_->entities().transition_to_dead(data.victim_id);
+    victim->set_action(object_action::dying);
+
+    if (is_npc)
     {
-        if (victim->has_stats())
-            victim->stats().hp = 0;
-
-        victim->set_action(object_action::dying);
+        std::string name = victim->has_name() ? victim->name().name : "unknown";
+        uint16_t npc_type = 0;
+        std::string category;
+        if (victim->has_npc())
+        {
+            npc_type = victim->npc().npc_type;
+        }
+        if (victim->has_monster())
+        {
+            npc_type = victim->monster().monster_type;
+            category = victim->monster().category;
+        }
+        const auto& t = victim->transform();
+        spdlog::debug("NPC death: id={} name='{}' type={} category='{}' "
+                      "tile=({},{}) world=({},{}) killer={} facing={} alive_was=true",
+                      data.victim_id, name, npc_type, category,
+                      t.tile_x, t.tile_y, t.x, t.y,
+                      data.killer_id, static_cast<int>(t.facing));
     }
-
-    spdlog::debug("Entity death: victim={} killer={} at ({},{})",
-                  data.victim_id, data.killer_id, data.x, data.y);
+    else
+    {
+        spdlog::debug("Entity death: victim={} killer={} at ({},{})",
+                      data.victim_id, data.killer_id, data.x, data.y);
+    }
 }
 
 void ws_message_handler::handle_entity_despawn(const json& message)
@@ -1725,71 +1656,74 @@ void ws_message_handler::handle_combat_effect(const json& message)
         wy = static_cast<float>(target->transform().y);
     }
 
-    // Spell visual effects for other players' casts
-    const spell* sp = game_->magic().get_spell(data.spell_id);
-
-    // Set caster animation and spell name
-    entity* caster = entities.find(data.source_id);
-    if (caster)
+    // Spell visual effects — only for actual spells (spell_id > 0)
+    if (data.spell_id > 0)
     {
-        caster->set_action(object_action::magic);
+        const spell* sp = game_->magic().get_spell(data.spell_id);
 
-        if (sp && caster->has_name())
-        {
-            auto& name = caster->name();
-            name.chat_message = sp->name + "!";
-            name.chat_timer = 3.0f;
-            name.chat_elapsed = 0.0f;
-            name.chat_style = {sf::Color::Red, sf::Color::Black, 1.0f, 14};
-        }
-    }
-
-    // Spawn projectile and/or impact effects using world pixel coords
-    if (sp)
-    {
-        // Caster world position
-        float src_wx = static_cast<float>(data.target_x * 32 + 16);
-        float src_wy = static_cast<float>(data.target_y * 32 + 16);
+        // Set caster animation and spell name
+        entity* caster = entities.find(data.source_id);
         if (caster)
         {
-            src_wx = static_cast<float>(caster->transform().x);
-            src_wy = static_cast<float>(caster->transform().y);
-        }
+            caster->set_action(object_action::magic);
 
-        // Target world position
-        float dest_wx = static_cast<float>(data.target_x * 32 + 16);
-        float dest_wy = static_cast<float>(data.target_y * 32 + 16);
-        if (data.target_id != 0)
-        {
-            entity* target = entities.find(data.target_id);
-            if (target)
+            if (sp && caster->has_name())
             {
-                dest_wx = static_cast<float>(target->transform().x);
-                dest_wy = static_cast<float>(target->transform().y);
+                auto& name = caster->name();
+                name.chat_message = sp->name + "!";
+                name.chat_timer = 3.0f;
+                name.chat_elapsed = 0.0f;
+                name.chat_style = {sf::Color::Red, sf::Color::Black, 1.0f, 14};
             }
         }
 
-        if (sp->projectile_effect != 0)
+        // Spawn projectile and/or impact effects using world pixel coords
+        if (sp)
         {
-            game_->effects().add_effect_world(
-                static_cast<effect_type_id>(sp->projectile_effect),
-                src_wx, src_wy, dest_wx, dest_wy);
-        }
-        else if (sp->effect_sprite != 0)
-        {
-            // Area/ground spells always render at the target tile position
-            // Single-target spells with no target entity render on the caster
-            float fx = dest_wx;
-            float fy = dest_wy;
-            if (data.target_id == 0
-                && sp->target_type == spell_target::single)
+            // Caster world position
+            float src_wx = static_cast<float>(data.target_x * 32 + 16);
+            float src_wy = static_cast<float>(data.target_y * 32 + 16);
+            if (caster)
             {
-                fx = src_wx;
-                fy = src_wy;
+                src_wx = static_cast<float>(caster->transform().x);
+                src_wy = static_cast<float>(caster->transform().y);
             }
-            game_->effects().add_effect_at_pixel(
-                static_cast<effect_type_id>(sp->effect_sprite),
-                fx, fy);
+
+            // Target world position
+            float dest_wx = static_cast<float>(data.target_x * 32 + 16);
+            float dest_wy = static_cast<float>(data.target_y * 32 + 16);
+            if (data.target_id != 0)
+            {
+                entity* target = entities.find(data.target_id);
+                if (target)
+                {
+                    dest_wx = static_cast<float>(target->transform().x);
+                    dest_wy = static_cast<float>(target->transform().y);
+                }
+            }
+
+            if (sp->projectile_effect != 0)
+            {
+                game_->effects().add_effect_world(
+                    static_cast<effect_type_id>(sp->projectile_effect),
+                    src_wx, src_wy, dest_wx, dest_wy);
+            }
+            else if (sp->effect_sprite != 0)
+            {
+                // Area/ground spells always render at the target tile position
+                // Single-target spells with no target entity render on the caster
+                float fx = dest_wx;
+                float fy = dest_wy;
+                if (data.target_id == 0
+                    && sp->target_type == spell_target::single)
+                {
+                    fx = src_wx;
+                    fy = src_wy;
+                }
+                game_->effects().add_effect_at_pixel(
+                    static_cast<effect_type_id>(sp->effect_sprite),
+                    fx, fy);
+            }
         }
     }
 
@@ -1828,24 +1762,13 @@ void ws_message_handler::handle_combat_effect(const json& message)
         spdlog::debug("Unhandled combat effect type: {}", data.effect_type);
     }
 
-    // Update target HP from combat effects
+    // Update target animation (HP is updated by entity_hp_update)
     if (data.target_id != 0)
     {
         entity* target = entities.find(data.target_id);
-        if (target && target->has_stats())
+        if (target && target->is_alive() && data.effect_type == "damage" && data.value > 0)
         {
-            if (data.effect_type == "damage" && data.value > 0)
-            {
-                target->stats().hp = std::max(0, target->stats().hp - data.value);
-                if (target->stats().hp <= 0)
-                    target->set_action(object_action::dying);
-                else
-                    target->set_action(object_action::damage);
-            }
-            else if (data.effect_type == "heal" && data.value > 0)
-            {
-                target->stats().hp = std::min(target->stats().max_hp, target->stats().hp + data.value);
-            }
+            target->set_action(object_action::damage);
         }
     }
 
@@ -1857,29 +1780,59 @@ void ws_message_handler::handle_player_death_info(const json& message)
 {
     auto data = player_death_info_data::from_json(message);
 
-    // Build death message
-    std::string death_msg = "You have died!";
-    if (!data.killer_name.empty())
+    // Create or reuse death dialog
+    auto& ui = game_->ui();
+    auto* dlg = dynamic_cast<death_dialog*>(ui.get_dialog(dialog_type::death));
+    if (!dlg)
     {
-        if (data.is_pvp)
-            death_msg += "\nKilled by: " + data.killer_name;
-        else
-            death_msg += "\nSlain by: " + data.killer_name;
+        auto new_dlg = std::make_unique<death_dialog>();
+        dlg = new_dlg.get();
+        ui.add_dialog(dialog_type::death, std::move(new_dlg));
     }
-    if (data.xp_lost > 0)
-        death_msg += "\nEXP lost: " + std::to_string(data.xp_lost);
 
-    // Store respawn info for the restart callback
-    game_->ui().create_message_box("Death", death_msg, [this]() {
-        // Send respawn request
+    dlg->set_death_info(data.killer_name, data.is_pvp, data.xp_lost);
+    dlg->set_on_restart([this]() {
+        game_->ui().close_dialog(dialog_type::death);
         json msg = make_player_respawn_request();
         game_->ws_connection().send(msg);
         spdlog::info("Sent player respawn request");
     });
+    dlg->set_on_resurrect([this]() {
+        // TODO: send accept resurrection request
+        spdlog::info("Accept resurrection requested (not yet implemented)");
+    });
+    dlg->open();
+
+    // Mark local player as dead and play dying animation
+    if (entity* player = game_->local_player())
+    {
+        player->set_alive(false);
+        if (player->has_stats())
+            player->stats().hp = 0;
+        player->set_action(object_action::dying);
+    }
 
     spdlog::info("Player died! Killer: {} (pvp={}) XP lost: {} Respawn: {} ({},{})",
                  data.killer_name, data.is_pvp, data.xp_lost,
                  data.respawn_map, data.respawn_x, data.respawn_y);
+}
+
+void ws_message_handler::handle_respawn_response(const json& message)
+{
+    if (!message.contains("data")) return;
+    const auto& d = message["data"];
+
+    bool success = d.value("success", false);
+    if (!success)
+    {
+        std::string error = d.value("error", "unknown");
+        spdlog::warn("Respawn failed: {}", error);
+        return;
+    }
+
+    // Success — the server will follow up with a player_teleport message
+    // which handles map change, position reset, and reviving the player.
+    spdlog::info("Respawn accepted, awaiting teleport");
 }
 
 void ws_message_handler::handle_player_teleport(const json& message)
@@ -1890,7 +1843,7 @@ void ws_message_handler::handle_player_teleport(const json& message)
     auto& world = game_->game_world();
 
     // Close any open death dialog
-    game_->ui().close_dialog(dialog_type::message_box);
+    game_->ui().close_dialog(dialog_type::death);
 
     // Store local player ID before clearing
     entity_id local_id = entities.local_player_id();
@@ -1904,10 +1857,11 @@ void ws_message_handler::handle_player_teleport(const json& message)
         to_remove.push_back(ent->id());
     for (auto* ent : entities.get_entities_of_type(entity_type::npc))
         to_remove.push_back(ent->id());
-    for (auto* ent : entities.get_entities_of_type(entity_type::item))
-        to_remove.push_back(ent->id());
     for (auto id : to_remove)
         entities.remove_entity(id);
+
+    // Clear ground items (separate from entity system)
+    game_->ground_items().clear();
 
     // Load new map if different, or if current map data isn't loaded (retry failed loads)
     if (!data.dest_map.empty() &&
@@ -1942,66 +1896,8 @@ void ws_message_handler::handle_player_teleport(const json& message)
         world.set_player_position(t.x, t.y);
     }
 
-    // Spawn entities from teleport data
-    for (const auto& ent : data.entities)
-    {
-        if (entities.get_entity(ent.entity_id)) continue;
-
-        // NPCs use monster type for rendering (has stats, combat, movement)
-        entity_type type = entity_type::character;
-        if (ent.type == "npc") type = entity_type::monster;
-        else if (ent.type == "monster") type = entity_type::monster;
-
-        auto& world_entity = entities.create_entity_with_id(ent.entity_id, type);
-
-        auto& ent_transform = world_entity.transform();
-        ent_transform.tile_x = ent.x;
-        ent_transform.tile_y = ent.y;
-        ent_transform.move_start_x = ent.x;
-        ent_transform.move_start_y = ent.y;
-        ent_transform.x = ent.x * hb::tile_width + 16;
-        ent_transform.y = ent.y * hb::tile_height + 16;
-        ent_transform.facing = direction_from_protocol(ent.direction).value_or(direction::south);
-
-        if (world_entity.has_name())
-        {
-            world_entity.name().name = ent.name;
-            world_entity.name().faction = ent.faction;
-            world_entity.name().hostile = hostility_from_string(ent.hostility);
-            world_entity.name().pk = pk_status_from_string(ent.pk_status);
-        }
-
-        // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
-        uint16_t visual_type = ent.sprite_id > 0
-            ? static_cast<uint16_t>(ent.sprite_id)
-            : static_cast<uint16_t>(ent.template_id);
-
-        if (visual_type > 0)
-        {
-            world_entity.set_type(visual_type);
-            if (world_entity.has_npc())
-                world_entity.npc().npc_type = visual_type;
-            else if (world_entity.has_monster())
-            {
-                world_entity.monster().monster_type = visual_type;
-                world_entity.monster().attributes = ent.attributes;
-            }
-        }
-
-        if (world_entity.has_monster())
-        {
-            world_entity.monster().category = ent.category;
-            world_entity.monster().hostile = hostility_from_string(ent.hostility);
-        }
-
-        if (world_entity.has_stats())
-        {
-            auto& ent_stats = world_entity.stats();
-            ent_stats.hp = ent.hp_percent;
-            ent_stats.max_hp = 100;
-            ent_stats.level = static_cast<uint16_t>(ent.level);
-        }
-    }
+    // Nearby entities are now sent as individual entity_spawn/npc_spawn/ground_item_spawn
+    // messages by the server, so no entity list parsing needed here.
 
     // Clear floating text and effects from old map
     game_->floating_text().clear();
@@ -2010,8 +1906,8 @@ void ws_message_handler::handle_player_teleport(const json& message)
     // Reset input state
     game_->input_handler().set_move_dest(-1, -1);
 
-    spdlog::info("Teleported to {} at ({},{}) dir={}, {} entities spawned",
-                 data.dest_map, data.dest_x, data.dest_y, data.dest_dir, data.entities.size());
+    spdlog::info("Teleported to {} at ({},{}) dir={}",
+                 data.dest_map, data.dest_x, data.dest_y, data.dest_dir);
 }
 
 void ws_message_handler::handle_environment_update(const json& message)
@@ -2093,14 +1989,25 @@ void ws_message_handler::handle_entity_spawn(const json& message)
         ent.combat().combat_stance = data.combat_mode;
     }
 
-    ent.animation().set_state(entity_anim_state::stop);
-    if (data.combat_mode)
+    if (data.is_dead)
     {
-        ent.set_action(object_action::stop_combat);
+        ent.set_action(object_action::dying);
+        auto& anim = ent.animation();
+        anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
+        anim.finished = true;
+        entities.transition_to_dead(data.entity_id);
+    }
+    else
+    {
+        ent.animation().set_state(entity_anim_state::stop);
+        if (data.combat_mode)
+        {
+            ent.set_action(object_action::stop_combat);
+        }
     }
 
-    spdlog::info("Entity spawned: {} '{}' id={} faction={} combat={} at ({},{})",
-                 data.type, data.name, data.entity_id, data.faction, data.combat_mode, data.x, data.y);
+    spdlog::info("Entity spawned: {} '{}' id={} faction={} combat={} dead={} at ({},{})",
+                 data.type, data.name, data.entity_id, data.faction, data.combat_mode, data.is_dead, data.x, data.y);
 }
 
 void ws_message_handler::handle_npc_spawn(const json& message)
@@ -2159,11 +2066,23 @@ void ws_message_handler::handle_npc_spawn(const json& message)
         ent.stats().level = static_cast<uint16_t>(data.level);
     }
 
-    ent.animation().set_state(entity_anim_state::stop);
+    if (data.is_dead)
+    {
+        // Spawn as corpse: dying animation on last frame, marked dead
+        ent.set_action(object_action::dying);
+        auto& anim = ent.animation();
+        anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
+        anim.finished = true;
+        entities.transition_to_dead(data.entity_id);
+    }
+    else
+    {
+        ent.animation().set_state(entity_anim_state::stop);
+    }
 
-    spdlog::info("NPC spawned: '{}' id={} sprite={} at ({},{}) hp={}/{}",
+    spdlog::info("NPC spawned: '{}' id={} sprite={} at ({},{}) hp={}/{} dead={}",
                  data.name, data.entity_id, visual_type, data.x, data.y,
-                 data.hp, data.max_hp);
+                 data.hp, data.max_hp, data.is_dead);
 }
 
 void ws_message_handler::handle_npc_despawn(const json& message)
@@ -2177,40 +2096,28 @@ void ws_message_handler::handle_npc_despawn(const json& message)
 void ws_message_handler::handle_ground_item_spawn(const json& message)
 {
     auto data = ground_item_spawn_data::from_json(message);
-    auto& entities = game_->entities();
+    auto& items = game_->ground_items();
 
-    // Skip if entity already exists (duplicate spawn)
-    if (entities.get_entity(data.item_id))
+    // Skip if item already exists (duplicate spawn)
+    if (items.get(data.item_id))
     {
         spdlog::debug("ground_item_spawn: item {} already exists, ignoring", data.item_id);
         return;
     }
 
-    auto& ent = entities.create_entity_with_id(data.item_id, entity_type::item);
+    ground_item item;
+    item.item_id = data.item_id;
+    item.template_id = data.template_id;
+    item.name = std::move(data.item_name);
+    item.count = data.count;
+    item.tile_x = data.x;
+    item.tile_y = data.y;
+    item.freshly_dropped = (data.reason == "drop");
 
-    auto& t = ent.transform();
-    t.tile_x = data.x;
-    t.tile_y = data.y;
-    t.move_start_x = data.x;
-    t.move_start_y = data.y;
-    t.x = data.x * 32 + 16;
-    t.y = data.y * 32 + 16;
-
-    if (ent.has_item())
-    {
-        auto& item_comp = ent.item();
-        item_comp.item_id = data.item_id;
-        item_comp.item_type = static_cast<uint16_t>(data.template_id);
-        item_comp.amount = static_cast<uint32_t>(data.count);
-    }
-
-    // Items don't get a name component by default, but add one for hover/tooltip
-    if (!ent.has_name())
-        ent.add_name();
-    ent.name().name = data.item_name;
+    items.add(std::move(item));
 
     spdlog::debug("Ground item spawned: '{}' id={} x{} at ({},{})",
-                  data.item_name, data.item_id, data.count, data.x, data.y);
+                  items.get(data.item_id)->name, data.item_id, data.count, data.x, data.y);
 }
 
 void ws_message_handler::handle_stat_update(const json& message)
@@ -2253,7 +2160,8 @@ void ws_message_handler::handle_entity_hp_update(const json& message)
     if (ent->has_stats())
     {
         ent->stats().hp = data.hp;
-        ent->stats().max_hp = data.hp_max;
+        if (data.hp_max > 0)
+            ent->stats().max_hp = data.hp_max;
     }
 
     // Update HUD if this is the local player
@@ -2398,22 +2306,7 @@ void ws_message_handler::handle_player_unequip_response(const json& message)
                  data.item_name, data.slot, data.inventory_slot);
 }
 
-void ws_message_handler::handle_npc_death(const json& message)
-{
-    auto data = npc_death_data::from_json(message);
 
-    entity* ent = game_->entities().get_entity(data.entity_id);
-    if (ent)
-    {
-        if (ent->has_stats())
-            ent->stats().hp = 0;
-
-        ent->set_action(object_action::dying);
-    }
-
-    spdlog::debug("NPC {} died at ({},{}) killed by {}",
-                  data.entity_id, data.x, data.y, data.killer_id);
-}
 
 void ws_message_handler::handle_inventory_data(const json& message)
 {

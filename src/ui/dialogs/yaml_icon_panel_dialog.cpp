@@ -165,19 +165,17 @@ void yaml_icon_panel_dialog::render_hp_bar(renderer& rend, const element_def& el
                 }
             }
 
-            // Classic mode: always draw HP text
-            std::string hp_text = std::format("{}/{}", hp_current_, hp_max_);
-            int32_t text_x = abs.x + (abs.width - static_cast<int32_t>(hp_text.length()) * 5) / 2;
-            rend.draw_text(hp_text, text_x + 1, abs.y + 2, sf::Color(0, 0, 0), 10);
-            if (is_poisoned_) {
-                rend.draw_text(hp_text, text_x, abs.y + 1, sf::Color(50, 200, 50), 10);
-            } else {
-                rend.draw_text(hp_text, text_x, abs.y + 1, sf::Color::White, 10);
-            }
+            // Classic mode: always draw HP text (right-aligned, inset 10px)
+            std::string hp_text = std::format("{}   /   {}", hp_current_, hp_max_);
+            int32_t text_w = static_cast<int32_t>(hp_text.length()) * 6;
+            int32_t text_x = abs.x + abs.width - text_w - 10;
+            sf::Color hp_text_color = is_poisoned_ ? sf::Color(50, 200, 50) : sf::Color(255, 160, 160);
+            rend.draw_text_outlined(hp_text, text_x, abs.y, hp_text_color,
+                                    sf::Color(0, 0, 0), 12, 2.0f);
 
             if (is_poisoned_) {
-                rend.draw_text("Poisoned", abs.x + 5, abs.y + 1, sf::Color(0, 0, 0), 10);
-                rend.draw_text("Poisoned", abs.x + 4, abs.y, sf::Color(80, 200, 80), 10);
+                rend.draw_text_outlined("Poisoned", abs.x + 4, abs.y,
+                                        sf::Color(80, 200, 80), sf::Color(0, 0, 0), 12, 2.0f);
             }
             return;  // Classic mode complete - never fall through to modern
         }
@@ -207,12 +205,15 @@ void yaml_icon_panel_dialog::render_hp_bar(renderer& rend, const element_def& el
 
     rend.draw_rect(abs.x, abs.y, abs.width, abs.height, sf::Color(80, 80, 100), false);
 
-    std::string hp_text = std::to_string(hp_current_);
-    sf::Color text_color = is_poisoned_ ? sf::Color(100, 200, 100) : sf::Color(200, 100, 100);
-    rend.draw_text(hp_text, abs.x + abs.width - 30, abs.y + 3, text_color, 11);
+    std::string hp_text = std::format("{}   /   {}", hp_current_, hp_max_);
+    int32_t hp_text_w = static_cast<int32_t>(hp_text.length()) * 6;
+    sf::Color text_color = is_poisoned_ ? sf::Color(100, 200, 100) : sf::Color(255, 160, 160);
+    rend.draw_text_outlined(hp_text, abs.x + abs.width - hp_text_w - 10, abs.y + 2,
+                            text_color, sf::Color(0, 0, 0), 11, 1.0f);
 
     if (is_poisoned_) {
-        rend.draw_text("Poisoned", abs.x + 5, abs.y + 3, sf::Color(80, 200, 80), 10);
+        rend.draw_text_outlined("Poisoned", abs.x + 4, abs.y + 2,
+                                sf::Color(80, 200, 80), sf::Color(0, 0, 0), 10, 1.0f);
     }
 }
 
@@ -241,11 +242,12 @@ void yaml_icon_panel_dialog::render_mp_bar(renderer& rend, const element_def& el
                 spr->draw_width(rend.window(), abs.x + x_offset, abs.y, frame, missing_width);
             }
 
-            // Always draw MP text in classic style
-            std::string mp_text = std::format("{}/{}", mp_current_, mp_max_);
-            int32_t text_x = abs.x + (abs.width - static_cast<int32_t>(mp_text.length()) * 5) / 2;
-            rend.draw_text(mp_text, text_x + 1, abs.y + 2, sf::Color(0, 0, 0), 10);
-            rend.draw_text(mp_text, text_x, abs.y + 1, sf::Color::White, 10);
+            // Always draw MP text in classic style (right-aligned, inset 10px)
+            std::string mp_text = std::format("{}   /   {}", mp_current_, mp_max_);
+            int32_t text_w = static_cast<int32_t>(mp_text.length()) * 6;
+            int32_t text_x = abs.x + abs.width - text_w - 10;
+            rend.draw_text_outlined(mp_text, text_x, abs.y, sf::Color(180, 200, 255),
+                                    sf::Color(0, 0, 0), 12, 2.0f);
             return;  // Classic mode complete
         }
     }
@@ -265,8 +267,10 @@ void yaml_icon_panel_dialog::render_mp_bar(renderer& rend, const element_def& el
 
     rend.draw_rect(abs.x, abs.y, abs.width, abs.height, sf::Color(80, 80, 100), false);
 
-    std::string mp_text = std::to_string(mp_current_);
-    rend.draw_text(mp_text, abs.x + abs.width - 30, abs.y + 3, sf::Color(100, 100, 200), 11);
+    std::string mp_text = std::format("{}   /   {}", mp_current_, mp_max_);
+    int32_t mp_text_w = static_cast<int32_t>(mp_text.length()) * 6;
+    rend.draw_text_outlined(mp_text, abs.x + abs.width - mp_text_w - 10, abs.y + 2,
+                            sf::Color(160, 160, 255), sf::Color(0, 0, 0), 11, 1.0f);
 }
 
 void yaml_icon_panel_dialog::render_sp_bar(renderer& rend, const element_def& elem) {

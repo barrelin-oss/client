@@ -3,7 +3,6 @@
 #include "input/input.hpp"
 #include "core/direction_utils.hpp"
 #include "gameplay/pathfinding.hpp"
-#include "audio/sound_types.hpp"
 #include "ui/cursor.hpp"
 #include <spdlog/spdlog.h>
 
@@ -40,11 +39,14 @@ void input_handler::update(float /*delta_time*/)
 
 bool input_handler::can_perform_action() const
 {
-    if (blocked_movement_cooldown_ > 0.0f)
-        return false;
-
     const entity* player = game_->local_player();
     if (!player) return false;
+
+    if (!player->is_alive())
+        return false;
+
+    if (blocked_movement_cooldown_ > 0.0f)
+        return false;
 
     if (player->transform().moving)
         return false;
@@ -189,6 +191,14 @@ void input_handler::handle_playing_input(const input& inp)
         }
     }
 
+    // Block combat and movement while dead — only hotkeys (chat) allowed
+    entity* local = game_->local_player();
+    if (local && !local->is_alive())
+    {
+        handle_hotkey_input(inp);
+        return;
+    }
+
     handle_combat_input(inp);
     if (!attack_consumed_)
     {
@@ -256,7 +266,7 @@ void input_handler::handle_movement_input(const input& inp)
                     if (can_perform_action())
                     {
                         spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
-                        game_->network().request_attack(target->id(), atk_type);
+                        game_->ws_handler().request_attack(target->id(), atk_type);
                         player->transform().facing = direction::north;
                     }
                 }
@@ -790,20 +800,24 @@ void input_handler::handle_combat_input(const input& inp)
             target = nullptr;
         }
 
-        if (target && target->id() != entities.local_player_id() &&
-            (target->type() == entity_type::monster || target->type() == entity_type::character))
+        if (target && target->id() != entities.local_player_id())
         {
-            // Monsters: attack on plain click
-            // Players: attack only if Ctrl is held
             bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
                              inp.is_key_down(sf::Keyboard::Key::RControl);
 
-            if (target->type() == entity_type::character && !ctrl_held)
-            {
-                // Don't attack players without Ctrl — left-click falls through to movement,
-                // right-click falls through to face-direction
+            // Corpses: walk on top unless Ctrl is held
+            if (!target->is_alive() && !ctrl_held)
                 return;
-            }
+
+            // Determine hostility from name component
+            auto target_hostility = hostility::neutral;
+            if (target->has_name())
+                target_hostility = target->name().hostile;
+
+            // Hostile entities: attack on plain click
+            // Friendly/neutral entities: Ctrl required
+            if (target_hostility != hostility::enemy && !ctrl_held)
+                return;
 
             // Determine attack type based on equipped weapon
             uint8_t atk_type = 0;
@@ -853,7 +867,7 @@ void input_handler::handle_combat_input(const input& inp)
 
             if (can_perform_action())
             {
-                game_->network().request_attack(target->id(), atk_type);
+                game_->ws_handler().request_attack(target->id(), atk_type);
 
                 // Immediate local attack animation (don't wait for server round-trip)
                 if (player)
@@ -868,14 +882,6 @@ void input_handler::handle_combat_input(const input& inp)
                         player->set_action(object_action::attack_combat_bow);
                     else
                         player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
-
-                    // Play weapon swing sound
-                    uint16_t weapon_type = 0;
-                    if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
-                        weapon_type = weapon->type_id;
-                    character_sound sound = get_weapon_swing_sound(weapon_type);
-                    const auto& t = player->transform();
-                    game_->sounds().play_character_sound_at(sound, t.x, t.y);
                 }
             }
         }
@@ -1261,15 +1267,6 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
     player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
     player->animation().set_state(entity_anim_state::attack_move);
 
-    // Play weapon swing sound
-    {
-        uint16_t weapon_type = 0;
-        if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
-            weapon_type = weapon->type_id;
-        character_sound sound = get_weapon_swing_sound(weapon_type);
-        game_->sounds().play_character_sound_at(sound, t.x, t.y);
-    }
-
     // Clear pathfinding destination
     move_dest_x_ = -1;
     move_dest_y_ = -1;
@@ -1281,7 +1278,7 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
     game_->ws_connection().send(move_msg);
 
     // Send attack request with dash attack type
-    game_->network().request_attack(target->id(), static_cast<uint8_t>(attack_type::dash));
+    game_->ws_handler().request_attack(target->id(), static_cast<uint8_t>(attack_type::dash));
 
     spdlog::debug("Dash attack: moving ({},{}) -> ({},{}) and attacking entity {}",
                   t.move_start_x, t.move_start_y, dash_x, dash_y, target->id());

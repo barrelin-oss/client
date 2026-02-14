@@ -861,6 +861,7 @@ void game_state_manager::clear_game_data() {
     sounds_.stop_ambient();
     status_log_.clear();
     floating_text_.clear();
+    ground_items_.clear();
     guild_.clear();
     quests_.clear();
     spell_hotbar_.fill(0);
@@ -1232,6 +1233,9 @@ void game_state_manager::render_playing(renderer& rend) {
 
     // Draw name/health overlays on top of all sprites and objects
     entities_.render_name_overlays(rend, sprites_, sorted, cam_x, cam_y, mouse_x, mouse_y);
+
+    // Draw ground item labels (hover only)
+    ground_items_.render_labels(rend, cam_x, cam_y, mouse_x, mouse_y);
 
     effects_.render(rend, cam_x, cam_y);
     world_.reset_zoom_view(rend);

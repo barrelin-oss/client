@@ -273,6 +273,7 @@ dialog_definition parse_dialog_json(const nlohmann::json& dlg_json) {
     def.has_title_bar = dlg_json.value("has_title_bar", true);
     def.centered = dlg_json.value("centered", false);
     def.always_on_top = dlg_json.value("always_on_top", false);
+    def.right_click_closeable = dlg_json.value("right_click_closeable", true);
 
     // Colors
     if (dlg_json.contains("background_color")) {
@@ -336,6 +337,7 @@ dialog_definition parse_dialog_yaml(const YAML::Node& dlg_yaml) {
     def.has_title_bar = dlg_yaml["has_title_bar"] ? dlg_yaml["has_title_bar"].as<bool>(true) : true;
     def.centered = dlg_yaml["centered"] ? dlg_yaml["centered"].as<bool>(false) : false;
     def.always_on_top = dlg_yaml["always_on_top"] ? dlg_yaml["always_on_top"].as<bool>(false) : false;
+    def.right_click_closeable = dlg_yaml["right_click_closeable"] ? dlg_yaml["right_click_closeable"].as<bool>(true) : true;
 
     // Colors
     if (dlg_yaml["background_color"]) {

@@ -923,6 +923,8 @@ void settings_dialog::render_debug_tab(renderer& rend, int32_t content_y)
     y += checkbox_row_height;
     render_checkbox(rend, y, "Show Entity Info", show_entity_info_, hovered_element_ == elem_show_entity_info);
     y += checkbox_row_height;
+    render_checkbox(rend, y, "Verbose Logging", verbose_logging_, hovered_element_ == elem_verbose_logging);
+    y += checkbox_row_height;
 }
 
 // =============================================================================
@@ -1293,6 +1295,8 @@ int32_t settings_dialog::get_hovered_element_debug(int32_t mx, int32_t my, int32
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_fps_cb;
     y += checkbox_row_height;
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_entity_info;
+    y += checkbox_row_height;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_verbose_logging;
 
     return -1;
 }
@@ -1785,6 +1789,10 @@ bool settings_dialog::handle_debug_tab_click(int32_t elem)
         case elem_show_entity_info:
             show_entity_info_ = !show_entity_info_;
             if (on_show_entity_info_change_) on_show_entity_info_change_(show_entity_info_);
+            return true;
+        case elem_verbose_logging:
+            verbose_logging_ = !verbose_logging_;
+            if (on_verbose_logging_change_) on_verbose_logging_change_(verbose_logging_);
             return true;
         default:
             return false;

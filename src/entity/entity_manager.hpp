@@ -52,6 +52,9 @@ public:
     void remove_all_entities();
     void remove_entities_of_type(entity_type type);
 
+    // Death: mark entity as dead corpse on its tile (1 dead per tile)
+    void transition_to_dead(entity_id id);
+
     // Query entities
     std::vector<entity*> get_entities_of_type(entity_type type);
     std::vector<entity*> get_entities_in_range(int32_t x, int32_t y, int32_t range);
@@ -125,7 +128,7 @@ private:
     void play_footstep_sound(const entity& e, bool running);
 
     // Play monster-specific sound (movement, attack, or damage)
-    enum class monster_sound_type : uint8_t { move, attack, damage };
+    enum class monster_sound_type : uint8_t { move, attack, damage, death };
     void play_monster_sound(const entity& e, monster_sound_type sound_type);
 
     std::unordered_map<entity_id, std::unique_ptr<entity>> entities_;

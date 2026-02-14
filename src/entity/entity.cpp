@@ -1,4 +1,5 @@
 #include "entity/entity.hpp"
+#include <spdlog/spdlog.h>
 
 namespace hb {
 
@@ -43,6 +44,12 @@ void entity::set_action(object_action action) {
         default:
             new_state = entity_anim_state::stop;
             break;
+    }
+
+    // Debug: log any state change on dead entities that resets a finished dying animation
+    if (new_state == entity_anim_state::dying && animation_.state == entity_anim_state::dying && animation_.finished)
+    {
+        spdlog::warn("Entity {} dying animation RESET (was finished, set_action called again)", id_);
     }
 
     animation_.set_state(new_state);

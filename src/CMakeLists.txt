@@ -37,6 +37,7 @@ add_library(helbreath_core STATIC
     network/handlers/motion_handlers.cpp
 
     # World
+    world/ground_item.cpp
     world/map.cpp
     world/map_renderer.cpp
     world/weather_system.cpp
@@ -70,6 +71,7 @@ add_library(helbreath_core STATIC
 
     # UI Dialogs
     ui/dialogs/connection_dialog.cpp
+    ui/dialogs/death_dialog.cpp
     ui/dialogs/character_dialog.cpp
     ui/dialogs/inventory_dialog.cpp
     ui/dialogs/equipment_dialog.cpp

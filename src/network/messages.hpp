@@ -101,7 +101,8 @@ namespace msg_type {
     inline constexpr const char* entity_despawn = "entity_despawn";
     inline constexpr const char* combat_effect = "combat_effect";
     inline constexpr const char* player_death_info = "player_death_info";
-    inline constexpr const char* player_respawn_request = "player_respawn_request";
+    inline constexpr const char* player_respawn_request = "respawn_request";
+    inline constexpr const char* respawn_response = "respawn_response";
     inline constexpr const char* player_teleport = "player_teleport";
     inline constexpr const char* combat_mode_change_request = "combat_mode_change_request";
     inline constexpr const char* combat_mode_change_response = "combat_mode_change_response";
@@ -938,6 +939,9 @@ struct entity_info_response_data {
     int16_t y = 0;
     uint8_t direction = 0;
 
+    // Common
+    std::string hostility;    // "friendly", "neutral", "enemy"
+
     // Player-specific fields
     std::string faction;      // "aresden", "elvine", etc.
     int16_t class_type = 0;   // 0=Warrior, 1=Mage, etc.
@@ -966,6 +970,7 @@ struct entity_info_response_data {
                 if (e.contains("x")) data.x = e["x"].get<int16_t>();
                 if (e.contains("y")) data.y = e["y"].get<int16_t>();
                 if (e.contains("direction")) data.direction = e["direction"].get<uint8_t>();
+                if (e.contains("hostility")) data.hostility = e["hostility"].get<std::string>();
 
                 // Player-specific
                 if (e.contains("faction")) data.faction = e["faction"].get<std::string>();
@@ -1351,6 +1356,7 @@ struct entity_spawn_data {
     std::string guild_name;
     std::string guild_tag;
     bool combat_mode = false;
+    bool is_dead = false;
 
     static entity_spawn_data from_json(const json& j) {
         entity_spawn_data data;
@@ -1369,6 +1375,7 @@ struct entity_spawn_data {
             if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
             if (d.contains("guild_tag")) data.guild_tag = d["guild_tag"].get<std::string>();
             if (d.contains("combat_mode")) data.combat_mode = d["combat_mode"].get<bool>();
+            if (d.contains("is_dead")) data.is_dead = d["is_dead"].get<bool>();
         }
         return data;
     }
@@ -1389,6 +1396,7 @@ struct npc_spawn_data {
     std::string category;
     std::string hostility;
     std::vector<std::string> attributes; // e.g. "Berserk", "Clairvoyant"
+    bool is_dead = false;
 
     static npc_spawn_data from_json(const json& j) {
         npc_spawn_data data;
@@ -1410,6 +1418,7 @@ struct npc_spawn_data {
                 for (const auto& a : d["attributes"])
                     data.attributes.push_back(a.get<std::string>());
             }
+            if (d.contains("is_dead")) data.is_dead = d["is_dead"].get<bool>();
         }
         return data;
     }
@@ -1437,6 +1446,7 @@ struct ground_item_spawn_data {
     int16_t count = 1;
     int16_t x = 0;
     int16_t y = 0;
+    std::string reason;  // "drop", "existing", etc.
 
     static ground_item_spawn_data from_json(const json& j) {
         ground_item_spawn_data data;
@@ -1448,6 +1458,7 @@ struct ground_item_spawn_data {
             if (d.contains("count")) data.count = d["count"].get<int16_t>();
             if (d.contains("x")) data.x = d["x"].get<int16_t>();
             if (d.contains("y")) data.y = d["y"].get<int16_t>();
+            if (d.contains("reason")) data.reason = d["reason"].get<std::string>();
         }
         return data;
     }

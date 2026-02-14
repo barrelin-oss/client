@@ -60,6 +60,7 @@ public:
 
     // Dialog management
     dialog* get_dialog(dialog_type type);
+    void add_dialog(dialog_type type, std::unique_ptr<dialog> dlg);
     void open_dialog(dialog_type type);
     void close_dialog(dialog_type type);
     void toggle_dialog(dialog_type type);

@@ -16,20 +16,16 @@
 namespace hb {
 
 int application::run(const launch_options& opts) {
-    // Initialize async logging - log I/O runs on a background thread so it
-    // never blocks the main thread (important during loading screen rendering)
+    // Initialize synchronous logging for accurate timing correlation
     try {
-        spdlog::init_thread_pool(8192, 1);
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("helbreath.log", true);
 
         std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
-        auto logger = std::make_shared<spdlog::async_logger>(
-            "main", sinks.begin(), sinks.end(), spdlog::thread_pool(),
-            spdlog::async_overflow_policy::overrun_oldest);
+        auto logger = std::make_shared<spdlog::logger>("main", sinks.begin(), sinks.end());
         spdlog::set_default_logger(logger);
-        spdlog::set_level(spdlog::level::debug);
-        spdlog::flush_on(spdlog::level::warn);
+        spdlog::set_level(spdlog::level::info);
+        spdlog::flush_on(spdlog::level::debug);
     } catch (const spdlog::spdlog_ex&) {
         // Fall back to sync console only
         auto console = spdlog::stdout_color_mt("console");

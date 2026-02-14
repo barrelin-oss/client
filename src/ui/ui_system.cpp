@@ -64,9 +64,10 @@ void ui_system::update(float delta_time, const input& inp) {
 
     // Route mouse clicks to open dialogs (front to back)
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
+        bool handled = false;
         // First check data-driven dialogs (they render on top)
         if (dialog_manager_ && dialog_manager_->handle_mouse_down(mx, my, sf::Mouse::Button::Left)) {
-            // Data-driven dialog handled it
+            handled = true;
         } else {
             // Then check legacy dialogs
             for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
@@ -75,6 +76,7 @@ void ui_system::update(float delta_time, const input& inp) {
                     // The dialog will handle blocking clicks outside its area
                     if ((*it)->modal()) {
                         (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                        handled = true;
                         break;  // Modal consumes all clicks
                     }
                     // For non-modal, only if click is inside bounds
@@ -82,10 +84,58 @@ void ui_system::update(float delta_time, const input& inp) {
                         dialog* dlg = *it;  // Save pointer before modifying vector
                         bring_to_front(dlg);
                         dlg->handle_mouse_down(mx, my, sf::Mouse::Button::Left);
+                        handled = true;
                         break;
                     }
                 }
             }
+        }
+        // Mark consumed immediately so the game world won't process this click,
+        // even if the dialog closes itself in the click handler
+        if (handled) {
+            mouse_consumed_left_ = true;
+        }
+    }
+
+    // Right-click closes the topmost right-click-closeable dialog
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right)) {
+        bool closed_any = false;
+
+        // Check data-driven dialogs first (rendered on top)
+        if (dialog_manager_) {
+            // Iterate dialog order in reverse (front to back) via the internal order
+            // We use find_dialog + close_dialog since dialog_manager doesn't expose order
+            // Instead, check if click is over any managed dialog and close it
+            if (dialog_manager_->is_point_over_dialog(mx, my)) {
+                // Find which managed dialog is under the cursor and close it if allowed
+                for (auto id : dialog_manager_->list_definitions()) {
+                    auto* dlg = dialog_manager_->find_dialog(id);
+                    if (dlg && dlg->is_open() && dlg->bounds().contains(mx, my)) {
+                        if (dlg->right_click_closeable()) {
+                            dlg->close();
+                            closed_any = true;
+                        }
+                        break;  // Only close topmost
+                    }
+                }
+            }
+        }
+
+        // Then check legacy dialogs
+        if (!closed_any) {
+            for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it) {
+                if ((*it)->is_open() && (*it)->bounds().contains(mx, my)) {
+                    if ((*it)->right_click_closeable()) {
+                        (*it)->close();
+                        closed_any = true;
+                    }
+                    break;  // Only close topmost
+                }
+            }
+        }
+
+        if (closed_any) {
+            mouse_consumed_right_ = true;
         }
     }
 
@@ -337,6 +387,21 @@ dialog* ui_system::get_dialog(dialog_type type) {
         return it->second.get();
     }
     return nullptr;
+}
+
+void ui_system::add_dialog(dialog_type type, std::unique_ptr<dialog> dlg) {
+    // Remove existing dialog of this type if present
+    if (auto it = dialogs_.find(type); it != dialogs_.end()) {
+        dialog* old_ptr = it->second.get();
+        dialog_order_.erase(
+            std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr),
+            dialog_order_.end());
+        dialogs_.erase(it);
+    }
+
+    dialog* ptr = dlg.get();
+    dialogs_[type] = std::move(dlg);
+    dialog_order_.push_back(ptr);
 }
 
 void ui_system::open_dialog(dialog_type type) {
@@ -759,11 +824,12 @@ bool ui_system::is_mouse_consumed(sf::Mouse::Button btn) const {
 }
 
 void ui_system::update_mouse_consumed(const input& inp) {
-    // On press: mark consumed if over a dialog
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Left)) {
+    // On press: mark consumed if over a dialog.
+    // Don't overwrite if already set (update() may have consumed it before the dialog closed).
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Left) && !mouse_consumed_left_) {
         mouse_consumed_left_ = is_point_over_dialog(inp.mouse_x(), inp.mouse_y());
     }
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Right)) {
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right) && !mouse_consumed_right_) {
         mouse_consumed_right_ = is_point_over_dialog(inp.mouse_x(), inp.mouse_y());
     }
 

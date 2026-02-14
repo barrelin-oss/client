@@ -59,6 +59,7 @@ enum class dialog_type {
     gauge_panel,
     levelup,
     fishing,
+    death,
 };
 
 // Controls how a dialog is clamped to the screen during dragging
@@ -105,6 +106,9 @@ public:
     void set_always_on_top(bool always_on_top) { always_on_top_ = always_on_top; }
     bool always_on_top() const { return always_on_top_; }
 
+    void set_right_click_closeable(bool v) { right_click_closeable_ = v; }
+    bool right_click_closeable() const { return right_click_closeable_; }
+
     void set_drag_clamp(drag_clamp mode) { drag_clamp_ = mode; }
     drag_clamp get_drag_clamp() const { return drag_clamp_; }
 
@@ -133,6 +137,7 @@ protected:
     bool closeable_ = true;
     bool modal_ = false;
     bool always_on_top_ = false;
+    bool right_click_closeable_ = true;
     bool dragging_ = false;
     drag_clamp drag_clamp_ = drag_clamp::on_screen;
     int32_t drag_offset_x_ = 0;

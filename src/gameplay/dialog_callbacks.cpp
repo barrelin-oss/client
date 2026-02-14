@@ -155,6 +155,101 @@ void dialog_callbacks::setup_callbacks()
         });
     }
 
+    // Guild dialog - guild actions
+    if (auto* guild_dlg = dynamic_cast<guild_dialog*>(ui.get_dialog(dialog_type::guild)))
+    {
+        auto& ws = game_->ws_handler();
+        auto& guild = game_->guild();
+
+        guild_dlg->set_on_create([&ws](std::string_view name, std::string_view tag) {
+            ws.request_guild_create(name, tag);
+        });
+
+        guild_dlg->set_on_invite([&ws](std::string_view target) {
+            ws.request_guild_invite(target);
+        });
+
+        guild_dlg->set_on_kick([&ws](std::string_view target) {
+            ws.request_guild_kick(target);
+        });
+
+        guild_dlg->set_on_promote([&ws](std::string_view target) {
+            ws.request_guild_promote(target);
+        });
+
+        guild_dlg->set_on_demote([&ws](std::string_view target) {
+            ws.request_guild_demote(target);
+        });
+
+        guild_dlg->set_on_leave([&ws]() {
+            ws.request_guild_leave();
+        });
+
+        guild_dlg->set_on_disband([&ws]() {
+            ws.request_guild_disband();
+        });
+
+        guild_dlg->set_on_set_motd([&ws](std::string_view motd) {
+            ws.request_guild_set_motd(motd);
+        });
+
+        guild_dlg->set_on_accept_invite([&ws]() {
+            ws.request_guild_invite_respond(true);
+        });
+
+        guild_dlg->set_on_decline_invite([&ws]() {
+            ws.request_guild_invite_respond(false);
+        });
+
+        // Refresh guild dialog when guild state changes
+        guild.set_on_change([this]() {
+            auto* dlg = dynamic_cast<guild_dialog*>(game_->ui().get_dialog(dialog_type::guild));
+            if (!dlg) return;
+
+            auto& g = game_->guild();
+            if (g.in_guild())
+            {
+                dlg->set_mode(guild_dialog_mode::guild_view);
+                dlg->set_guild_name(g.guild_name());
+                dlg->set_guild_tag(g.guild_tag());
+                dlg->set_guild_master(g.master_name());
+                dlg->set_motd(g.motd());
+                dlg->set_local_rank(g.rank());
+
+                std::vector<guild_dialog::member_display_info> display_members;
+                for (const auto& m : g.members())
+                {
+                    display_members.push_back({
+                        .name = m.name,
+                        .rank_name = m.rank_name,
+                        .rank_id = m.rank_id,
+                        .is_online = m.is_online,
+                    });
+                }
+                dlg->set_members(display_members);
+            }
+            else
+            {
+                dlg->set_mode(guild_dialog_mode::no_guild);
+                dlg->clear_members();
+            }
+
+            if (g.has_pending_invite())
+            {
+                const auto& inv = g.pending_invite();
+                dlg->set_pending_invite(inv.guild_name, inv.guild_tag,
+                                         inv.inviter_name, inv.time_remaining);
+            }
+            else
+            {
+                dlg->clear_pending_invite();
+            }
+        });
+
+        // Request guild_info when dialog opens and player is in a guild
+        // (guild_dialog visibility is toggled by the G hotkey)
+    }
+
     // NPC dialog - conversation responses
     if (auto* npc_dlg = dynamic_cast<npc_dialog*>(ui.get_dialog(dialog_type::npc_dialog)))
     {

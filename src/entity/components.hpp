@@ -264,7 +264,9 @@ struct combat_component {
 struct name_component {
     std::string name;
     std::string guild_name;
+    std::string guild_tag;
     std::string guild_rank;
+    uint8_t guild_rank_id = 255;    // 255 = not in guild, 0 = master
     uint32_t guild_id = 0;
 
     std::string faction;                                    // "neutral", "aresden", "elvine"

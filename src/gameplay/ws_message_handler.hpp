@@ -54,6 +54,18 @@ public:
     void request_fish_skill();
     void request_fish_catch();
 
+    // Guild
+    void request_guild_create(std::string_view name, std::string_view tag);
+    void request_guild_disband();
+    void request_guild_leave();
+    void request_guild_kick(std::string_view target);
+    void request_guild_invite(std::string_view target);
+    void request_guild_invite_respond(bool accept);
+    void request_guild_promote(std::string_view target);
+    void request_guild_demote(std::string_view target);
+    void request_guild_set_motd(std::string_view motd);
+    void request_guild_info();
+
 private:
     // Individual message handlers
     void handle_login_response_ws(const json& message);
@@ -105,6 +117,18 @@ private:
     void handle_fish_catch_response(const json& message);
     void handle_fish_spawn_broadcast(const json& message);
     void handle_fish_despawn_broadcast(const json& message);
+    void handle_guild_create_response(const json& message);
+    void handle_guild_disband_response(const json& message);
+    void handle_guild_leave_response(const json& message);
+    void handle_guild_kick_response(const json& message);
+    void handle_guild_invite_response(const json& message);
+    void handle_guild_invite_received(const json& message);
+    void handle_guild_invite_respond_response(const json& message);
+    void handle_guild_promote_response(const json& message);
+    void handle_guild_demote_response(const json& message);
+    void handle_guild_set_motd_response(const json& message);
+    void handle_guild_info_response(const json& message);
+    void handle_guild_update(const json& message);
     void handle_pong(const json& message);
     void handle_error(const json& message);
 

@@ -118,6 +118,30 @@ namespace msg_type {
     inline constexpr const char* fish_catch_response = "fish_catch_response";
     inline constexpr const char* fish_spawn_broadcast = "fish_spawn_broadcast";
     inline constexpr const char* fish_despawn_broadcast = "fish_despawn_broadcast";
+
+    // Guild
+    inline constexpr const char* guild_create_request = "guild_create_request";
+    inline constexpr const char* guild_create_response = "guild_create_response";
+    inline constexpr const char* guild_disband_request = "guild_disband_request";
+    inline constexpr const char* guild_disband_response = "guild_disband_response";
+    inline constexpr const char* guild_leave_request = "guild_leave_request";
+    inline constexpr const char* guild_leave_response = "guild_leave_response";
+    inline constexpr const char* guild_kick_request = "guild_kick_request";
+    inline constexpr const char* guild_kick_response = "guild_kick_response";
+    inline constexpr const char* guild_invite_request = "guild_invite_request";
+    inline constexpr const char* guild_invite_response = "guild_invite_response";
+    inline constexpr const char* guild_invite_received = "guild_invite_received";
+    inline constexpr const char* guild_invite_respond_request = "guild_invite_respond_request";
+    inline constexpr const char* guild_invite_respond_response = "guild_invite_respond_response";
+    inline constexpr const char* guild_promote_request = "guild_promote_request";
+    inline constexpr const char* guild_promote_response = "guild_promote_response";
+    inline constexpr const char* guild_demote_request = "guild_demote_request";
+    inline constexpr const char* guild_demote_response = "guild_demote_response";
+    inline constexpr const char* guild_set_motd_request = "guild_set_motd_request";
+    inline constexpr const char* guild_set_motd_response = "guild_set_motd_response";
+    inline constexpr const char* guild_info_request = "guild_info_request";
+    inline constexpr const char* guild_info_response = "guild_info_response";
+    inline constexpr const char* guild_update = "guild_update";
 }
 
 // Character info from server (used in get_characters_response)
@@ -259,6 +283,9 @@ struct enter_game_character {
     int64_t experience = 0;
     int32_t pk_count = 0;
     int32_t hunger_level = 100;
+    std::string guild_name;
+    std::string guild_tag;
+    uint8_t guild_rank = 255;       // 255 = not in guild
 
     static enter_game_character from_json(const json& j) {
         enter_game_character c;
@@ -291,6 +318,9 @@ struct enter_game_character {
         if (j.contains("experience")) c.experience = j["experience"].get<int64_t>();
         if (j.contains("pk_count")) c.pk_count = j["pk_count"].get<int32_t>();
         if (j.contains("hunger_level")) c.hunger_level = j["hunger_level"].get<int32_t>();
+        if (j.contains("guild_name")) c.guild_name = j["guild_name"].get<std::string>();
+        if (j.contains("guild_tag")) c.guild_tag = j["guild_tag"].get<std::string>();
+        if (j.contains("guild_rank")) c.guild_rank = j["guild_rank"].get<uint8_t>();
         return c;
     }
 };
@@ -1306,6 +1336,8 @@ struct entity_spawn_data {
     std::string faction;
     std::string hostility;
     std::string pk_status;
+    std::string guild_name;
+    std::string guild_tag;
 
     static entity_spawn_data from_json(const json& j) {
         entity_spawn_data data;
@@ -1321,6 +1353,8 @@ struct entity_spawn_data {
             if (d.contains("faction")) data.faction = d["faction"].get<std::string>();
             if (d.contains("hostility")) data.hostility = d["hostility"].get<std::string>();
             if (d.contains("pk_status")) data.pk_status = d["pk_status"].get<std::string>();
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("guild_tag")) data.guild_tag = d["guild_tag"].get<std::string>();
         }
         return data;
     }
@@ -1757,6 +1791,209 @@ inline json make_fish_skill_request() {
 
 inline json make_fish_catch_request() {
     return message_builder(msg_type::fish_catch_request).build();
+}
+
+// === Guild message structs and builders ===
+
+// Guild create response
+struct guild_create_response_data {
+    bool success = false;
+    std::string guild_name;
+    std::string tag;
+    std::string error;
+
+    static guild_create_response_data from_json(const json& j) {
+        guild_create_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("tag")) data.tag = d["tag"].get<std::string>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Reusable for disband/leave/kick/promote/demote/motd responses
+struct guild_action_response_data {
+    bool success = false;
+    std::string error;
+
+    static guild_action_response_data from_json(const json& j) {
+        guild_action_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Server push: someone invited us
+struct guild_invite_received_data {
+    std::string guild_name;
+    std::string guild_tag;
+    std::string inviter_name;
+
+    static guild_invite_received_data from_json(const json& j) {
+        guild_invite_received_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("guild_tag")) data.guild_tag = d["guild_tag"].get<std::string>();
+            if (d.contains("inviter_name")) data.inviter_name = d["inviter_name"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Accept/decline result
+struct guild_invite_respond_response_data {
+    bool success = false;
+    bool accepted = false;
+    std::string guild_name;
+    std::string guild_tag;
+    std::string error;
+
+    static guild_invite_respond_response_data from_json(const json& j) {
+        guild_invite_respond_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("accepted")) data.accepted = d["accepted"].get<bool>();
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("guild_tag")) data.guild_tag = d["guild_tag"].get<std::string>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Guild member in info response
+struct guild_member_data {
+    std::string name;
+    uint8_t rank = 0;
+    std::string rank_name;
+    bool is_online = false;
+
+    static guild_member_data from_json(const json& j) {
+        guild_member_data data;
+        if (j.contains("name")) data.name = j["name"].get<std::string>();
+        if (j.contains("rank")) data.rank = j["rank"].get<uint8_t>();
+        if (j.contains("rank_name")) data.rank_name = j["rank_name"].get<std::string>();
+        if (j.contains("is_online")) data.is_online = j["is_online"].get<bool>();
+        return data;
+    }
+};
+
+// Full guild info response
+struct guild_info_response_data {
+    bool success = false;
+    std::string guild_name;
+    std::string tag;
+    std::string motd;
+    std::string master_name;
+    int32_t member_count = 0;
+    std::vector<guild_member_data> members;
+    std::string error;
+
+    static guild_info_response_data from_json(const json& j) {
+        guild_info_response_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("success")) data.success = d["success"].get<bool>();
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("tag")) data.tag = d["tag"].get<std::string>();
+            if (d.contains("motd")) data.motd = d["motd"].get<std::string>();
+            if (d.contains("master_name")) data.master_name = d["master_name"].get<std::string>();
+            if (d.contains("member_count")) data.member_count = d["member_count"].get<int32_t>();
+            if (d.contains("error")) data.error = d["error"].get<std::string>();
+            if (d.contains("members") && d["members"].is_array()) {
+                for (const auto& m : d["members"]) {
+                    data.members.push_back(guild_member_data::from_json(m));
+                }
+            }
+        }
+        return data;
+    }
+};
+
+// Guild update broadcast
+struct guild_update_data {
+    std::string action;
+    std::string guild_name;
+    std::string player_name;
+    std::string motd;
+
+    static guild_update_data from_json(const json& j) {
+        guild_update_data data;
+        if (j.contains("data")) {
+            const auto& d = j["data"];
+            if (d.contains("action")) data.action = d["action"].get<std::string>();
+            if (d.contains("guild_name")) data.guild_name = d["guild_name"].get<std::string>();
+            if (d.contains("player_name")) data.player_name = d["player_name"].get<std::string>();
+            if (d.contains("motd")) data.motd = d["motd"].get<std::string>();
+        }
+        return data;
+    }
+};
+
+// Guild request builders
+inline json make_guild_create_request(std::string_view name, std::string_view tag) {
+    return message_builder(msg_type::guild_create_request)
+        .set("name", std::string(name))
+        .set("tag", std::string(tag))
+        .build();
+}
+
+inline json make_guild_disband_request() {
+    return message_builder(msg_type::guild_disband_request).build();
+}
+
+inline json make_guild_leave_request() {
+    return message_builder(msg_type::guild_leave_request).build();
+}
+
+inline json make_guild_kick_request(std::string_view target_name) {
+    return message_builder(msg_type::guild_kick_request)
+        .set("target_name", std::string(target_name))
+        .build();
+}
+
+inline json make_guild_invite_request(std::string_view target_name) {
+    return message_builder(msg_type::guild_invite_request)
+        .set("target_name", std::string(target_name))
+        .build();
+}
+
+inline json make_guild_invite_respond_request(bool accept) {
+    return message_builder(msg_type::guild_invite_respond_request)
+        .set("accept", accept)
+        .build();
+}
+
+inline json make_guild_promote_request(std::string_view target_name) {
+    return message_builder(msg_type::guild_promote_request)
+        .set("target_name", std::string(target_name))
+        .build();
+}
+
+inline json make_guild_demote_request(std::string_view target_name) {
+    return message_builder(msg_type::guild_demote_request)
+        .set("target_name", std::string(target_name))
+        .build();
+}
+
+inline json make_guild_set_motd_request(std::string_view motd) {
+    return message_builder(msg_type::guild_set_motd_request)
+        .set("motd", std::string(motd))
+        .build();
+}
+
+inline json make_guild_info_request() {
+    return message_builder(msg_type::guild_info_request).build();
 }
 
 } // namespace hb

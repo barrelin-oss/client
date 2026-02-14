@@ -861,6 +861,7 @@ void game_state_manager::clear_game_data() {
     sounds_.stop_ambient();
     status_log_.clear();
     floating_text_.clear();
+    guild_.clear();
     quests_.clear();
     spell_hotbar_.fill(0);
 }
@@ -974,6 +975,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp) {
     magic_.update_effects(delta_time);
     effects_.update(delta_time);
     skills_.update_cooldowns(delta_time);
+    guild_.update(delta_time);
 
     // Update HUD
     update_icon_panel();

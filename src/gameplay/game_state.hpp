@@ -4,6 +4,7 @@
 #include "core/launch_options.hpp"
 #include "gameplay/combat.hpp"
 #include "gameplay/dialog_callbacks.hpp"
+#include "gameplay/guild_system.hpp"
 #include "gameplay/input_handler.hpp"
 #include "gameplay/inventory.hpp"
 #include "gameplay/magic.hpp"
@@ -165,6 +166,8 @@ public:
     combat_system& combat() { return combat_; }
     sound_manager& sounds() { return sounds_; }
     effect_system& effects() { return effects_; }
+    guild_system& guild() { return guild_; }
+    const guild_system& guild() const { return guild_; }
     quest_log& quests() { return quests_; }
     const quest_log& quests() const { return quests_; }
     hb::sprite_manager& sprites() { return sprites_; }
@@ -308,6 +311,7 @@ private:
     inventory_system inventory_;
     magic_system magic_;
     skills_system skills_;
+    guild_system guild_;
     quest_log quests_;
 
     // Extracted subsystems

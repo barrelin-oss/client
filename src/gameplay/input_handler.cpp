@@ -1013,7 +1013,13 @@ void input_handler::handle_hotkey_input(const input& inp)
     if (inp.is_key_pressed(sf::Keyboard::Key::K)) ui.toggle_dialog(dialog_type::skills);
     if (inp.is_key_pressed(sf::Keyboard::Key::M)) ui.toggle_dialog(dialog_type::spellbook);
     if (inp.is_key_pressed(sf::Keyboard::Key::P)) ui.toggle_dialog(dialog_type::party);
-    if (inp.is_key_pressed(sf::Keyboard::Key::G)) ui.toggle_dialog(dialog_type::guild);
+    if (inp.is_key_pressed(sf::Keyboard::Key::G))
+    {
+        ui.toggle_dialog(dialog_type::guild);
+        // Request fresh guild info when opening
+        if (ui.is_dialog_open(dialog_type::guild) && game_->guild().in_guild())
+            game_->ws_handler().request_guild_info();
+    }
 
     // Fishing (F key)
     if (inp.is_key_pressed(sf::Keyboard::Key::F))

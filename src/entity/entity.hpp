@@ -99,6 +99,11 @@ public:
     bool should_remove() const { return should_remove_; }
     void mark_for_removal() { should_remove_ = true; }
 
+    // Fade-out on despawn
+    bool is_fading_out() const { return fading_out_; }
+    void begin_fade_out(float duration = 0.5f);
+    void update_fade(float delta_time);
+
     // Convenience methods for motion handling
     void set_action(object_action action);
     void set_action_with_combat_mode(object_action base_action, bool combat_mode);
@@ -119,6 +124,9 @@ private:
     entity_type type_ = entity_type::none;
     bool alive_ = true;
     bool should_remove_ = false;
+    bool fading_out_ = false;
+    float fade_elapsed_ = 0.0f;
+    float fade_duration_ = 0.5f;
 
     // Core components (always present)
     transform_component transform_;

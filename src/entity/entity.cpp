@@ -132,4 +132,29 @@ void entity::set_name(const std::string& entity_name) {
     name_->name = entity_name;
 }
 
+void entity::begin_fade_out(float duration)
+{
+    if (fading_out_ || should_remove_) return;
+    fading_out_ = true;
+    fade_elapsed_ = 0.0f;
+    fade_duration_ = duration;
+}
+
+void entity::update_fade(float delta_time)
+{
+    if (!fading_out_) return;
+
+    fade_elapsed_ += delta_time;
+    float t = fade_elapsed_ / fade_duration_;
+    if (t >= 1.0f)
+    {
+        sprite_.alpha = 0.0f;
+        mark_for_removal();
+    }
+    else
+    {
+        sprite_.alpha = 1.0f - t;
+    }
+}
+
 } // namespace hb

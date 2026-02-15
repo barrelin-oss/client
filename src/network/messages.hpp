@@ -1477,6 +1477,16 @@ struct stat_update_data {
     int32_t dodge_rate = 0;
     int32_t critical_rate = 0;
 
+    // Optional vitals (included in full stat updates after teleport/respawn)
+    std::optional<int32_t> hp;
+    std::optional<int32_t> mp;
+    std::optional<int32_t> sp;
+    std::optional<int64_t> experience;
+    std::optional<int32_t> gold;
+    std::optional<uint8_t> level;
+    std::optional<int32_t> pk_count;
+    std::optional<uint8_t> hunger_level;
+
     static stat_update_data from_json(const json& j) {
         stat_update_data data;
         if (j.contains("data")) {
@@ -1491,6 +1501,14 @@ struct stat_update_data {
             if (d.contains("hit_rate")) data.hit_rate = d["hit_rate"].get<int32_t>();
             if (d.contains("dodge_rate")) data.dodge_rate = d["dodge_rate"].get<int32_t>();
             if (d.contains("critical_rate")) data.critical_rate = d["critical_rate"].get<int32_t>();
+            if (d.contains("hp")) data.hp = d["hp"].get<int32_t>();
+            if (d.contains("mp")) data.mp = d["mp"].get<int32_t>();
+            if (d.contains("sp")) data.sp = d["sp"].get<int32_t>();
+            if (d.contains("experience")) data.experience = d["experience"].get<int64_t>();
+            if (d.contains("gold")) data.gold = d["gold"].get<int32_t>();
+            if (d.contains("level")) data.level = d["level"].get<uint8_t>();
+            if (d.contains("pk_count")) data.pk_count = d["pk_count"].get<int32_t>();
+            if (d.contains("hunger_level")) data.hunger_level = d["hunger_level"].get<uint8_t>();
         }
         return data;
     }

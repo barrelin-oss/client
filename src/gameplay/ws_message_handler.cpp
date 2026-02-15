@@ -1085,7 +1085,15 @@ void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
     if (target && (target->has_npc() || target->has_monster()))
         target_type = 2;
 
-    uint8_t dir = static_cast<uint8_t>(t.facing);
+    // Calculate direction toward target (don't rely on t.facing which may be stale)
+    uint8_t dir = static_cast<uint8_t>(direction_to_protocol(t.facing));
+    if (target)
+    {
+        auto calc_dir = calculate_direction(t.tile_x, t.tile_y,
+                                            target->transform().tile_x, target->transform().tile_y);
+        if (calc_dir)
+            dir = static_cast<uint8_t>(direction_to_protocol(*calc_dir));
+    }
 
     spdlog::debug("Requesting attack on entity {} (type {} target_type {})", target_id, attack_type, target_type);
     json msg = make_player_attack_request(target_id, target_type, t.tile_x, t.tile_y, attack_type, dir);
@@ -1117,7 +1125,7 @@ void ws_message_handler::request_magic(uint16_t spell_id, int32_t target_x, int3
         target_type_str = "ground";
     }
 
-    uint8_t dir = static_cast<uint8_t>(t.facing);
+    uint8_t dir = static_cast<uint8_t>(direction_to_protocol(t.facing));
 
     spdlog::debug("Requesting magic: spell={} target=({},{}) entity={} type={}",
                   spell_id, target_x, target_y, target_id, target_type_str);
@@ -2138,6 +2146,15 @@ void ws_message_handler::handle_stat_update(const json& message)
     stats.hit_ratio = data.hit_rate;
     stats.dodge_ratio = data.dodge_rate;
     stats.critical_ratio = data.critical_rate;
+
+    // Full stat updates (teleport/respawn) include current vitals
+    if (data.hp) stats.hp = *data.hp;
+    if (data.mp) stats.mp = *data.mp;
+    if (data.sp) stats.sp = *data.sp;
+    if (data.experience) stats.experience = static_cast<uint32_t>(*data.experience);
+    if (data.level) stats.level = *data.level;
+    if (data.hunger_level) stats.hunger = *data.hunger_level;
+    if (data.pk_count && player->has_combat()) player->combat().pk_count = *data.pk_count;
 
     game_->update_icon_panel();
 

@@ -199,6 +199,18 @@ void input_handler::handle_playing_input(const input& inp)
         return;
     }
 
+    // Right-click anywhere on the game world clears the walk destination
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right) && move_dest_x_ >= 0)
+    {
+        move_dest_x_ = -1;
+        move_dest_y_ = -1;
+        if (local && local->has_movement())
+        {
+            local->movement().target_x = -1;
+            local->movement().target_y = -1;
+        }
+    }
+
     handle_combat_input(inp);
     if (!attack_consumed_)
     {

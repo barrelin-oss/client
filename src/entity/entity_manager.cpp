@@ -794,7 +794,7 @@ bool entity_manager::entity_exists(entity_id id) const {
 void entity_manager::remove_entity(entity_id id) {
     auto it = entities_.find(id);
     if (it != entities_.end()) {
-        it->second->mark_for_removal();
+        it->second->begin_fade_out();
     }
 }
 
@@ -851,7 +851,7 @@ std::vector<entity*> entity_manager::get_entities_in_range(int32_t x, int32_t y,
     int32_t range_sq = range * range;
 
     for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
+        if (e->should_remove() || e->is_fading_out()) continue;
 
         const auto& t = e->transform();
         int32_t dx = t.x - x;
@@ -866,7 +866,7 @@ std::vector<entity*> entity_manager::get_entities_in_range(int32_t x, int32_t y,
 std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_t tile_y) {
     std::vector<entity*> result;
     for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
+        if (e->should_remove() || e->is_fading_out()) continue;
 
         const auto& t = e->transform();
         if (t.tile_x == tile_x && t.tile_y == tile_y) {
@@ -879,7 +879,7 @@ std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_
 std::vector<std::pair<int32_t, int32_t>> entity_manager::get_occupied_tiles() const {
     std::vector<std::pair<int32_t, int32_t>> result;
     for (const auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
+        if (e->should_remove() || e->is_fading_out()) continue;
         if (!e->is_alive()) continue;
         const auto& t = e->transform();
         result.emplace_back(t.tile_x, t.tile_y);
@@ -889,7 +889,7 @@ std::vector<std::pair<int32_t, int32_t>> entity_manager::get_occupied_tiles() co
 
 entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y) {
     for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
+        if (e->should_remove() || e->is_fading_out()) continue;
         if (!e->is_alive()) continue;  // Skip dead entities (corpses)
         if (id == local_player_id_) continue;  // Skip local player
 
@@ -915,7 +915,7 @@ entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t scree
     for (int pass = 0; pass < 2; ++pass) {
         bool want_alive = (pass == 0);
         for (auto& [id, e] : entities_) {
-            if (e->should_remove()) continue;
+            if (e->should_remove() || e->is_fading_out()) continue;
             if (e->type() == entity_type::effect) continue;
             if (e->is_alive() != want_alive) continue;
 
@@ -1088,6 +1088,12 @@ void entity_manager::cleanup_removed_entities() {
 }
 
 void entity_manager::update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
+    // Update fade-out (skip everything else if fading)
+    if (e.is_fading_out()) {
+        e.update_fade(delta_time);
+        return;
+    }
+
     // Update animation
     update_animation(e, delta_time, local_player_combat_mode);
 
@@ -2009,7 +2015,7 @@ static monster_sounds get_monster_sounds(uint16_t visual_type)
     switch (visual_type)
     {
         // clang-format off
-        case 10: return {{'M',   1}, {'M',   2}, {'M',   3}, 5, {'M',   4}, 5};  // Slime
+        case 10: return {{'M',   1}, {'M',   2}, {'M',   3}, 5, {'M',   4}, 1};  // Slime
         case 11: return {{'M',  13}, {'M',  14}, {'M',  15}, 5, {'M',  16}, 5};  // Skeleton
         case 12: return {{'M',  33}, {'M',  34}, {'M',  35}, 5, {'M',  36}, 5};  // Stone Golem
         case 13: return {{'M',  41}, {'M',  42}, {'M',  43}, 5, {'M',  44}, 5};  // Cyclops

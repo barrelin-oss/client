@@ -579,98 +579,62 @@ void ui_system::close_all_dialogs()
 
 void ui_system::create_login_dialog()
 {
-    auto dlg = std::make_unique<login_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::login] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::login, std::make_unique<login_dialog>());
 }
 
 void ui_system::create_character_select_dialog()
 {
-    auto dlg = std::make_unique<character_select_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::character_select] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::character_select, std::make_unique<character_select_dialog>());
 }
 
 void ui_system::create_character_dialog()
 {
-    auto dlg = std::make_unique<character_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::character_info] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::character_info, std::make_unique<character_dialog>());
 }
 
 void ui_system::create_inventory_dialog()
 {
-    auto dlg = std::make_unique<inventory_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::inventory] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::inventory, std::make_unique<inventory_dialog>());
 }
 
 void ui_system::create_equipment_dialog()
 {
-    auto dlg = std::make_unique<equipment_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::equipment] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::equipment, std::make_unique<equipment_dialog>());
 }
 
 void ui_system::create_spellbook_dialog()
 {
-    auto dlg = std::make_unique<spellbook_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::spellbook] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::spellbook, std::make_unique<spellbook_dialog>());
 }
 
 void ui_system::create_skills_dialog()
 {
-    auto dlg = std::make_unique<skills_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::skills] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::skills, std::make_unique<skills_dialog>());
 }
 
 void ui_system::create_shop_dialog()
 {
-    auto dlg = std::make_unique<shop_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::shop] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::shop, std::make_unique<shop_dialog>());
 }
 
 void ui_system::create_bank_dialog()
 {
-    auto dlg = std::make_unique<bank_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::bank] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::bank, std::make_unique<bank_dialog>());
 }
 
 void ui_system::create_party_dialog()
 {
-    auto dlg = std::make_unique<party_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::party] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::party, std::make_unique<party_dialog>());
 }
 
 void ui_system::create_guild_dialog()
 {
-    auto dlg = std::make_unique<guild_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::guild] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::guild, std::make_unique<guild_dialog>());
 }
 
 void ui_system::create_npc_dialog()
 {
-    auto dlg = std::make_unique<npc_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::npc_dialog] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::npc_dialog, std::make_unique<npc_dialog>());
 }
 
 void ui_system::create_chat_dialog()
@@ -678,59 +642,39 @@ void ui_system::create_chat_dialog()
     auto dlg = std::make_unique<chat_dialog>();
     dlg->set_draggable(true);
     dlg->set_closeable(true);
-
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::chat] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::chat, std::move(dlg));
 }
 
 void ui_system::create_options_dialog()
 {
     auto dlg = std::make_unique<settings_dialog>();
-    dlg->set_ui_style(style_); // Initialize with current UI style
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::options] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    dlg->set_ui_style(style_);
+    add_dialog(dialog_type::options, std::move(dlg));
 }
 
 void ui_system::create_trade_dialog()
 {
-    auto dlg = std::make_unique<trade_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::trade] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::trade, std::make_unique<trade_dialog>());
 }
 
 void ui_system::create_craft_dialog()
 {
-    auto dlg = std::make_unique<craft_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::manufacture] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::manufacture, std::make_unique<craft_dialog>());
 }
 
 void ui_system::create_map_dialog()
 {
-    auto dlg = std::make_unique<map_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::map] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::map, std::make_unique<map_dialog>());
 }
 
 void ui_system::create_repair_dialog()
 {
-    auto dlg = std::make_unique<repair_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::repair] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::repair, std::make_unique<repair_dialog>());
 }
 
 void ui_system::create_help_dialog()
 {
-    auto dlg = std::make_unique<help_dialog>();
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::help] = std::move(dlg);
-    dialog_order_.push_back(ptr);
+    add_dialog(dialog_type::help, std::make_unique<help_dialog>());
 }
 
 void ui_system::create_message_box(std::string_view title, std::string_view message, std::function<void()> on_ok)
@@ -761,18 +705,8 @@ void ui_system::create_message_box(std::string_view title, std::string_view mess
         });
     dlg->add_child(std::move(ok_btn));
 
-    // Remove old message box if exists (remove from dialog_order_ before erasing from dialogs_)
-    if (auto it = dialogs_.find(dialog_type::message_box); it != dialogs_.end())
-    {
-        dialog* old_ptr = it->second.get();
-        dialog_order_.erase(std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr), dialog_order_.end());
-        dialogs_.erase(it);
-    }
-
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::message_box] = std::move(dlg);
-    dialog_order_.push_back(ptr);
-    ptr->open();
+    add_dialog(dialog_type::message_box, std::move(dlg));
+    get_dialog(dialog_type::message_box)->open();
 }
 
 void ui_system::create_confirm_box(std::string_view title,
@@ -818,18 +752,8 @@ void ui_system::create_confirm_box(std::string_view title,
         });
     dlg->add_child(std::move(no_btn));
 
-    // Remove old confirm box (remove from dialog_order_ before erasing from dialogs_)
-    if (auto it = dialogs_.find(dialog_type::confirm); it != dialogs_.end())
-    {
-        dialog* old_ptr = it->second.get();
-        dialog_order_.erase(std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr), dialog_order_.end());
-        dialogs_.erase(it);
-    }
-
-    dialog* ptr = dlg.get();
-    dialogs_[dialog_type::confirm] = std::move(dlg);
-    dialog_order_.push_back(ptr);
-    ptr->open();
+    add_dialog(dialog_type::confirm, std::move(dlg));
+    get_dialog(dialog_type::confirm)->open();
 }
 
 void ui_system::create_input_box(std::string_view title,

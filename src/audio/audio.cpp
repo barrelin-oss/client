@@ -162,14 +162,17 @@ void audio::stop_sound(sound_id id)
     if (it == buffers_.end())
         return;
 
-    // Stop all instances of this sound
-    for (auto& s : active_sounds_)
+    // Stop and remove all instances of this sound
+    const sf::SoundBuffer* buf = &it->second;
+    std::erase_if(active_sounds_, [buf](active_sound& s)
     {
-        if (&s.sound->getBuffer() == &it->second)
+        if (&s.sound->getBuffer() == buf)
         {
             s.sound->stop();
+            return true;
         }
-    }
+        return false;
+    });
 }
 
 void audio::stop_all_sounds()

@@ -32,6 +32,7 @@ void ui_system::shutdown()
         dialog_manager_->shutdown();
         dialog_manager_.reset();
     }
+    yaml_icon_panel_ = nullptr;
     dialogs_.clear();
     dialog_order_.clear();
     focused_ = nullptr;

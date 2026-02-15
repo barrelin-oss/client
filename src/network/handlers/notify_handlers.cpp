@@ -526,7 +526,7 @@ void notify_handler::handle_exp(packet_reader& reader)
 
     if (auto* player = game_->local_player())
     {
-        player->stats().exp = *exp;
+        player->stats().experience = *exp;
         spdlog::debug("EXP updated: {}", *exp);
     }
 }

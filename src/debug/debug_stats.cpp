@@ -912,7 +912,7 @@ void debug_stats::render_entity_info(renderer& rend, const entity* ent, int32_t 
         rend.draw_text("Stats", x, y, header_color, 10);
         y += line_height_;
 
-        snprintf(buf, sizeof(buf), "Lv: %u  Exp: %lld", st.level, static_cast<long long>(st.exp));
+        snprintf(buf, sizeof(buf), "Lv: %u  Exp: %lld", st.level, static_cast<long long>(st.experience));
         rend.draw_text(buf, x + 8, y, data_color, 10);
         y += line_height_;
 

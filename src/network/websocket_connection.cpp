@@ -164,29 +164,17 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg)
         ping_ms_.store(0, std::memory_order_relaxed);
         ping_pending_.store(false, std::memory_order_relaxed);
         ping_timer_ = 0.0f;
-        // Set flag for thread-safe polling (preferred)
         pending_connect_.store(true);
-        // Also call callback for backward compatibility (WARNING: runs on background thread!)
-        if (connect_callback_)
-        {
-            connect_callback_();
-        }
         break;
 
     case ix::WebSocketMessageType::Close:
         spdlog::info("WebSocket closed: {} ({})", msg->closeInfo.reason, msg->closeInfo.code);
         state_.store(ws_connection_state::disconnected);
-        // Set flag for thread-safe polling (preferred)
         {
             std::lock_guard<std::mutex> lock(disconnect_reason_mutex_);
             pending_disconnect_reason_ = msg->closeInfo.reason;
         }
         pending_disconnect_.store(true);
-        // Also call callback for backward compatibility (WARNING: runs on background thread!)
-        if (disconnect_callback_)
-        {
-            disconnect_callback_(msg->closeInfo.reason);
-        }
         break;
 
     case ix::WebSocketMessageType::Error:
@@ -205,12 +193,6 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg)
             json parsed = json::parse(msg->str);
             messages_received_++;
 
-            // If callback is set, use it; otherwise queue the message
-            if (message_callback_)
-            {
-                message_callback_(parsed);
-            }
-            else
             {
                 std::lock_guard<std::mutex> lock(queue_mutex_);
                 incoming_messages_.push(std::move(parsed));

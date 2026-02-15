@@ -10,7 +10,6 @@
 #include <mutex>
 #include <atomic>
 #include <optional>
-#include <functional>
 
 namespace hb
 {
@@ -24,14 +23,6 @@ enum class ws_connection_state
     connected,
     failed
 };
-
-// Callbacks
-// WARNING: These callbacks are invoked on a background thread by ixwebsocket.
-// Do NOT modify shared state (UI, game objects, containers) from these callbacks.
-// Use the receive() polling method for thread-safe message processing on the main thread.
-using message_callback = std::function<void(const json&)>;
-using connect_callback = std::function<void()>;
-using disconnect_callback = std::function<void(const std::string& reason)>;
 
 class websocket_connection
 {
@@ -65,15 +56,6 @@ public:
     // Returns true if a disconnect event occurred, with reason in out_reason
     bool poll_disconnect_event(std::string& out_reason);
 
-    // Set callback for incoming messages (alternative to polling with receive())
-    void set_message_callback(message_callback callback) { message_callback_ = std::move(callback); }
-
-    // Set callback for connection established
-    void set_connect_callback(connect_callback callback) { connect_callback_ = std::move(callback); }
-
-    // Set callback for disconnection
-    void set_disconnect_callback(disconnect_callback callback) { disconnect_callback_ = std::move(callback); }
-
     // Get last error message (thread-safe)
     std::string last_error() const
     {
@@ -103,12 +85,7 @@ private:
     std::queue<json> incoming_messages_;
     mutable std::mutex queue_mutex_;
 
-    // Callback mode (WARNING: called from background thread, prefer polling)
-    message_callback message_callback_;
-    connect_callback connect_callback_;
-    disconnect_callback disconnect_callback_;
-
-    // Thread-safe event flags for polling (preferred over callbacks)
+    // Thread-safe event flags for polling
     std::atomic<bool> pending_connect_{false};
     std::atomic<bool> pending_disconnect_{false};
     std::string pending_disconnect_reason_;

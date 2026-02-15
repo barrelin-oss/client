@@ -1,6 +1,7 @@
 #include "gameplay/effect_system.hpp"
 #include "assets/sprite_manager.hpp"
 #include "audio/sound_manager.hpp"
+#include "core/random.hpp"
 #include "world/world.hpp"
 #include "world/tile.hpp"
 #include "graphics/renderer.hpp"
@@ -8,7 +9,6 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <string>
 
 namespace hb
@@ -228,7 +228,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             frame = static_cast<uint32_t>(eff.direction_index) * stride;
             if (eff.def->randomize_direction_frame && stride > 0)
             {
-                frame += static_cast<uint32_t>(std::rand() % stride);
+                frame += static_cast<uint32_t>(random_mod(stride));
             }
             // Add frame_offset on top of directional calc
             frame += eff.def->frame_offset;
@@ -353,7 +353,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                 int32_t ty = screen_y + static_cast<int32_t>(ny * pt.dist);
                 // Each trail copy gets independently randomized directional frame
                 uint32_t tf = static_cast<uint32_t>(eff.direction_index) * stride +
-                              static_cast<uint32_t>(std::rand() % stride) + eff.def->frame_offset;
+                              static_cast<uint32_t>(random_mod(stride)) + eff.def->frame_offset;
                 float a = pt.alpha * alpha_mul;
                 if (use_additive)
                     draw_additive(rend, eff, *eff.sprite_ptr, tx, ty, tf, a);
@@ -646,8 +646,8 @@ void effect_system::init_effect(effect& eff,
     if (def.behavior == effect_behavior::physics)
     {
         // Random velocity for particles
-        eff.velocity_x = static_cast<float>((std::rand() % 11) - 5);
-        eff.velocity_y = static_cast<float>(-(std::rand() % 8) - 2);
+        eff.velocity_x = static_cast<float>(random_int(-5, 5));
+        eff.velocity_y = static_cast<float>(-random_int(2, 9));
     }
 
     // Initialize fall velocity for falling effects (composite/static with gravity)
@@ -734,8 +734,8 @@ void effect_system::update_projectile(effect& eff, float delta_time)
             int16_t range = eff.def->trail_random_range;
             for (uint8_t t = 0; t < eff.def->trail_count; ++t)
             {
-                float tx = eff.pos_x + static_cast<float>((std::rand() % (range * 2 + 1)) - range);
-                float ty = eff.pos_y + static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                float tx = eff.pos_x + static_cast<float>(random_int(-range, range));
+                float ty = eff.pos_y + static_cast<float>(random_int(-range, range));
                 add_effect_at_pixel(eff.def->trail_effect, tx, ty);
             }
         }
@@ -797,8 +797,8 @@ void effect_system::update_composite(effect& eff, float delta_time)
         // Randomize thunder perturbation each frame (legacy bEffectFrameCounter behavior)
         if (eff.def->render_mode == effect_render_mode::thunder)
         {
-            eff.rx = static_cast<int8_t>((std::rand() % 11) - 5);
-            eff.ry = static_cast<int8_t>((std::rand() % 11) - 5);
+            eff.rx = static_cast<int8_t>(random_int(-5, 5));
+            eff.ry = static_cast<int8_t>(random_int(-5, 5));
         }
 
         // Velocity/gravity movement: apply after fall_start_frame, including death frame
@@ -909,8 +909,8 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
                 if (child_spec.random_offset)
                 {
                     int16_t range = child_spec.random_range;
-                    dest_x += static_cast<float>((std::rand() % (range * 2 + 1)) - range);
-                    dest_y += static_cast<float>((std::rand() % (range * 2 + 1)) - range);
+                    dest_x += static_cast<float>(random_int(-range, range));
+                    dest_y += static_cast<float>(random_int(-range, range));
                 }
 
                 // Look up the child effect definition
@@ -945,10 +945,8 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
 
                 if (child_spec.random_offset)
                 {
-                    offset_x +=
-                        static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
-                    offset_y +=
-                        static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                    offset_x += static_cast<float>(random_int(-child_spec.random_range, child_spec.random_range));
+                    offset_y += static_cast<float>(random_int(-child_spec.random_range, child_spec.random_range));
                 }
 
                 float child_x = parent.pos_x + offset_x;
@@ -1060,9 +1058,9 @@ static void draw_thunder_bolt(renderer& rend,
         float offset = 0.0f;
         if (i < num_segments) // Last point snaps to destination
         {
-            int32_t r = (std::rand() % 201) - 100;
+            int32_t r = random_int(-100, 100);
             offset = max_offset * envelope * static_cast<float>(r + seed_offset * 15) / 120.0f;
-            if (params.jag_chance > 0 && (std::rand() % params.jag_chance) == 0)
+            if (params.jag_chance > 0 && random_mod(params.jag_chance) == 0)
             {
                 offset *= params.jag_multiplier;
             }

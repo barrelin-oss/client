@@ -120,7 +120,9 @@ private:
     {
         size_t operator()(const chunk_key& k) const
         {
-            return std::hash<int64_t>()((static_cast<int64_t>(k.cx) << 32) | k.cy);
+            auto combined = (static_cast<int64_t>(static_cast<uint32_t>(k.cx)) << 32)
+                          | static_cast<uint32_t>(k.cy);
+            return std::hash<int64_t>()(combined);
         }
     };
 

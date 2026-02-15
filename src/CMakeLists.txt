@@ -110,6 +110,12 @@ add_library(helbreath_core STATIC
     gameplay/guild_system.cpp
     gameplay/skills.cpp
     gameplay/ws_message_handler.cpp
+    gameplay/ws_auth_handlers.cpp
+    gameplay/ws_entity_handlers.cpp
+    gameplay/ws_combat_handlers.cpp
+    gameplay/ws_inventory_handlers.cpp
+    gameplay/ws_guild_handlers.cpp
+    gameplay/ws_misc_handlers.cpp
     gameplay/game_state.cpp
     gameplay/chat_input_overlay.cpp
 

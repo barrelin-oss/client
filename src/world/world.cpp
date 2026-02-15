@@ -1,4 +1,5 @@
 #include "world/world.hpp"
+#include "core/random.hpp"
 #include "graphics/renderer.hpp"
 #include "core/constants.hpp"
 #include <spdlog/spdlog.h>
@@ -476,10 +477,8 @@ void world::update_camera(float delta_time)
             float current_intensity = shake_intensity_ * (1.0f - progress);
 
             // Random offset within intensity range
-            shake_offset_x_ =
-                static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
-            shake_offset_y_ =
-                static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
+            shake_offset_x_ = static_cast<int32_t>(random_float(-1.0f, 1.0f) * current_intensity);
+            shake_offset_y_ = static_cast<int32_t>(random_float(-1.0f, 1.0f) * current_intensity);
         }
     }
 

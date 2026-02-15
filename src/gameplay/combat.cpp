@@ -1,11 +1,11 @@
 #include "gameplay/combat.hpp"
 #include "audio/sound_manager.hpp"
+#include "core/random.hpp"
 #include "entity/entity_manager.hpp"
 #include "gameplay/inventory.hpp"
 #include "gameplay/magic.hpp"
 #include "gameplay/skills.hpp"
 #include <spdlog/spdlog.h>
-#include <random>
 #include <cmath>
 
 namespace hb
@@ -13,20 +13,10 @@ namespace hb
 
 namespace
 {
-std::random_device rd;
-std::mt19937 rng(rd());
-
-int32_t random_range(int32_t min, int32_t max)
-{
-    if (min >= max)
-        return min;
-    std::uniform_int_distribution<int32_t> dist(min, max);
-    return dist(rng);
-}
 
 bool roll_percent(int32_t chance)
 {
-    return random_range(1, 100) <= chance;
+    return random_int(1, 100) <= chance;
 }
 } // namespace
 
@@ -613,7 +603,6 @@ void combat_system::award_experience(entity_id entity, int32_t experience)
 
     auto& stats = ent->stats();
     stats.experience += experience;
-    stats.exp = stats.experience;
 
     // Trigger experience callback
     if (callbacks_.on_experience_gained)
@@ -647,7 +636,6 @@ bool combat_system::check_level_up(entity_id entity)
     if (stats.experience >= exp_needed)
     {
         stats.experience -= exp_needed;
-        stats.exp = stats.experience;
         stats.level++;
 
         // Recalculate max stats
@@ -712,7 +700,7 @@ int32_t combat_system::calculate_base_damage(int32_t attack_power, int32_t defen
     // Base damage = attack_power - (defense / 2), with some randomness
     int32_t base = attack_power - (defense / 2);
     int32_t variance = std::max(1, attack_power / 10);
-    return std::max(1, base + random_range(-variance, variance));
+    return std::max(1, base + random_int(-variance, variance));
 }
 
 int32_t combat_system::apply_skill_bonus(int32_t damage, weapon_skill skill, uint8_t mastery) const

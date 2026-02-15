@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "core/random.hpp"
 #include "platform/monitor.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/async.h>
@@ -6,7 +7,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <thread>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
@@ -171,7 +171,7 @@ bool application::initialize(const launch_options& opts)
     // Preload a random character body sprite for loading screen animation
     {
         auto& sprites = game_state_->sprites();
-        bool use_female = (std::rand() % 2) != 0;
+        bool use_female = random_bool();
         const char* pak_name = use_female ? "Yw" : "Ym";
         // Ym = body_base(500) + (3-1)*120 = 740, Yw = 500 + (6-1)*120 = 1100
         uint16_t sprite_base = use_female ? 1100 : 740;

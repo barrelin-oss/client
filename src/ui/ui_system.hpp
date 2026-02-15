@@ -156,6 +156,7 @@ public:
 
 private:
     void bring_to_front(dialog* dlg);
+    void clear_focus_if_owned_by(ui_element* root);
 
     std::unordered_map<dialog_type, std::unique_ptr<dialog>> dialogs_;
     std::vector<dialog*> dialog_order_; // For z-ordering

@@ -494,6 +494,7 @@ void ui_system::add_dialog(dialog_type type, std::unique_ptr<dialog> dlg)
     if (auto it = dialogs_.find(type); it != dialogs_.end())
     {
         dialog* old_ptr = it->second.get();
+        clear_focus_if_owned_by(old_ptr);
         dialog_order_.erase(std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr), dialog_order_.end());
         dialogs_.erase(it);
     }
@@ -810,6 +811,7 @@ void ui_system::create_input_box(std::string_view title,
     if (auto it = dialogs_.find(dialog_type::input_box); it != dialogs_.end())
     {
         dialog* old_ptr = it->second.get();
+        clear_focus_if_owned_by(old_ptr);
         dialog_order_.erase(std::remove(dialog_order_.begin(), dialog_order_.end(), old_ptr), dialog_order_.end());
         dialogs_.erase(it);
     }
@@ -843,6 +845,22 @@ void ui_system::set_focus(ui_element* element)
     if (focused_)
     {
         focused_->set_focused(true);
+    }
+}
+
+void ui_system::clear_focus_if_owned_by(ui_element* root)
+{
+    if (!focused_ || !root)
+    {
+        return;
+    }
+    for (auto* el = focused_; el != nullptr; el = el->parent())
+    {
+        if (el == root)
+        {
+            focused_ = nullptr;
+            return;
+        }
     }
 }
 
@@ -1067,6 +1085,7 @@ void ui_system::hide_connection_dialog()
     if (it != dialogs_.end())
     {
         dialog* ptr = it->second.get();
+        clear_focus_if_owned_by(ptr);
         ptr->close();
         dialog_order_.erase(std::remove(dialog_order_.begin(), dialog_order_.end(), ptr), dialog_order_.end());
         dialogs_.erase(it);

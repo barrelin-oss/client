@@ -74,6 +74,8 @@ void sprite_manager::unload_pak(std::string_view name)
     {
         if (it->first.pak_name == name_str)
         {
+            sprite* dying = it->second.get();
+            std::erase_if(id_sprites_, [dying](const auto& pair) { return pair.second == dying; });
             it = sprite_cache_.erase(it);
         }
         else
@@ -208,6 +210,7 @@ void sprite_manager::clear_cache()
 {
     sprite_cache_.clear();
     lru_order_.clear();
+    id_sprites_.clear();
 }
 
 void sprite_manager::shrink_cache(size_t max_entries)
@@ -215,7 +218,13 @@ void sprite_manager::shrink_cache(size_t max_entries)
     while (sprite_cache_.size() > max_entries && !lru_order_.empty())
     {
         const sprite_key& oldest = lru_order_.front();
-        sprite_cache_.erase(oldest);
+        auto cache_it = sprite_cache_.find(oldest);
+        if (cache_it != sprite_cache_.end())
+        {
+            sprite* dying = cache_it->second.get();
+            std::erase_if(id_sprites_, [dying](const auto& pair) { return pair.second == dying; });
+            sprite_cache_.erase(cache_it);
+        }
         lru_order_.erase(lru_order_.begin());
     }
 }

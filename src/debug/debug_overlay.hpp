@@ -7,12 +7,14 @@
 #include <string>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
 
-namespace debug {
+namespace debug
+{
 
 // Main debug overlay controller for repositioning UI elements
 class debug_overlay
@@ -83,14 +85,14 @@ private:
     void record_position_change(const std::string& id, point old_pos, point new_pos);
 
     std::vector<positionable*> elements_;
-    int32_t selected_index_ = -1;  // -1 = nothing selected
+    int32_t selected_index_ = -1; // -1 = nothing selected
 
     bool enabled_ = false;
     bool initialized_ = false;
 
     // Hot-reload polling
     float reload_timer_ = 0.0f;
-    static constexpr float reload_interval_ = 0.2f;  // 200ms
+    static constexpr float reload_interval_ = 0.2f; // 200ms
 
     // Drag state
     bool dragging_ = false;

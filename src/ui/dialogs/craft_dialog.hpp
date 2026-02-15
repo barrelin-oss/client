@@ -8,16 +8,19 @@
 #include <array>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Crafting recipe structure
-struct craft_recipe {
+struct craft_recipe
+{
     uint16_t result_item_id = 0;
     std::string result_name;
-    uint8_t skill_required = 0;     // Manufacturing skill level needed
-    uint8_t success_rate = 0;       // Base success rate percentage
+    uint8_t skill_required = 0; // Manufacturing skill level needed
+    uint8_t success_rate = 0;   // Base success rate percentage
 
-    struct ingredient {
+    struct ingredient
+    {
         uint16_t item_id = 0;
         std::string name;
         int32_t quantity = 1;
@@ -26,7 +29,8 @@ struct craft_recipe {
 };
 
 // Craft dialog - for item manufacturing
-class craft_dialog : public dialog {
+class craft_dialog : public dialog
+{
 public:
     static constexpr int32_t max_ingredients = 6;
     static constexpr int32_t slot_size = 36;
@@ -43,7 +47,11 @@ public:
     // Recipe management
     void set_recipes(std::vector<craft_recipe> recipes) { recipes_ = std::move(recipes); }
     void add_recipe(craft_recipe recipe) { recipes_.push_back(std::move(recipe)); }
-    void clear_recipes() { recipes_.clear(); selected_recipe_ = -1; }
+    void clear_recipes()
+    {
+        recipes_.clear();
+        selected_recipe_ = -1;
+    }
 
     // Select a recipe
     void select_recipe(int32_t index);

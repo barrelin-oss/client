@@ -9,7 +9,8 @@
 #include <vector>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class world;
@@ -20,7 +21,8 @@ class sound_manager;
 using entity_created_callback = std::function<void(entity&)>;
 using entity_removed_callback = std::function<void(entity_id)>;
 
-class entity_manager {
+class entity_manager
+{
 public:
     entity_manager() = default;
     ~entity_manager() = default;
@@ -60,13 +62,16 @@ public:
     std::vector<entity*> get_entities_in_range(int32_t x, int32_t y, int32_t range);
     std::vector<entity*> get_entities_on_tile(int32_t tile_x, int32_t tile_y);
     entity* get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y);
-    entity* find_at_tile(int32_t tile_x, int32_t tile_y);  // Returns first non-local-player entity at tile
+    entity* find_at_tile(int32_t tile_x, int32_t tile_y); // Returns first non-local-player entity at tile
 
     // Sprite collision detection
     // Checks if a screen point is within the entity's rendered sprite bounds
-    bool is_point_in_entity_sprite(const entity& e, sprite_manager& sprites,
-                                   int32_t camera_x, int32_t camera_y,
-                                   int32_t mouse_x, int32_t mouse_y) const;
+    bool is_point_in_entity_sprite(const entity& e,
+                                   sprite_manager& sprites,
+                                   int32_t camera_x,
+                                   int32_t camera_y,
+                                   int32_t mouse_x,
+                                   int32_t mouse_y) const;
 
     // Local player
     void set_local_player(entity_id id) { local_player_id_ = id; }
@@ -78,18 +83,29 @@ public:
     void update(float delta_time, world& w, bool local_player_combat_mode);
 
     // Render all entities (Y-sorted, single pass)
-    void render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
+    void render(
+        renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
     // Get visible entities sorted by Y position (for interleaved rendering)
     std::vector<entity*> get_visible_entities_sorted(renderer& rend, int32_t camera_x, int32_t camera_y);
 
     // Render a single entity (for interleaved rendering)
-    void render_single_entity(renderer& rend, sprite_manager& sprites, entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
+    void render_single_entity(renderer& rend,
+                              sprite_manager& sprites,
+                              entity& e,
+                              int32_t camera_x,
+                              int32_t camera_y,
+                              int32_t mouse_x,
+                              int32_t mouse_y);
 
     // Render name/health overlays for visible entities (call after all sprites are drawn)
-    void render_name_overlays(renderer& rend, sprite_manager& sprites,
-                              const std::vector<entity*>& visible, int32_t camera_x, int32_t camera_y,
-                              int32_t mouse_x, int32_t mouse_y);
+    void render_name_overlays(renderer& rend,
+                              sprite_manager& sprites,
+                              const std::vector<entity*>& visible,
+                              int32_t camera_x,
+                              int32_t camera_y,
+                              int32_t mouse_x,
+                              int32_t mouse_y);
 
     // Global render mode - renders all entities without distance culling
     void set_global_render_mode(bool enabled) { global_render_mode_ = enabled; }
@@ -97,8 +113,8 @@ public:
 
     // Get an entity's screen bounding rect (for overlap checks)
     // Returns nullopt if the sprite can't be resolved
-    std::optional<sf::IntRect> get_entity_screen_bounds(const entity& e, sprite_manager& sprites,
-                                                        int32_t camera_x, int32_t camera_y) const;
+    std::optional<sf::IntRect>
+    get_entity_screen_bounds(const entity& e, sprite_manager& sprites, int32_t camera_x, int32_t camera_y) const;
 
     // Load character sprites based on appearance data in sprite_component
     void load_character_sprites(entity& ent, sprite_manager& sprites);
@@ -120,9 +136,25 @@ private:
     void update_animation(entity& e, float delta_time, bool local_player_combat_mode);
     void update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode);
 
-    void render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
-    void render_player_character(renderer& rend, sprite_manager& sprites, const entity& e, int32_t screen_x, int32_t screen_y, const animation_component& a);
-    void render_npc_or_monster(renderer& rend, sprite_manager& sprites, const entity& e, int32_t screen_x, int32_t screen_y, const animation_component& a);
+    void render_entity(renderer& rend,
+                       sprite_manager& sprites,
+                       const entity& e,
+                       int32_t camera_x,
+                       int32_t camera_y,
+                       int32_t mouse_x,
+                       int32_t mouse_y);
+    void render_player_character(renderer& rend,
+                                 sprite_manager& sprites,
+                                 const entity& e,
+                                 int32_t screen_x,
+                                 int32_t screen_y,
+                                 const animation_component& a);
+    void render_npc_or_monster(renderer& rend,
+                               sprite_manager& sprites,
+                               const entity& e,
+                               int32_t screen_x,
+                               int32_t screen_y,
+                               const animation_component& a);
     void render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered);
     void render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y);
     void render_health_bar_inline(renderer& rend, const entity& e, int32_t center_x, int32_t& cur_y);
@@ -131,7 +163,13 @@ private:
     void play_footstep_sound(const entity& e, bool running);
 
     // Play monster-specific sound (movement, attack, or damage)
-    enum class monster_sound_type : uint8_t { move, attack, damage, death };
+    enum class monster_sound_type : uint8_t
+    {
+        move,
+        attack,
+        damage,
+        death
+    };
     void play_monster_sound(const entity& e, monster_sound_type sound_type);
 
     std::unordered_map<entity_id, std::unique_ptr<entity>> entities_;

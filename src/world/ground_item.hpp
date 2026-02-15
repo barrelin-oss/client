@@ -4,7 +4,8 @@
 #include <string>
 #include <unordered_map>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 
@@ -30,11 +31,9 @@ public:
     bool empty() const { return items_.empty(); }
     size_t size() const { return items_.size(); }
 
-    void render_labels(renderer& rend, int32_t camera_x, int32_t camera_y,
-                       int32_t mouse_x, int32_t mouse_y);
+    void render_labels(renderer& rend, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
-    ground_item* hit_test(int32_t mouse_x, int32_t mouse_y,
-                          int32_t camera_x, int32_t camera_y);
+    ground_item* hit_test(int32_t mouse_x, int32_t mouse_y, int32_t camera_x, int32_t camera_y);
 
 private:
     std::unordered_map<uint32_t, ground_item> items_;

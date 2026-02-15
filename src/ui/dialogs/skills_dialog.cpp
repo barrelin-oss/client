@@ -5,10 +5,10 @@
 #include <algorithm>
 #include <format>
 
-namespace hb {
+namespace hb
+{
 
-skills_dialog::skills_dialog()
-    : dialog(dialog_type::skills)
+skills_dialog::skills_dialog() : dialog(dialog_type::skills)
 {
     set_title("Skills");
     set_bounds({100, 80, 280, 370});
@@ -22,7 +22,8 @@ void skills_dialog::update(float delta_time, const input& inp)
 {
     dialog::update(delta_time, inp);
 
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     // Handle scroll wheel when mouse is over dialog
     int32_t wheel = inp.wheel_delta();
@@ -40,7 +41,8 @@ void skills_dialog::update(float delta_time, const input& inp)
 
 void skills_dialog::render(renderer& rend)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     dialog::render(rend);
 
@@ -80,8 +82,7 @@ void skills_dialog::render(renderer& rend)
     }
 
     // Draw skill rows
-    int32_t max_visible = std::min(static_cast<int32_t>(filtered_skills_.size()) - scroll_offset_,
-                                   visible_rows);
+    int32_t max_visible = std::min(static_cast<int32_t>(filtered_skills_.size()) - scroll_offset_, visible_rows);
 
     for (int32_t i = 0; i < max_visible; ++i)
     {
@@ -108,8 +109,7 @@ void skills_dialog::render(renderer& rend)
     }
 }
 
-void skills_dialog::render_skill_row(renderer& rend, const skill& sk,
-                                     int32_t y, bool hovered)
+void skills_dialog::render_skill_row(renderer& rend, const skill& sk, int32_t y, bool hovered)
 {
     int32_t x = bounds_.x + 10;
     int32_t row_width = bounds_.width - 28;
@@ -130,11 +130,11 @@ void skills_dialog::render_skill_row(renderer& rend, const skill& sk,
     // Level text on the right
     sf::Color level_color;
     if (lvl >= 100)
-        level_color = sf::Color(255, 200, 80);   // Gold for mastered
+        level_color = sf::Color(255, 200, 80); // Gold for mastered
     else if (lvl >= 80)
-        level_color = sf::Color(100, 200, 100);   // Green for high
+        level_color = sf::Color(100, 200, 100); // Green for high
     else
-        level_color = sf::Color(180, 180, 220);   // Light blue-gray
+        level_color = sf::Color(180, 180, 220); // Light blue-gray
 
     std::string level_text = std::format("{}", lvl);
     rend.draw_text(level_text, x + row_width - 24, y, level_color, 12);
@@ -151,7 +151,7 @@ void skills_dialog::render_skill_row(renderer& rend, const skill& sk,
     // Fill based on sub-level progress
     float fill_pct = sk.sub_progress;
     if (lvl >= 100)
-        fill_pct = 1.0f;  // Mastered = full bar
+        fill_pct = 1.0f; // Mastered = full bar
 
     int32_t fill_width = static_cast<int32_t>(bar_width * fill_pct);
 
@@ -159,11 +159,11 @@ void skills_dialog::render_skill_row(renderer& rend, const skill& sk,
     {
         sf::Color bar_color;
         if (lvl >= 100)
-            bar_color = sf::Color(200, 160, 60);   // Gold
+            bar_color = sf::Color(200, 160, 60); // Gold
         else if (lvl >= 80)
-            bar_color = sf::Color(60, 160, 60);     // Green
+            bar_color = sf::Color(60, 160, 60); // Green
         else
-            bar_color = sf::Color(60, 100, 180);    // Blue
+            bar_color = sf::Color(60, 100, 180); // Blue
 
         rend.draw_rect(bar_x, bar_y, fill_width, bar_height, bar_color, true);
     }
@@ -196,22 +196,21 @@ void skills_dialog::rebuild_filtered()
         bool include = false;
         switch (current_category_)
         {
-            case filter_category::all:
-                include = true;
-                break;
-            case filter_category::combat:
-                include = (sk.category == skill_category::combat);
-                break;
-            case filter_category::magic:
-                include = (sk.category == skill_category::magic);
-                break;
-            case filter_category::crafting:
-                include = (sk.category == skill_category::crafting);
-                break;
-            case filter_category::misc:
-                include = (sk.category == skill_category::misc ||
-                          sk.category == skill_category::gathering);
-                break;
+        case filter_category::all:
+            include = true;
+            break;
+        case filter_category::combat:
+            include = (sk.category == skill_category::combat);
+            break;
+        case filter_category::magic:
+            include = (sk.category == skill_category::magic);
+            break;
+        case filter_category::crafting:
+            include = (sk.category == skill_category::crafting);
+            break;
+        case filter_category::misc:
+            include = (sk.category == skill_category::misc || sk.category == skill_category::gathering);
+            break;
         }
         if (include)
             filtered_skills_.push_back(sk);
@@ -239,7 +238,8 @@ std::optional<size_t> skills_dialog::skill_index_at(int32_t x, int32_t y) const
 
 bool skills_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
     // Check category tabs
     int32_t tab_y = bounds_.y + 32;
@@ -272,7 +272,8 @@ bool skills_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
 
 bool skills_dialog::handle_mouse_move(int32_t x, int32_t y)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
     hovered_index_ = skill_index_at(x, y);
     return dialog::handle_mouse_move(x, y);
@@ -283,11 +284,14 @@ void skills_dialog::set_skills(const std::vector<skill>& skills)
     skills_ = skills;
 
     // Sort by category then by id
-    std::sort(skills_.begin(), skills_.end(), [](const skill& a, const skill& b) {
-        if (a.category != b.category)
-            return static_cast<uint8_t>(a.category) < static_cast<uint8_t>(b.category);
-        return a.id < b.id;
-    });
+    std::sort(skills_.begin(),
+              skills_.end(),
+              [](const skill& a, const skill& b)
+              {
+                  if (a.category != b.category)
+                      return static_cast<uint8_t>(a.category) < static_cast<uint8_t>(b.category);
+                  return a.id < b.id;
+              });
 
     clamp_scroll();
 }

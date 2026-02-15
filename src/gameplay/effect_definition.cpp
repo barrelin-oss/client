@@ -1,7 +1,8 @@
 #include "gameplay/effect_definition.hpp"
 #include <algorithm>
 
-namespace hb {
+namespace hb
+{
 
 // Static table of all effect definitions, derived from docs/legacy/29_effects_system.md.
 // Each entry maps directly from the legacy bAddNewEffect switch statement.
@@ -1228,7 +1229,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_celebrating_light,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = true,
@@ -1501,7 +1502,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_tremor,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .sound_id = 4,
@@ -1535,7 +1536,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_lightning_thunder,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::thunder,
-        .sprite_pak_index = 255,    // No sprite - procedural rendering
+        .sprite_pak_index = 255, // No sprite - procedural rendering
         .max_frames = 7,
         .frame_time_ms = 10,
         .sound_id = 40,
@@ -1567,7 +1568,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_chill_wind_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = true,
@@ -1586,7 +1587,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_triple_energy_bolt_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 1,
         .frame_time_ms = 20,
         .sound_id = 1,
@@ -1625,7 +1626,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_lightning_bolt_thunder,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::thunder,
-        .sprite_pak_index = 255,    // No sprite - procedural rendering
+        .sprite_pak_index = 255, // No sprite - procedural rendering
         .max_frames = 10,
         .frame_time_ms = 10,
         .sound_id = 40,
@@ -1669,7 +1670,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_mass_lightning_arrow_timer,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible timer
+        .sprite_pak_index = 255, // Invisible timer
         .max_frames = 3,
         .frame_time_ms = 130,
         .uses_tile_coords = true,
@@ -1687,7 +1688,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_ice_strike_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = true,
@@ -1708,7 +1709,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_energy_strike,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // No visible sprite
+        .sprite_pak_index = 255, // No visible sprite
         .max_frames = 7,
         .frame_time_ms = 80,
         .sound_id = 1,
@@ -1759,7 +1760,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_mass_chill_wind_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = true,
@@ -1780,7 +1781,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_earthworm_strike_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .sound_id = 4,
@@ -1830,7 +1831,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_bloody_shock_wave_timer,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible timer
+        .sprite_pak_index = 255, // Invisible timer
         .max_frames = 7,
         .frame_time_ms = 80,
         .sound_id = 1,
@@ -1865,7 +1866,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_mass_ice_strike_spawner,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible spawner
+        .sprite_pak_index = 255, // Invisible spawner
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = true,
@@ -1886,7 +1887,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_lightning_strike_timer,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible timer
+        .sprite_pak_index = 255, // Invisible timer
         .max_frames = 5,
         .frame_time_ms = 120,
         .sound_id = 1,
@@ -2028,7 +2029,7 @@ static const std::array<effect_definition, 150> s_definitions = {{
         .type_id = effect_type_id::spell_blizzard_timer,
         .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
-        .sprite_pak_index = 255,    // Invisible timer
+        .sprite_pak_index = 255, // Invisible timer
         .max_frames = 7,
         .frame_time_ms = 80,
         .sound_id = 46,
@@ -2102,8 +2103,9 @@ static const std::array<effect_definition, 150> s_definitions = {{
 
 const effect_definition* get_effect_definition(effect_type_id type)
 {
-    auto it = std::find_if(s_definitions.begin(), s_definitions.end(),
-        [type](const effect_definition& def) { return def.type_id == type; });
+    auto it = std::find_if(s_definitions.begin(),
+                           s_definitions.end(),
+                           [type](const effect_definition& def) { return def.type_id == type; });
 
     if (it != s_definitions.end())
     {

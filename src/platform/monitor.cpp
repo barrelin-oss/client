@@ -15,7 +15,8 @@
 #include <X11/extensions/Xrandr.h>
 #endif
 
-namespace hb {
+namespace hb
+{
 
 #ifdef _WIN32
 
@@ -39,9 +40,11 @@ std::optional<monitor_rect> get_primary_monitor()
     };
 }
 
-namespace {
+namespace
+{
 
-struct enum_context {
+struct enum_context
+{
     std::vector<monitor_info> monitors;
 };
 
@@ -53,7 +56,7 @@ BOOL CALLBACK monitor_enum_proc(HMONITOR hmon, HDC, LPRECT, LPARAM lparam)
     mi.cbSize = sizeof(mi);
     if (!GetMonitorInfoW(hmon, &mi))
     {
-        return TRUE;  // Continue enumeration
+        return TRUE; // Continue enumeration
     }
 
     monitor_info info;
@@ -84,11 +87,14 @@ std::vector<monitor_info> enumerate_monitors()
     EnumDisplayMonitors(nullptr, nullptr, monitor_enum_proc, reinterpret_cast<LPARAM>(&ctx));
 
     // Sort by x position for spatial consistency
-    std::sort(ctx.monitors.begin(), ctx.monitors.end(),
-        [](const monitor_info& a, const monitor_info& b) {
-            if (a.x != b.x) return a.x < b.x;
-            return a.y < b.y;
-        });
+    std::sort(ctx.monitors.begin(),
+              ctx.monitors.end(),
+              [](const monitor_info& a, const monitor_info& b)
+              {
+                  if (a.x != b.x)
+                      return a.x < b.x;
+                  return a.y < b.y;
+              });
 
     // Assign indices after sorting
     for (size_t i = 0; i < ctx.monitors.size(); ++i)
@@ -139,7 +145,8 @@ std::optional<monitor_rect> get_primary_monitor()
                 XRRFreeCrtcInfo(crtc);
             }
         }
-        if (output) XRRFreeOutputInfo(output);
+        if (output)
+            XRRFreeOutputInfo(output);
     }
 
     XRRFreeScreenResources(screen);
@@ -171,7 +178,8 @@ std::vector<monitor_info> enumerate_monitors()
     for (int i = 0; i < screen->noutput; ++i)
     {
         XRROutputInfo* output = XRRGetOutputInfo(display, screen, screen->outputs[i]);
-        if (!output) continue;
+        if (!output)
+            continue;
 
         // Only include connected outputs with active CRTCs
         if (output->connection == RR_Connected && output->crtc != None)
@@ -199,11 +207,14 @@ std::vector<monitor_info> enumerate_monitors()
     XCloseDisplay(display);
 
     // Sort by x position for spatial consistency
-    std::sort(monitors.begin(), monitors.end(),
-        [](const monitor_info& a, const monitor_info& b) {
-            if (a.x != b.x) return a.x < b.x;
-            return a.y < b.y;
-        });
+    std::sort(monitors.begin(),
+              monitors.end(),
+              [](const monitor_info& a, const monitor_info& b)
+              {
+                  if (a.x != b.x)
+                      return a.x < b.x;
+                  return a.y < b.y;
+              });
 
     // Assign indices after sorting
     for (size_t i = 0; i < monitors.size(); ++i)

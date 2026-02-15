@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class chat_dialog : public dialog
 {
@@ -77,7 +78,7 @@ private:
     // Search: open = bar visible, focused = accepting input
     bool search_open_ = false;
     bool search_focused_ = false;
-    bool search_name_only_ = false;  // When true, search matches sender name only
+    bool search_name_only_ = false; // When true, search matches sender name only
     std::string search_text_;
     size_t search_cursor_ = 0;
     float search_blink_timer_ = 0.0f;

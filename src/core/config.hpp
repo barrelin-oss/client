@@ -7,32 +7,35 @@
 #include <optional>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Video settings
-struct video_config {
+struct video_config
+{
     uint32_t screen_width = 640;
     uint32_t screen_height = 480;
     bool fullscreen = false;
-    bool borderless = false;        // borderless windowed mode
-    int32_t monitor_index = 0;      // which monitor to use (0 = primary)
+    bool borderless = false;   // borderless windowed mode
+    int32_t monitor_index = 0; // which monitor to use (0 = primary)
     bool vsync = true;
-    uint32_t framerate_limit = 60;  // 0 = unlimited
+    uint32_t framerate_limit = 60; // 0 = unlimited
     bool show_fps = false;
     bool show_debug_stats = false;
     bool show_entity_info = false;
     bool remember_position = false;
-    int32_t window_x = -1;  // -1 = center on primary monitor
+    int32_t window_x = -1; // -1 = center on primary monitor
     int32_t window_y = -1;
 
     // View mode settings (player-configurable)
-    uint8_t aspect_mode = 0;    // 0=letterbox, 1=stretch (scaled mode only)
-    uint8_t scale_filter = 0;   // 0=nearest, 1=bilinear (scaled mode only)
-    float ui_scale = 1.0f;      // 1.0 = native, max ~3.0 (all modes)
+    uint8_t aspect_mode = 0;  // 0=letterbox, 1=stretch (scaled mode only)
+    uint8_t scale_filter = 0; // 0=nearest, 1=bilinear (scaled mode only)
+    float ui_scale = 1.0f;    // 1.0 = native, max ~3.0 (all modes)
 };
 
 // Audio settings
-struct audio_config {
+struct audio_config
+{
     float master_volume = 1.0f;
     float music_volume = 0.7f;
     float sfx_volume = 1.0f;
@@ -42,7 +45,8 @@ struct audio_config {
 };
 
 // Network settings
-struct network_config {
+struct network_config
+{
     std::string login_server_host = "127.0.0.1";
     uint16_t login_server_port = 2848;
     uint32_t connection_timeout_ms = 10000;
@@ -51,7 +55,8 @@ struct network_config {
 };
 
 // Chat settings
-struct chat_config_settings {
+struct chat_config_settings
+{
     size_t max_history = 500;
     size_t max_message_length = 200;
     bool show_timestamps = false;
@@ -71,7 +76,8 @@ struct chat_config_settings {
 };
 
 // Game settings
-struct game_config {
+struct game_config
+{
     language ui_language = language::english;
     bool auto_attack = true;
     bool show_damage_numbers = true;
@@ -82,25 +88,26 @@ struct game_config {
     bool show_weather = true;
     bool show_tint = true;
     float camera_speed = 1.0f;
-    bool type_to_chat = false;  // Any key press opens chat (legacy behavior, disables WASD movement)
+    bool type_to_chat = false; // Any key press opens chat (legacy behavior, disables WASD movement)
 };
 
 // Control settings
-struct control_config {
+struct control_config
+{
     // Movement
-    int32_t move_up_key = 0;      // Default W
-    int32_t move_down_key = 0;    // Default S
-    int32_t move_left_key = 0;    // Default A
-    int32_t move_right_key = 0;   // Default D
+    int32_t move_up_key = 0;    // Default W
+    int32_t move_down_key = 0;  // Default S
+    int32_t move_left_key = 0;  // Default A
+    int32_t move_right_key = 0; // Default D
 
     // Actions
-    int32_t attack_key = 0;       // Default left mouse
-    int32_t skill_key = 0;        // Default right mouse
-    int32_t inventory_key = 0;    // Default I
-    int32_t skills_key = 0;       // Default K
-    int32_t spells_key = 0;       // Default M
-    int32_t chat_key = 0;         // Default Enter
-    int32_t screenshot_key = 0;   // Default F12
+    int32_t attack_key = 0;     // Default left mouse
+    int32_t skill_key = 0;      // Default right mouse
+    int32_t inventory_key = 0;  // Default I
+    int32_t skills_key = 0;     // Default K
+    int32_t spells_key = 0;     // Default M
+    int32_t chat_key = 0;       // Default Enter
+    int32_t screenshot_key = 0; // Default F12
 
     // Mouse settings
     float mouse_sensitivity = 1.0f;
@@ -110,7 +117,8 @@ struct control_config {
 // Configuration change callback
 using config_change_callback = std::function<void()>;
 
-class config {
+class config
+{
 public:
     config() = default;
     ~config() = default;
@@ -121,7 +129,7 @@ public:
     // Load/save from file
     bool load(std::string_view path);
     bool save(std::string_view path) const;
-    bool save() const;  // Save to last loaded path
+    bool save() const; // Save to last loaded path
 
     // Access configuration sections
     video_config& video() { return video_; }

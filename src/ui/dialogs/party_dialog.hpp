@@ -5,10 +5,12 @@
 #include <vector>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // Party member info
-struct party_member_info {
+struct party_member_info
+{
     uint32_t entity_id = 0;
     std::string name;
     uint16_t level = 1;
@@ -21,7 +23,8 @@ struct party_member_info {
 };
 
 // Party dialog - manages party members and interactions
-class party_dialog : public dialog {
+class party_dialog : public dialog
+{
 public:
     static constexpr int32_t max_party_size = 8;
 
@@ -76,13 +79,14 @@ struct pending_guild_invite;
 // Guild dialog modes
 enum class guild_dialog_mode : uint8_t
 {
-    no_guild = 0,       // Not in a guild - show create form
-    guild_view = 1,     // In a guild - show info + members
-    creating = 2,       // Creating a guild - show name/tag input
+    no_guild = 0,   // Not in a guild - show create form
+    guild_view = 1, // In a guild - show info + members
+    creating = 2,   // Creating a guild - show name/tag input
 };
 
 // Guild dialog - displays guild info and members, supports create/invite flows
-class guild_dialog : public dialog {
+class guild_dialog : public dialog
+{
 public:
     guild_dialog();
     ~guild_dialog() override = default;
@@ -114,8 +118,10 @@ public:
     void clear_members();
 
     // Pending invite
-    void set_pending_invite(std::string_view guild_name, std::string_view guild_tag,
-                            std::string_view inviter_name, float time_remaining);
+    void set_pending_invite(std::string_view guild_name,
+                            std::string_view guild_tag,
+                            std::string_view inviter_name,
+                            float time_remaining);
     void clear_pending_invite();
 
     // Callbacks
@@ -153,7 +159,14 @@ private:
     std::vector<member_display_info> members_;
 
     // Text input state
-    enum class text_field : uint8_t { none, create_name, create_tag, invite_target, motd };
+    enum class text_field : uint8_t
+    {
+        none,
+        create_name,
+        create_tag,
+        invite_target,
+        motd
+    };
     text_field active_field_ = text_field::none;
     std::string create_name_input_;
     std::string create_tag_input_;

@@ -5,17 +5,20 @@
 #include <vector>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // NPC dialog option
-struct npc_option {
+struct npc_option
+{
     std::string text;
     int32_t id = 0;
     bool enabled = true;
 };
 
 // NPC dialog - for conversations with NPCs
-class npc_dialog : public dialog {
+class npc_dialog : public dialog
+{
 public:
     npc_dialog();
     ~npc_dialog() override = default;
@@ -54,7 +57,8 @@ private:
 };
 
 // Quest dialog - for quest-related NPC interactions
-class quest_dialog : public dialog {
+class quest_dialog : public dialog
+{
 public:
     quest_dialog();
     ~quest_dialog() override = default;
@@ -68,7 +72,8 @@ public:
     void set_quest_description(std::string_view desc) { description_ = desc; }
     void set_objectives(const std::vector<std::string>& objectives);
 
-    struct quest_reward {
+    struct quest_reward
+    {
         std::string description;
         uint32_t gold = 0;
         uint32_t exp = 0;
@@ -82,7 +87,12 @@ public:
     void set_on_complete(action_callback callback) { on_complete_ = std::move(callback); }
 
     // Quest state
-    enum class quest_state { offer, in_progress, completable };
+    enum class quest_state
+    {
+        offer,
+        in_progress,
+        completable
+    };
     void set_state(quest_state state) { state_ = state; }
 
 private:

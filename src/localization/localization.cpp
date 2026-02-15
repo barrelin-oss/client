@@ -5,14 +5,17 @@
 #include <sstream>
 #include <algorithm>
 
-namespace hb {
+namespace hb
+{
 
-localization& localization::instance() {
+localization& localization::instance()
+{
     static localization inst;
     return inst;
 }
 
-bool localization::initialize(language default_lang) {
+bool localization::initialize(language default_lang)
+{
     strings_.clear();
     available_languages_.clear();
     callbacks_.clear();
@@ -184,21 +187,23 @@ bool localization::initialize(language default_lang) {
     strings_[language::english] = std::move(english_strings);
     available_languages_.push_back(language::english);
 
-    spdlog::info("Localization initialized with {} built-in strings",
-                 strings_[language::english].size());
+    spdlog::info("Localization initialized with {} built-in strings", strings_[language::english].size());
     return true;
 }
 
-void localization::shutdown() {
+void localization::shutdown()
+{
     strings_.clear();
     available_languages_.clear();
     callbacks_.clear();
 }
 
-bool localization::load_language(language lang, std::string_view path) {
+bool localization::load_language(language lang, std::string_view path)
+{
     std::string path_str{path};
     std::ifstream file{path_str};
-    if (!file) {
+    if (!file)
+    {
         spdlog::warn("Could not load language file: {}", path);
         return false;
     }
@@ -210,81 +215,98 @@ bool localization::load_language(language lang, std::string_view path) {
     return load_language_from_string(lang, content);
 }
 
-bool localization::load_language_from_string(language lang, std::string_view json_content) {
-    try {
+bool localization::load_language_from_string(language lang, std::string_view json_content)
+{
+    try
+    {
         auto json = nlohmann::json::parse(json_content);
 
         string_map strings;
 
         // Recursively flatten nested JSON into dot-notation keys
         std::function<void(const nlohmann::json&, const std::string&)> flatten =
-            [&strings, &flatten](const nlohmann::json& obj, const std::string& prefix) {
-                for (auto& [key, value] : obj.items()) {
-                    std::string full_key = prefix.empty() ? key : prefix + "." + key;
-                    if (value.is_object()) {
-                        flatten(value, full_key);
-                    } else if (value.is_string()) {
-                        strings[full_key] = value.get<std::string>();
-                    }
+            [&strings, &flatten](const nlohmann::json& obj, const std::string& prefix)
+        {
+            for (auto& [key, value] : obj.items())
+            {
+                std::string full_key = prefix.empty() ? key : prefix + "." + key;
+                if (value.is_object())
+                {
+                    flatten(value, full_key);
                 }
-            };
+                else if (value.is_string())
+                {
+                    strings[full_key] = value.get<std::string>();
+                }
+            }
+        };
 
         flatten(json, "");
 
         strings_[lang] = std::move(strings);
 
         // Add to available languages if not already present
-        if (std::find(available_languages_.begin(), available_languages_.end(), lang)
-            == available_languages_.end()) {
+        if (std::find(available_languages_.begin(), available_languages_.end(), lang) == available_languages_.end())
+        {
             available_languages_.push_back(lang);
         }
 
-        spdlog::info("Loaded {} strings for language {}",
-                     strings_[lang].size(), get_language_code(lang));
+        spdlog::info("Loaded {} strings for language {}", strings_[lang].size(), get_language_code(lang));
         return true;
-
-    } catch (const nlohmann::json::exception& e) {
+    }
+    catch (const nlohmann::json::exception& e)
+    {
         spdlog::error("Failed to parse language JSON: {}", e.what());
         return false;
     }
 }
 
-void localization::set_language(language lang) {
-    if (strings_.find(lang) == strings_.end()) {
-        spdlog::warn("Language {} not loaded, keeping current language",
-                     get_language_code(lang));
+void localization::set_language(language lang)
+{
+    if (strings_.find(lang) == strings_.end())
+    {
+        spdlog::warn("Language {} not loaded, keeping current language", get_language_code(lang));
         return;
     }
 
-    if (current_language_ != lang) {
+    if (current_language_ != lang)
+    {
         current_language_ = lang;
         spdlog::info("Language changed to {}", get_language_code(lang));
 
         // Notify callbacks
-        for (auto& callback : callbacks_) {
-            if (callback) {
+        for (auto& callback : callbacks_)
+        {
+            if (callback)
+            {
                 callback(lang);
             }
         }
     }
 }
 
-std::string_view localization::get(std::string_view key) const {
+std::string_view localization::get(std::string_view key) const
+{
     // Try current language first
     auto lang_it = strings_.find(current_language_);
-    if (lang_it != strings_.end()) {
+    if (lang_it != strings_.end())
+    {
         auto str_it = lang_it->second.find(std::string(key));
-        if (str_it != lang_it->second.end()) {
+        if (str_it != lang_it->second.end())
+        {
             return str_it->second;
         }
     }
 
     // Fall back to English
-    if (current_language_ != language::english) {
+    if (current_language_ != language::english)
+    {
         auto en_it = strings_.find(language::english);
-        if (en_it != strings_.end()) {
+        if (en_it != strings_.end())
+        {
             auto str_it = en_it->second.find(std::string(key));
-            if (str_it != en_it->second.end()) {
+            if (str_it != en_it->second.end())
+            {
                 return str_it->second;
             }
         }
@@ -294,26 +316,32 @@ std::string_view localization::get(std::string_view key) const {
     return empty_string_;
 }
 
-std::string_view localization::get_or(std::string_view key, std::string_view fallback) const {
+std::string_view localization::get_or(std::string_view key, std::string_view fallback) const
+{
     auto result = get(key);
     return result.empty() ? fallback : result;
 }
 
-bool localization::has_key(std::string_view key) const {
+bool localization::has_key(std::string_view key) const
+{
     auto lang_it = strings_.find(current_language_);
-    if (lang_it != strings_.end()) {
+    if (lang_it != strings_.end())
+    {
         return lang_it->second.count(std::string(key)) > 0;
     }
     return false;
 }
 
-std::vector<std::string_view> localization::get_all_keys() const {
+std::vector<std::string_view> localization::get_all_keys() const
+{
     std::vector<std::string_view> keys;
 
     auto lang_it = strings_.find(current_language_);
-    if (lang_it != strings_.end()) {
+    if (lang_it != strings_.end())
+    {
         keys.reserve(lang_it->second.size());
-        for (const auto& [key, value] : lang_it->second) {
+        for (const auto& [key, value] : lang_it->second)
+        {
             keys.push_back(key);
         }
     }
@@ -321,20 +349,24 @@ std::vector<std::string_view> localization::get_all_keys() const {
     return keys;
 }
 
-void localization::on_language_changed(language_change_callback callback) {
-    if (callback) {
+void localization::on_language_changed(language_change_callback callback)
+{
+    if (callback)
+    {
         callbacks_.push_back(std::move(callback));
     }
 }
 
-std::string localization::format_impl(std::string_view format_str,
-                                      std::vector<std::string> args) const {
+std::string localization::format_impl(std::string_view format_str, std::vector<std::string> args) const
+{
     std::string result(format_str);
 
-    for (size_t i = 0; i < args.size(); ++i) {
+    for (size_t i = 0; i < args.size(); ++i)
+    {
         std::string placeholder = "{" + std::to_string(i) + "}";
         size_t pos = 0;
-        while ((pos = result.find(placeholder, pos)) != std::string::npos) {
+        while ((pos = result.find(placeholder, pos)) != std::string::npos)
+        {
             result.replace(pos, placeholder.length(), args[i]);
             pos += args[i].length();
         }

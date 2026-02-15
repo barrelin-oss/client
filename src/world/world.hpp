@@ -7,7 +7,8 @@
 #include <string_view>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class tile_sprite_registry;
@@ -74,8 +75,7 @@ public:
 
     // Render objects for a single tile row
     // If player_bounds is provided, objects overlapping it are drawn semi-transparently
-    void render_objects_row(renderer& rend, int32_t row_y,
-                            const sf::IntRect* player_bounds = nullptr);
+    void render_objects_row(renderer& rend, int32_t row_y, const sf::IntRect* player_bounds = nullptr);
 
     // Get visible tile range for current camera position
     map_renderer::visible_range get_visible_tile_range() const;
@@ -201,7 +201,7 @@ private:
     // Camera - follows player unless in cinematic mode (doubles for precision at high zoom)
     double camera_x_ = 0.0;
     double camera_y_ = 0.0;
-    int32_t player_world_x_ = 0;  // Player position to follow
+    int32_t player_world_x_ = 0; // Player position to follow
     int32_t player_world_y_ = 0;
     bool cinematic_mode_ = false;
 
@@ -222,7 +222,7 @@ private:
     float weather_intensity_ = 0.0f;
     uint8_t clock_hour_ = 12;
     uint8_t clock_minute_ = 0;
-    float clock_accumulator_ = 0.0f;  // Accumulates real seconds; 1 real sec = 1 game minute
+    float clock_accumulator_ = 0.0f; // Accumulates real seconds; 1 real sec = 1 game minute
     bool tint_visible_ = true;
 
     // Day/night tint transition (current stored as float to avoid integer truncation stalls)
@@ -236,9 +236,9 @@ private:
     world_events events_;
 
     // Zoom state
-    double zoom_level_ = 1.0;           // Current zoom (interpolates toward target)
-    double zoom_target_ = 1.0;          // Target zoom level
-    bool zoom_mode_enabled_ = false;    // Server-controlled flag (Ctrl+Q for testing)
+    double zoom_level_ = 1.0;        // Current zoom (interpolates toward target)
+    double zoom_target_ = 1.0;       // Target zoom level
+    bool zoom_mode_enabled_ = false; // Server-controlled flag (Ctrl+Q for testing)
 
     // Zoom anchor - world point that stays fixed under cursor during zoom
     double zoom_anchor_world_x_ = 0.0;

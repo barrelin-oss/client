@@ -4,7 +4,8 @@
 #include <functional>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 class death_dialog : public dialog
 {
@@ -17,8 +18,7 @@ public:
     bool handle_key_press(sf::Keyboard::Key key) override;
 
     // Set death info
-    void set_death_info(std::string_view killer_name, bool is_pvp,
-                        int32_t xp_lost);
+    void set_death_info(std::string_view killer_name, bool is_pvp, int32_t xp_lost);
 
     // Show/hide resurrection option
     void show_resurrect_option(bool show);

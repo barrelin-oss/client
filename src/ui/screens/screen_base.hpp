@@ -6,7 +6,8 @@
 #include <string>
 #include <utility>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
@@ -14,7 +15,8 @@ class sprite_manager;
 
 // Base class for sprite-based screens (login, main menu, character select, etc.)
 // This is the modern equivalent of the original UpdateScreen_OnXXX pattern
-class screen_base {
+class screen_base
+{
 public:
     using sound_callback = std::function<void()>;
 
@@ -47,24 +49,26 @@ public:
 
 protected:
     // Play button click sound (call when any button is clicked)
-    void play_button_sound() { if (on_button_sound_) on_button_sound_(); }
+    void play_button_sound()
+    {
+        if (on_button_sound_)
+            on_button_sound_();
+    }
     // Helper to draw a sprite from the sprite manager (with color key transparency)
-    void draw_sprite(renderer& rend, sprite_manager& sprites,
-                    uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame = 0);
+    void
+    draw_sprite(renderer& rend, sprite_manager& sprites, uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame = 0);
 
     // Helper to draw a sprite with alpha transparency
-    void draw_sprite_alpha(renderer& rend, sprite_manager& sprites,
-                          uint16_t sprite_id, int32_t x, int32_t y,
-                          uint32_t frame, float alpha);
+    void draw_sprite_alpha(
+        renderer& rend, sprite_manager& sprites, uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame, float alpha);
 
     // Helper to draw a sprite WITHOUT color key (for backgrounds)
-    void draw_sprite_no_color_key(renderer& rend, sprite_manager& sprites,
-                                  uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame = 0);
+    void draw_sprite_no_color_key(
+        renderer& rend, sprite_manager& sprites, uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame = 0);
 
     // Helper to draw a sprite with alpha but WITHOUT color key
-    void draw_sprite_alpha_no_color_key(renderer& rend, sprite_manager& sprites,
-                                        uint16_t sprite_id, int32_t x, int32_t y,
-                                        uint32_t frame, float alpha);
+    void draw_sprite_alpha_no_color_key(
+        renderer& rend, sprite_manager& sprites, uint16_t sprite_id, int32_t x, int32_t y, uint32_t frame, float alpha);
 
     // Mouse interface for click detection
     mouse_interface mouse_interface_;

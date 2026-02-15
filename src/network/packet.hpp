@@ -8,21 +8,23 @@
 #include <span>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Raw packet data
 // Helbreath packet format:
 //   Byte 0:     Encryption key (0 = no encryption)
 //   Bytes 1-2:  Packet size (little-endian, includes 3-byte header)
 //   Bytes 3+:   Payload (encrypted if key != 0)
-class packet {
+class packet
+{
 public:
     packet() = default;
-    explicit packet(uint32_t message_id);  // 32-bit message ID
+    explicit packet(uint32_t message_id); // 32-bit message ID
     packet(const uint8_t* data, size_t size);
 
     // Packet info
-    uint32_t message_id() const;  // 32-bit message ID from payload
+    uint32_t message_id() const; // 32-bit message ID from payload
     size_t size() const { return data_.size(); }
     size_t payload_size() const { return data_.size() > packet_header_size ? data_.size() - packet_header_size : 0; }
     bool empty() const { return data_.empty(); }
@@ -30,7 +32,11 @@ public:
 
     // Encryption key
     uint8_t key() const { return data_.empty() ? 0 : data_[0]; }
-    void set_key(uint8_t key) { if (!data_.empty()) data_[0] = key; }
+    void set_key(uint8_t key)
+    {
+        if (!data_.empty())
+            data_[0] = key;
+    }
 
     // Raw access
     const uint8_t* data() const { return data_.data(); }
@@ -68,7 +74,8 @@ private:
 };
 
 // Packet reader for parsing incoming packets
-class packet_reader {
+class packet_reader
+{
 public:
     explicit packet_reader(const packet& pkt);
     packet_reader(const uint8_t* data, size_t size);
@@ -113,15 +120,25 @@ private:
 };
 
 // Convenience functions for creating common packets
-namespace packets {
+namespace packets
+{
 
 // Login packets
 packet make_login_request(std::string_view account, std::string_view password, uint32_t version);
 packet make_create_account(std::string_view account, std::string_view password, std::string_view email);
 packet make_character_list_request();
-packet make_create_character(std::string_view name, uint8_t gender, uint8_t skin_color,
-                             uint8_t hair_style, uint8_t hair_color, uint8_t underwear_color,
-                             uint8_t str, uint8_t vit, uint8_t dex, uint8_t intel, uint8_t mag, uint8_t cha);
+packet make_create_character(std::string_view name,
+                             uint8_t gender,
+                             uint8_t skin_color,
+                             uint8_t hair_style,
+                             uint8_t hair_color,
+                             uint8_t underwear_color,
+                             uint8_t str,
+                             uint8_t vit,
+                             uint8_t dex,
+                             uint8_t intel,
+                             uint8_t mag,
+                             uint8_t cha);
 packet make_delete_character(std::string_view name, std::string_view password);
 packet make_enter_game(std::string_view character_name);
 

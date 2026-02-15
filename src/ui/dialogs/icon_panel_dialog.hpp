@@ -5,14 +5,16 @@
 #include <array>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 
 // Bottom HUD panel - combines gauges, map info, and action buttons
 // This is the main in-game HUD displayed at the bottom of the screen
 // Supports both modern (programmatic) and classic (sprite-based) rendering
-class icon_panel_dialog : public dialog {
+class icon_panel_dialog : public dialog
+{
 public:
     icon_panel_dialog();
     ~icon_panel_dialog() override = default;
@@ -115,7 +117,7 @@ private:
     float hp_display_ = 1.0f;
     float mp_display_ = 1.0f;
     float sp_display_ = 1.0f;
-    float exp_display_ = 0.0f;  // Experience bar animation
+    float exp_display_ = 0.0f; // Experience bar animation
 
     // Experience
     int64_t current_exp_ = 0;
@@ -141,7 +143,7 @@ private:
 
     // UI state
     int32_t hovered_button_ = -1;
-    bool mouse_in_info_area_ = false;  // When true, show exp instead of map info
+    bool mouse_in_info_area_ = false; // When true, show exp instead of map info
 
     // Screen dimensions for dynamic positioning
     uint32_t screen_width_ = 640;
@@ -156,20 +158,20 @@ private:
 
     // HP/MP bars (left section)
     static constexpr int32_t hp_bar_x = 23;
-    static constexpr int32_t hp_bar_y = 3;   // Relative to panel
-    static constexpr int32_t mp_bar_y = 25;  // Relative to panel
+    static constexpr int32_t hp_bar_y = 3;  // Relative to panel
+    static constexpr int32_t mp_bar_y = 25; // Relative to panel
     static constexpr int32_t hp_mp_bar_width = 101;
     static constexpr int32_t hp_mp_bar_height = 18;
 
     // SP bar (middle-left section) - "Stamina" bar
     static constexpr int32_t sp_bar_x = 147;
-    static constexpr int32_t sp_bar_y = 1;   // Relative to panel
+    static constexpr int32_t sp_bar_y = 1; // Relative to panel
     static constexpr int32_t sp_bar_width = 167;
     static constexpr int32_t sp_bar_height = 12;
 
     // EXP bar (below SP bar)
     static constexpr int32_t exp_bar_x = 147;
-    static constexpr int32_t exp_bar_y = 33;  // Relative to panel
+    static constexpr int32_t exp_bar_y = 33; // Relative to panel
     static constexpr int32_t exp_bar_width = 167;
     static constexpr int32_t exp_bar_height = 10;
 
@@ -181,7 +183,7 @@ private:
 
     // Action buttons (right section)
     static constexpr int32_t button_start_x = 412;
-    static constexpr int32_t button_y = 0;    // Relative to panel
+    static constexpr int32_t button_y = 0; // Relative to panel
     static constexpr int32_t button_width = 37;
     static constexpr int32_t button_height = 41;
     static constexpr int32_t button_count = 6;
@@ -197,58 +199,60 @@ private:
     // === Classic UI sprite indices ===
     // From GameDialog.pak, sprite index 6 (DEF_SPRID_INTERFACE_ND_ICONPANNEL = 64)
     // These are frame indices within the icon panel sprite
-    struct classic_sprites {
+    struct classic_sprites
+    {
         // PAK file and sprite index
         static constexpr const char* pak_name = "GameDialog";
-        static constexpr uint32_t sprite_index = 6;  // Index in PAK file
+        static constexpr uint32_t sprite_index = 6; // Index in PAK file
 
         // Frame indices within the sprite
-        static constexpr uint32_t panel_background = 14;     // Main panel background
+        static constexpr uint32_t panel_background = 14;      // Main panel background
         static constexpr uint32_t panel_hover_highlight = 16; // Hover highlight effect
 
         // HP/MP/SP bar fills (used with variable width rendering)
-        static constexpr uint32_t hp_mp_bar_fill = 12;       // HP and MP bar fill
-        static constexpr uint32_t sp_bar_fill = 13;          // SP bar fill
+        static constexpr uint32_t hp_mp_bar_fill = 12; // HP and MP bar fill
+        static constexpr uint32_t sp_bar_fill = 13;    // SP bar fill
 
         // Combat mode indicators (position: 368, 440)
-        static constexpr uint32_t combat_safe_mode = 4;      // Safe attack mode (green)
-        static constexpr uint32_t combat_pk_mode = 5;        // PK mode (red)
-        static constexpr uint32_t combat_animation = 3;      // Combat animation overlay
+        static constexpr uint32_t combat_safe_mode = 4; // Safe attack mode (green)
+        static constexpr uint32_t combat_pk_mode = 5;   // PK mode (red)
+        static constexpr uint32_t combat_animation = 3; // Combat animation overlay
 
         // Crusade/War icons (position: 322, 434)
-        static constexpr uint32_t crusade_slayer = 0;        // Slayer faction
-        static constexpr uint32_t crusade_slayer_hover = 1;  // Slayer hover
-        static constexpr uint32_t crusade_slayer_alt = 2;    // Alternative state
-        static constexpr uint32_t crusade_icon = 15;         // Crusade icon
+        static constexpr uint32_t crusade_slayer = 0;       // Slayer faction
+        static constexpr uint32_t crusade_slayer_hover = 1; // Slayer hover
+        static constexpr uint32_t crusade_slayer_alt = 2;   // Alternative state
+        static constexpr uint32_t crusade_icon = 15;        // Crusade icon
 
         // Action buttons (frames 6-11, Y: 434)
-        static constexpr uint32_t button_character = 6;      // X: 412 - Character (F5)
-        static constexpr uint32_t button_inventory = 7;      // X: 449 - Inventory (F6)
-        static constexpr uint32_t button_magic = 8;          // X: 486 - Magic/Spellbook (F7)
-        static constexpr uint32_t button_skills = 9;         // X: 523 - Skills (F8)
-        static constexpr uint32_t button_chat = 10;          // X: 560 - Chat History (F9)
-        static constexpr uint32_t button_system = 11;        // X: 597 - System Menu (F12)
+        static constexpr uint32_t button_character = 6; // X: 412 - Character (F5)
+        static constexpr uint32_t button_inventory = 7; // X: 449 - Inventory (F6)
+        static constexpr uint32_t button_magic = 8;     // X: 486 - Magic/Spellbook (F7)
+        static constexpr uint32_t button_skills = 9;    // X: 523 - Skills (F8)
+        static constexpr uint32_t button_chat = 10;     // X: 560 - Chat History (F9)
+        static constexpr uint32_t button_system = 11;   // X: 597 - System Menu (F12)
     };
 
     // Classic UI layout - X positions and sizes are fixed, Y positions are relative to panel
-    struct classic_layout {
+    struct classic_layout
+    {
         // Bar X positions and sizes (fixed)
         static constexpr int32_t hp_bar_x = 23;
         static constexpr int32_t sp_bar_x = 147;
-        static constexpr int32_t bar_max_width = 101;  // HP/MP bar width
+        static constexpr int32_t bar_max_width = 101; // HP/MP bar width
         static constexpr int32_t sp_bar_max_width = 167;
 
         // Bar Y offsets relative to panel_y
-        static constexpr int32_t hp_bar_y_offset = 3;   // panel_y + 3
-        static constexpr int32_t mp_bar_y_offset = 25;  // panel_y + 25
-        static constexpr int32_t sp_bar_y_offset = 1;   // panel_y + 1
+        static constexpr int32_t hp_bar_y_offset = 3;  // panel_y + 3
+        static constexpr int32_t mp_bar_y_offset = 25; // panel_y + 25
+        static constexpr int32_t sp_bar_y_offset = 1;  // panel_y + 1
 
         // Combat indicator X position (fixed)
         static constexpr int32_t combat_x = 368;
-        static constexpr int32_t combat_y_offset = 6;  // panel_y + 6
+        static constexpr int32_t combat_y_offset = 6; // panel_y + 6
 
         // Button X positions (fixed)
-        static constexpr int32_t button_y_offset = 0;  // panel_y + 0
+        static constexpr int32_t button_y_offset = 0; // panel_y + 0
         static constexpr int32_t button_character_x = 412;
         static constexpr int32_t button_inventory_x = 449;
         static constexpr int32_t button_magic_x = 486;

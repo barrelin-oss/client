@@ -7,18 +7,20 @@
 #include <vector>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Map dimensions (from original)
 inline constexpr int32_t max_map_width = 752;
 inline constexpr int32_t max_map_height = 752;
 
 // Visible area
-inline constexpr int32_t visible_tiles_x = 21;  // ~640/32 + margin
-inline constexpr int32_t visible_tiles_y = 16;  // ~480/32 + margin
+inline constexpr int32_t visible_tiles_x = 21; // ~640/32 + margin
+inline constexpr int32_t visible_tiles_y = 16; // ~480/32 + margin
 
 // Map data structure
-class map {
+class map
+{
 public:
     map() = default;
     ~map() = default;
@@ -69,13 +71,12 @@ private:
 
     static const tile null_tile_;
 
-    size_t tile_index(int32_t x, int32_t y) const {
-        return static_cast<size_t>(y * width_ + x);
-    }
+    size_t tile_index(int32_t x, int32_t y) const { return static_cast<size_t>(y * width_ + x); }
 };
 
 // Map metadata (for map list)
-struct map_info {
+struct map_info
+{
     std::string name;
     std::string file_path;
     int32_t width;

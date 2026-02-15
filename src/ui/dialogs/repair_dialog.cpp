@@ -5,10 +5,11 @@
 #include <format>
 #include <algorithm>
 
-namespace hb {
+namespace hb
+{
 
-repair_dialog::repair_dialog()
-    : dialog(dialog_type::repair) {
+repair_dialog::repair_dialog() : dialog(dialog_type::repair)
+{
     set_title("Repair Items");
     set_bounds({180, 100, 300, 340});
     set_draggable(true);
@@ -16,12 +17,15 @@ repair_dialog::repair_dialog()
     set_visible(false);
 }
 
-void repair_dialog::update(float delta_time, const input& inp) {
+void repair_dialog::update(float delta_time, const input& inp)
+{
     dialog::update(delta_time, inp);
 }
 
-void repair_dialog::render(renderer& rend) {
-    if (!visible_) return;
+void repair_dialog::render(renderer& rend)
+{
+    if (!visible_)
+        return;
 
     dialog::render(rend);
 
@@ -29,7 +33,8 @@ void repair_dialog::render(renderer& rend) {
     int32_t y = bounds_.y + 32;
 
     // NPC name
-    if (!npc_name_.empty()) {
+    if (!npc_name_.empty())
+    {
         rend.draw_text(npc_name_, x, y, sf::Color(200, 200, 100));
         y += 20;
     }
@@ -46,16 +51,20 @@ void repair_dialog::render(renderer& rend) {
     rend.draw_text("Damaged Items:", x, y, sf::Color::White);
     y += 18;
 
-    if (repair_items_.empty()) {
+    if (repair_items_.empty())
+    {
         rend.draw_text("No items need repair.", x, y, sf::Color(150, 150, 150));
-    } else {
+    }
+    else
+    {
         list_area_x_ = x;
         list_area_y_ = y;
         render_item_list(rend, x, y);
         y += visible_items * item_row_height + 10;
 
         // Selected item details
-        if (selected_item_ >= 0 && selected_item_ < static_cast<int32_t>(repair_items_.size())) {
+        if (selected_item_ >= 0 && selected_item_ < static_cast<int32_t>(repair_items_.size()))
+        {
             rend.draw_line(x, y, x + 280, y, sf::Color(80, 80, 100));
             y += 8;
             render_selected_info(rend, x, y);
@@ -66,8 +75,7 @@ void repair_dialog::render(renderer& rend) {
     int32_t btn_y = bounds_.y + bounds_.height - 45;
 
     // Repair selected button
-    bool can_repair_selected = selected_item_ >= 0 &&
-                               selected_item_ < static_cast<int32_t>(repair_items_.size()) &&
+    bool can_repair_selected = selected_item_ >= 0 && selected_item_ < static_cast<int32_t>(repair_items_.size()) &&
                                player_gold_ >= repair_items_[selected_item_].repair_cost;
     sf::Color repair_btn_color = can_repair_selected ? sf::Color(60, 100, 60) : sf::Color(60, 60, 60);
 
@@ -85,19 +93,23 @@ void repair_dialog::render(renderer& rend) {
     rend.draw_text("Repair All", x + 135, btn_y + 6, sf::Color::White);
 
     // Total cost for repair all
-    if (!repair_items_.empty()) {
+    if (!repair_items_.empty())
+    {
         std::string total_text = std::format("Total: {} gold", total_cost);
         sf::Color cost_color = can_repair_all ? sf::Color(200, 200, 100) : sf::Color(200, 100, 100);
         rend.draw_text(total_text, x + 120, btn_y - 16, cost_color, 11);
     }
 }
 
-void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y) {
+void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y)
+{
     int32_t list_width = 270;
 
-    for (int32_t i = 0; i < visible_items; ++i) {
+    for (int32_t i = 0; i < visible_items; ++i)
+    {
         int32_t item_idx = scroll_offset_ + i;
-        if (item_idx >= static_cast<int32_t>(repair_items_.size())) break;
+        if (item_idx >= static_cast<int32_t>(repair_items_.size()))
+            break;
 
         const auto& info = repair_items_[item_idx];
         int32_t row_y = y + i * item_row_height;
@@ -106,11 +118,16 @@ void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y) {
         bool selected = selected_item_ == item_idx;
 
         sf::Color bg_color;
-        if (selected) {
+        if (selected)
+        {
             bg_color = sf::Color(60, 80, 100);
-        } else if (hovered) {
+        }
+        else if (hovered)
+        {
             bg_color = sf::Color(50, 50, 65);
-        } else {
+        }
+        else
+        {
             bg_color = sf::Color(40, 40, 50);
         }
 
@@ -130,15 +147,20 @@ void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y) {
         int32_t bar_width = 100;
         int32_t bar_height = 6;
 
-        float dur_ratio = info.max_durability > 0 ?
-            static_cast<float>(info.current_durability) / info.max_durability : 0.0f;
+        float dur_ratio =
+            info.max_durability > 0 ? static_cast<float>(info.current_durability) / info.max_durability : 0.0f;
 
         sf::Color bar_fill;
-        if (dur_ratio > 0.5f) {
+        if (dur_ratio > 0.5f)
+        {
             bar_fill = sf::Color(100, 200, 100);
-        } else if (dur_ratio > 0.25f) {
+        }
+        else if (dur_ratio > 0.25f)
+        {
             bar_fill = sf::Color(200, 200, 100);
-        } else {
+        }
+        else
+        {
             bar_fill = sf::Color(200, 100, 100);
         }
 
@@ -156,7 +178,8 @@ void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y) {
     }
 
     // Scroll indicator
-    if (repair_items_.size() > static_cast<size_t>(visible_items)) {
+    if (repair_items_.size() > static_cast<size_t>(visible_items))
+    {
         int32_t scroll_x = x + list_width + 4;
         int32_t scroll_y = y;
         int32_t scroll_height = visible_items * item_row_height;
@@ -173,8 +196,10 @@ void repair_dialog::render_item_list(renderer& rend, int32_t x, int32_t y) {
     }
 }
 
-void repair_dialog::render_selected_info(renderer& rend, int32_t x, int32_t y) {
-    if (selected_item_ < 0 || selected_item_ >= static_cast<int32_t>(repair_items_.size())) return;
+void repair_dialog::render_selected_info(renderer& rend, int32_t x, int32_t y)
+{
+    if (selected_item_ < 0 || selected_item_ >= static_cast<int32_t>(repair_items_.size()))
+        return;
 
     const auto& info = repair_items_[selected_item_];
 
@@ -194,43 +219,54 @@ void repair_dialog::render_selected_info(renderer& rend, int32_t x, int32_t y) {
     rend.draw_text(std::format("Repair Cost: {} gold", info.repair_cost), x, y, cost_color, 11);
 }
 
-std::optional<int32_t> repair_dialog::item_at(int32_t mx, int32_t my) const {
+std::optional<int32_t> repair_dialog::item_at(int32_t mx, int32_t my) const
+{
     int32_t list_width = 270;
 
-    for (int32_t i = 0; i < visible_items; ++i) {
+    for (int32_t i = 0; i < visible_items; ++i)
+    {
         int32_t item_idx = scroll_offset_ + i;
-        if (item_idx >= static_cast<int32_t>(repair_items_.size())) break;
+        if (item_idx >= static_cast<int32_t>(repair_items_.size()))
+            break;
 
         int32_t row_y = list_area_y_ + i * item_row_height;
         ui_rect rect{list_area_x_, row_y, list_width, item_row_height - 2};
 
-        if (rect.contains(mx, my)) {
+        if (rect.contains(mx, my))
+        {
             return item_idx;
         }
     }
     return std::nullopt;
 }
 
-uint32_t repair_dialog::calculate_total_repair_cost() const {
+uint32_t repair_dialog::calculate_total_repair_cost() const
+{
     uint32_t total = 0;
-    for (const auto& info : repair_items_) {
+    for (const auto& info : repair_items_)
+    {
         total += info.repair_cost;
     }
     return total;
 }
 
-bool repair_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
-    if (!visible_) return false;
+bool repair_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
+{
+    if (!visible_)
+        return false;
 
     int32_t base_x = bounds_.x + 10;
     int32_t btn_y = bounds_.y + bounds_.height - 45;
 
     // Repair selected button
     ui_rect repair_btn{base_x, btn_y, 100, 28};
-    if (repair_btn.contains(x, y) && btn == sf::Mouse::Button::Left) {
-        if (selected_item_ >= 0 && selected_item_ < static_cast<int32_t>(repair_items_.size())) {
+    if (repair_btn.contains(x, y) && btn == sf::Mouse::Button::Left)
+    {
+        if (selected_item_ >= 0 && selected_item_ < static_cast<int32_t>(repair_items_.size()))
+        {
             const auto& info = repair_items_[selected_item_];
-            if (player_gold_ >= info.repair_cost && on_repair_) {
+            if (player_gold_ >= info.repair_cost && on_repair_)
+            {
                 on_repair_(info.inventory_slot);
             }
         }
@@ -239,9 +275,11 @@ bool repair_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
 
     // Repair all button
     ui_rect repair_all_btn{base_x + 120, btn_y, 100, 28};
-    if (repair_all_btn.contains(x, y) && btn == sf::Mouse::Button::Left) {
+    if (repair_all_btn.contains(x, y) && btn == sf::Mouse::Button::Left)
+    {
         uint32_t total_cost = calculate_total_repair_cost();
-        if (!repair_items_.empty() && player_gold_ >= total_cost && on_repair_all_) {
+        if (!repair_items_.empty() && player_gold_ >= total_cost && on_repair_all_)
+        {
             on_repair_all_();
         }
         return true;
@@ -249,7 +287,8 @@ bool repair_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
 
     // Item list click
     auto item_idx = item_at(x, y);
-    if (item_idx.has_value() && btn == sf::Mouse::Button::Left) {
+    if (item_idx.has_value() && btn == sf::Mouse::Button::Left)
+    {
         select_item(item_idx.value());
         return true;
     }
@@ -257,16 +296,20 @@ bool repair_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
     return dialog::handle_mouse_down(x, y, btn);
 }
 
-bool repair_dialog::handle_mouse_move(int32_t x, int32_t y) {
-    if (!visible_) return false;
+bool repair_dialog::handle_mouse_move(int32_t x, int32_t y)
+{
+    if (!visible_)
+        return false;
 
     hovered_item_ = item_at(x, y);
 
     return dialog::handle_mouse_move(x, y);
 }
 
-void repair_dialog::select_item(int32_t index) {
-    if (index >= 0 && index < static_cast<int32_t>(repair_items_.size())) {
+void repair_dialog::select_item(int32_t index)
+{
+    if (index >= 0 && index < static_cast<int32_t>(repair_items_.size()))
+    {
         selected_item_ = index;
     }
 }

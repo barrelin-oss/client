@@ -10,7 +10,8 @@
 #include <optional>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Maps legacy sprite IDs to (pak_name, pak_index) pairs
 // This mirrors the original game's hardcoded sprite loading system where
@@ -42,7 +43,8 @@ public:
 
     // Two-phase initialization for loading screen integration:
     // Phase 1: register core mappings + discover tile PAKs (returns list, doesn't load)
-    struct pending_tile_pak {
+    struct pending_tile_pak
+    {
         std::string pak_name;
         std::string relative_path;
         int16_t start_id;
@@ -70,8 +72,8 @@ private:
     // Source information for a sprite ID
     struct sprite_source
     {
-        std::string pak_name;  // PAK file name (e.g., "maptiles1")
-        uint32_t pak_index;    // Index within the PAK file
+        std::string pak_name; // PAK file name (e.g., "maptiles1")
+        uint32_t pak_index;   // Index within the PAK file
     };
 
     // Register a range of sprite IDs from a PAK file

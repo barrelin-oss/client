@@ -3,12 +3,14 @@
 #include "ui/ui_system.hpp"
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 struct stats_component;
 
 // Character information dialog - displays player stats
-class character_dialog : public dialog {
+class character_dialog : public dialog
+{
 public:
     character_dialog();
     ~character_dialog() override = default;
@@ -20,7 +22,7 @@ public:
     void update_stats(const stats_component& stats);
 
     // Set callbacks for stat point allocation
-    using stat_callback = std::function<void(int)>;  // stat index
+    using stat_callback = std::function<void(int)>; // stat index
     void set_on_add_stat(stat_callback callback) { on_add_stat_ = std::move(callback); }
 
     // Set available stat points
@@ -28,8 +30,7 @@ public:
 
 private:
     void create_ui();
-    void render_stat_row(renderer& rend, int32_t y, const char* name,
-                        int32_t value, int32_t stat_index);
+    void render_stat_row(renderer& rend, int32_t y, const char* name, int32_t value, int32_t stat_index);
 
     // Cached stat values
     int32_t strength_ = 0;

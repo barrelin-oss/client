@@ -11,16 +11,18 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace hb {
+namespace hb
+{
 
 // Chat system configuration
-struct chat_config {
+struct chat_config
+{
     size_t max_history = 500;
     size_t max_message_length = 200;
     bool show_timestamps = false;
     bool filter_profanity = true;
     bool block_spam = true;
-    float spam_delay = 0.5f;  // Minimum seconds between messages
+    float spam_delay = 0.5f; // Minimum seconds between messages
 
     // Channel visibility
     bool show_normal = true;
@@ -34,13 +36,15 @@ struct chat_config {
 };
 
 // Chat callbacks
-struct chat_callbacks {
+struct chat_callbacks
+{
     std::function<void(const chat_message&)> on_message_received;
     std::function<void(chat_type, std::string_view)> on_send_message;
     std::function<void(std::string_view, std::string_view)> on_send_whisper;
 };
 
-class chat_system {
+class chat_system
+{
 public:
     chat_system() = default;
     ~chat_system() = default;
@@ -57,7 +61,7 @@ public:
     void receive_message(chat_type type, std::string_view sender, std::string_view content);
 
     // Send message (to network)
-    bool send_message(std::string_view content);  // Auto-detect type from prefix
+    bool send_message(std::string_view content); // Auto-detect type from prefix
     bool send_normal(std::string_view content);
     bool send_shout(std::string_view content);
     bool send_whisper(std::string_view target, std::string_view content);
@@ -119,8 +123,8 @@ private:
     // Per-sender incoming spam tracking
     // Stores recent message timestamps per sender (lowercase name)
     std::unordered_map<std::string, std::deque<std::chrono::steady_clock::time_point>> sender_message_times_;
-    static constexpr size_t spam_message_threshold = 5;         // Max messages in window
-    static constexpr float spam_window_seconds = 3.0f;          // Time window
+    static constexpr size_t spam_message_threshold = 5; // Max messages in window
+    static constexpr float spam_window_seconds = 3.0f;  // Time window
 };
 
 } // namespace hb

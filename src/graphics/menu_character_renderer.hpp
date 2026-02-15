@@ -3,52 +3,57 @@
 #include <cstdint>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class sprite_manager;
 
 // PAK loading entry for incremental initialization
-struct equipment_pak_entry {
+struct equipment_pak_entry
+{
     const char* pak_name;
     uint32_t sprite_id;
     uint32_t sprite_count;
-    uint32_t pak_start_index;  // Starting index within the PAK file (for multi-variant PAKs)
+    uint32_t pak_start_index; // Starting index within the PAK file (for multi-variant PAKs)
 };
 
 // Full appearance data for rendering a character preview with equipment
-struct character_appearance {
+struct character_appearance
+{
     // Base appearance
-    uint8_t gender = 1;           // 1 = male, 2 = female
-    uint8_t skin_color = 1;       // 1-3 (Black, White, Yellow)
-    uint8_t hair_style = 0;       // 0-7
-    uint8_t hair_color = 0;       // 0-15
-    uint8_t underwear_color = 0;  // 0-7
+    uint8_t gender = 1;          // 1 = male, 2 = female
+    uint8_t skin_color = 1;      // 1-3 (Black, White, Yellow)
+    uint8_t hair_style = 0;      // 0-7
+    uint8_t hair_color = 0;      // 0-15
+    uint8_t underwear_color = 0; // 0-7
 
     // Equipment (0 = not equipped)
-    uint8_t body_armor = 0;       // Body armor/shirt type (1-15)
-    uint8_t arm_armor = 0;        // Arm armor type (1-15)
-    uint8_t pants = 0;            // Pants/skirt type (1-15, 1=skirt for female)
-    uint8_t boots = 0;            // Boots type (1-15)
-    uint8_t helmet = 0;           // Helmet type (1-15)
-    uint8_t mantle = 0;           // Cape/mantle type (1-15)
-    uint8_t weapon = 0;           // Weapon type (1-255)
-    uint8_t shield = 0;           // Shield type (1-9)
+    uint8_t body_armor = 0; // Body armor/shirt type (1-15)
+    uint8_t arm_armor = 0;  // Arm armor type (1-15)
+    uint8_t pants = 0;      // Pants/skirt type (1-15, 1=skirt for female)
+    uint8_t boots = 0;      // Boots type (1-15)
+    uint8_t helmet = 0;     // Helmet type (1-15)
+    uint8_t mantle = 0;     // Cape/mantle type (1-15)
+    uint8_t weapon = 0;     // Weapon type (1-255)
+    uint8_t shield = 0;     // Shield type (1-9)
 
     // Effects
-    uint8_t weapon_glow = 0;      // Weapon glow effect (0=none, 1=red, 2=green, 3=blue)
-    uint8_t shield_glow = 0;      // Shield glow effect (0=none, 1=red, 2=green, 3=blue)
+    uint8_t weapon_glow = 0; // Weapon glow effect (0=none, 1=red, 2=green, 3=blue)
+    uint8_t shield_glow = 0; // Shield glow effect (0=none, 1=red, 2=green, 3=blue)
 
     // Returns true if character has any equipment
-    bool has_equipment() const {
-        return body_armor > 0 || arm_armor > 0 || pants > 0 || boots > 0 ||
-               helmet > 0 || mantle > 0 || weapon > 0 || shield > 0;
+    bool has_equipment() const
+    {
+        return body_armor > 0 || arm_armor > 0 || pants > 0 || boots > 0 || helmet > 0 || mantle > 0 || weapon > 0 ||
+               shield > 0;
     }
 };
 
 // Renders character previews for menu screens (character select/create)
 // Full implementation of DrawObject_OnMove_ForMenu with equipment support
-class menu_character_renderer {
+class menu_character_renderer
+{
 public:
     menu_character_renderer() = default;
 
@@ -66,16 +71,22 @@ public:
     // appearance: Character appearance settings (including equipment)
     // direction: 1-8 (compass directions, 1=N, 2=NE, 3=E, 4=SE, 5=S, 6=SW, 7=W, 8=NW)
     // frame: Animation frame (0-7)
-    void draw(renderer& rend, sprite_manager& sprites,
-              int32_t x, int32_t y,
+    void draw(renderer& rend,
+              sprite_manager& sprites,
+              int32_t x,
+              int32_t y,
               const character_appearance& appearance,
-              int32_t direction, int32_t frame);
+              int32_t direction,
+              int32_t frame);
 
     // Draw with shadow (effect sprite 0, frame 1)
-    void draw_with_shadow(renderer& rend, sprite_manager& sprites,
-                          int32_t x, int32_t y,
+    void draw_with_shadow(renderer& rend,
+                          sprite_manager& sprites,
+                          int32_t x,
+                          int32_t y,
                           const character_appearance& appearance,
-                          int32_t direction, int32_t frame);
+                          int32_t direction,
+                          int32_t frame);
 
 private:
     // Helper to determine if female based on gender
@@ -88,34 +99,111 @@ private:
     int32_t calc_frame(int32_t direction, int32_t frame) const;
 
     // Draw individual components (returns true if drawn)
-    void draw_body(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                   uint8_t gender, uint8_t skin_color, int32_t action, int32_t dir, int32_t frame);
-    void draw_underwear(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                        uint8_t gender, uint8_t underwear_color, int32_t action, int32_t dir, int32_t frame);
-    void draw_hair(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                   uint8_t gender, uint8_t hair_style, uint8_t hair_color,
-                   int32_t action, int32_t dir, int32_t frame);
-    void draw_body_armor(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                         uint8_t gender, uint8_t armor_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_arm_armor(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                        uint8_t gender, uint8_t armor_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_pants(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                    uint8_t gender, uint8_t pants_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_boots(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                    uint8_t gender, uint8_t boots_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_helmet(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                     uint8_t gender, uint8_t helmet_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_mantle(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                     uint8_t gender, uint8_t mantle_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_weapon(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                     uint8_t gender, uint8_t weapon_type, int32_t action, int32_t dir, int32_t frame);
-    void draw_shield(renderer& rend, sprite_manager& sprites, int32_t x, int32_t y,
-                     uint8_t gender, uint8_t shield_type, int32_t action, int32_t dir, int32_t frame);
+    void draw_body(renderer& rend,
+                   sprite_manager& sprites,
+                   int32_t x,
+                   int32_t y,
+                   uint8_t gender,
+                   uint8_t skin_color,
+                   int32_t action,
+                   int32_t dir,
+                   int32_t frame);
+    void draw_underwear(renderer& rend,
+                        sprite_manager& sprites,
+                        int32_t x,
+                        int32_t y,
+                        uint8_t gender,
+                        uint8_t underwear_color,
+                        int32_t action,
+                        int32_t dir,
+                        int32_t frame);
+    void draw_hair(renderer& rend,
+                   sprite_manager& sprites,
+                   int32_t x,
+                   int32_t y,
+                   uint8_t gender,
+                   uint8_t hair_style,
+                   uint8_t hair_color,
+                   int32_t action,
+                   int32_t dir,
+                   int32_t frame);
+    void draw_body_armor(renderer& rend,
+                         sprite_manager& sprites,
+                         int32_t x,
+                         int32_t y,
+                         uint8_t gender,
+                         uint8_t armor_type,
+                         int32_t action,
+                         int32_t dir,
+                         int32_t frame);
+    void draw_arm_armor(renderer& rend,
+                        sprite_manager& sprites,
+                        int32_t x,
+                        int32_t y,
+                        uint8_t gender,
+                        uint8_t armor_type,
+                        int32_t action,
+                        int32_t dir,
+                        int32_t frame);
+    void draw_pants(renderer& rend,
+                    sprite_manager& sprites,
+                    int32_t x,
+                    int32_t y,
+                    uint8_t gender,
+                    uint8_t pants_type,
+                    int32_t action,
+                    int32_t dir,
+                    int32_t frame);
+    void draw_boots(renderer& rend,
+                    sprite_manager& sprites,
+                    int32_t x,
+                    int32_t y,
+                    uint8_t gender,
+                    uint8_t boots_type,
+                    int32_t action,
+                    int32_t dir,
+                    int32_t frame);
+    void draw_helmet(renderer& rend,
+                     sprite_manager& sprites,
+                     int32_t x,
+                     int32_t y,
+                     uint8_t gender,
+                     uint8_t helmet_type,
+                     int32_t action,
+                     int32_t dir,
+                     int32_t frame);
+    void draw_mantle(renderer& rend,
+                     sprite_manager& sprites,
+                     int32_t x,
+                     int32_t y,
+                     uint8_t gender,
+                     uint8_t mantle_type,
+                     int32_t action,
+                     int32_t dir,
+                     int32_t frame);
+    void draw_weapon(renderer& rend,
+                     sprite_manager& sprites,
+                     int32_t x,
+                     int32_t y,
+                     uint8_t gender,
+                     uint8_t weapon_type,
+                     int32_t action,
+                     int32_t dir,
+                     int32_t frame);
+    void draw_shield(renderer& rend,
+                     sprite_manager& sprites,
+                     int32_t x,
+                     int32_t y,
+                     uint8_t gender,
+                     uint8_t shield_type,
+                     int32_t action,
+                     int32_t dir,
+                     int32_t frame);
 
     // Sprite base indices (from legacy code)
     // Body: Male = 500 + (skin-1)*120, Female = 500 + (3+skin-1)*120
     static constexpr uint16_t body_base = 500;
-    static constexpr uint16_t body_stride = 120;  // 15 actions * 8 directions
+    static constexpr uint16_t body_stride = 120; // 15 actions * 8 directions
 
     // Underwear: Male = 4580, Female = 14580 (stride 15 per color)
     static constexpr uint16_t male_underwear_base = 4580;
@@ -170,7 +258,7 @@ private:
     // Action indices
     static constexpr int32_t action_stop = 0;
     static constexpr int32_t action_walk = 2;
-    static constexpr int32_t action_move = 3;  // Used when moving/animating
+    static constexpr int32_t action_move = 3; // Used when moving/animating
 
     // Drawing order arrays (indexed by direction 1-8)
     // 0 = weapon drawn last (in front), 1 = weapon drawn first (behind)

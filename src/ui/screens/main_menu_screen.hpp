@@ -9,23 +9,27 @@
 #include <vector>
 #endif
 
-namespace hb {
+namespace hb
+{
 
 // Sprite IDs for main menu (matching original DEF_SPRID_INTERFACE_ND_MAINMENU)
-namespace main_menu_sprites {
-    inline constexpr uint16_t background = 52;  // DEF_SPRID_INTERFACE_ND_MAINMENU
-    inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
-}
+namespace main_menu_sprites
+{
+inline constexpr uint16_t background = 52;  // DEF_SPRID_INTERFACE_ND_MAINMENU
+inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
+} // namespace main_menu_sprites
 
 // Main menu button IDs
-enum class main_menu_button : int32_t {
+enum class main_menu_button : int32_t
+{
     none = 0,
-    start_game = 1,    // Start button
-    quit_game = 2      // Quit button (if exists)
+    start_game = 1, // Start button
+    quit_game = 2   // Quit button (if exists)
 };
 
 // Main menu screen - modern equivalent of UpdateScreen_OnMainMenu
-class main_menu_screen : public screen_base {
+class main_menu_screen : public screen_base
+{
 public:
     using start_callback = std::function<void()>;
     using quit_callback = std::function<void()>;
@@ -53,11 +57,11 @@ private:
     settings_callback on_settings_;
 
     // Button highlight positions (mutable for debug overlay positioning)
-    int32_t btn1_x_ = 385;  // Start Game
+    int32_t btn1_x_ = 385; // Start Game
     int32_t btn1_y_ = 178;
-    int32_t btn2_x_ = 385;  // Create Account
+    int32_t btn2_x_ = 385; // Create Account
     int32_t btn2_y_ = 217;
-    int32_t btn3_x_ = 385;  // Quit
+    int32_t btn3_x_ = 385; // Quit
     int32_t btn3_y_ = 255;
 
     // Button dimensions (from sprite)

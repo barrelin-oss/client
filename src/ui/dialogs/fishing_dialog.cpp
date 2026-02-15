@@ -6,18 +6,16 @@
 #include <format>
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
-fishing_dialog::fishing_dialog()
-    : dialog(dialog_type::fishing)
+fishing_dialog::fishing_dialog() : dialog(dialog_type::fishing)
 {
     set_title("Fishing");
-    set_bounds({
-        static_cast<int32_t>(screen_width) / 2 - dialog_width / 2,
-        static_cast<int32_t>(screen_height) / 2 - dialog_height / 2,
-        dialog_width,
-        dialog_height
-    });
+    set_bounds({static_cast<int32_t>(screen_width) / 2 - dialog_width / 2,
+                static_cast<int32_t>(screen_height) / 2 - dialog_height / 2,
+                dialog_width,
+                dialog_height});
     set_modal(true);
     set_closeable(false);
     set_draggable(true);
@@ -47,7 +45,8 @@ void fishing_dialog::close_fishing()
 
 void fishing_dialog::update(float delta_time, const input& inp)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     dialog::update(delta_time, inp);
 
@@ -71,18 +70,16 @@ void fishing_dialog::update(float delta_time, const input& inp)
 
 void fishing_dialog::render(renderer& rend)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     // Dialog background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(30, 30, 45, 245), true);
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(80, 80, 100), false);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(30, 30, 45, 245), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
 
     // Title bar
     int32_t tb_h = 24;
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, tb_h,
-                   sf::Color(50, 50, 70), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, tb_h, sf::Color(50, 50, 70), true);
     rend.draw_text(title_, bounds_.x + 10, bounds_.y + 6, sf::Color::White, 12);
 
     int32_t content_y = bounds_.y + tb_h + 15;
@@ -90,8 +87,7 @@ void fishing_dialog::render(renderer& rend)
 
     // Fish name
     int32_t name_w = static_cast<int32_t>(fish_name_.size()) * 8;
-    rend.draw_text(fish_name_, center_x - name_w / 2, content_y,
-                   sf::Color(220, 200, 100), 14);
+    rend.draw_text(fish_name_, center_x - name_w / 2, content_y, sf::Color(220, 200, 100), 14);
     content_y += 28;
 
     // Catch chance bar background
@@ -99,10 +95,8 @@ void fishing_dialog::render(renderer& rend)
     int32_t bar_width = dialog_width - 40;
     int32_t bar_height = 20;
 
-    rend.draw_rect(bar_x, content_y, bar_width, bar_height,
-                   sf::Color(35, 35, 50), true);
-    rend.draw_rect(bar_x, content_y, bar_width, bar_height,
-                   sf::Color(80, 80, 100), false);
+    rend.draw_rect(bar_x, content_y, bar_width, bar_height, sf::Color(35, 35, 50), true);
+    rend.draw_rect(bar_x, content_y, bar_width, bar_height, sf::Color(80, 80, 100), false);
 
     // Catch chance fill
     int32_t fill_width = bar_width * catch_chance_ / 100;
@@ -117,23 +111,20 @@ void fishing_dialog::render(renderer& rend)
         else
             fill_color = sf::Color(60, 180, 60);
 
-        rend.draw_rect(bar_x + 1, content_y + 1, fill_width - 2, bar_height - 2,
-                       fill_color, true);
+        rend.draw_rect(bar_x + 1, content_y + 1, fill_width - 2, bar_height - 2, fill_color, true);
     }
 
     // Catch chance text
     std::string chance_text = std::to_string(catch_chance_) + "%";
     int32_t text_w = static_cast<int32_t>(chance_text.size()) * 7;
-    rend.draw_text(chance_text, center_x - text_w / 2, content_y + 3,
-                   sf::Color::White, 12);
+    rend.draw_text(chance_text, center_x - text_w / 2, content_y + 3, sf::Color::White, 12);
 
     content_y += bar_height + 8;
 
     // "Catch Chance" label
     std::string label = "Catch Chance";
     int32_t label_w = static_cast<int32_t>(label.size()) * 6;
-    rend.draw_text(label, center_x - label_w / 2, content_y,
-                   sf::Color(150, 150, 180), 10);
+    rend.draw_text(label, center_x - label_w / 2, content_y, sf::Color(150, 150, 180), 10);
 
     // Buttons
     int32_t btn_width = 90;
@@ -148,10 +139,12 @@ void fishing_dialog::render(renderer& rend)
     rend.draw_rect(catch_x, btn_y, btn_width, btn_height, catch_bg, true);
     rend.draw_rect(catch_x, btn_y, btn_width, btn_height, sf::Color(100, 160, 100), false);
     int32_t catch_tw = 5 * 7; // "Catch"
-    rend.draw_text("Catch", catch_x + (btn_width - catch_tw) / 2 + 1, btn_y + 8 + 1,
-                   sf::Color(0, 0, 0), 12);
-    rend.draw_text("Catch", catch_x + (btn_width - catch_tw) / 2, btn_y + 8,
-                   catch_hovered ? sf::Color(255, 255, 200) : sf::Color::White, 12);
+    rend.draw_text("Catch", catch_x + (btn_width - catch_tw) / 2 + 1, btn_y + 8 + 1, sf::Color(0, 0, 0), 12);
+    rend.draw_text("Catch",
+                   catch_x + (btn_width - catch_tw) / 2,
+                   btn_y + 8,
+                   catch_hovered ? sf::Color(255, 255, 200) : sf::Color::White,
+                   12);
 
     // Cancel button
     bool cancel_hovered = (hovered_element_ == elem_cancel_button);
@@ -159,15 +152,18 @@ void fishing_dialog::render(renderer& rend)
     rend.draw_rect(cancel_x, btn_y, btn_width, btn_height, cancel_bg, true);
     rend.draw_rect(cancel_x, btn_y, btn_width, btn_height, sf::Color(160, 100, 100), false);
     int32_t cancel_tw = 6 * 7; // "Cancel"
-    rend.draw_text("Cancel", cancel_x + (btn_width - cancel_tw) / 2 + 1, btn_y + 8 + 1,
-                   sf::Color(0, 0, 0), 12);
-    rend.draw_text("Cancel", cancel_x + (btn_width - cancel_tw) / 2, btn_y + 8,
-                   cancel_hovered ? sf::Color(255, 255, 200) : sf::Color::White, 12);
+    rend.draw_text("Cancel", cancel_x + (btn_width - cancel_tw) / 2 + 1, btn_y + 8 + 1, sf::Color(0, 0, 0), 12);
+    rend.draw_text("Cancel",
+                   cancel_x + (btn_width - cancel_tw) / 2,
+                   btn_y + 8,
+                   cancel_hovered ? sf::Color(255, 255, 200) : sf::Color::White,
+                   12);
 }
 
 bool fishing_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
     if (btn == sf::Mouse::Button::Left)
     {
@@ -179,14 +175,16 @@ bool fishing_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button b
 
         if (x >= catch_x && x < catch_x + btn_width && y >= btn_y && y < btn_y + btn_height)
         {
-            if (on_catch_) on_catch_();
+            if (on_catch_)
+                on_catch_();
             return true;
         }
 
         if (x >= cancel_x && x < cancel_x + btn_width && y >= btn_y && y < btn_y + btn_height)
         {
             close_fishing();
-            if (on_cancel_) on_cancel_();
+            if (on_cancel_)
+                on_cancel_();
             return true;
         }
     }

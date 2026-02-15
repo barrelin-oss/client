@@ -3,7 +3,8 @@
 #include "assets/sprite_manager.hpp"
 #include "assets/sprite.hpp"
 
-namespace hb {
+namespace hb
+{
 
 void cursor_manager::begin_frame()
 {
@@ -17,10 +18,12 @@ void cursor_manager::set_cursor(cursor_type type)
 
 void cursor_manager::render(renderer& rend, int32_t mouse_x, int32_t mouse_y)
 {
-    if (!sprites_) return;
+    if (!sprites_)
+        return;
 
     const sprite* spr = sprites_->get_sprite_by_id(cursor_sprite_id);
-    if (!spr) return;
+    if (!spr)
+        return;
 
     rend.draw_sprite(*spr, mouse_x, mouse_y, frame_for(current_));
 }
@@ -29,11 +32,13 @@ uint32_t cursor_manager::frame_for(cursor_type type) const
 {
     switch (type)
     {
-        case cursor_type::magic_target: return 4;
-        case cursor_type::magic_arrow:  return 5;
-        case cursor_type::normal:
-        default:
-            return 0;
+    case cursor_type::magic_target:
+        return 4;
+    case cursor_type::magic_arrow:
+        return 5;
+    case cursor_type::normal:
+    default:
+        return 0;
     }
 }
 

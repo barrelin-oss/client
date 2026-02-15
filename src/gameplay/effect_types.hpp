@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 // Effect type IDs matching legacy m_sType values
 enum class effect_type_id : uint16_t
@@ -27,7 +28,7 @@ enum class effect_type_id : uint16_t
     energy_strike_proj = 16,
     ice_storm_fragment = 17,
     ground_shake = 18,
-    energy_strike_impact = 19,  // Composite: ground shake + burst physics on proj arrival
+    energy_strike_impact = 19, // Composite: ground shake + burst physics on proj arrival
 
     // Projectiles (20-27)
     magic_projectile_20 = 20,
@@ -151,30 +152,30 @@ enum class effect_type_id : uint16_t
 // Effect behavior categories
 enum class effect_behavior : uint8_t
 {
-    static_anim,    // Simple frame animation at a position
-    projectile,     // Moves from source to destination via Bresenham
-    physics,        // Velocity + gravity (particles)
-    composite,      // Static anim that spawns child effects at specific frames
+    static_anim, // Simple frame animation at a position
+    projectile,  // Moves from source to destination via Bresenham
+    physics,     // Velocity + gravity (particles)
+    composite,   // Static anim that spawns child effects at specific frames
 };
 
 // Render mode for the effect sprite
 enum class effect_render_mode : uint8_t
 {
-    normal,         // Standard opaque render
-    transparent,    // Color-key transparency
-    alpha_25,       // 25% alpha
-    alpha_50,       // 50% alpha
-    alpha_70,       // 70% alpha
-    fade,           // Fade out over lifetime
-    thunder,        // Procedural lightning bolt (line segments, no sprite)
-    arrow_trail,    // Multi-point fading trail behind projectile (lightning arrow)
+    normal,      // Standard opaque render
+    transparent, // Color-key transparency
+    alpha_25,    // 25% alpha
+    alpha_50,    // 50% alpha
+    alpha_70,    // 70% alpha
+    fade,        // Fade out over lifetime
+    thunder,     // Procedural lightning bolt (line segments, no sprite)
+    arrow_trail, // Multi-point fading trail behind projectile (lightning arrow)
 };
 
 // Detail level filter
 enum class effect_detail : uint8_t
 {
-    all,            // Render at all detail levels
-    high_only,      // Skip at low detail (particles)
+    all,       // Render at all detail levels
+    high_only, // Skip at low detail (particles)
 };
 
 } // namespace hb

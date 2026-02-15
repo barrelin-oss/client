@@ -6,9 +6,11 @@
 #include <string>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
-class input {
+class input
+{
 public:
     // Process a single event
     void process_event(const sf::Event& event);

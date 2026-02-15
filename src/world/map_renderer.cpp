@@ -5,7 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace hb {
+namespace hb
+{
 
 bool map_renderer::initialize(tile_sprite_registry& registry)
 {
@@ -55,7 +56,8 @@ map_renderer::chunk_data& map_renderer::get_or_create_chunk(int32_t chunk_x, int
 void map_renderer::render_chunk(const map& m, int32_t chunk_x, int32_t chunk_y)
 {
     auto& chunk = get_or_create_chunk(chunk_x, chunk_y);
-    if (!chunk.texture) return;
+    if (!chunk.texture)
+        return;
 
     chunk.texture->clear(sf::Color::Transparent);
 
@@ -79,7 +81,7 @@ void map_renderer::render_chunk(const map& m, int32_t chunk_x, int32_t chunk_y)
                     uint32_t frame = static_cast<uint32_t>(t.terrain_frame);
                     if (frame >= spr->frame_count())
                     {
-                        continue;  // Skip if frame index is out of range
+                        continue; // Skip if frame index is out of range
                     }
 
                     int32_t local_x = (x - start_tile_x) * tile_width;
@@ -169,7 +171,7 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
     if (config_.show_grid)
     {
         constexpr int32_t line_thickness = 2;
-        sf::Color grid_color(0, 0, 0, 200);  // Black with high visibility
+        sf::Color grid_color(0, 0, 0, 200); // Black with high visibility
 
         // Draw horizontal lines
         for (int32_t y = range.start_y; y <= range.end_y; ++y)
@@ -213,8 +215,7 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
         // Occupied tile overlay (yellow)
         for (const auto& [tx, ty] : occupied_tiles_)
         {
-            if (tx >= range.start_x && tx < range.end_x &&
-                ty >= range.start_y && ty < range.end_y)
+            if (tx >= range.start_x && tx < range.end_x && ty >= range.start_y && ty < range.end_y)
             {
                 auto [sx, sy] = tile_to_screen(tx, ty, camera_x, camera_y);
                 rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(255, 255, 0, 100), true);
@@ -224,8 +225,7 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
         // Pathfinding trace overlay (cyan)
         for (const auto& [tx, ty] : pathfinding_trace_)
         {
-            if (tx >= range.start_x && tx < range.end_x &&
-                ty >= range.start_y && ty < range.end_y)
+            if (tx >= range.start_x && tx < range.end_x && ty >= range.start_y && ty < range.end_y)
             {
                 auto [sx, sy] = tile_to_screen(tx, ty, camera_x, camera_y);
                 rend.draw_rect(sx, sy, tile_width, tile_height, sf::Color(0, 255, 255, 100), true);
@@ -234,11 +234,13 @@ void map_renderer::render_terrain(renderer& rend, const map& m, int32_t camera_x
     }
 }
 
-void map_renderer::render_objects_row(renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y,
-                                      const sf::IntRect* player_bounds)
+void map_renderer::render_objects_row(
+    renderer& rend, const map& m, int32_t row_y, int32_t camera_x, int32_t camera_y, const sf::IntRect* player_bounds)
 {
-    if (!config_.show_objects) return;
-    if (row_y < 0 || row_y >= m.height()) return;
+    if (!config_.show_objects)
+        return;
+    if (row_y < 0 || row_y >= m.height())
+        return;
 
     auto range = calculate_visible_range(m, camera_x, camera_y);
     int32_t start_x = std::max(range.start_x, 0);
@@ -294,7 +296,8 @@ const sprite* map_renderer::get_tile_sprite(int16_t id)
     return registry_->get_sprite(id);
 }
 
-map_renderer::visible_range map_renderer::calculate_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const
+map_renderer::visible_range
+map_renderer::calculate_visible_range(const map& m, int32_t camera_x, int32_t camera_y) const
 {
     visible_range range;
 
@@ -339,16 +342,16 @@ void map_renderer::set_screen_size(uint32_t width, uint32_t height)
     screen_height_ = height;
 }
 
-std::pair<int32_t, int32_t> map_renderer::screen_to_tile(int32_t screen_x, int32_t screen_y,
-                                                          int32_t camera_x, int32_t camera_y) const
+std::pair<int32_t, int32_t>
+map_renderer::screen_to_tile(int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y) const
 {
     int32_t world_x = screen_x + camera_x;
     int32_t world_y = screen_y + camera_y;
     return {world_x / tile_width, world_y / tile_height};
 }
 
-std::pair<int32_t, int32_t> map_renderer::tile_to_screen(int32_t tile_x, int32_t tile_y,
-                                                          int32_t camera_x, int32_t camera_y) const
+std::pair<int32_t, int32_t>
+map_renderer::tile_to_screen(int32_t tile_x, int32_t tile_y, int32_t camera_x, int32_t camera_y) const
 {
     return {tile_x * tile_width - camera_x, tile_y * tile_height - camera_y};
 }

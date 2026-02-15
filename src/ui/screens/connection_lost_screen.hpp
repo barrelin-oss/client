@@ -3,7 +3,8 @@
 #include "ui/screens/screen_base.hpp"
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Screen shown when server closes connection
 // Displays "Connection lost" for 5 seconds, then returns to main menu

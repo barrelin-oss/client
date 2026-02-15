@@ -8,12 +8,14 @@
 #include <string>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
 // Packet handler callback
 using packet_handler = std::function<void(packet_reader&)>;
 
-class network_system {
+class network_system
+{
 public:
     network_system() = default;
     ~network_system() = default;
@@ -49,9 +51,18 @@ public:
     bool request_login(std::string_view account, std::string_view password);
     bool request_create_account(std::string_view account, std::string_view password, std::string_view email);
     bool request_character_list();
-    bool request_create_character(std::string_view name, uint8_t gender, uint8_t skin_color,
-                                  uint8_t hair_style, uint8_t hair_color, uint8_t underwear_color,
-                                  uint8_t str, uint8_t vit, uint8_t dex, uint8_t intel, uint8_t mag, uint8_t cha);
+    bool request_create_character(std::string_view name,
+                                  uint8_t gender,
+                                  uint8_t skin_color,
+                                  uint8_t hair_style,
+                                  uint8_t hair_color,
+                                  uint8_t underwear_color,
+                                  uint8_t str,
+                                  uint8_t vit,
+                                  uint8_t dex,
+                                  uint8_t intel,
+                                  uint8_t mag,
+                                  uint8_t cha);
     bool request_delete_character(std::string_view name, std::string_view password);
     bool request_enter_game(std::string_view character_name);
 

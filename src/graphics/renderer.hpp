@@ -9,16 +9,17 @@
 #include <string_view>
 #include <utility>
 
-namespace hb {
+namespace hb
+{
 
 class sprite;
 
 // Server-controlled rendering mode
 enum class view_mode : uint8_t
 {
-    special = 0,   // Current behavior - native resolution, zoom, no restrictions
-    scaled = 1,    // Fixed internal resolution scaled up to display
-    extended = 2,  // Native resolution but entities only render within fair zone
+    special = 0,  // Current behavior - native resolution, zoom, no restrictions
+    scaled = 1,   // Fixed internal resolution scaled up to display
+    extended = 2, // Native resolution but entities only render within fair zone
 };
 
 // Player-configurable aspect ratio for scaled mode
@@ -31,23 +32,28 @@ enum class aspect_mode : uint8_t
 // Player-configurable scaling filter for scaled mode
 enum class scale_filter : uint8_t
 {
-    nearest = 0,   // Crisp pixel scaling
-    bilinear = 1,  // Smooth interpolation
+    nearest = 0,  // Crisp pixel scaling
+    bilinear = 1, // Smooth interpolation
 };
 
 // Fog overlay style for extended mode (visual treatment of area outside fair zone)
 enum class fog_style : uint8_t
 {
-    solid = 0,      // Hard-edged dark rectangles
-    tile_fog = 1,   // Tile-grid-aligned boundary
-    vignette = 2,   // Elliptical gradient darkening
-    gradient = 3,   // Linear gradient fade from fair zone edge
+    solid = 0,    // Hard-edged dark rectangles
+    tile_fog = 1, // Tile-grid-aligned boundary
+    vignette = 2, // Elliptical gradient darkening
+    gradient = 3, // Linear gradient fade from fair zone edge
 };
 
-class renderer {
+class renderer
+{
 public:
-    bool initialize(uint32_t width, uint32_t height, bool fullscreen,
-                    bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
+    bool initialize(uint32_t width,
+                    uint32_t height,
+                    bool fullscreen,
+                    bool borderless = false,
+                    int32_t monitor_x = 0,
+                    int32_t monitor_y = 0);
     void shutdown();
 
     void begin_frame();
@@ -56,9 +62,9 @@ public:
     // View mode system
     void set_view_mode(view_mode mode);
     void set_internal_resolution(uint32_t w, uint32_t h);
-    void begin_scene();  // Scaled: redirect to scene_rt_. Others: no-op.
-    void end_scene();    // Scaled: composite. Extended: fog overlay. Special: no-op.
-    void begin_ui();     // Ensure drawing to window at native resolution.
+    void begin_scene(); // Scaled: redirect to scene_rt_. Others: no-op.
+    void end_scene();   // Scaled: composite. Extended: fog overlay. Special: no-op.
+    void begin_ui();    // Ensure drawing to window at native resolution.
 
     view_mode current_view_mode() const { return view_mode_; }
 
@@ -111,17 +117,22 @@ public:
     void draw_sprite_additive_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
 
     // Additive blending with RGB color offset (for fire, ice, poison effects)
-    void draw_sprite_additive_tinted(const sprite& spr, int32_t x, int32_t y,
-                                      uint32_t frame, float alpha,
-                                      int16_t r_offset, int16_t g_offset, int16_t b_offset);
+    void draw_sprite_additive_tinted(const sprite& spr,
+                                     int32_t x,
+                                     int32_t y,
+                                     uint32_t frame,
+                                     float alpha,
+                                     int16_t r_offset,
+                                     int16_t g_offset,
+                                     int16_t b_offset);
 
     // Global intensity scale for additive blending (0.0 - 1.0, default 0.7)
     void set_additive_intensity(float intensity) { additive_intensity_ = intensity; }
     float additive_intensity() const { return additive_intensity_; }
 
     // Color-tinted sprite drawing (additive RGB offset in 0-1 range, for hair color etc.)
-    void draw_sprite_tinted(const sprite& spr, int32_t x, int32_t y, uint32_t frame,
-                            float r_offset, float g_offset, float b_offset);
+    void draw_sprite_tinted(
+        const sprite& spr, int32_t x, int32_t y, uint32_t frame, float r_offset, float g_offset, float b_offset);
 
     // Sprite drawing without color key (for backgrounds, etc.)
     void draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
@@ -135,9 +146,13 @@ public:
     bool load_font(std::string_view path);
     void draw_text(std::string_view text, int32_t x, int32_t y, sf::Color color = sf::Color::White);
     void draw_text(std::string_view text, int32_t x, int32_t y, sf::Color color, uint32_t size);
-    void draw_text_outlined(std::string_view text, int32_t x, int32_t y,
-                            sf::Color color, sf::Color outline_color,
-                            uint32_t size = 12, float outline_thickness = 1.0f);
+    void draw_text_outlined(std::string_view text,
+                            int32_t x,
+                            int32_t y,
+                            sf::Color color,
+                            sf::Color outline_color,
+                            uint32_t size = 12,
+                            float outline_thickness = 1.0f);
 
     // Unified text renderer (for animated/shader effects)
     text_renderer& text() { return text_renderer_; }
@@ -152,8 +167,12 @@ public:
     void pop_scissor();
 
     // Resolution change
-    bool set_resolution(uint32_t width, uint32_t height, bool fullscreen,
-                        bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
+    bool set_resolution(uint32_t width,
+                        uint32_t height,
+                        bool fullscreen,
+                        bool borderless = false,
+                        int32_t monitor_x = 0,
+                        int32_t monitor_y = 0);
 
     // View control for zoom
     // zoom_level: 1.0 = normal, >1 = zoomed out, <1 = zoomed in
@@ -221,7 +240,7 @@ private:
 
     // Targeting boundary
     bool targeting_boundary_visible_ = false;
-    sf::Color targeting_boundary_color_{64, 192, 255, 255};  // Default: soft blue
+    sf::Color targeting_boundary_color_{64, 192, 255, 255}; // Default: soft blue
     std::chrono::steady_clock::time_point boundary_start_time_;
 
     text_renderer text_renderer_;

@@ -9,7 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-namespace hb::debug {
+namespace hb::debug
+{
 
 // Callback for position changes (used for hot-reload notifications)
 using position_change_callback = std::function<void(std::string_view id, point pos)>;

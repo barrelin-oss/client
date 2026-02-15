@@ -8,12 +8,14 @@
 #include <array>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Trade dialog - for player-to-player trading
-class trade_dialog : public dialog {
+class trade_dialog : public dialog
+{
 public:
-    static constexpr int32_t trade_slots = 8;  // 8 slots per player
+    static constexpr int32_t trade_slots = 8; // 8 slots per player
     static constexpr int32_t slot_size = 36;
     static constexpr int32_t slot_padding = 2;
 

@@ -12,11 +12,13 @@
 #include <optional>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 using json = nlohmann::json;
 
-enum class ws_connection_state {
+enum class ws_connection_state
+{
     disconnected,
     connecting,
     connected,
@@ -31,7 +33,8 @@ using message_callback = std::function<void(const json&)>;
 using connect_callback = std::function<void()>;
 using disconnect_callback = std::function<void(const std::string& reason)>;
 
-class websocket_connection {
+class websocket_connection
+{
 public:
     websocket_connection();
     ~websocket_connection();
@@ -120,7 +123,7 @@ private:
     std::chrono::steady_clock::time_point ping_sent_time_;
     std::atomic<bool> ping_pending_{false};
     float ping_timer_ = 0.0f;
-    static constexpr float ping_interval_ = 3.0f;  // seconds between pings
+    static constexpr float ping_interval_ = 3.0f; // seconds between pings
 };
 
 } // namespace hb

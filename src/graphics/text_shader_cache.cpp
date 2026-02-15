@@ -1,7 +1,8 @@
 #include "graphics/text_shader_cache.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
 bool text_shader_cache::initialize()
 {

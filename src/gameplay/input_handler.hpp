@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 class entity;
 class game_state_manager;
@@ -57,7 +58,11 @@ public:
     // Mouse position (in view coordinates, for entity hover detection)
     int32_t mouse_x() const { return mouse_x_; }
     int32_t mouse_y() const { return mouse_y_; }
-    void set_mouse_position(int32_t x, int32_t y) { mouse_x_ = x; mouse_y_ = y; }
+    void set_mouse_position(int32_t x, int32_t y)
+    {
+        mouse_x_ = x;
+        mouse_y_ = y;
+    }
 
 private:
     void handle_playing_input(const input& inp);

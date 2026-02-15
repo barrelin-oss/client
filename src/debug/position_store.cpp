@@ -3,7 +3,8 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-namespace hb::debug {
+namespace hb::debug
+{
 
 using json = nlohmann::json;
 
@@ -22,7 +23,7 @@ bool position_store::load(const std::filesystem::path& file)
         spdlog::info("Position file not found: {}, starting with empty positions", file.string());
         positions_.clear();
         dirty_ = false;
-        return true;  // Not an error - just no saved positions yet
+        return true; // Not an error - just no saved positions yet
     }
 
     try
@@ -165,9 +166,7 @@ bool position_store::check_for_changes()
                 for (const auto& [id, pos] : positions_)
                 {
                     auto old_it = old_positions.find(id);
-                    if (old_it == old_positions.end() ||
-                        old_it->second.x != pos.x ||
-                        old_it->second.y != pos.y)
+                    if (old_it == old_positions.end() || old_it->second.x != pos.x || old_it->second.y != pos.y)
                     {
                         for (const auto& callback : change_callbacks_)
                         {

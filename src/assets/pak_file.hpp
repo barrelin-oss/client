@@ -8,35 +8,40 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Frame information from PAK file (matches stBrush struct)
-struct sprite_frame_info {
-    int16_t source_x;      // sx - X position in bitmap
-    int16_t source_y;      // sy - Y position in bitmap
-    int16_t width;         // szx - Frame width
-    int16_t height;        // szy - Frame height
-    int16_t pivot_x;       // pvx - X offset for drawing
-    int16_t pivot_y;       // pvy - Y offset for drawing
+struct sprite_frame_info
+{
+    int16_t source_x; // sx - X position in bitmap
+    int16_t source_y; // sy - Y position in bitmap
+    int16_t width;    // szx - Frame width
+    int16_t height;   // szy - Frame height
+    int16_t pivot_x;  // pvx - X offset for drawing
+    int16_t pivot_y;  // pvy - Y offset for drawing
 };
 
 // Sprite metadata only (no bitmap data) - small footprint
-struct pak_sprite_metadata {
+struct pak_sprite_metadata
+{
     std::vector<sprite_frame_info> frames; // Frame definitions
     uint32_t bitmap_width = 0;
     uint32_t bitmap_height = 0;
-    uint32_t bitmap_offset = 0;            // Offset to bitmap data in PAK file
+    uint32_t bitmap_offset = 0; // Offset to bitmap data in PAK file
 };
 
 // Raw sprite data extracted from PAK (includes bitmap)
-struct pak_sprite_data {
+struct pak_sprite_data
+{
     std::vector<uint8_t> bitmap_data;      // Raw BMP data (converted to RGBA)
     std::vector<sprite_frame_info> frames; // Frame definitions
     uint32_t bitmap_width = 0;
     uint32_t bitmap_height = 0;
 };
 
-class pak_file {
+class pak_file
+{
 public:
     pak_file() = default;
     ~pak_file();

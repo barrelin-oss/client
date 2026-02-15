@@ -9,16 +9,18 @@
 #include <array>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Transform component - position and movement
 // tile_x/y is the logical position (set to destination IMMEDIATELY when movement starts).
 // move_start_x/y stores the origin tile for rendering interpolation.
 // Interpolation goes from move_start → tile using move_progress (0→1).
-struct transform_component {
-    int32_t x = 0;              // World X position (interpolated during movement)
-    int32_t y = 0;              // World Y position (interpolated during movement)
-    int32_t tile_x = 0;         // Logical tile position (destination during movement)
+struct transform_component
+{
+    int32_t x = 0;      // World X position (interpolated during movement)
+    int32_t y = 0;      // World Y position (interpolated during movement)
+    int32_t tile_x = 0; // Logical tile position (destination during movement)
     int32_t tile_y = 0;
     direction facing = direction::south;
     float move_progress = 0.0f; // 0.0 to 1.0 for smooth movement
@@ -28,7 +30,8 @@ struct transform_component {
 };
 
 // Sprite component - visual representation
-struct sprite_component {
+struct sprite_component
+{
     const sprite* body_sprite = nullptr;
     const sprite* armor_sprite = nullptr;
     const sprite* weapon_sprite = nullptr;
@@ -46,15 +49,16 @@ struct sprite_component {
     uint8_t hair_style = 0;
     uint8_t hair_color = 0;
     uint8_t underwear_color = 0;
-    uint8_t gender = 1;  // 1 = male, 2 = female
+    uint8_t gender = 1; // 1 = male, 2 = female
 
-    float alpha = 1.0f;         // For transparency effects
+    float alpha = 1.0f; // For transparency effects
     bool visible = true;
-    bool flipped = false;       // Horizontal flip based on direction
+    bool flipped = false; // Horizontal flip based on direction
 };
 
 // Animation states (matching original DrawObject_OnXXX handlers)
-enum class entity_anim_state : uint8_t {
+enum class entity_anim_state : uint8_t
+{
     stop = 0,          // DrawObject_OnStop - standing idle
     move = 1,          // DrawObject_OnMove - walking
     run = 2,           // DrawObject_OnRun - running
@@ -70,9 +74,11 @@ enum class entity_anim_state : uint8_t {
 };
 
 // Animation component - frame animation
-struct animation_component {
+struct animation_component
+{
     // Legacy anim_type for compatibility
-    enum class anim_type : uint8_t {
+    enum class anim_type : uint8_t
+    {
         idle = 0,
         walk = 1,
         run = 2,
@@ -87,100 +93,120 @@ struct animation_component {
     anim_type current_anim = anim_type::idle;
     entity_anim_state state = entity_anim_state::stop;
     uint8_t current_frame = 0;
-    uint8_t frame_count = 8;       // Default to idle: 8 frames
+    uint8_t frame_count = 8; // Default to idle: 8 frames
     float frame_timer = 0.0f;
-    float frame_duration = 0.115f;  // Default to idle: 115ms per frame
+    float frame_duration = 0.115f; // Default to idle: 115ms per frame
     bool looping = true;
     bool finished = false;
 
     // Animation callbacks
-    uint8_t attack_frame = 0;     // Frame when attack damage is dealt
+    uint8_t attack_frame = 0; // Frame when attack damage is dealt
     bool attack_triggered = false;
 
     // Frame data per state (matching legacy Helbreath - maxFrame=N means N+1 frames: 0 to N)
-    static constexpr uint8_t frames_idle = 8;        // Legacy DEF_OBJECTSTOP maxFrame=7 → 8 frames
-    static constexpr uint8_t frames_walk = 8;        // Legacy DEF_OBJECTMOVE maxFrame=7 → 8 frames
-    static constexpr uint8_t frames_run = 8;         // Legacy DEF_OBJECTRUN maxFrame=7 → 8 frames
-    static constexpr uint8_t frames_attack = 8;      // Legacy DEF_OBJECTATTACK maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_idle = 8;         // Legacy DEF_OBJECTSTOP maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_walk = 8;         // Legacy DEF_OBJECTMOVE maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_run = 8;          // Legacy DEF_OBJECTRUN maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_attack = 8;       // Legacy DEF_OBJECTATTACK maxFrame=7 → 8 frames
     static constexpr uint8_t frames_attack_move = 13; // Legacy DEF_OBJECTATTACKMOVE maxFrame=12 → 13 frames
-    static constexpr uint8_t frames_damage = 8;      // Legacy DEF_OBJECTDAMAGE maxFrame=7 → 8 frames
-    static constexpr uint8_t frames_damage_move = 4; // Legacy DEF_OBJECTDAMAGEMOVE maxFrame=3 → 4 frames
-    static constexpr uint8_t frames_dying = 13;      // Legacy DEF_OBJECTDYING maxFrame=12 → 13 frames
+    static constexpr uint8_t frames_damage = 8;       // Legacy DEF_OBJECTDAMAGE maxFrame=7 → 8 frames
+    static constexpr uint8_t frames_damage_move = 4;  // Legacy DEF_OBJECTDAMAGEMOVE maxFrame=3 → 4 frames
+    static constexpr uint8_t frames_dying = 13;       // Legacy DEF_OBJECTDYING maxFrame=12 → 13 frames
     static constexpr uint8_t frames_dead = 1;
-    static constexpr uint8_t frames_magic = 16;      // Legacy DEF_OBJECTMAGIC maxFrame=15 → 16 frames
-    static constexpr uint8_t frames_get_item = 4;    // Legacy DEF_OBJECTGETITEM maxFrame=3 → 4 frames
+    static constexpr uint8_t frames_magic = 16;   // Legacy DEF_OBJECTMAGIC maxFrame=15 → 16 frames
+    static constexpr uint8_t frames_get_item = 4; // Legacy DEF_OBJECTGETITEM maxFrame=3 → 4 frames
 
     // Get frame count for current state
-    uint8_t get_state_frame_count() const {
-        switch (state) {
-            case entity_anim_state::stop: return frames_idle;
-            case entity_anim_state::move: return frames_walk;
-            case entity_anim_state::run: return frames_run;
-            case entity_anim_state::attack: return frames_attack;
-            case entity_anim_state::attack_move: return frames_attack_move;
-            case entity_anim_state::damage: return frames_damage;
-            case entity_anim_state::damage_move: return frames_damage_move;
-            case entity_anim_state::dying: return frames_dying;
-            case entity_anim_state::dead: return frames_dead;
-            case entity_anim_state::magic:
-            case entity_anim_state::magic_attack: return frames_magic;
-            case entity_anim_state::get_item: return frames_get_item;
-            default: return frames_idle;
+    uint8_t get_state_frame_count() const
+    {
+        switch (state)
+        {
+        case entity_anim_state::stop:
+            return frames_idle;
+        case entity_anim_state::move:
+            return frames_walk;
+        case entity_anim_state::run:
+            return frames_run;
+        case entity_anim_state::attack:
+            return frames_attack;
+        case entity_anim_state::attack_move:
+            return frames_attack_move;
+        case entity_anim_state::damage:
+            return frames_damage;
+        case entity_anim_state::damage_move:
+            return frames_damage_move;
+        case entity_anim_state::dying:
+            return frames_dying;
+        case entity_anim_state::dead:
+            return frames_dead;
+        case entity_anim_state::magic:
+        case entity_anim_state::magic_attack:
+            return frames_magic;
+        case entity_anim_state::get_item:
+            return frames_get_item;
+        default:
+            return frames_idle;
         }
     }
 
     // Get frame duration for current state (in seconds, matching legacy frame times)
-    float get_state_frame_duration() const {
-        switch (state) {
-            case entity_anim_state::stop:
-                return 0.115f;  // 115ms per frame
-            case entity_anim_state::move:
-            case entity_anim_state::damage_move:
-                return 0.070f;  // 70ms per frame (legacy DEF_OBJECTMOVE)
-            case entity_anim_state::run:
-                return 0.042f;  // 42ms per frame (legacy DEF_OBJECTRUN)
-            case entity_anim_state::attack:
-            case entity_anim_state::attack_move:
-                return 0.078f;  // 78ms per frame (legacy DEF_OBJECTATTACK)
-            case entity_anim_state::magic:
-            case entity_anim_state::magic_attack:
-                return 0.088f;  // 88ms per frame (legacy DEF_OBJECTMAGIC)
-            case entity_anim_state::damage:
-                return 0.070f;  // 70ms per frame (legacy DEF_OBJECTDAMAGE)
-            case entity_anim_state::dying:
-                return 0.080f;  // 80ms per frame (legacy DEF_OBJECTDYING)
-            case entity_anim_state::get_item:
-                return 0.150f;  // 150ms per frame (legacy DEF_OBJECTGETITEM)
-            default:
-                return 0.060f;  // Default to idle timing
+    float get_state_frame_duration() const
+    {
+        switch (state)
+        {
+        case entity_anim_state::stop:
+            return 0.115f; // 115ms per frame
+        case entity_anim_state::move:
+        case entity_anim_state::damage_move:
+            return 0.070f; // 70ms per frame (legacy DEF_OBJECTMOVE)
+        case entity_anim_state::run:
+            return 0.042f; // 42ms per frame (legacy DEF_OBJECTRUN)
+        case entity_anim_state::attack:
+        case entity_anim_state::attack_move:
+            return 0.078f; // 78ms per frame (legacy DEF_OBJECTATTACK)
+        case entity_anim_state::magic:
+        case entity_anim_state::magic_attack:
+            return 0.088f; // 88ms per frame (legacy DEF_OBJECTMAGIC)
+        case entity_anim_state::damage:
+            return 0.070f; // 70ms per frame (legacy DEF_OBJECTDAMAGE)
+        case entity_anim_state::dying:
+            return 0.080f; // 80ms per frame (legacy DEF_OBJECTDYING)
+        case entity_anim_state::get_item:
+            return 0.150f; // 150ms per frame (legacy DEF_OBJECTGETITEM)
+        default:
+            return 0.060f; // Default to idle timing
         }
     }
 
     // Should this state loop?
-    bool should_loop() const {
-        switch (state) {
-            case entity_anim_state::stop:
-            case entity_anim_state::move:
-            case entity_anim_state::run:
-            case entity_anim_state::dead:
-                return true;
-            case entity_anim_state::attack:
-            case entity_anim_state::attack_move:
-            case entity_anim_state::damage:
-            case entity_anim_state::damage_move:
-            case entity_anim_state::dying:
-            case entity_anim_state::magic:
-            case entity_anim_state::magic_attack:
-            case entity_anim_state::get_item:
-                return false;
-            default:
-                return true;
+    bool should_loop() const
+    {
+        switch (state)
+        {
+        case entity_anim_state::stop:
+        case entity_anim_state::move:
+        case entity_anim_state::run:
+        case entity_anim_state::dead:
+            return true;
+        case entity_anim_state::attack:
+        case entity_anim_state::attack_move:
+        case entity_anim_state::damage:
+        case entity_anim_state::damage_move:
+        case entity_anim_state::dying:
+        case entity_anim_state::magic:
+        case entity_anim_state::magic_attack:
+        case entity_anim_state::get_item:
+            return false;
+        default:
+            return true;
         }
     }
 
     // Set animation state with proper initialization
-    void set_state(entity_anim_state new_state) {
-        if (state == new_state && !finished) return;
+    void set_state(entity_anim_state new_state)
+    {
+        if (state == new_state && !finished)
+            return;
         state = new_state;
         current_frame = 0;
         frame_timer = 0.0f;
@@ -193,7 +219,8 @@ struct animation_component {
 };
 
 // Stats component - character attributes
-struct stats_component {
+struct stats_component
+{
     // Base stats
     uint16_t strength = 10;
     uint16_t vitality = 10;
@@ -213,7 +240,7 @@ struct stats_component {
     // Level/XP
     uint16_t level = 1;
     uint32_t experience = 0;
-    uint32_t exp = 0;  // Alias for experience
+    uint32_t exp = 0; // Alias for experience
     uint32_t experience_to_next = 100;
 
     // Combat stats
@@ -230,8 +257,10 @@ struct stats_component {
 };
 
 // Combat component - combat state
-struct combat_component {
-    enum class combat_mode : uint8_t {
+struct combat_component
+{
+    enum class combat_mode : uint8_t
+    {
         peaceful = 0,
         attack_player = 1,
         attack_monster = 2,
@@ -239,7 +268,7 @@ struct combat_component {
     };
 
     combat_mode mode = combat_mode::attack_monster;
-    bool combat_stance = false;  // Visual combat stance (combat idle/walk animations)
+    bool combat_stance = false; // Visual combat stance (combat idle/walk animations)
     uint32_t target_id = 0;
     uint8_t attack_type = 0;
     bool is_attacking = false;
@@ -262,16 +291,17 @@ struct combat_component {
 };
 
 // Name component - display name and guild
-struct name_component {
+struct name_component
+{
     std::string name;
     std::string guild_name;
     std::string guild_tag;
     std::string guild_rank;
-    uint8_t guild_rank_id = 255;    // 255 = not in guild, 0 = master
+    uint8_t guild_rank_id = 255; // 255 = not in guild, 0 = master
     uint32_t guild_id = 0;
 
-    std::string faction;                                    // "neutral", "aresden", "elvine"
-    enum hostility hostile = hostility::neutral;            // server-authoritative
+    std::string faction;                         // "neutral", "aresden", "elvine"
+    enum hostility hostile = hostility::neutral; // server-authoritative
     enum pk_status pk = pk_status::innocent;
 
     // Chat bubble
@@ -286,8 +316,9 @@ struct name_component {
 };
 
 // Movement component - movement properties
-struct movement_component {
-    float speed = 4.0f;          // Tiles per second
+struct movement_component
+{
+    float speed = 4.0f; // Tiles per second
     float run_speed = 8.0f;
     bool running = false;
     bool moving = false;
@@ -303,7 +334,8 @@ struct movement_component {
 };
 
 // NPC-specific component
-struct npc_component {
+struct npc_component
+{
     uint16_t npc_type = 0;
     uint16_t npc_id = 0;
 
@@ -319,10 +351,11 @@ struct npc_component {
 };
 
 // Monster-specific component
-struct monster_component {
+struct monster_component
+{
     uint16_t monster_type = 0;
     uint8_t monster_level = 1;
-    uint32_t owner_id = 0;      // For summons
+    uint32_t owner_id = 0; // For summons
 
     bool is_boss = false;
     bool is_summon = false;
@@ -333,8 +366,8 @@ struct monster_component {
     // Multiple possible but rare; more attributes = more exp
     std::vector<std::string> attributes;
 
-    std::string category;                                   // "monster", "boss", "guard", "merchant", etc.
-    enum hostility hostile = hostility::enemy;              // default enemy for monsters
+    std::string category;                      // "monster", "boss", "guard", "merchant", etc.
+    enum hostility hostile = hostility::enemy; // default enemy for monsters
 
     // Status effects (can toggle on/off at runtime)
     bool berserked = false;
@@ -346,17 +379,19 @@ struct monster_component {
 };
 
 // Item drop component
-struct item_component {
+struct item_component
+{
     uint32_t item_id = 0;
     uint16_t item_type = 0;
     uint16_t item_sprite = 0;
     uint32_t amount = 1;
-    uint32_t owner_id = 0;      // Who can pick it up (0 = anyone)
-    float pickup_timer = 0.0f;  // Time until anyone can pick up
+    uint32_t owner_id = 0;     // Who can pick it up (0 = anyone)
+    float pickup_timer = 0.0f; // Time until anyone can pick up
 };
 
 // Effect component - visual effects
-struct effect_component {
+struct effect_component
+{
     uint16_t effect_type = 0;
     const sprite* effect_sprite = nullptr;
     uint8_t effect_frame = 0;

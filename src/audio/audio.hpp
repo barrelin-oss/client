@@ -8,12 +8,14 @@
 #include <unordered_map>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 using sound_id = uint16_t;
 inline constexpr sound_id invalid_sound_id = 0;
 
-class audio {
+class audio
+{
 public:
     bool initialize();
     void shutdown();
@@ -72,7 +74,12 @@ private:
     bool muted_ = false;
 
     // Music fade state
-    enum class fade_state : uint8_t { none, fading_out, fading_in };
+    enum class fade_state : uint8_t
+    {
+        none,
+        fading_out,
+        fading_in
+    };
     fade_state fade_state_ = fade_state::none;
     float fade_timer_ = 0.0f;
     float fade_duration_ = 1.0f;

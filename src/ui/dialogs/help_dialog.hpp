@@ -5,17 +5,20 @@
 #include <vector>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // Help topic structure
-struct help_topic {
+struct help_topic
+{
     std::string title;
     std::vector<std::string> content_lines;
-    uint8_t category = 0;  // 0=basics, 1=combat, 2=magic, 3=items, 4=social, 5=shortcuts
+    uint8_t category = 0; // 0=basics, 1=combat, 2=magic, 3=items, 4=social, 5=shortcuts
 };
 
 // Help dialog - for displaying game help and tutorials
-class help_dialog : public dialog {
+class help_dialog : public dialog
+{
 public:
     help_dialog();
     ~help_dialog() override = default;
@@ -29,10 +32,18 @@ public:
     // Topic management
     void add_topic(help_topic topic) { topics_.push_back(std::move(topic)); }
     void set_topics(std::vector<help_topic> topics) { topics_ = std::move(topics); }
-    void clear_topics() { topics_.clear(); selected_topic_ = -1; }
+    void clear_topics()
+    {
+        topics_.clear();
+        selected_topic_ = -1;
+    }
 
     // Category filter
-    void set_category(int category) { current_category_ = category; topic_scroll_ = 0; }
+    void set_category(int category)
+    {
+        current_category_ = category;
+        topic_scroll_ = 0;
+    }
     int current_category() const { return current_category_; }
 
     // Select a topic
@@ -52,7 +63,7 @@ private:
 
     std::vector<help_topic> topics_;
     int32_t selected_topic_ = -1;
-    int current_category_ = -1;  // -1 = all
+    int current_category_ = -1; // -1 = all
 
     int32_t topic_scroll_ = 0;
     int32_t content_scroll_ = 0;
@@ -73,9 +84,7 @@ private:
     int32_t tab_area_y_ = 0;
 
     static constexpr int num_categories = 6;
-    static constexpr const char* category_names[num_categories] = {
-        "All", "Basics", "Combat", "Magic", "Items", "Keys"
-    };
+    static constexpr const char* category_names[num_categories] = {"All", "Basics", "Combat", "Magic", "Items", "Keys"};
 };
 
 } // namespace hb

@@ -10,13 +10,15 @@
 #include "debug/positionable.hpp"
 #endif
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
 
 // Dialog type enumeration
-enum class dialog_type {
+enum class dialog_type
+{
     none,
     login,
     character_select,
@@ -54,7 +56,7 @@ enum class dialog_type {
     confirm,
     input_box,
     message_box,
-    connection,  // Classic Helbreath connection status dialog
+    connection, // Classic Helbreath connection status dialog
     icon_panel,
     gauge_panel,
     levelup,
@@ -65,15 +67,19 @@ enum class dialog_type {
 // Controls how a dialog is clamped to the screen during dragging
 enum class drag_clamp : uint8_t
 {
-    on_screen,  // Entire dialog must stay within screen bounds (default)
-    partial     // Dialog can be dragged partially off-screen; title bar stays reachable
+    on_screen, // Entire dialog must stay within screen bounds (default)
+    partial    // Dialog can be dragged partially off-screen; title bar stays reachable
 };
 
 // Dialog base class
 #ifdef HB_DEBUG_OVERLAY_ENABLED
-class dialog : public ui_panel, public debug::positionable {
+class dialog
+    : public ui_panel
+    , public debug::positionable
+{
 #else
-class dialog : public ui_panel {
+class dialog : public ui_panel
+{
 #endif
 public:
     dialog(dialog_type type);
@@ -132,7 +138,7 @@ protected:
 
     dialog_type type_;
     std::string title_;
-    std::string position_id_;  // Custom ID for debug overlay
+    std::string position_id_; // Custom ID for debug overlay
     bool draggable_ = true;
     bool closeable_ = true;
     bool modal_ = false;

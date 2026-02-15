@@ -6,7 +6,8 @@
 #include "ui/cursor.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
 void input_handler::initialize(game_state_manager& game)
 {
@@ -33,14 +34,13 @@ void input_handler::clear()
     blocked_movement_cooldown_ = 0.0f;
 }
 
-void input_handler::update(float /*delta_time*/)
-{
-}
+void input_handler::update(float /*delta_time*/) {}
 
 bool input_handler::can_perform_action() const
 {
     const entity* player = game_->local_player();
-    if (!player) return false;
+    if (!player)
+        return false;
 
     if (!player->is_alive())
         return false;
@@ -88,8 +88,7 @@ void input_handler::handle_input(const input& inp)
 {
     if (suppress_until_release_)
     {
-        if (!inp.is_mouse_down(sf::Mouse::Button::Left) &&
-            !inp.is_mouse_down(sf::Mouse::Button::Right))
+        if (!inp.is_mouse_down(sf::Mouse::Button::Left) && !inp.is_mouse_down(sf::Mouse::Button::Right))
         {
             suppress_until_release_ = false;
         }
@@ -112,8 +111,7 @@ void input_handler::handle_playing_input(const input& inp)
         return;
     }
 
-    if (ui.is_mouse_consumed(sf::Mouse::Button::Left) ||
-        ui.is_mouse_consumed(sf::Mouse::Button::Right))
+    if (ui.is_mouse_consumed(sf::Mouse::Button::Left) || ui.is_mouse_consumed(sf::Mouse::Button::Right))
     {
         handle_hotkey_input(inp);
         return;
@@ -165,8 +163,7 @@ void input_handler::handle_playing_input(const input& inp)
     // Ctrl+click drag to pan in cinematic mode
     if (world.is_cinematic_mode() && !camera_drag_locked_)
     {
-        bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                         inp.is_key_down(sf::Keyboard::Key::RControl);
+        bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
 
         if (ctrl_held && inp.is_mouse_pressed(sf::Mouse::Button::Left))
         {
@@ -232,10 +229,8 @@ void input_handler::handle_movement_input(const input& inp)
     {
         auto state = player->animation().state;
         if (!player->animation().finished &&
-            (state == entity_anim_state::attack ||
-             state == entity_anim_state::attack_move ||
-             state == entity_anim_state::damage ||
-             state == entity_anim_state::magic ||
+            (state == entity_anim_state::attack || state == entity_anim_state::attack_move ||
+             state == entity_anim_state::damage || state == entity_anim_state::magic ||
              state == entity_anim_state::magic_attack))
         {
             return;
@@ -252,13 +247,12 @@ void input_handler::handle_movement_input(const input& inp)
         auto& t = player->transform();
 
         bool clicked_on_self = entities.is_point_in_entity_sprite(
-            *player, sprites, world.camera_x(), world.camera_y(),
-            mouse_x_, mouse_y_);
+            *player, sprites, world.camera_x(), world.camera_y(), mouse_x_, mouse_y_);
 
         if (clicked_on_self)
         {
-            bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                             inp.is_key_down(sf::Keyboard::Key::RControl);
+            bool ctrl_held =
+                inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
 
             if (ctrl_held)
             {
@@ -311,8 +305,7 @@ void input_handler::handle_movement_input(const input& inp)
         }
 
         bool hovering_self = entities.is_point_in_entity_sprite(
-            *player, sprites, world.camera_x(), world.camera_y(),
-            mouse_x_, mouse_y_);
+            *player, sprites, world.camera_x(), world.camera_y(), mouse_x_, mouse_y_);
         if (hovering_self)
         {
             auto& t = player->transform();
@@ -367,10 +360,14 @@ void input_handler::handle_movement_input(const input& inp)
         }
         else
         {
-            if (dx > 0 && dy < 0) face_dir = direction::north_east;
-            else if (dx > 0 && dy > 0) face_dir = direction::south_east;
-            else if (dx < 0 && dy > 0) face_dir = direction::south_west;
-            else if (dx < 0 && dy < 0) face_dir = direction::north_west;
+            if (dx > 0 && dy < 0)
+                face_dir = direction::north_east;
+            else if (dx > 0 && dy > 0)
+                face_dir = direction::south_east;
+            else if (dx < 0 && dy > 0)
+                face_dir = direction::south_west;
+            else if (dx < 0 && dy < 0)
+                face_dir = direction::north_west;
         }
 
         if (face_dir && (t.moving || t.facing != *face_dir))
@@ -379,8 +376,8 @@ void input_handler::handle_movement_input(const input& inp)
 
             if (can_perform_action())
             {
-                json msg = make_player_stop_request(t.tile_x, t.tile_y,
-                                                    static_cast<uint8_t>(direction_to_protocol(*face_dir)));
+                json msg = make_player_stop_request(
+                    t.tile_x, t.tile_y, static_cast<uint8_t>(direction_to_protocol(*face_dir)));
                 game_->ws_connection().send(msg);
             }
         }
@@ -431,9 +428,7 @@ void input_handler::handle_movement_input(const input& inp)
             return;
         }
 
-        auto dir = get_next_walkable_dir(
-            t.tile_x, t.tile_y, move_dest_x_, move_dest_y_,
-            player_turn_, is_passable);
+        auto dir = get_next_walkable_dir(t.tile_x, t.tile_y, move_dest_x_, move_dest_y_, player_turn_, is_passable);
 
         if (!dir)
         {
@@ -452,12 +447,9 @@ void input_handler::handle_movement_input(const input& inp)
         if (next_x == prev_tile_x_ && next_y == prev_tile_y_)
         {
             bool actively_moving = inp.is_mouse_down(sf::Mouse::Button::Left) ||
-                                   inp.is_key_down(sf::Keyboard::Key::W) ||
-                                   inp.is_key_down(sf::Keyboard::Key::A) ||
-                                   inp.is_key_down(sf::Keyboard::Key::S) ||
-                                   inp.is_key_down(sf::Keyboard::Key::D) ||
-                                   inp.is_key_down(sf::Keyboard::Key::Up) ||
-                                   inp.is_key_down(sf::Keyboard::Key::Down) ||
+                                   inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::A) ||
+                                   inp.is_key_down(sf::Keyboard::Key::S) || inp.is_key_down(sf::Keyboard::Key::D) ||
+                                   inp.is_key_down(sf::Keyboard::Key::Up) || inp.is_key_down(sf::Keyboard::Key::Down) ||
                                    inp.is_key_down(sf::Keyboard::Key::Left) ||
                                    inp.is_key_down(sf::Keyboard::Key::Right);
             if (!actively_moving)
@@ -474,9 +466,8 @@ void input_handler::handle_movement_input(const input& inp)
 
         uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*dir));
 
-        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                         inp.is_key_down(sf::Keyboard::Key::RShift) ||
-                         run_mode_enabled_;
+        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift) ||
+                          run_mode_enabled_;
 
         // Save origin, then immediately set tile to destination
         t.move_start_x = t.tile_x;
@@ -498,17 +489,21 @@ void input_handler::handle_movement_input(const input& inp)
         player->set_action_with_combat_mode(base_action, combat_mode_);
 
         // Send origin position (move_start) as source in network message
-        json msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, should_run,
-                                            move_dest_x_, move_dest_y_);
+        json msg = make_player_move_request(
+            t.move_start_x, t.move_start_y, dir_protocol, should_run, move_dest_x_, move_dest_y_);
         game_->ws_connection().send(msg);
     }
 
     // Keyboard movement
     int32_t dx = 0, dy = 0;
-    if (inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::Up)) dy = -1;
-    if (inp.is_key_down(sf::Keyboard::Key::S) || inp.is_key_down(sf::Keyboard::Key::Down)) dy = 1;
-    if (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left)) dx = -1;
-    if (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right)) dx = 1;
+    if (inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::Up))
+        dy = -1;
+    if (inp.is_key_down(sf::Keyboard::Key::S) || inp.is_key_down(sf::Keyboard::Key::Down))
+        dy = 1;
+    if (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left))
+        dx = -1;
+    if (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right))
+        dx = 1;
 
     if (dx != 0 || dy != 0)
     {
@@ -544,9 +539,8 @@ void input_handler::handle_movement_input(const input& inp)
             }
         }
 
-        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                         inp.is_key_down(sf::Keyboard::Key::RShift) ||
-                         run_mode_enabled_;
+        bool should_run = inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift) ||
+                          run_mode_enabled_;
 
         // Save origin, then immediately set tile to destination
         t.move_start_x = t.tile_x;
@@ -568,8 +562,7 @@ void input_handler::handle_movement_input(const input& inp)
         player->set_action_with_combat_mode(base_action, combat_mode_);
 
         uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*move_dir));
-        json msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol,
-                                            should_run, next_x, next_y);
+        json msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, should_run, next_x, next_y);
         game_->ws_connection().send(msg);
     }
 
@@ -582,15 +575,10 @@ void input_handler::handle_movement_input(const input& inp)
         if (state == entity_anim_state::run || state == entity_anim_state::move)
         {
             bool has_movement_input =
-                move_dest_x_ >= 0 ||
-                inp.is_key_down(sf::Keyboard::Key::W) ||
-                inp.is_key_down(sf::Keyboard::Key::S) ||
-                inp.is_key_down(sf::Keyboard::Key::A) ||
-                inp.is_key_down(sf::Keyboard::Key::D) ||
-                inp.is_key_down(sf::Keyboard::Key::Up) ||
-                inp.is_key_down(sf::Keyboard::Key::Down) ||
-                inp.is_key_down(sf::Keyboard::Key::Left) ||
-                inp.is_key_down(sf::Keyboard::Key::Right);
+                move_dest_x_ >= 0 || inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::S) ||
+                inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::D) ||
+                inp.is_key_down(sf::Keyboard::Key::Up) || inp.is_key_down(sf::Keyboard::Key::Down) ||
+                inp.is_key_down(sf::Keyboard::Key::Left) || inp.is_key_down(sf::Keyboard::Key::Right);
 
             if (!has_movement_input)
             {
@@ -639,8 +627,7 @@ void input_handler::update_pathfinding_trace()
             break;
 
         auto dir = get_next_walkable_dir(
-            cur_x, cur_y, move_dest_x_, move_dest_y_, turn,
-            [&](int32_t x, int32_t y) { return m.is_walkable(x, y); });
+            cur_x, cur_y, move_dest_x_, move_dest_y_, turn, [&](int32_t x, int32_t y) { return m.is_walkable(x, y); });
 
         if (!dir)
             break;
@@ -672,9 +659,7 @@ void input_handler::handle_spell_targeting(const input& inp)
     if (auto* cursor = game_->get_cursor())
     {
         // Check if hovering over an enemy entity for the arrow cursor variant
-        entity* hover = entities.get_entity_at_screen_pos(
-            mouse_x_, mouse_y_,
-            world.camera_x(), world.camera_y());
+        entity* hover = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
         if (hover && hover->id() != entities.local_player_id() &&
             (hover->type() == entity_type::monster || hover->type() == entity_type::character))
             cursor->set_cursor(cursor_type::magic_arrow);
@@ -692,8 +677,7 @@ void input_handler::handle_spell_targeting(const input& inp)
     }
 
     // Cancel targeting on right-click or Escape
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Right) ||
-        inp.is_key_pressed(sf::Keyboard::Key::Escape))
+    if (inp.is_mouse_pressed(sf::Mouse::Button::Right) || inp.is_key_pressed(sf::Keyboard::Key::Escape))
     {
         spdlog::debug("Spell targeting cancelled");
         magic.clear_pending_spell();
@@ -719,9 +703,7 @@ void input_handler::handle_spell_targeting(const input& inp)
 
         // Target the clicked tile; if an entity is under cursor, use their tile position
         {
-            entity* target = entities.get_entity_at_screen_pos(
-                mouse_x_, mouse_y_,
-                world.camera_x(), world.camera_y());
+            entity* target = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
             if (target && target->id() != entities.local_player_id())
             {
                 target_id = target->id();
@@ -756,14 +738,11 @@ void input_handler::handle_spell_targeting(const input& inp)
             if (sp->projectile_effect != 0)
             {
                 game_->effects().add_effect_world(
-                    static_cast<effect_type_id>(sp->projectile_effect),
-                    src_wx, src_wy, dest_wx, dest_wy);
+                    static_cast<effect_type_id>(sp->projectile_effect), src_wx, src_wy, dest_wx, dest_wy);
             }
             else if (sp->effect_sprite != 0)
             {
-                game_->effects().add_effect_at_pixel(
-                    static_cast<effect_type_id>(sp->effect_sprite),
-                    dest_wx, dest_wy);
+                game_->effects().add_effect_at_pixel(static_cast<effect_type_id>(sp->effect_sprite), dest_wx, dest_wy);
             }
         }
 
@@ -791,31 +770,27 @@ void input_handler::handle_combat_input(const input& inp)
         {
             auto& anim = player->animation();
             if (!anim.finished &&
-                (anim.state == entity_anim_state::attack ||
-                 anim.state == entity_anim_state::attack_move ||
-                 anim.state == entity_anim_state::magic ||
-                 anim.state == entity_anim_state::magic_attack))
+                (anim.state == entity_anim_state::attack || anim.state == entity_anim_state::attack_move ||
+                 anim.state == entity_anim_state::magic || anim.state == entity_anim_state::magic_attack))
             {
-                attack_consumed_ = true;  // Still block movement while attacking
+                attack_consumed_ = true; // Still block movement while attacking
                 return;
             }
         }
 
-        entity* target = entities.get_entity_at_screen_pos(
-            mouse_x_, mouse_y_,
-            world.camera_x(), world.camera_y());
+        entity* target = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
 
         // Only attack if the click landed on the entity's actual sprite, not just its tile
         if (target && !entities.is_point_in_entity_sprite(
-                *target, game_->sprites(), world.camera_x(), world.camera_y(), mouse_x_, mouse_y_))
+                          *target, game_->sprites(), world.camera_x(), world.camera_y(), mouse_x_, mouse_y_))
         {
             target = nullptr;
         }
 
         if (target && target->id() != entities.local_player_id())
         {
-            bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                             inp.is_key_down(sf::Keyboard::Key::RControl);
+            bool ctrl_held =
+                inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
 
             // Corpses: walk on top unless Ctrl is held
             if (!target->is_alive() && !ctrl_held)
@@ -848,7 +823,7 @@ void input_handler::handle_combat_input(const input& inp)
             if (ranged)
             {
                 if (!cs.is_in_ranged_range(pid, target->id()))
-                    return;  // Out of range — right-click will face via movement handler
+                    return; // Out of range — right-click will face via movement handler
             }
             else if (!cs.is_in_melee_range(pid, target->id()))
             {
@@ -858,15 +833,13 @@ void input_handler::handle_combat_input(const input& inp)
                     return;
 
                 // Left-click: check for dash attack (2-tile range)
-                bool ctrl_held_now = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                                     inp.is_key_down(sf::Keyboard::Key::RControl);
-                if ((ctrl_held_now || force_attack_mode_) &&
-                    cs.is_in_dash_range(pid, target->id()) &&
+                bool ctrl_held_now =
+                    inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
+                if ((ctrl_held_now || force_attack_mode_) && cs.is_in_dash_range(pid, target->id()) &&
                     cs.can_dash_attack(pid))
                 {
                     entity* player_ent = game_->local_player();
-                    if (player_ent && !player_ent->transform().moving &&
-                        can_perform_action())
+                    if (player_ent && !player_ent->transform().moving && can_perform_action())
                     {
                         execute_dash_attack(target, inp);
                         attack_consumed_ = true;
@@ -884,9 +857,10 @@ void input_handler::handle_combat_input(const input& inp)
                 // Immediate local attack animation (don't wait for server round-trip)
                 if (player)
                 {
-                    auto dir = calculate_direction(
-                        player->transform().tile_x, player->transform().tile_y,
-                        target->transform().tile_x, target->transform().tile_y);
+                    auto dir = calculate_direction(player->transform().tile_x,
+                                                   player->transform().tile_y,
+                                                   target->transform().tile_x,
+                                                   target->transform().tile_y);
                     if (dir)
                         player->transform().facing = *dir;
 
@@ -901,8 +875,7 @@ void input_handler::handle_combat_input(const input& inp)
 
     for (int i = 0; i < 9; ++i)
     {
-        sf::Keyboard::Key key = static_cast<sf::Keyboard::Key>(
-            static_cast<int>(sf::Keyboard::Key::Num1) + i);
+        sf::Keyboard::Key key = static_cast<sf::Keyboard::Key>(static_cast<int>(sf::Keyboard::Key::Num1) + i);
 
         if (inp.is_key_pressed(key))
         {
@@ -962,10 +935,8 @@ void input_handler::handle_hotkey_input(const input& inp)
     // Cycle view mode for testing (F8), fog style (Shift+F8), targeting boundary (Ctrl+F8)
     if (inp.is_key_pressed(sf::Keyboard::Key::F8) && rend)
     {
-        bool shift = inp.is_key_down(sf::Keyboard::Key::LShift)
-                  || inp.is_key_down(sf::Keyboard::Key::RShift);
-        bool ctrl = inp.is_key_down(sf::Keyboard::Key::LControl)
-                 || inp.is_key_down(sf::Keyboard::Key::RControl);
+        bool shift = inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift);
+        bool ctrl = inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
 
         if (ctrl)
         {
@@ -982,10 +953,22 @@ void input_handler::handle_hotkey_input(const input& inp)
             const char* name;
             switch (current)
             {
-                case fog_style::solid:    next = fog_style::tile_fog; name = "tile_fog"; break;
-                case fog_style::tile_fog: next = fog_style::vignette; name = "vignette"; break;
-                case fog_style::vignette: next = fog_style::gradient; name = "gradient"; break;
-                default:                  next = fog_style::solid;    name = "solid"; break;
+            case fog_style::solid:
+                next = fog_style::tile_fog;
+                name = "tile_fog";
+                break;
+            case fog_style::tile_fog:
+                next = fog_style::vignette;
+                name = "vignette";
+                break;
+            case fog_style::vignette:
+                next = fog_style::gradient;
+                name = "gradient";
+                break;
+            default:
+                next = fog_style::solid;
+                name = "solid";
+                break;
             }
             rend->set_fog_style(next);
             spdlog::info("Fog style: {}", name);
@@ -998,15 +981,23 @@ void input_handler::handle_hotkey_input(const input& inp)
             const char* name;
             switch (current)
             {
-                case view_mode::special: next = view_mode::scaled;   name = "scaled"; break;
-                case view_mode::scaled:  next = view_mode::extended;  name = "extended"; break;
-                default:                 next = view_mode::special;   name = "special"; break;
+            case view_mode::special:
+                next = view_mode::scaled;
+                name = "scaled";
+                break;
+            case view_mode::scaled:
+                next = view_mode::extended;
+                name = "extended";
+                break;
+            default:
+                next = view_mode::special;
+                name = "special";
+                break;
             }
             rend->set_view_mode(next);
             world.set_screen_size(rend->scene_width(), rend->scene_height());
             game_->send_view_range();
-            spdlog::info("View mode: {} (fair zone: {}x{})",
-                         name, rend->scene_width(), rend->scene_height());
+            spdlog::info("View mode: {} (fair zone: {}x{})", name, rend->scene_width(), rend->scene_height());
         }
     }
 
@@ -1053,10 +1044,14 @@ void input_handler::handle_hotkey_input(const input& inp)
             pan_amount = 32 * 5;
         }
 
-        if (inp.is_key_down(sf::Keyboard::Key::Left))  world.move_camera(-pan_amount, 0);
-        if (inp.is_key_down(sf::Keyboard::Key::Right)) world.move_camera(pan_amount, 0);
-        if (inp.is_key_down(sf::Keyboard::Key::Up))    world.move_camera(0, -pan_amount);
-        if (inp.is_key_down(sf::Keyboard::Key::Down))  world.move_camera(0, pan_amount);
+        if (inp.is_key_down(sf::Keyboard::Key::Left))
+            world.move_camera(-pan_amount, 0);
+        if (inp.is_key_down(sf::Keyboard::Key::Right))
+            world.move_camera(pan_amount, 0);
+        if (inp.is_key_down(sf::Keyboard::Key::Up))
+            world.move_camera(0, -pan_amount);
+        if (inp.is_key_down(sf::Keyboard::Key::Down))
+            world.move_camera(0, pan_amount);
     }
 
     // Toggle run mode (Ctrl+R)
@@ -1068,12 +1063,18 @@ void input_handler::handle_hotkey_input(const input& inp)
     }
 
     // Toggle dialogs
-    if (inp.is_key_pressed(sf::Keyboard::Key::C)) ui.toggle_dialog(dialog_type::character_info);
-    if (inp.is_key_pressed(sf::Keyboard::Key::I)) ui.toggle_dialog(dialog_type::inventory);
-    if (inp.is_key_pressed(sf::Keyboard::Key::E)) ui.toggle_dialog(dialog_type::equipment);
-    if (inp.is_key_pressed(sf::Keyboard::Key::K)) ui.toggle_dialog(dialog_type::skills);
-    if (inp.is_key_pressed(sf::Keyboard::Key::M)) ui.toggle_dialog(dialog_type::spellbook);
-    if (inp.is_key_pressed(sf::Keyboard::Key::P)) ui.toggle_dialog(dialog_type::party);
+    if (inp.is_key_pressed(sf::Keyboard::Key::C))
+        ui.toggle_dialog(dialog_type::character_info);
+    if (inp.is_key_pressed(sf::Keyboard::Key::I))
+        ui.toggle_dialog(dialog_type::inventory);
+    if (inp.is_key_pressed(sf::Keyboard::Key::E))
+        ui.toggle_dialog(dialog_type::equipment);
+    if (inp.is_key_pressed(sf::Keyboard::Key::K))
+        ui.toggle_dialog(dialog_type::skills);
+    if (inp.is_key_pressed(sf::Keyboard::Key::M))
+        ui.toggle_dialog(dialog_type::spellbook);
+    if (inp.is_key_pressed(sf::Keyboard::Key::P))
+        ui.toggle_dialog(dialog_type::party);
     if (inp.is_key_pressed(sf::Keyboard::Key::G))
     {
         ui.toggle_dialog(dialog_type::guild);
@@ -1123,10 +1124,8 @@ void input_handler::handle_hotkey_input(const input& inp)
     }
 
     // Debug: Test event log colors with Ctrl+Number keys
-    bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                     inp.is_key_down(sf::Keyboard::Key::RControl);
-    bool shift_held = inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                      inp.is_key_down(sf::Keyboard::Key::RShift);
+    bool ctrl_held = inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
+    bool shift_held = inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift);
     if (ctrl_held && !shift_held)
     {
         if (inp.is_key_pressed(sf::Keyboard::Key::Num1))
@@ -1199,16 +1198,17 @@ void input_handler::handle_hotkey_input(const input& inp)
 void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
 {
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     auto& t = player->transform();
     auto& world = game_->game_world();
     auto& entities = game_->entities();
 
     // Get direct direction toward target (straight line, no obstacle avoidance)
-    auto direct_dir = get_next_move_dir(t.tile_x, t.tile_y,
-                                         target->transform().tile_x, target->transform().tile_y);
-    if (!direct_dir) return;
+    auto direct_dir = get_next_move_dir(t.tile_x, t.tile_y, target->transform().tile_x, target->transform().tile_y);
+    if (!direct_dir)
+        return;
 
     // Passability check for the intermediate tile (1 step toward target)
     auto is_passable = [&](int32_t x, int32_t y) -> bool
@@ -1251,7 +1251,8 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
         }
     }
 
-    if (!dash_dir) return;  // All 3 directions blocked
+    if (!dash_dir)
+        return; // All 3 directions blocked
 
     auto [dx, dy] = direction_offset(*dash_dir);
     int32_t dash_x = t.tile_x + dx;
@@ -1285,15 +1286,18 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
 
     // Send move request (to advance tile)
     uint8_t dir_protocol = static_cast<uint8_t>(direction_to_protocol(*dash_dir));
-    json move_msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, false,
-                                              dash_x, dash_y);
+    json move_msg = make_player_move_request(t.move_start_x, t.move_start_y, dir_protocol, false, dash_x, dash_y);
     game_->ws_connection().send(move_msg);
 
     // Send attack request with dash attack type
     game_->ws_handler().request_attack(target->id(), static_cast<uint8_t>(attack_type::dash));
 
     spdlog::debug("Dash attack: moving ({},{}) -> ({},{}) and attacking entity {}",
-                  t.move_start_x, t.move_start_y, dash_x, dash_y, target->id());
+                  t.move_start_x,
+                  t.move_start_y,
+                  dash_x,
+                  dash_y,
+                  target->id());
 }
 
 } // namespace hb

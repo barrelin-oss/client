@@ -4,10 +4,12 @@
 #include <functional>
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 // Level up dialog - appears when player levels up to allocate stat points
-class levelup_dialog : public dialog {
+class levelup_dialog : public dialog
+{
 public:
     levelup_dialog();
     ~levelup_dialog() override = default;
@@ -20,8 +22,7 @@ public:
     void set_points_available(uint16_t points);
 
     // Set current stats (before allocation)
-    void set_stats(uint16_t str, uint16_t vit, uint16_t dex,
-                   uint16_t intelligence, uint16_t mag, uint16_t cha);
+    void set_stats(uint16_t str, uint16_t vit, uint16_t dex, uint16_t intelligence, uint16_t mag, uint16_t cha);
 
     // Callbacks
     using allocate_callback = std::function<void(int stat_index)>;

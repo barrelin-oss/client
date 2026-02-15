@@ -7,10 +7,12 @@
 #include <unordered_map>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Skill categories
-enum class skill_category : uint8_t {
+enum class skill_category : uint8_t
+{
     combat = 0,
     magic = 1,
     crafting = 2,
@@ -19,7 +21,8 @@ enum class skill_category : uint8_t {
 };
 
 // Skill data
-struct skill {
+struct skill
+{
     uint16_t id = 0;
     std::string name;
     skill_category category = skill_category::combat;
@@ -39,7 +42,8 @@ struct skill {
     uint8_t level() const { return mastery; }
 };
 
-class skills_system {
+class skills_system
+{
 public:
     skills_system() = default;
     ~skills_system() = default;
@@ -81,35 +85,36 @@ private:
 };
 
 // Skill ID constants matching legacy skillcfg.txt / server IDs
-namespace skill_id {
-    // Gathering
-    inline constexpr uint16_t mining = 0;
-    inline constexpr uint16_t fishing = 1;
-    inline constexpr uint16_t farming = 2;
+namespace skill_id
+{
+// Gathering
+inline constexpr uint16_t mining = 0;
+inline constexpr uint16_t fishing = 1;
+inline constexpr uint16_t farming = 2;
 
-    // Magic
-    inline constexpr uint16_t magic_resistance = 3;
-    inline constexpr uint16_t magic = 4;
+// Magic
+inline constexpr uint16_t magic_resistance = 3;
+inline constexpr uint16_t magic = 4;
 
-    // Combat
-    inline constexpr uint16_t hand_attack = 5;
-    inline constexpr uint16_t archery = 6;
-    inline constexpr uint16_t short_sword = 7;
-    inline constexpr uint16_t long_sword = 8;
-    inline constexpr uint16_t fencing = 9;
-    inline constexpr uint16_t axe = 10;
-    inline constexpr uint16_t shield = 11;
+// Combat
+inline constexpr uint16_t hand_attack = 5;
+inline constexpr uint16_t archery = 6;
+inline constexpr uint16_t short_sword = 7;
+inline constexpr uint16_t long_sword = 8;
+inline constexpr uint16_t fencing = 9;
+inline constexpr uint16_t axe = 10;
+inline constexpr uint16_t shield = 11;
 
-    // Crafting
-    inline constexpr uint16_t alchemy = 12;
-    inline constexpr uint16_t manufacturing = 13;
-    inline constexpr uint16_t hammer = 14;
-    inline constexpr uint16_t crafting = 16;
+// Crafting
+inline constexpr uint16_t alchemy = 12;
+inline constexpr uint16_t manufacturing = 13;
+inline constexpr uint16_t hammer = 14;
+inline constexpr uint16_t crafting = 16;
 
-    // Misc
-    inline constexpr uint16_t pretend_corpse = 19;
-    inline constexpr uint16_t staff = 21;
-    inline constexpr uint16_t poison_resistance = 23;
-}
+// Misc
+inline constexpr uint16_t pretend_corpse = 19;
+inline constexpr uint16_t staff = 21;
+inline constexpr uint16_t poison_resistance = 23;
+} // namespace skill_id
 
 } // namespace hb

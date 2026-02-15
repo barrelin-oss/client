@@ -3,24 +3,28 @@
 #include <cstdint>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Click detection result - matches original DEF_MIRESULT_*
-enum class mouse_result : uint8_t {
+enum class mouse_result : uint8_t
+{
     none = 0,
     click = 1,
     drag = 2
 };
 
 // Click detection rectangle
-struct click_rect {
-    int32_t x1, y1;  // Top-left corner
-    int32_t x2, y2;  // Bottom-right corner
+struct click_rect
+{
+    int32_t x1, y1; // Top-left corner
+    int32_t x2, y2; // Bottom-right corner
 };
 
 // Mouse interface for UI click detection
 // Modern equivalent of CMouseInterface from the original code
-class mouse_interface {
+class mouse_interface
+{
 public:
     mouse_interface() = default;
     ~mouse_interface() = default;

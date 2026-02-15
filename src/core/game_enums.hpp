@@ -3,10 +3,12 @@
 #include <cstdint>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
 // Game state machine
-enum class game_state : int8_t {
+enum class game_state : int8_t
+{
     null_state = -2,
     quit = -1,
     main_menu = 0,
@@ -33,26 +35,28 @@ enum class game_state : int8_t {
 };
 
 // Server types
-enum class server_type : uint8_t {
+enum class server_type : uint8_t
+{
     game = 1,
     log = 2
 };
 
 // Object actions - values match sprite set layout (0-11)
 // Each value corresponds directly to a group of 8 direction sprites
-enum class object_action : uint8_t {
-    stop_peace = 0,          // Sprites 0-7: Idle in peace mode
-    stop_combat = 1,         // Sprites 8-15: Idle in combat mode
-    move_peace = 2,          // Sprites 16-23: Walk in peace mode
-    move_combat = 3,         // Sprites 24-31: Walk in combat mode
-    run = 4,                 // Sprites 32-39: Run (shared for both modes)
-    attack_peace = 5,        // Sprites 40-47: Attack in peace mode
-    attack_combat = 6,       // Sprites 48-55: Attack in combat mode
-    attack_combat_bow = 7,   // Sprites 56-63: Bow attack in combat mode
-    magic = 8,               // Sprites 64-71: Magic casting
-    get_item = 9,            // Sprites 72-79: Pick up item
-    damage = 10,             // Sprites 80-87: Taking damage / knockback
-    dying = 11,              // Sprites 88-95: Death animation
+enum class object_action : uint8_t
+{
+    stop_peace = 0,        // Sprites 0-7: Idle in peace mode
+    stop_combat = 1,       // Sprites 8-15: Idle in combat mode
+    move_peace = 2,        // Sprites 16-23: Walk in peace mode
+    move_combat = 3,       // Sprites 24-31: Walk in combat mode
+    run = 4,               // Sprites 32-39: Run (shared for both modes)
+    attack_peace = 5,      // Sprites 40-47: Attack in peace mode
+    attack_combat = 6,     // Sprites 48-55: Attack in combat mode
+    attack_combat_bow = 7, // Sprites 56-63: Bow attack in combat mode
+    magic = 8,             // Sprites 64-71: Magic casting
+    get_item = 9,          // Sprites 72-79: Pick up item
+    damage = 10,           // Sprites 80-87: Taking damage / knockback
+    dying = 11,            // Sprites 88-95: Death animation
 
     null_action = 100
 };
@@ -66,7 +70,8 @@ inline constexpr object_action legacy_damage_move = object_action::damage;
 inline constexpr object_action legacy_dead = object_action::dying;
 
 // Cursor status
-enum class cursor_status : uint8_t {
+enum class cursor_status : uint8_t
+{
     null_status = 0,
     pressed = 1,
     selected = 2,
@@ -74,14 +79,16 @@ enum class cursor_status : uint8_t {
 };
 
 // Selected object type
-enum class selected_object_type : uint8_t {
+enum class selected_object_type : uint8_t
+{
     none = 0,
     dialog_box = 1,
     item = 2
 };
 
 // Equipment slots
-enum class equip_slot : uint8_t {
+enum class equip_slot : uint8_t
+{
     none = 0,
     head = 1,
     body = 2,
@@ -99,7 +106,8 @@ enum class equip_slot : uint8_t {
 };
 
 // Item types
-enum class item_type : uint8_t {
+enum class item_type : uint8_t
+{
     none = 0,
     equip = 1,
     apply = 2,
@@ -116,7 +124,8 @@ enum class item_type : uint8_t {
 };
 
 // Magic types
-enum class magic_type : uint8_t {
+enum class magic_type : uint8_t
+{
     damage_spot = 1,
     hp_up_spot = 2,
     damage_area = 3,
@@ -152,7 +161,8 @@ enum class magic_type : uint8_t {
 
 // Direction (8-way, values 1-8 matching legacy code)
 // Use std::optional<direction> where "no direction" is needed
-enum class direction : uint8_t {
+enum class direction : uint8_t
+{
     north = 1,
     north_east = 2,
     east = 3,
@@ -164,7 +174,8 @@ enum class direction : uint8_t {
 };
 
 // Dynamic object types
-enum class dynamic_object : uint8_t {
+enum class dynamic_object : uint8_t
+{
     fire = 1,
     fish = 2,
     fish_object = 3,
@@ -179,7 +190,8 @@ enum class dynamic_object : uint8_t {
 };
 
 // Login result codes (from login_response namespace in protocol.hpp)
-enum class login_result : uint16_t {
+enum class login_result : uint16_t
+{
     success = 0x0F14,
     reject = 0x0F15,
     password_mismatch = 0x0F16,
@@ -189,7 +201,8 @@ enum class login_result : uint16_t {
 };
 
 // Character creation result codes
-enum class character_result : uint16_t {
+enum class character_result : uint16_t
+{
     success = 0x0F1C,
     failed = 0x0F1D,
     already_exists = 0x0F1E,
@@ -197,22 +210,36 @@ enum class character_result : uint16_t {
 };
 
 // Entity hostility (server-authoritative)
-enum class hostility : uint8_t { neutral = 0, friendly = 1, enemy = 2 };
+enum class hostility : uint8_t
+{
+    neutral = 0,
+    friendly = 1,
+    enemy = 2
+};
 
 // Player PK status
-enum class pk_status : uint8_t { innocent = 0, criminal = 1, murderer = 2 };
+enum class pk_status : uint8_t
+{
+    innocent = 0,
+    criminal = 1,
+    murderer = 2
+};
 
 inline hostility hostility_from_string(std::string_view s)
 {
-    if (s == "friendly") return hostility::friendly;
-    if (s == "enemy") return hostility::enemy;
+    if (s == "friendly")
+        return hostility::friendly;
+    if (s == "enemy")
+        return hostility::enemy;
     return hostility::neutral;
 }
 
 inline pk_status pk_status_from_string(std::string_view s)
 {
-    if (s == "criminal") return pk_status::criminal;
-    if (s == "murderer") return pk_status::murderer;
+    if (s == "criminal")
+        return pk_status::criminal;
+    if (s == "murderer")
+        return pk_status::murderer;
     return pk_status::innocent;
 }
 

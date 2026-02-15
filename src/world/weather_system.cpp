@@ -4,11 +4,13 @@
 #include <algorithm>
 #include <cmath>
 
-namespace hb {
+namespace hb
+{
 
 void weather_system::set_weather(weather_type weather)
 {
-    if (weather_ == weather) return;
+    if (weather_ == weather)
+        return;
 
     auto old = weather_;
     weather_ = weather;
@@ -17,28 +19,30 @@ void weather_system::set_weather(weather_type weather)
     // Light: 120, Medium: 300, Heavy: 600, Clear: 0
     switch (weather)
     {
-        case weather_type::clear:
-            active_particle_count_ = 0;
-            break;
-        case weather_type::light_rain:
-        case weather_type::light_snow:
-            active_particle_count_ = max_weather_particles / 5;  // 120
-            break;
-        case weather_type::medium_rain:
-        case weather_type::medium_snow:
-            active_particle_count_ = max_weather_particles / 2;  // 300
-            break;
-        case weather_type::heavy_rain:
-        case weather_type::heavy_snow:
-            active_particle_count_ = max_weather_particles;      // 600
-            break;
+    case weather_type::clear:
+        active_particle_count_ = 0;
+        break;
+    case weather_type::light_rain:
+    case weather_type::light_snow:
+        active_particle_count_ = max_weather_particles / 5; // 120
+        break;
+    case weather_type::medium_rain:
+    case weather_type::medium_snow:
+        active_particle_count_ = max_weather_particles / 2; // 300
+        break;
+    case weather_type::heavy_rain:
+    case weather_type::heavy_snow:
+        active_particle_count_ = max_weather_particles; // 600
+        break;
     }
 
     particle_accumulator_ = 0.0f;
     spawn_particles();
 
     spdlog::info("Weather changed: {} -> {} ({} particles)",
-        static_cast<int>(old), static_cast<int>(weather), active_particle_count_);
+                 static_cast<int>(old),
+                 static_cast<int>(weather),
+                 active_particle_count_);
 }
 
 void weather_system::set_screen_size(uint32_t width, uint32_t height)
@@ -86,17 +90,19 @@ void weather_system::update(float delta_time)
             }
         }
     }
-
 }
 
 void weather_system::render_particles(renderer& rend)
 {
-    if (!visible_) return;
-    if (active_particle_count_ <= 0) return;
+    if (!visible_)
+        return;
+    if (active_particle_count_ <= 0)
+        return;
 
     bool is_rain = is_raining();
     bool is_snow = is_snowing();
-    if (!is_rain && !is_snow) return;
+    if (!is_rain && !is_snow)
+        return;
 
     int32_t sw = static_cast<int32_t>(screen_width_);
     int32_t sh = static_cast<int32_t>(screen_height_);
@@ -104,13 +110,15 @@ void weather_system::render_particles(renderer& rend)
     for (int32_t i = 0; i < active_particle_count_; ++i)
     {
         const auto& p = particles_[i];
-        if (p.step < 0) continue;
+        if (p.step < 0)
+            continue;
 
         int32_t px = static_cast<int32_t>(p.x);
         int32_t py = static_cast<int32_t>(p.y);
 
         // Cull off-screen
-        if (px < -20 || px > sw + 20 || py < -20 || py > sh + 20) continue;
+        if (px < -20 || px > sw + 20 || py < -20 || py > sh + 20)
+            continue;
 
         if (is_rain)
         {
@@ -135,9 +143,8 @@ void weather_system::render_particles(renderer& rend)
         {
             // Snowflake - small filled dot
             float life = static_cast<float>(p.step) / 80.0f;
-            uint8_t alpha = static_cast<uint8_t>(std::clamp(
-                static_cast<int>(200.0f * (1.0f - life * 0.5f)), 80, 200));
-            int32_t size = (i % 3 == 0) ? 2 : 1;  // Varying sizes
+            uint8_t alpha = static_cast<uint8_t>(std::clamp(static_cast<int>(200.0f * (1.0f - life * 0.5f)), 80, 200));
+            int32_t size = (i % 3 == 0) ? 2 : 1; // Varying sizes
             sf::Color color(240, 240, 255, alpha);
             rend.draw_rect(px, py, size, size, color, true);
         }
@@ -146,16 +153,14 @@ void weather_system::render_particles(renderer& rend)
 
 bool weather_system::is_raining() const
 {
-    return weather_ == weather_type::light_rain
-        || weather_ == weather_type::medium_rain
-        || weather_ == weather_type::heavy_rain;
+    return weather_ == weather_type::light_rain || weather_ == weather_type::medium_rain ||
+           weather_ == weather_type::heavy_rain;
 }
 
 bool weather_system::is_snowing() const
 {
-    return weather_ == weather_type::light_snow
-        || weather_ == weather_type::medium_snow
-        || weather_ == weather_type::heavy_snow;
+    return weather_ == weather_type::light_snow || weather_ == weather_type::medium_snow ||
+           weather_ == weather_type::heavy_snow;
 }
 
 void weather_system::spawn_particles()

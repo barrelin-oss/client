@@ -16,7 +16,8 @@
 #include <utility>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class effect_test_app
 {

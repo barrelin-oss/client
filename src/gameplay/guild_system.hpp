@@ -7,7 +7,8 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Guild member info (stored in guild_system after guild_info_response)
 struct guild_member_info
@@ -24,7 +25,7 @@ struct pending_guild_invite
     std::string guild_name;
     std::string guild_tag;
     std::string inviter_name;
-    float time_remaining = 60.0f;   // seconds until auto-expire
+    float time_remaining = 60.0f; // seconds until auto-expire
 };
 
 class guild_system
@@ -51,11 +52,12 @@ public:
     // --- Mutators (called by ws_message_handler) ---
     void set_guild(std::string_view name, std::string_view tag, uint8_t rank);
     void clear_guild();
-    void set_guild_info(std::string_view name, std::string_view tag,
-                        std::string_view motd, std::string_view master_name,
+    void set_guild_info(std::string_view name,
+                        std::string_view tag,
+                        std::string_view motd,
+                        std::string_view master_name,
                         std::vector<guild_member_info> members);
-    void set_pending_invite(std::string_view guild_name, std::string_view guild_tag,
-                            std::string_view inviter_name);
+    void set_pending_invite(std::string_view guild_name, std::string_view guild_tag, std::string_view inviter_name);
     void clear_pending_invite();
 
     // --- Callback ---
@@ -66,7 +68,7 @@ private:
 
     std::string guild_name_;
     std::string guild_tag_;
-    uint8_t rank_ = 255;            // 255 = not in guild, 0 = master, 4 = recruit
+    uint8_t rank_ = 255; // 255 = not in guild, 0 = master, 4 = recruit
     std::string motd_;
     std::string master_name_;
     std::vector<guild_member_info> members_;

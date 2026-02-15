@@ -3,17 +3,15 @@
 #include <optional>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 struct launch_options
 {
     std::optional<std::string> username;
     std::optional<std::string> password;
 
-    bool has_credentials() const
-    {
-        return username.has_value() && password.has_value();
-    }
+    bool has_credentials() const { return username.has_value() && password.has_value(); }
 };
 
 inline launch_options parse_args(int argc, char* argv[])

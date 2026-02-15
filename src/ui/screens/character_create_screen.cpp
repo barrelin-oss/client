@@ -5,13 +5,15 @@
 #include "assets/sprite.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
-void character_create_screen::on_enter() {
+void character_create_screen::on_enter()
+{
     // Reset state
     mode_count_ = 0;
-    current_focus_ = 1;  // Start on name field
-    max_focus_ = 6;      // 6 focusable areas (name + 5 preset buttons)
+    current_focus_ = 1; // Start on name field
+    max_focus_ = 6;     // 6 focusable areas (name + 5 preset buttons)
     enter_pressed_ = false;
     escape_pressed_ = false;
     arrow_pressed_ = 0;
@@ -48,84 +50,92 @@ void character_create_screen::on_enter() {
 
     // Appearance buttons (left/right arrows)
     // Gender
-    mouse_interface_.add_rect(236, 156, 257, 169);   // Button 2: Gender left
-    mouse_interface_.add_rect(259, 156, 276, 169);   // Button 3: Gender right
+    mouse_interface_.add_rect(236, 156, 257, 169); // Button 2: Gender left
+    mouse_interface_.add_rect(259, 156, 276, 169); // Button 3: Gender right
     // Skin color
-    mouse_interface_.add_rect(236, 171, 257, 184);   // Button 4: Skin left
-    mouse_interface_.add_rect(259, 171, 276, 184);   // Button 5: Skin right
+    mouse_interface_.add_rect(236, 171, 257, 184); // Button 4: Skin left
+    mouse_interface_.add_rect(259, 171, 276, 184); // Button 5: Skin right
     // Hair style
-    mouse_interface_.add_rect(236, 186, 257, 199);   // Button 6: Hair style left
-    mouse_interface_.add_rect(259, 186, 276, 199);   // Button 7: Hair style right
+    mouse_interface_.add_rect(236, 186, 257, 199); // Button 6: Hair style left
+    mouse_interface_.add_rect(259, 186, 276, 199); // Button 7: Hair style right
     // Hair color
-    mouse_interface_.add_rect(236, 201, 257, 214);   // Button 8: Hair color left
-    mouse_interface_.add_rect(259, 201, 276, 214);   // Button 9: Hair color right
+    mouse_interface_.add_rect(236, 201, 257, 214); // Button 8: Hair color left
+    mouse_interface_.add_rect(259, 201, 276, 214); // Button 9: Hair color right
     // Underwear color
-    mouse_interface_.add_rect(236, 216, 257, 229);   // Button 10: Underwear left
-    mouse_interface_.add_rect(259, 216, 276, 229);   // Button 11: Underwear right
+    mouse_interface_.add_rect(236, 216, 257, 229); // Button 10: Underwear left
+    mouse_interface_.add_rect(259, 216, 276, 229); // Button 11: Underwear right
 
     // Stats buttons (up/down)
     // Strength
-    mouse_interface_.add_rect(236, 276, 257, 289);   // Button 12: Str up
-    mouse_interface_.add_rect(259, 276, 280, 289);   // Button 13: Str down
+    mouse_interface_.add_rect(236, 276, 257, 289); // Button 12: Str up
+    mouse_interface_.add_rect(259, 276, 280, 289); // Button 13: Str down
     // Vitality
-    mouse_interface_.add_rect(236, 291, 257, 304);   // Button 14: Vit up
-    mouse_interface_.add_rect(259, 291, 280, 304);   // Button 15: Vit down
+    mouse_interface_.add_rect(236, 291, 257, 304); // Button 14: Vit up
+    mouse_interface_.add_rect(259, 291, 280, 304); // Button 15: Vit down
     // Dexterity
-    mouse_interface_.add_rect(236, 306, 257, 319);   // Button 16: Dex up
-    mouse_interface_.add_rect(259, 306, 280, 319);   // Button 17: Dex down
+    mouse_interface_.add_rect(236, 306, 257, 319); // Button 16: Dex up
+    mouse_interface_.add_rect(259, 306, 280, 319); // Button 17: Dex down
     // Intelligence
-    mouse_interface_.add_rect(236, 321, 257, 334);   // Button 18: Int up
-    mouse_interface_.add_rect(259, 321, 280, 334);   // Button 19: Int down
+    mouse_interface_.add_rect(236, 321, 257, 334); // Button 18: Int up
+    mouse_interface_.add_rect(259, 321, 280, 334); // Button 19: Int down
     // Magic
-    mouse_interface_.add_rect(236, 336, 257, 349);   // Button 20: Mag up
-    mouse_interface_.add_rect(259, 336, 280, 349);   // Button 21: Mag down
+    mouse_interface_.add_rect(236, 336, 257, 349); // Button 20: Mag up
+    mouse_interface_.add_rect(259, 336, 280, 349); // Button 21: Mag down
     // Charisma
-    mouse_interface_.add_rect(236, 351, 257, 364);   // Button 22: Chr up
-    mouse_interface_.add_rect(259, 351, 280, 364);   // Button 23: Chr down
+    mouse_interface_.add_rect(236, 351, 257, 364); // Button 22: Chr up
+    mouse_interface_.add_rect(259, 351, 280, 364); // Button 23: Chr down
 
     // Bottom action buttons
-    mouse_interface_.add_rect(384, 445, 456, 460);   // Button 24: Create
-    mouse_interface_.add_rect(500, 445, 572, 460);   // Button 25: Cancel
+    mouse_interface_.add_rect(384, 445, 456, 460); // Button 24: Create
+    mouse_interface_.add_rect(500, 445, 572, 460); // Button 25: Cancel
 
     // Preset buttons
-    mouse_interface_.add_rect(60, 445, 132, 460);    // Button 26: Warrior
-    mouse_interface_.add_rect(145, 445, 217, 460);   // Button 27: Mage
-    mouse_interface_.add_rect(230, 445, 302, 460);   // Button 28: Merchant
+    mouse_interface_.add_rect(60, 445, 132, 460);  // Button 26: Warrior
+    mouse_interface_.add_rect(145, 445, 217, 460); // Button 27: Mage
+    mouse_interface_.add_rect(230, 445, 302, 460); // Button 28: Merchant
 
     spdlog::info("Character create screen entered");
 }
 
-void character_create_screen::on_exit() {
+void character_create_screen::on_exit()
+{
     mouse_interface_.clear();
     spdlog::info("Character create screen exited");
 }
 
-bool character_create_screen::update(float delta_time, const input& inp) {
+bool character_create_screen::update(float delta_time, const input& inp)
+{
     // Update mode count
     mode_count_++;
-    if (mode_count_ > 100) mode_count_ = 100;
+    if (mode_count_ > 100)
+        mode_count_ = 100;
 
     // Update cursor blink
     cursor_timer_ += delta_time;
-    if (cursor_timer_ >= 0.5f) {
+    if (cursor_timer_ >= 0.5f)
+    {
         cursor_timer_ = 0.0f;
         cursor_visible_ = !cursor_visible_;
     }
 
     // Update animation timer
     frame_timer_ += delta_time;
-    if (frame_timer_ >= 0.1f) {
+    if (frame_timer_ >= 0.1f)
+    {
         frame_timer_ = 0.0f;
         menu_frame_++;
-        if (menu_frame_ >= 8) {
+        if (menu_frame_ >= 8)
+        {
             menu_frame_ = 0;
             menu_dir_count_++;
-            if (menu_dir_count_ > 8) {
+            if (menu_dir_count_ > 8)
+            {
                 menu_dir_++;
                 menu_dir_count_ = 1;
             }
         }
-        if (menu_dir_ > 8) menu_dir_ = 1;
+        if (menu_dir_ > 8)
+            menu_dir_ = 1;
     }
 
     // Store mouse position for render
@@ -137,32 +147,41 @@ bool character_create_screen::update(float delta_time, const input& inp) {
     auto [adj_x, adj_y] = get_adjusted_mouse();
 
     // Handle arrow key navigation
-    if (inp.is_key_pressed(sf::Keyboard::Key::Up)) {
+    if (inp.is_key_pressed(sf::Keyboard::Key::Up))
+    {
         current_focus_--;
-        if (current_focus_ <= 0) current_focus_ = max_focus_;
+        if (current_focus_ <= 0)
+            current_focus_ = max_focus_;
     }
-    if (inp.is_key_pressed(sf::Keyboard::Key::Down)) {
+    if (inp.is_key_pressed(sf::Keyboard::Key::Down))
+    {
         current_focus_++;
-        if (current_focus_ > max_focus_) current_focus_ = 1;
+        if (current_focus_ > max_focus_)
+            current_focus_ = 1;
     }
 
     // Handle text input when name field is focused
-    if (current_focus_ == 1) {
+    if (current_focus_ == 1)
+    {
         handle_text_input(inp);
     }
 
     // Handle Escape key (cancel)
-    if (inp.is_key_pressed(sf::Keyboard::Key::Escape)) {
+    if (inp.is_key_pressed(sf::Keyboard::Key::Escape))
+    {
         play_button_sound();
-        if (on_cancel_) {
+        if (on_cancel_)
+        {
             on_cancel_();
         }
         return true;
     }
 
     // Handle Enter key
-    if (inp.is_key_pressed(sf::Keyboard::Key::Enter)) {
-        if (current_focus_ == 2 && is_valid_character()) {
+    if (inp.is_key_pressed(sf::Keyboard::Key::Enter))
+    {
+        if (current_focus_ == 2 && is_valid_character())
+        {
             play_button_sound();
             try_create();
             return true;
@@ -173,169 +192,214 @@ bool character_create_screen::update(float delta_time, const input& inp) {
     mouse_result result;
     int32_t button_num = mouse_interface_.get_status(adj_x, adj_y, mouse_pressed, result);
 
-    if (result == mouse_result::click) {
+    if (result == mouse_result::click)
+    {
         play_button_sound();
-        switch (button_num) {
-            case btn_name_field:
-                current_focus_ = 1;
-                break;
+        switch (button_num)
+        {
+        case btn_name_field:
+            current_focus_ = 1;
+            break;
 
-            // Gender
-            case btn_gender_left:
-                gender_--;
-                if (gender_ < 1) gender_ = 2;
-                break;
-            case btn_gender_right:
-                gender_++;
-                if (gender_ > 2) gender_ = 1;
-                break;
+        // Gender
+        case btn_gender_left:
+            gender_--;
+            if (gender_ < 1)
+                gender_ = 2;
+            break;
+        case btn_gender_right:
+            gender_++;
+            if (gender_ > 2)
+                gender_ = 1;
+            break;
 
-            // Skin color
-            case btn_skin_left:
-                skin_color_--;
-                if (skin_color_ < 1) skin_color_ = 3;
-                break;
-            case btn_skin_right:
-                skin_color_++;
-                if (skin_color_ > 3) skin_color_ = 1;
-                break;
+        // Skin color
+        case btn_skin_left:
+            skin_color_--;
+            if (skin_color_ < 1)
+                skin_color_ = 3;
+            break;
+        case btn_skin_right:
+            skin_color_++;
+            if (skin_color_ > 3)
+                skin_color_ = 1;
+            break;
 
-            // Hair style
-            case btn_hair_style_left:
-                if (hair_style_ == 0) hair_style_ = 7;
-                else hair_style_--;
-                break;
-            case btn_hair_style_right:
-                hair_style_++;
-                if (hair_style_ > 7) hair_style_ = 0;
-                break;
+        // Hair style
+        case btn_hair_style_left:
+            if (hair_style_ == 0)
+                hair_style_ = 7;
+            else
+                hair_style_--;
+            break;
+        case btn_hair_style_right:
+            hair_style_++;
+            if (hair_style_ > 7)
+                hair_style_ = 0;
+            break;
 
-            // Hair color
-            case btn_hair_color_left:
-                if (hair_color_ == 0) hair_color_ = 15;
-                else hair_color_--;
-                break;
-            case btn_hair_color_right:
-                hair_color_++;
-                if (hair_color_ > 15) hair_color_ = 0;
-                break;
+        // Hair color
+        case btn_hair_color_left:
+            if (hair_color_ == 0)
+                hair_color_ = 15;
+            else
+                hair_color_--;
+            break;
+        case btn_hair_color_right:
+            hair_color_++;
+            if (hair_color_ > 15)
+                hair_color_ = 0;
+            break;
 
-            // Underwear color
-            case btn_underwear_left:
-                if (underwear_color_ == 0) underwear_color_ = 7;
-                else underwear_color_--;
-                break;
-            case btn_underwear_right:
-                underwear_color_++;
-                if (underwear_color_ > 7) underwear_color_ = 0;
-                break;
+        // Underwear color
+        case btn_underwear_left:
+            if (underwear_color_ == 0)
+                underwear_color_ = 7;
+            else
+                underwear_color_--;
+            break;
+        case btn_underwear_right:
+            underwear_color_++;
+            if (underwear_color_ > 7)
+                underwear_color_ = 0;
+            break;
 
-            // Stats
-            case btn_str_up:
-                if (remaining_points() > 0 && str_ < max_stat) str_++;
-                break;
-            case btn_str_down:
-                if (str_ > min_stat) str_--;
-                break;
-            case btn_vit_up:
-                if (remaining_points() > 0 && vit_ < max_stat) vit_++;
-                break;
-            case btn_vit_down:
-                if (vit_ > min_stat) vit_--;
-                break;
-            case btn_dex_up:
-                if (remaining_points() > 0 && dex_ < max_stat) dex_++;
-                break;
-            case btn_dex_down:
-                if (dex_ > min_stat) dex_--;
-                break;
-            case btn_int_up:
-                if (remaining_points() > 0 && int_ < max_stat) int_++;
-                break;
-            case btn_int_down:
-                if (int_ > min_stat) int_--;
-                break;
-            case btn_mag_up:
-                if (remaining_points() > 0 && mag_ < max_stat) mag_++;
-                break;
-            case btn_mag_down:
-                if (mag_ > min_stat) mag_--;
-                break;
-            case btn_chr_up:
-                if (remaining_points() > 0 && chr_ < max_stat) chr_++;
-                break;
-            case btn_chr_down:
-                if (chr_ > min_stat) chr_--;
-                break;
+        // Stats
+        case btn_str_up:
+            if (remaining_points() > 0 && str_ < max_stat)
+                str_++;
+            break;
+        case btn_str_down:
+            if (str_ > min_stat)
+                str_--;
+            break;
+        case btn_vit_up:
+            if (remaining_points() > 0 && vit_ < max_stat)
+                vit_++;
+            break;
+        case btn_vit_down:
+            if (vit_ > min_stat)
+                vit_--;
+            break;
+        case btn_dex_up:
+            if (remaining_points() > 0 && dex_ < max_stat)
+                dex_++;
+            break;
+        case btn_dex_down:
+            if (dex_ > min_stat)
+                dex_--;
+            break;
+        case btn_int_up:
+            if (remaining_points() > 0 && int_ < max_stat)
+                int_++;
+            break;
+        case btn_int_down:
+            if (int_ > min_stat)
+                int_--;
+            break;
+        case btn_mag_up:
+            if (remaining_points() > 0 && mag_ < max_stat)
+                mag_++;
+            break;
+        case btn_mag_down:
+            if (mag_ > min_stat)
+                mag_--;
+            break;
+        case btn_chr_up:
+            if (remaining_points() > 0 && chr_ < max_stat)
+                chr_++;
+            break;
+        case btn_chr_down:
+            if (chr_ > min_stat)
+                chr_--;
+            break;
 
-            // Action buttons
-            case btn_create:
-                current_focus_ = 2;
-                if (is_valid_character()) {
-                    try_create();
-                    return true;
-                }
-                break;
-            case btn_cancel:
-                current_focus_ = 3;
-                if (on_cancel_) {
-                    on_cancel_();
-                }
+        // Action buttons
+        case btn_create:
+            current_focus_ = 2;
+            if (is_valid_character())
+            {
+                try_create();
                 return true;
+            }
+            break;
+        case btn_cancel:
+            current_focus_ = 3;
+            if (on_cancel_)
+            {
+                on_cancel_();
+            }
+            return true;
 
-            // Preset buttons
-            case btn_warrior:
-                current_focus_ = 4;
-                apply_warrior_preset();
-                break;
-            case btn_mage:
-                current_focus_ = 5;
-                apply_mage_preset();
-                break;
-            case btn_merchant:
-                current_focus_ = 6;
-                apply_merchant_preset();
-                break;
+        // Preset buttons
+        case btn_warrior:
+            current_focus_ = 4;
+            apply_warrior_preset();
+            break;
+        case btn_mage:
+            current_focus_ = 5;
+            apply_mage_preset();
+            break;
+        case btn_merchant:
+            current_focus_ = 6;
+            apply_merchant_preset();
+            break;
         }
     }
 
     return true;
 }
 
-void character_create_screen::render(renderer& rend, sprite_manager& sprites) {
+void character_create_screen::render(renderer& rend, sprite_manager& sprites)
+{
     update_screen_offset(rend.width(), rend.height());
     draw(rend, sprites);
 }
 
-void character_create_screen::handle_text_input(const input& inp) {
+void character_create_screen::handle_text_input(const input& inp)
+{
     // Handle backspace
-    if (inp.is_key_pressed(sf::Keyboard::Key::Backspace)) {
-        if (!char_name_.empty()) {
+    if (inp.is_key_pressed(sf::Keyboard::Key::Backspace))
+    {
+        if (!char_name_.empty())
+        {
             char_name_.pop_back();
         }
     }
 
     // Handle text input
     std::string_view text_input = inp.text_input();
-    for (char c : text_input) {
+    for (char c : text_input)
+    {
         // Only allow alphanumeric characters
-        if (((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-            && char_name_.size() < name_max_length) {
+        if (((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) &&
+            char_name_.size() < name_max_length)
+        {
             char_name_.push_back(c);
         }
     }
 }
 
-void character_create_screen::try_create() {
-    if (!is_valid_character()) {
+void character_create_screen::try_create()
+{
+    if (!is_valid_character())
+    {
         spdlog::warn("Cannot create character: invalid data");
         return;
     }
 
     spdlog::info("Creating character: name='{}' gender={} stats={}/{}/{}/{}/{}/{}",
-                 char_name_, gender_, str_, vit_, dex_, int_, mag_, chr_);
+                 char_name_,
+                 gender_,
+                 str_,
+                 vit_,
+                 dex_,
+                 int_,
+                 mag_,
+                 chr_);
 
-    if (on_create_) {
+    if (on_create_)
+    {
         character_create_data data;
         data.name = char_name_;
         data.gender = gender_;
@@ -353,7 +417,8 @@ void character_create_screen::try_create() {
     }
 }
 
-void character_create_screen::apply_warrior_preset() {
+void character_create_screen::apply_warrior_preset()
+{
     str_ = 14;
     vit_ = 12;
     dex_ = 14;
@@ -363,7 +428,8 @@ void character_create_screen::apply_warrior_preset() {
     spdlog::debug("Applied warrior preset");
 }
 
-void character_create_screen::apply_mage_preset() {
+void character_create_screen::apply_mage_preset()
+{
     str_ = 10;
     vit_ = 12;
     dex_ = 10;
@@ -373,7 +439,8 @@ void character_create_screen::apply_mage_preset() {
     spdlog::debug("Applied mage preset");
 }
 
-void character_create_screen::apply_merchant_preset() {
+void character_create_screen::apply_merchant_preset()
+{
     str_ = 14;
     vit_ = 10;
     dex_ = 12;
@@ -383,22 +450,27 @@ void character_create_screen::apply_merchant_preset() {
     spdlog::debug("Applied merchant preset");
 }
 
-int32_t character_create_screen::remaining_points() const {
+int32_t character_create_screen::remaining_points() const
+{
     int32_t used = str_ + vit_ + dex_ + int_ + mag_ + chr_;
     return total_stat_points - used;
 }
 
-bool character_create_screen::is_valid_character() const {
+bool character_create_screen::is_valid_character() const
+{
     // Name must not be empty
-    if (char_name_.empty()) return false;
+    if (char_name_.empty())
+        return false;
 
     // All stat points must be allocated
-    if (remaining_points() != 0) return false;
+    if (remaining_points() != 0)
+        return false;
 
     return true;
 }
 
-void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
+void character_create_screen::draw(renderer& rend, sprite_manager& sprites)
+{
     // Shorthand for screen centering offset
     int32_t ox = screen_offset_x_;
     int32_t oy = screen_offset_y_;
@@ -419,11 +491,15 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
     // "Character Name" label
     rend.draw_text("Character Name", 57 + ox, 110 + oy, label_color);
     // Name input field
-    if (current_focus_ != 1) {
+    if (current_focus_ != 1)
+    {
         rend.draw_text(char_name_, 197 + ox, 112 + oy, value_color);
-    } else {
+    }
+    else
+    {
         std::string display_name = char_name_;
-        if (cursor_visible_) display_name += "_";
+        if (cursor_visible_)
+            display_name += "_";
         rend.draw_text(display_name, 197 + ox, 112 + oy, sf::Color::White);
     }
 
@@ -487,7 +563,8 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
     rend.draw_text(std::to_string(sp), 550 + ox, 224 + oy, value_color);
 
     // === Character Preview ===
-    if (char_renderer_) {
+    if (char_renderer_)
+    {
         // Draw character preview in the right side panel, offset for screen centering
         int32_t char_x = 500 + ox;
         int32_t char_y = 130 + oy;
@@ -506,40 +583,54 @@ void character_create_screen::draw(renderer& rend, sprite_manager& sprites) {
     bool can_create = is_valid_character();
 
     // Draw Create button (frames 24/25)
-    if (can_create && current_focus_ == 2) {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 384, 445, 25);  // Highlighted
-    } else {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 384, 445, 24);  // Normal
+    if (can_create && current_focus_ == 2)
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 384, 445, 25); // Highlighted
+    }
+    else
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 384, 445, 24); // Normal
     }
 
     // Draw Cancel button (frames 16/17)
-    if (current_focus_ == 3) {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 500, 445, 17);  // Highlighted
-    } else {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 500, 445, 16);  // Normal
+    if (current_focus_ == 3)
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 500, 445, 17); // Highlighted
+    }
+    else
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 500, 445, 16); // Normal
     }
 
     // Draw Warrior preset button (frames 67/68)
-    if (current_focus_ == 4) {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 60, 445, 68);   // Highlighted
-    } else {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 60, 445, 67);   // Normal
+    if (current_focus_ == 4)
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 60, 445, 68); // Highlighted
+    }
+    else
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 60, 445, 67); // Normal
     }
 
     // Draw Mage preset button (frames 65/66)
-    if (current_focus_ == 5) {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 145, 445, 66);  // Highlighted
-    } else {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 145, 445, 65);  // Normal
+    if (current_focus_ == 5)
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 145, 445, 66); // Highlighted
+    }
+    else
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 145, 445, 65); // Normal
     }
 
     // Draw Merchant preset button (frames 63/64)
-    if (current_focus_ == 6) {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 64);  // Highlighted
-    } else {
-        draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 63);  // Normal
+    if (current_focus_ == 6)
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 64); // Highlighted
     }
-
+    else
+    {
+        draw_sprite(rend, sprites, charcreate_sprites::button, 230, 445, 63); // Normal
+    }
 }
 
 } // namespace hb

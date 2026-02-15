@@ -5,7 +5,8 @@
 #include <algorithm>
 #include <format>
 
-namespace hb::debug {
+namespace hb::debug
+{
 
 debug_overlay& debug_overlay::instance()
 {
@@ -23,17 +24,19 @@ void debug_overlay::initialize(const std::string& position_file)
     position_store::instance().load(position_file);
 
     // Register for hot-reload notifications
-    position_store::instance().on_position_change([this](std::string_view id, point pos) {
-        // Find element with matching ID and update its position
-        for (auto* elem : elements_)
+    position_store::instance().on_position_change(
+        [this](std::string_view id, point pos)
         {
-            if (elem->position_id() == id)
+            // Find element with matching ID and update its position
+            for (auto* elem : elements_)
             {
-                elem->set_position(pos.x, pos.y);
-                spdlog::debug("Hot-reloaded position for {}: ({}, {})", id, pos.x, pos.y);
+                if (elem->position_id() == id)
+                {
+                    elem->set_position(pos.x, pos.y);
+                    spdlog::debug("Hot-reloaded position for {}: ({}, {})", id, pos.x, pos.y);
+                }
             }
-        }
-    });
+        });
 
     initialized_ = true;
     spdlog::info("Debug overlay initialized");
@@ -264,8 +267,7 @@ void debug_overlay::undo()
         redo_stack_.pop_front();
     }
 
-    status_message_ = std::format("Undo: {} -> ({}, {})",
-                                   change.element_id, change.old_pos.x, change.old_pos.y);
+    status_message_ = std::format("Undo: {} -> ({}, {})", change.element_id, change.old_pos.x, change.old_pos.y);
     status_timer_ = 2.0f;
 }
 
@@ -299,8 +301,7 @@ void debug_overlay::redo()
         undo_stack_.pop_front();
     }
 
-    status_message_ = std::format("Redo: {} -> ({}, {})",
-                                   change.element_id, change.new_pos.x, change.new_pos.y);
+    status_message_ = std::format("Redo: {} -> ({}, {})", change.element_id, change.new_pos.x, change.new_pos.y);
     status_timer_ = 2.0f;
 }
 
@@ -332,10 +333,8 @@ void debug_overlay::handle_keyboard_input(const input& inp)
     // Reset consumption flag
     consumed_keyboard_input_ = false;
 
-    bool ctrl = inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                inp.is_key_down(sf::Keyboard::Key::RControl);
-    bool shift = inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                 inp.is_key_down(sf::Keyboard::Key::RShift);
+    bool ctrl = inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
+    bool shift = inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift);
 
     // Ctrl+S: Save
     if (ctrl && inp.is_key_pressed(sf::Keyboard::Key::S))
@@ -379,7 +378,7 @@ void debug_overlay::handle_keyboard_input(const input& inp)
             status_message_ = "Deselected";
             status_timer_ = 1.0f;
         }
-        consumed_keyboard_input_ = true;  // Always consume Escape when overlay is on
+        consumed_keyboard_input_ = true; // Always consume Escape when overlay is on
         return;
     }
 
@@ -428,16 +427,15 @@ void debug_overlay::handle_mouse_input(const input& inp)
     int32_t my = inp.mouse_y();
 
     // Require Ctrl+Shift for overlay mouse interaction (so normal clicks pass through)
-    bool modifier_held = (inp.is_key_down(sf::Keyboard::Key::LControl) ||
-                          inp.is_key_down(sf::Keyboard::Key::RControl)) &&
-                         (inp.is_key_down(sf::Keyboard::Key::LShift) ||
-                          inp.is_key_down(sf::Keyboard::Key::RShift));
+    bool modifier_held =
+        (inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl)) &&
+        (inp.is_key_down(sf::Keyboard::Key::LShift) || inp.is_key_down(sf::Keyboard::Key::RShift));
 
     // Ctrl+Shift+Left click: Select element under cursor
     if (modifier_held && inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
         select_element_at(mx, my);
-        consumed_mouse_input_ = true;  // Consume this click
+        consumed_mouse_input_ = true; // Consume this click
 
         // Start drag if we selected something
         if (selected_index_ >= 0)
@@ -466,7 +464,7 @@ void debug_overlay::handle_mouse_input(const input& inp)
             point end_pos{b.x, b.y};
             record_position_change(elem->position_id(), drag_start_pos_, end_pos);
             drag_recorded_ = true;
-            consumed_mouse_input_ = true;  // Consume the release too
+            consumed_mouse_input_ = true; // Consume the release too
         }
         dragging_ = false;
     }
@@ -474,7 +472,7 @@ void debug_overlay::handle_mouse_input(const input& inp)
     // Mouse drag: Move selected element (while Ctrl+Shift held)
     if (dragging_ && modifier_held && selected_index_ >= 0 && inp.is_mouse_down(sf::Mouse::Button::Left))
     {
-        consumed_mouse_input_ = true;  // Consume drag input
+        consumed_mouse_input_ = true; // Consume drag input
 
         int32_t new_x = mx - drag_offset_x_;
         int32_t new_y = my - drag_offset_y_;
@@ -574,8 +572,7 @@ void debug_overlay::apply_position_to_element(positionable* elem)
     if (pos)
     {
         elem->set_position(pos->x, pos->y);
-        spdlog::debug("Applied stored position to {}: ({}, {})",
-                      elem->position_id(), pos->x, pos->y);
+        spdlog::debug("Applied stored position to {}: ({}, {})", elem->position_id(), pos->x, pos->y);
     }
 }
 
@@ -595,7 +592,7 @@ void debug_overlay::render_element_outline(renderer& rend, positionable* elem, b
         int32_t label_y = b.y - 18;
         if (label_y < 20)
         {
-            label_y = b.y + b.height + 5;  // Below element if too close to top
+            label_y = b.y + b.height + 5; // Below element if too close to top
         }
         rend.draw_text(label, b.x, label_y, cyan);
     }
@@ -627,8 +624,7 @@ void debug_overlay::render_status_bar(renderer& rend)
         {
             auto* elem = elements_[selected_index_];
             auto b = elem->get_bounds();
-            status += std::format("{} ({}, {}) | Arrows:move Ctrl+S:save Esc:deselect",
-                                  elem->position_id(), b.x, b.y);
+            status += std::format("{} ({}, {}) | Arrows:move Ctrl+S:save Esc:deselect", elem->position_id(), b.x, b.y);
         }
         else
         {

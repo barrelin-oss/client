@@ -5,7 +5,8 @@
 #include <string>
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 class fishing_dialog : public dialog
 {

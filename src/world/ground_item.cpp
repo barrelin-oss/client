@@ -3,15 +3,15 @@
 #include "graphics/renderer.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
 void ground_item_manager::add(ground_item item)
 {
     // Remove any existing item at the same tile (one visible item per tile)
     for (auto it = items_.begin(); it != items_.end(); ++it)
     {
-        if (it->second.tile_x == item.tile_x && it->second.tile_y == item.tile_y
-            && it->first != item.item_id)
+        if (it->second.tile_x == item.tile_x && it->second.tile_y == item.tile_y && it->first != item.item_id)
         {
             items_.erase(it);
             break;
@@ -48,8 +48,8 @@ ground_item* ground_item_manager::get_at_tile(int16_t tile_x, int16_t tile_y)
     return nullptr;
 }
 
-void ground_item_manager::render_labels(renderer& rend, int32_t camera_x, int32_t camera_y,
-                                         int32_t mouse_x, int32_t mouse_y)
+void ground_item_manager::render_labels(
+    renderer& rend, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y)
 {
     for (auto& [id, item] : items_)
     {
@@ -59,22 +59,21 @@ void ground_item_manager::render_labels(renderer& rend, int32_t camera_x, int32_
         int32_t screen_y = world_y - camera_y;
 
         // Only render labels for items near the mouse cursor (32x32 hit area)
-        bool hovered = (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 &&
-                        mouse_y >= screen_y - 16 && mouse_y < screen_y + 16);
-        if (!hovered) continue;
+        bool hovered = (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 && mouse_y >= screen_y - 16 &&
+                        mouse_y < screen_y + 16);
+        if (!hovered)
+            continue;
 
         // Draw item name centered above the tile
         auto label = item.name;
         if (item.count > 1)
             label += " x" + std::to_string(item.count);
 
-        rend.draw_text_outlined(label, screen_x, screen_y - 20,
-                                sf::Color(200, 200, 100), sf::Color::Black, 12, 1.0f);
+        rend.draw_text_outlined(label, screen_x, screen_y - 20, sf::Color(200, 200, 100), sf::Color::Black, 12, 1.0f);
     }
 }
 
-ground_item* ground_item_manager::hit_test(int32_t mouse_x, int32_t mouse_y,
-                                            int32_t camera_x, int32_t camera_y)
+ground_item* ground_item_manager::hit_test(int32_t mouse_x, int32_t mouse_y, int32_t camera_x, int32_t camera_y)
 {
     for (auto& [id, item] : items_)
     {
@@ -83,8 +82,7 @@ ground_item* ground_item_manager::hit_test(int32_t mouse_x, int32_t mouse_y,
         int32_t screen_x = world_x - camera_x;
         int32_t screen_y = world_y - camera_y;
 
-        if (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 &&
-            mouse_y >= screen_y - 16 && mouse_y < screen_y + 16)
+        if (mouse_x >= screen_x - 16 && mouse_x < screen_x + 16 && mouse_y >= screen_y - 16 && mouse_y < screen_y + 16)
         {
             return &item;
         }

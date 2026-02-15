@@ -6,7 +6,8 @@
 #include <memory>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
 class text_shader_cache;
 
@@ -28,48 +29,36 @@ public:
 
     // Primary: draw styled text at screen position
     // time = elapsed seconds for animation (0 for static)
-    void draw(std::string_view text, int32_t x, int32_t y,
-              const text_style& style, float time = 0.0f);
+    void draw(std::string_view text, int32_t x, int32_t y, const text_style& style, float time = 0.0f);
 
     // Convenience: plain text (no effect, no outline)
-    void draw(std::string_view text, int32_t x, int32_t y,
-              sf::Color color, uint32_t size = 14);
+    void draw(std::string_view text, int32_t x, int32_t y, sf::Color color, uint32_t size = 14);
 
     // Measurement (for centering text)
     float measure_width(std::string_view text, uint32_t size) const;
 
 private:
     // CPU effect dispatch
-    void draw_cpu_effect(std::string_view text, int32_t x, int32_t y,
-                         const text_style& style, float time);
+    void draw_cpu_effect(std::string_view text, int32_t x, int32_t y, const text_style& style, float time);
 
     // GPU shader effect pipeline (render-to-texture + shader)
-    void draw_shader_effect(std::string_view text, int32_t x, int32_t y,
-                            const text_style& style, float time);
+    void draw_shader_effect(std::string_view text, int32_t x, int32_t y, const text_style& style, float time);
 
     // Individual CPU effects
-    void draw_none(std::string_view text, int32_t x, int32_t y,
-                   const text_style& style, uint8_t alpha);
-    void draw_rainbow(std::string_view text, int32_t x, int32_t y,
-                      const text_style& style, float time, uint8_t alpha);
-    void draw_special(std::string_view text, int32_t x, int32_t y,
-                      const text_style& style, float time, uint8_t alpha);
-    void draw_terror(std::string_view text, int32_t x, int32_t y,
-                     const text_style& style, float time, uint8_t alpha);
-    void draw_pulsing(std::string_view text, int32_t x, int32_t y,
-                      const text_style& style, float time, uint8_t alpha);
-    void draw_wave(std::string_view text, int32_t x, int32_t y,
-                   const text_style& style, float time, uint8_t alpha);
-    void draw_glitch(std::string_view text, int32_t x, int32_t y,
-                     const text_style& style, float time, uint8_t alpha);
-    void draw_typewriter(std::string_view text, int32_t x, int32_t y,
-                         const text_style& style, float time, uint8_t alpha);
-    void draw_outline_pulse(std::string_view text, int32_t x, int32_t y,
-                            const text_style& style, float time, uint8_t alpha);
+    void draw_none(std::string_view text, int32_t x, int32_t y, const text_style& style, uint8_t alpha);
+    void draw_rainbow(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void draw_special(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void draw_terror(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void draw_pulsing(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void draw_wave(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void draw_glitch(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void
+    draw_typewriter(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
+    void
+    draw_outline_pulse(std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha);
 
     // Helper: draw a single character with optional outline
-    void draw_char(char c, float x, float y, sf::Color color,
-                   const text_style& style, uint8_t alpha);
+    void draw_char(char c, float x, float y, sf::Color color, const text_style& style, uint8_t alpha);
 
     // Helper: get glyph advance for a character
     float glyph_advance(char c, uint32_t size) const;

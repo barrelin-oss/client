@@ -10,7 +10,8 @@
 #include <functional>
 #include <filesystem>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
@@ -21,13 +22,15 @@ class yaml_icon_panel_dialog;
 enum class render_mode;
 
 // UI visual style
-enum class ui_style {
-    modern,     // Programmatic rendering with modern look
-    classic     // Sprite-based rendering matching original Helbreath
+enum class ui_style
+{
+    modern, // Programmatic rendering with modern look
+    classic // Sprite-based rendering matching original Helbreath
 };
 
 // UI system manager
-class ui_system {
+class ui_system
+{
 public:
     ui_system();
     ~ui_system();
@@ -87,12 +90,10 @@ public:
     void create_map_dialog();
     void create_repair_dialog();
     void create_help_dialog();
-    void create_message_box(std::string_view title, std::string_view message,
-                            std::function<void()> on_ok = nullptr);
-    void create_confirm_box(std::string_view title, std::string_view message,
-                            std::function<void(bool)> on_result);
-    void create_input_box(std::string_view title, std::string_view prompt,
-                          std::function<void(std::string_view)> on_submit);
+    void create_message_box(std::string_view title, std::string_view message, std::function<void()> on_ok = nullptr);
+    void create_confirm_box(std::string_view title, std::string_view message, std::function<void(bool)> on_result);
+    void
+    create_input_box(std::string_view title, std::string_view prompt, std::function<void(std::string_view)> on_submit);
 
     // Connection/waiting dialog
     // Shows "Waiting for response from the server" with animated dots
@@ -122,7 +123,8 @@ public:
         size_t count = 0;
         for (const auto* d : dialog_order_)
         {
-            if (d->is_open()) ++count;
+            if (d->is_open())
+                ++count;
         }
         return count;
     }
@@ -156,7 +158,7 @@ private:
     void bring_to_front(dialog* dlg);
 
     std::unordered_map<dialog_type, std::unique_ptr<dialog>> dialogs_;
-    std::vector<dialog*> dialog_order_;  // For z-ordering
+    std::vector<dialog*> dialog_order_; // For z-ordering
     ui_element* focused_ = nullptr;
 
     // UI style (default to classic for authentic Helbreath experience)

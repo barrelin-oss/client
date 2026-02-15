@@ -6,20 +6,21 @@
 #include <vector>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 
 enum class transition_type : uint8_t
 {
-    diamond_wave,       // Manhattan distance from center - classic JRPG iris
-    circle_expand,      // Euclidean distance from center - smooth radial
-    horizontal_blinds,  // Horizontal strips retract alternating up/down
-    vertical_blinds,    // Vertical strips retract alternating left/right
-    diagonal_wipe,      // Diagonal line sweeps corner to corner
-    rain,               // Cells fall away top-to-bottom in staggered columns
+    diamond_wave,      // Manhattan distance from center - classic JRPG iris
+    circle_expand,     // Euclidean distance from center - smooth radial
+    horizontal_blinds, // Horizontal strips retract alternating up/down
+    vertical_blinds,   // Vertical strips retract alternating left/right
+    diagonal_wipe,     // Diagonal line sweeps corner to corner
+    rain,              // Cells fall away top-to-bottom in staggered columns
 
-    count               // Number of transition types
+    count // Number of transition types
 };
 
 inline constexpr auto transition_type_count = static_cast<uint8_t>(transition_type::count);
@@ -29,15 +30,15 @@ std::string_view transition_type_name(transition_type type);
 enum class transition_phase : uint8_t
 {
     idle,
-    closing,    // Scene being covered
-    opening     // Scene being revealed
+    closing, // Scene being covered
+    opening  // Scene being revealed
 };
 
 // Per-cell animation style (set by transition type)
 enum class cell_anim : uint8_t
 {
-    shrink,         // Shrink toward center while fading
-    slide,          // Slide in a direction while fading
+    shrink, // Shrink toward center while fading
+    slide,  // Slide in a direction while fading
 };
 
 class screen_transition
@@ -50,8 +51,7 @@ public:
 
     // Full close-then-open. The midpoint callback fires when the screen
     // is fully covered - use it to load maps, reposition the player, etc.
-    void start_full(uint32_t screen_width, uint32_t screen_height,
-                    std::function<void()> on_midpoint = nullptr);
+    void start_full(uint32_t screen_width, uint32_t screen_height, std::function<void()> on_midpoint = nullptr);
 
     void update(float delta_time);
     void render(renderer& rend);
@@ -84,9 +84,9 @@ private:
         float center_y;
         float half_w;
         float half_h;
-        float normalized_delay;   // 0.0 = first to animate, 1.0 = last
-        float slide_dx;           // Slide direction X (-1, 0, 1)
-        float slide_dy;           // Slide direction Y (-1, 0, 1)
+        float normalized_delay; // 0.0 = first to animate, 1.0 = last
+        float slide_dx;         // Slide direction X (-1, 0, 1)
+        float slide_dy;         // Slide direction Y (-1, 0, 1)
     };
 
     void build_grid(uint32_t screen_width, uint32_t screen_height);

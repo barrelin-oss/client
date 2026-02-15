@@ -7,31 +7,34 @@
 #include <string>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class menu_character_renderer;
 
 // Sprite IDs for character select screen (from SpriteID.h)
-namespace charselect_sprites {
-    inline constexpr uint16_t select_char = 57;     // DEF_SPRID_INTERFACE_ND_SELECTCHAR (GameDialog sprite 8)
-    inline constexpr uint16_t button = 71;          // DEF_SPRID_INTERFACE_ND_BUTTON (DialogText sprite 1)
-    inline constexpr uint16_t mouse_cursor = 0;     // DEF_SPRID_MOUSECURSOR
-}
+namespace charselect_sprites
+{
+inline constexpr uint16_t select_char = 57; // DEF_SPRID_INTERFACE_ND_SELECTCHAR (GameDialog sprite 8)
+inline constexpr uint16_t button = 71;      // DEF_SPRID_INTERFACE_ND_BUTTON (DialogText sprite 1)
+inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
+} // namespace charselect_sprites
 
 // Character slot display info
-struct char_slot_info {
+struct char_slot_info
+{
     bool has_character = false;
     std::string name;
     int32_t level = 0;
     int32_t exp = 0;
-    std::string class_name;  // "Warrior" or "Mage"
+    std::string class_name; // "Warrior" or "Mage"
 
     // Appearance data for rendering
-    uint8_t gender = 1;           // 1 = male, 2 = female
-    uint8_t skin_color = 1;       // 1-3
-    uint8_t hair_style = 0;       // 0-7
-    uint8_t hair_color = 0;       // 0-15
-    uint8_t underwear_color = 0;  // 0-7
+    uint8_t gender = 1;          // 1 = male, 2 = female
+    uint8_t skin_color = 1;      // 1-3
+    uint8_t hair_style = 0;      // 0-7
+    uint8_t hair_color = 0;      // 0-15
+    uint8_t underwear_color = 0; // 0-7
 
     // Equipment (0 = not equipped)
     uint8_t body_armor = 0;
@@ -45,7 +48,8 @@ struct char_slot_info {
 };
 
 // Character select screen - modern equivalent of UpdateScreen_OnSelectCharacter
-class character_select_screen : public screen_base {
+class character_select_screen : public screen_base
+{
 public:
     using select_callback = std::function<void(int32_t index)>;
     using create_callback = std::function<void()>;
@@ -103,7 +107,7 @@ private:
     static constexpr int32_t btn_enter_game = 5;
     static constexpr int32_t btn_new_char = 6;
     static constexpr int32_t btn_delete_char = 7;
-    static constexpr int32_t btn_change_password = 8;  // No action implemented
+    static constexpr int32_t btn_change_password = 8; // No action implemented
     static constexpr int32_t btn_logout = 9;
 
     // Animation state (for character preview)

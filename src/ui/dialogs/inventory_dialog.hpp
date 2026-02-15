@@ -6,12 +6,14 @@
 #include <optional>
 #include <array>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 
 // Inventory dialog - displays player items in a grid
-class inventory_dialog : public dialog {
+class inventory_dialog : public dialog
+{
 public:
     static constexpr int32_t grid_cols = 10;
     static constexpr int32_t grid_rows = 5;
@@ -35,7 +37,11 @@ public:
 
     // Set gold and weight
     void set_gold(uint32_t gold) { gold_ = gold; }
-    void set_weight(int32_t current, int32_t max) { weight_ = current; max_weight_ = max; }
+    void set_weight(int32_t current, int32_t max)
+    {
+        weight_ = current;
+        max_weight_ = max;
+    }
 
     // Set sprite manager for item rendering
     void set_sprite_manager(sprite_manager* mgr) { sprite_mgr_ = mgr; }
@@ -59,7 +65,8 @@ private:
     void render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y);
     ui_rect get_slot_rect(int32_t slot) const;
 
-    struct slot_data {
+    struct slot_data
+    {
         const item* item_ptr = nullptr;
         bool occupied = false;
     };

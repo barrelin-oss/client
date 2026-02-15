@@ -15,19 +15,28 @@
 #include "world/tile.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
-namespace {
+namespace
+{
 
 time_of_day hour_to_time_of_day(uint8_t hour)
 {
-    if (hour < 5)  return time_of_day::midnight;
-    if (hour < 7)  return time_of_day::dawn;
-    if (hour < 10) return time_of_day::morning;
-    if (hour < 14) return time_of_day::noon;
-    if (hour < 17) return time_of_day::afternoon;
-    if (hour < 19) return time_of_day::dusk;
-    if (hour < 23) return time_of_day::night;
+    if (hour < 5)
+        return time_of_day::midnight;
+    if (hour < 7)
+        return time_of_day::dawn;
+    if (hour < 10)
+        return time_of_day::morning;
+    if (hour < 14)
+        return time_of_day::noon;
+    if (hour < 17)
+        return time_of_day::afternoon;
+    if (hour < 19)
+        return time_of_day::dusk;
+    if (hour < 23)
+        return time_of_day::night;
     return time_of_day::midnight;
 }
 
@@ -138,7 +147,8 @@ void ws_message_handler::handle_message(const json& message)
         else if (type == msg_type::spell_list_update)
             handle_spell_list_update(message);
         else if (type == msg_type::chat_message)
-            {} // Ack from server, already handled via local echo
+        {
+        } // Ack from server, already handled via local echo
         else if (type == msg_type::environment_update)
             handle_environment_update(message);
         else if (type == msg_type::view_range_update)
@@ -320,16 +330,15 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         if (response.error_message == "account_already_in_game")
         {
             int32_t char_id = pending_enter_game_character_id_;
-            game_->ui().create_confirm_box(
-                "Session Conflict",
-                "This account is already logged in.\nDisconnect other session?",
-                [this, char_id](bool confirmed) {
-                    if (confirmed)
-                    {
-                        request_enter_game(char_id, true);
-                    }
-                }
-            );
+            game_->ui().create_confirm_box("Session Conflict",
+                                           "This account is already logged in.\nDisconnect other session?",
+                                           [this, char_id](bool confirmed)
+                                           {
+                                               if (confirmed)
+                                               {
+                                                   request_enter_game(char_id, true);
+                                               }
+                                           });
             return;
         }
 
@@ -338,8 +347,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     }
 
     const auto& ch = response.character;
-    spdlog::info("Entering game as '{}' on map: {} at ({}, {})",
-                 ch.name, ch.map_name, ch.pos_x, ch.pos_y);
+    spdlog::info("Entering game as '{}' on map: {} at ({}, {})", ch.name, ch.map_name, ch.pos_x, ch.pos_y);
 
     auto& entities = game_->entities();
     auto& sprites = game_->sprites();
@@ -403,10 +411,20 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     anim.set_state(entity_anim_state::stop);
 
     spdlog::debug("Player stats - Level: {}, STR: {}, DEX: {}, VIT: {}, INT: {}, MAG: {}, CHA: {}",
-                  stats.level, stats.strength, stats.dexterity, stats.vitality,
-                  stats.intelligence, stats.magic, stats.charisma);
+                  stats.level,
+                  stats.strength,
+                  stats.dexterity,
+                  stats.vitality,
+                  stats.intelligence,
+                  stats.magic,
+                  stats.charisma);
     spdlog::debug("Player vitals - HP: {}/{}, MP: {}/{}, SP: {}/{}",
-                  stats.hp, stats.max_hp, stats.mp, stats.max_mp, stats.sp, stats.max_sp);
+                  stats.hp,
+                  stats.max_hp,
+                  stats.mp,
+                  stats.max_mp,
+                  stats.sp,
+                  stats.max_sp);
 
     // Populate inventory
     auto& inventory = game_->inventory();
@@ -424,8 +442,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
         inventory.set_item_at(inv_item.slot, itm);
     }
-    spdlog::debug("Loaded {} inventory items, {} gold",
-                  response.inventory.items.size(), ch.gold);
+    spdlog::debug("Loaded {} inventory items, {} gold", response.inventory.items.size(), ch.gold);
 
     // Set equipped items
     for (const auto& eq_item : response.equipment)
@@ -440,19 +457,45 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         equip_slot slot = equip_slot::none;
         switch (eq_item.slot)
         {
-            case 0: slot = equip_slot::head; break;
-            case 1: slot = equip_slot::body; break;
-            case 2: slot = equip_slot::arms; break;
-            case 3: slot = equip_slot::pants; break;
-            case 4: slot = equip_slot::boots; break;
-            case 5: slot = equip_slot::right_hand; break;
-            case 6: slot = equip_slot::left_hand; break;
-            case 7: slot = equip_slot::right_finger; break;
-            case 8: slot = equip_slot::left_finger; break;
-            case 9: slot = equip_slot::neck; break;
-            case 10: slot = equip_slot::back; break;
-            case 11: slot = equip_slot::none; break;
-            default: slot = equip_slot::none; break;
+        case 0:
+            slot = equip_slot::head;
+            break;
+        case 1:
+            slot = equip_slot::body;
+            break;
+        case 2:
+            slot = equip_slot::arms;
+            break;
+        case 3:
+            slot = equip_slot::pants;
+            break;
+        case 4:
+            slot = equip_slot::boots;
+            break;
+        case 5:
+            slot = equip_slot::right_hand;
+            break;
+        case 6:
+            slot = equip_slot::left_hand;
+            break;
+        case 7:
+            slot = equip_slot::right_finger;
+            break;
+        case 8:
+            slot = equip_slot::left_finger;
+            break;
+        case 9:
+            slot = equip_slot::neck;
+            break;
+        case 10:
+            slot = equip_slot::back;
+            break;
+        case 11:
+            slot = equip_slot::none;
+            break;
+        default:
+            slot = equip_slot::none;
+            break;
         }
         if (slot != equip_slot::none)
         {
@@ -475,7 +518,12 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         skills.set_sub_progress(sk.skill_id, progress);
 
         spdlog::info("  enter_game skill: id={} level={} mastery={} uses={}/{} progress={:.2f}",
-                     sk.skill_id, sk.level, mastery, sk.uses_this_level, sk.uses_to_next_level, progress);
+                     sk.skill_id,
+                     sk.level,
+                     mastery,
+                     sk.uses_this_level,
+                     sk.uses_to_next_level,
+                     progress);
     }
 
     // Populate skills dialog
@@ -502,15 +550,14 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         magic.set_spell_mastery(sp.spell_id, static_cast<uint8_t>(sp.level));
         magic.set_spell_total_casts(sp.spell_id, sp.total_casts);
     }
-    spdlog::info("Loaded {} spells from server, {} learned total",
-                 response.spells.size(), magic.get_learned_spells().size());
+    spdlog::info(
+        "Loaded {} spells from server, {} learned total", response.spells.size(), magic.get_learned_spells().size());
 
     // Auto-populate spell hotbar from learned spells
     game_->auto_populate_spell_hotbar();
 
     // Populate spellbook dialog with all spell definitions
-    if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(
-            game_->ui().get_dialog(dialog_type::spellbook)))
+    if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(game_->ui().get_dialog(dialog_type::spellbook)))
     {
         spell_dlg->clear_spells();
         auto all_spells = magic.get_all_spells();
@@ -519,7 +566,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
             spell_dlg->add_spell(*sp);
         }
         spdlog::info("Populated spellbook dialog with {} spells ({} learned)",
-                     all_spells.size(), magic.get_learned_spells().size());
+                     all_spells.size(),
+                     magic.get_learned_spells().size());
     }
     else
     {
@@ -541,8 +589,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         quests.active.push_back(std::move(quest));
     }
     quests.completed = response.quests.completed;
-    spdlog::debug("Loaded {} active quests, {} completed quests",
-                  quests.active.size(), quests.completed.size());
+    spdlog::debug("Loaded {} active quests, {} completed quests", quests.active.size(), quests.completed.size());
 
     // Nearby entities are now sent as individual entity_spawn/npc_spawn/ground_item_spawn
     // messages by the server, so no entity list parsing needed here.
@@ -572,8 +619,8 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     int32_t player_world_x = ch.pos_x * 32 + 16;
     int32_t player_world_y = ch.pos_y * 32 + 16;
     world.set_player_position(player_world_x, player_world_y);
-    spdlog::debug("Player position set at tile ({},{}) -> world ({},{})",
-                  ch.pos_x, ch.pos_y, player_world_x, player_world_y);
+    spdlog::debug(
+        "Player position set at tile ({},{}) -> world ({},{})", ch.pos_x, ch.pos_y, player_world_x, player_world_y);
 
     spdlog::info("Entering game world: {}", ch.map_name);
 
@@ -624,8 +671,8 @@ void ws_message_handler::handle_pickup_response(const json& message)
 
     if (response.success)
     {
-        spdlog::info("Picked up item: {} x{} (slot {})",
-                     response.item_name, response.quantity, response.inventory_slot);
+        spdlog::info(
+            "Picked up item: {} x{} (slot {})", response.item_name, response.quantity, response.inventory_slot);
     }
     else
     {
@@ -642,8 +689,7 @@ void ws_message_handler::handle_ground_item_removed(const json& message)
 {
     auto data = ground_item_removed_data::from_json(message);
 
-    spdlog::debug("Ground item removed: {} picked up {} at ({},{})",
-                  data.picker_name, data.item_name, data.x, data.y);
+    spdlog::debug("Ground item removed: {} picked up {} at ({},{})", data.picker_name, data.item_name, data.x, data.y);
 
     game_->ground_items().remove(data.item_id);
 }
@@ -668,7 +714,10 @@ void ws_message_handler::handle_player_position_update(const json& message)
         if (t.moving)
         {
             spdlog::debug("Ignoring position update for moving local player (server: {},{}, tile: {},{})",
-                          data.x, data.y, t.tile_x, t.tile_y);
+                          data.x,
+                          data.y,
+                          t.tile_x,
+                          t.tile_y);
             return;
         }
     }
@@ -676,8 +725,7 @@ void ws_message_handler::handle_player_position_update(const json& message)
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
     bool is_local = (data.entity_id == entities.local_player_id());
-    bool has_dest = (data.dest_x >= 0 && data.dest_y >= 0)
-                    && (data.dest_x != data.x || data.dest_y != data.y);
+    bool has_dest = (data.dest_x >= 0 && data.dest_y >= 0) && (data.dest_x != data.x || data.dest_y != data.y);
 
     if (is_local || !ent->has_movement())
     {
@@ -706,8 +754,8 @@ void ws_message_handler::handle_player_position_update(const json& message)
             // Nothing to do — arrival will handle transition
         }
         // Adjacent tile (1 step away) — interpolate from current to (x,y)
-        else if (std::abs(t.tile_x - data.x) <= 1 && std::abs(t.tile_y - data.y) <= 1
-                 && (t.tile_x != data.x || t.tile_y != data.y))
+        else if (std::abs(t.tile_x - data.x) <= 1 && std::abs(t.tile_y - data.y) <= 1 &&
+                 (t.tile_x != data.x || t.tile_y != data.y))
         {
             t.move_start_x = t.tile_x;
             t.move_start_y = t.tile_y;
@@ -745,8 +793,13 @@ void ws_message_handler::handle_player_position_update(const json& message)
     }
 
     spdlog::debug("Entity {} position updated: ({},{}) dir={} running={} dest=({},{})",
-                  data.entity_id, data.x, data.y, static_cast<int>(t.facing), data.is_running,
-                  data.dest_x, data.dest_y);
+                  data.entity_id,
+                  data.x,
+                  data.y,
+                  static_cast<int>(t.facing),
+                  data.is_running,
+                  data.dest_x,
+                  data.dest_y);
 }
 
 void ws_message_handler::handle_player_stop_response(const json& message)
@@ -760,7 +813,8 @@ void ws_message_handler::handle_player_stop_response(const json& message)
     }
 
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     auto& t = player->transform();
     t.tile_x = data.x;
@@ -771,8 +825,7 @@ void ws_message_handler::handle_player_stop_response(const json& message)
     t.x = data.x * hb::tile_width + 16;
     t.y = data.y * hb::tile_height + 16;
 
-    spdlog::debug("Player stop confirmed: ({},{}) dir={}",
-                  data.x, data.y, static_cast<int>(t.facing));
+    spdlog::debug("Player stop confirmed: ({},{}) dir={}", data.x, data.y, static_cast<int>(t.facing));
 }
 
 void ws_message_handler::handle_player_move_response(const json& message)
@@ -780,7 +833,8 @@ void ws_message_handler::handle_player_move_response(const json& message)
     auto data = player_move_response_data::from_json(message);
 
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     auto& input = game_->input_handler();
 
@@ -838,8 +892,8 @@ void ws_message_handler::handle_player_move_response(const json& message)
 
     if (position_mismatch)
     {
-        spdlog::warn("Movement position mismatch: client dest ({},{}) vs server ({},{})",
-                     t.tile_x, t.tile_y, data.x, data.y);
+        spdlog::warn(
+            "Movement position mismatch: client dest ({},{}) vs server ({},{})", t.tile_x, t.tile_y, data.x, data.y);
         t.tile_x = data.x;
         t.tile_y = data.y;
         t.move_start_x = data.x;
@@ -854,8 +908,8 @@ void ws_message_handler::handle_player_move_response(const json& message)
         input.set_move_dest(-1, -1);
     }
 
-    spdlog::debug("Movement confirmed: ({},{}) dir={} (interpolating={})",
-                  data.x, data.y, static_cast<int>(t.facing), t.moving);
+    spdlog::debug(
+        "Movement confirmed: ({},{}) dir={} (interpolating={})", data.x, data.y, static_cast<int>(t.facing), t.moving);
 }
 
 void ws_message_handler::handle_hunger_update(const json& message)
@@ -863,7 +917,8 @@ void ws_message_handler::handle_hunger_update(const json& message)
     auto data = hunger_update_data::from_json(message);
 
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     player->stats().hunger = static_cast<uint8_t>(std::max(0, static_cast<int>(data.level)));
 
@@ -890,7 +945,8 @@ void ws_message_handler::handle_npc_move(const json& message)
     auto data = npc_move_data::from_json(message);
 
     // Never apply NPC moves to the local player (guards against server ID collisions)
-    if (data.entity_id == game_->entities().local_player_id()) return;
+    if (data.entity_id == game_->entities().local_player_id())
+        return;
 
     entity* ent = game_->entities().get_entity(data.entity_id);
     if (!ent)
@@ -934,7 +990,6 @@ void ws_message_handler::handle_npc_move(const json& message)
         bool combat = ent->has_combat() && ent->combat().combat_stance;
         ent->set_action_with_combat_mode(object_action::move_peace, combat);
     }
-
 }
 
 void ws_message_handler::handle_entity_info_response(const json& message)
@@ -955,8 +1010,10 @@ void ws_message_handler::handle_entity_info_response(const json& message)
     }
 
     entity_type type = entity_type::character;
-    if (data.entity_type == "npc") type = entity_type::npc;
-    else if (data.entity_type == "monster") type = entity_type::monster;
+    if (data.entity_type == "npc")
+        type = entity_type::npc;
+    else if (data.entity_type == "monster")
+        type = entity_type::monster;
 
     auto& ent = entities.create_entity_with_id(data.entity_id, type);
 
@@ -978,9 +1035,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
 
     // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
     // Falls back to template_id if sprite_id not provided
-    uint16_t visual_type = data.sprite_id > 0
-        ? static_cast<uint16_t>(data.sprite_id)
-        : static_cast<uint16_t>(data.template_id);
+    uint16_t visual_type =
+        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
 
     if (visual_type > 0)
     {
@@ -1003,7 +1059,13 @@ void ws_message_handler::handle_entity_info_response(const json& message)
     }
 
     spdlog::info("Created entity {} ({}) '{}' at ({},{}) sprite={} hostility={} from info response",
-                 data.entity_id, data.entity_type, data.name, data.x, data.y, visual_type, data.hostility);
+                 data.entity_id,
+                 data.entity_type,
+                 data.name,
+                 data.x,
+                 data.y,
+                 visual_type,
+                 data.hostility);
 }
 
 void ws_message_handler::request_characters()
@@ -1016,7 +1078,8 @@ void ws_message_handler::request_characters()
 void ws_message_handler::request_enter_game(int32_t character_id, bool force_disconnect)
 {
     spdlog::info("Requesting to enter game with character ID: {}{}",
-                 character_id, force_disconnect ? " (force disconnect)" : "");
+                 character_id,
+                 force_disconnect ? " (force disconnect)" : "");
 
     pending_enter_game_character_id_ = character_id;
 
@@ -1032,20 +1095,18 @@ void ws_message_handler::request_create_character(const character_create_data& d
 
     json msg;
     msg["type"] = "create_character_request";
-    msg["data"] = {
-        {"name", data.name},
-        {"gender", data.gender},
-        {"skin_color", data.skin_color},
-        {"hair_style", data.hair_style},
-        {"hair_color", data.hair_color},
-        {"underwear_color", data.underwear_color},
-        {"strength", data.strength},
-        {"vitality", data.vitality},
-        {"dexterity", data.dexterity},
-        {"intelligence", data.intelligence},
-        {"magic", data.magic},
-        {"charisma", data.charisma}
-    };
+    msg["data"] = {{"name", data.name},
+                   {"gender", data.gender},
+                   {"skin_color", data.skin_color},
+                   {"hair_style", data.hair_style},
+                   {"hair_color", data.hair_color},
+                   {"underwear_color", data.underwear_color},
+                   {"strength", data.strength},
+                   {"vitality", data.vitality},
+                   {"dexterity", data.dexterity},
+                   {"intelligence", data.intelligence},
+                   {"magic", data.magic},
+                   {"charisma", data.charisma}};
     game_->ws_connection().send(msg);
 }
 
@@ -1075,7 +1136,8 @@ void ws_message_handler::request_combat_mode_toggle()
 void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
 {
     auto* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     const auto& t = player->transform();
 
@@ -1089,8 +1151,7 @@ void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
     uint8_t dir = static_cast<uint8_t>(direction_to_protocol(t.facing));
     if (target)
     {
-        auto calc_dir = calculate_direction(t.tile_x, t.tile_y,
-                                            target->transform().tile_x, target->transform().tile_y);
+        auto calc_dir = calculate_direction(t.tile_x, t.tile_y, target->transform().tile_x, target->transform().tile_y);
         if (calc_dir)
             dir = static_cast<uint8_t>(direction_to_protocol(*calc_dir));
     }
@@ -1103,7 +1164,8 @@ void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
 void ws_message_handler::request_magic(uint16_t spell_id, int32_t target_x, int32_t target_y, uint32_t target_id)
 {
     auto* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     const auto& t = player->transform();
 
@@ -1128,10 +1190,13 @@ void ws_message_handler::request_magic(uint16_t spell_id, int32_t target_x, int3
     uint8_t dir = static_cast<uint8_t>(direction_to_protocol(t.facing));
 
     spdlog::debug("Requesting magic: spell={} target=({},{}) entity={} type={}",
-                  spell_id, target_x, target_y, target_id, target_type_str);
-    json msg = make_player_magic_request(t.tile_x, t.tile_y, dir,
-                                          spell_id, target_type_str,
-                                          target_id, target_x, target_y);
+                  spell_id,
+                  target_x,
+                  target_y,
+                  target_id,
+                  target_type_str);
+    json msg =
+        make_player_magic_request(t.tile_x, t.tile_y, dir, spell_id, target_type_str, target_id, target_x, target_y);
     game_->ws_connection().send(msg);
 }
 
@@ -1151,7 +1216,8 @@ void ws_message_handler::handle_player_magic_response(const json& message)
 
     auto& entities = game_->entities();
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     // Update local player MP (server-authoritative)
     player->stats().mp = data.caster_mp;
@@ -1187,21 +1253,17 @@ void ws_message_handler::handle_player_magic_response(const json& message)
     std::string spell_name = sp ? sp->name : ("Spell #" + std::to_string(data.spell_id));
     if (data.damage > 0)
     {
-        game_->get_status_log().add_event(
-            spell_name + " hits for " + std::to_string(data.damage) + " damage",
-            message_color::blue);
+        game_->get_status_log().add_event(spell_name + " hits for " + std::to_string(data.damage) + " damage",
+                                          message_color::blue);
     }
     else if (data.heal > 0)
     {
-        game_->get_status_log().add_event(
-            spell_name + " restores " + std::to_string(data.heal) + " HP",
-            message_color::green);
+        game_->get_status_log().add_event(spell_name + " restores " + std::to_string(data.heal) + " HP",
+                                          message_color::green);
     }
     else
     {
-        game_->get_status_log().add_event(
-            spell_name + " cast successfully",
-            message_color::blue);
+        game_->get_status_log().add_event(spell_name + " cast successfully", message_color::blue);
     }
 
     // Update target animation (HP is updated by entity_hp_update)
@@ -1215,15 +1277,21 @@ void ws_message_handler::handle_player_magic_response(const json& message)
     }
 
     spdlog::debug("Magic response: spell={} damage={} heal={} target={} mp={}",
-                  data.spell_id, data.damage, data.heal, data.target_id, data.caster_mp);
+                  data.spell_id,
+                  data.damage,
+                  data.heal,
+                  data.target_id,
+                  data.caster_mp);
 }
 
 void ws_message_handler::handle_spell_list_update(const json& message)
 {
-    if (!message.contains("data")) return;
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
 
-    if (!d.contains("spells") || !d["spells"].is_array()) return;
+    if (!d.contains("spells") || !d["spells"].is_array())
+        return;
 
     auto& magic = game_->magic();
 
@@ -1236,8 +1304,7 @@ void ws_message_handler::handle_spell_list_update(const json& message)
     }
 
     // Refresh spellbook dialog if open
-    if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(
-            game_->ui().get_dialog(dialog_type::spellbook)))
+    if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(game_->ui().get_dialog(dialog_type::spellbook)))
     {
         spell_dlg->clear_spells();
         for (const auto* sp : magic.get_all_spells())
@@ -1262,7 +1329,8 @@ void ws_message_handler::handle_set_render_mode(const json& message)
     const auto& d = message["data"];
 
     auto* rend = game_->get_renderer();
-    if (!rend) return;
+    if (!rend)
+        return;
 
     // Parse mode
     if (d.contains("mode"))
@@ -1292,7 +1360,8 @@ void ws_message_handler::handle_set_render_mode(const json& message)
 
     spdlog::info("Render mode set: mode={}, fair={}x{}",
                  static_cast<int>(rend->current_view_mode()),
-                 rend->scene_width(), rend->scene_height());
+                 rend->scene_width(),
+                 rend->scene_height());
 }
 
 void ws_message_handler::handle_view_range_update(const json& message)
@@ -1318,8 +1387,7 @@ void ws_message_handler::handle_command_response(const json& message)
 
     if (!msg_text.empty())
     {
-        game_->get_status_log().add_event(msg_text,
-            success ? message_color::green : message_color::red);
+        game_->get_status_log().add_event(msg_text, success ? message_color::green : message_color::red);
     }
 
     spdlog::info("Command response: success={}, message={}", success, msg_text);
@@ -1344,8 +1412,9 @@ void ws_message_handler::send_chat_preferences()
     spdlog::info("Sent chat preferences: filter_profanity={}", filter);
 }
 
-void ws_message_handler::send_chat_message(std::string_view content, std::string_view channel,
-                                            std::string_view recipient)
+void ws_message_handler::send_chat_message(std::string_view content,
+                                           std::string_view channel,
+                                           std::string_view recipient)
 {
     json msg = make_chat_message_request(content, channel, recipient);
     game_->ws_connection().send(msg);
@@ -1363,22 +1432,43 @@ void ws_message_handler::handle_chat_message_broadcast(const json& message)
 
     // Map channel string to chat_type
     chat_type type = chat_type::normal;
-    if (data.channel == "local") type = chat_type::normal;
-    else if (data.channel == "shout") type = chat_type::shout;
-    else if (data.channel == "whisper") type = chat_type::whisper;
-    else if (data.channel == "guild") type = chat_type::guild;
-    else if (data.channel == "party") type = chat_type::party;
-    else if (data.channel == "gm") type = chat_type::gm;
-    else if (data.channel == "faction") type = chat_type::faction;
-    else if (data.channel == "global") type = chat_type::global;
-    else if (data.channel == "trade") type = chat_type::trade;
+    if (data.channel == "local")
+        type = chat_type::normal;
+    else if (data.channel == "shout")
+        type = chat_type::shout;
+    else if (data.channel == "whisper")
+        type = chat_type::whisper;
+    else if (data.channel == "guild")
+        type = chat_type::guild;
+    else if (data.channel == "party")
+        type = chat_type::party;
+    else if (data.channel == "gm")
+        type = chat_type::gm;
+    else if (data.channel == "faction")
+        type = chat_type::faction;
+    else if (data.channel == "global")
+        type = chat_type::global;
+    else if (data.channel == "trade")
+        type = chat_type::trade;
 
     // Check flags for overrides
     for (const auto& flag : data.flags)
     {
-        if (flag == "system") { type = chat_type::system; break; }
-        if (flag == "gm") { type = chat_type::gm; break; }
-        if (flag == "emote") { type = chat_type::emote; break; }
+        if (flag == "system")
+        {
+            type = chat_type::system;
+            break;
+        }
+        if (flag == "gm")
+        {
+            type = chat_type::gm;
+            break;
+        }
+        if (flag == "emote")
+        {
+            type = chat_type::emote;
+            break;
+        }
     }
 
     chat_message msg;
@@ -1407,8 +1497,16 @@ void ws_message_handler::handle_chat_message_broadcast(const json& message)
             // Map flags to text effects
             for (const auto& flag : data.flags)
             {
-                if (flag == "gm")    { name.chat_style.effect = text_effect::glow; break; }
-                if (flag == "emote") { name.chat_style.effect = text_effect::wave; break; }
+                if (flag == "gm")
+                {
+                    name.chat_style.effect = text_effect::glow;
+                    break;
+                }
+                if (flag == "emote")
+                {
+                    name.chat_style.effect = text_effect::wave;
+                    break;
+                }
             }
         }
     }
@@ -1449,9 +1547,7 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     if (data.is_ranged() && !data.projectile_type.empty())
     {
         game_->effects().add_effect(
-            effect_type_id::arrow,
-            data.attacker_x, data.attacker_y,
-            data.target_x, data.target_y);
+            effect_type_id::arrow, data.attacker_x, data.attacker_y, data.target_x, data.target_y);
     }
 
     // Apply damage to target
@@ -1477,8 +1573,8 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     {
         // Show MISS floating text
         const auto& t = target->transform();
-        game_->floating_text().add_text("MISS", static_cast<float>(t.x), static_cast<float>(t.y),
-                                        sf::Color(180, 180, 180));
+        game_->floating_text().add_text(
+            "MISS", static_cast<float>(t.x), static_cast<float>(t.y), sf::Color(180, 180, 180));
     }
 
     // Play weapon hit sound on successful hits
@@ -1496,8 +1592,11 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     }
 
     spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
-                  data.attacker_id, data.target_id, data.attack_mode,
-                  data.hit ? "HIT" : "MISS", data.damage);
+                  data.attacker_id,
+                  data.target_id,
+                  data.attack_mode,
+                  data.hit ? "HIT" : "MISS",
+                  data.damage);
 }
 
 void ws_message_handler::handle_player_attack_response(const json& message)
@@ -1545,10 +1644,7 @@ void ws_message_handler::handle_npc_attack(const json& message)
     // Spawn arrow projectile for ranged NPC attacks
     if (data.is_ranged && !data.projectile_type.empty())
     {
-        game_->effects().add_effect(
-            effect_type_id::arrow,
-            data.npc_x, data.npc_y,
-            data.target_x, data.target_y);
+        game_->effects().add_effect(effect_type_id::arrow, data.npc_x, data.npc_y, data.target_x, data.target_y);
     }
 
     // Apply damage to target
@@ -1569,13 +1665,16 @@ void ws_message_handler::handle_npc_attack(const json& message)
     {
         // Show MISS floating text
         const auto& t = target->transform();
-        game_->floating_text().add_text("MISS", static_cast<float>(t.x), static_cast<float>(t.y),
-                                        sf::Color(180, 180, 180));
+        game_->floating_text().add_text(
+            "MISS", static_cast<float>(t.x), static_cast<float>(t.y), sf::Color(180, 180, 180));
     }
 
     spdlog::debug("NPC attack: {} -> {} ({} {} dmg={})",
-                  data.npc_id, data.target_id, data.is_ranged ? "ranged" : "melee",
-                  data.hit() ? "HIT" : "MISS", data.damage);
+                  data.npc_id,
+                  data.target_id,
+                  data.is_ranged ? "ranged" : "melee",
+                  data.hit() ? "HIT" : "MISS",
+                  data.damage);
 }
 
 void ws_message_handler::handle_entity_death(const json& message)
@@ -1584,11 +1683,13 @@ void ws_message_handler::handle_entity_death(const json& message)
 
     auto& entities = game_->entities();
     entity* victim = entities.find(data.victim_id);
-    if (!victim) return;
+    if (!victim)
+        return;
 
     // NPCs/monsters can only die once; players can "die" multiple times (pretend corpse)
     bool is_npc = (victim->type() == entity_type::npc || victim->type() == entity_type::monster);
-    if (is_npc && !victim->is_alive()) return;
+    if (is_npc && !victim->is_alive())
+        return;
 
     if (victim->has_stats())
         victim->stats().hp = 0;
@@ -1615,24 +1716,32 @@ void ws_message_handler::handle_entity_death(const json& message)
         const auto& t = victim->transform();
         spdlog::debug("NPC death: id={} name='{}' type={} category='{}' "
                       "tile=({},{}) world=({},{}) killer={} facing={} alive_was=true",
-                      data.victim_id, name, npc_type, category,
-                      t.tile_x, t.tile_y, t.x, t.y,
-                      data.killer_id, static_cast<int>(t.facing));
+                      data.victim_id,
+                      name,
+                      npc_type,
+                      category,
+                      t.tile_x,
+                      t.tile_y,
+                      t.x,
+                      t.y,
+                      data.killer_id,
+                      static_cast<int>(t.facing));
     }
     else
     {
-        spdlog::debug("Entity death: victim={} killer={} at ({},{})",
-                      data.victim_id, data.killer_id, data.x, data.y);
+        spdlog::debug("Entity death: victim={} killer={} at ({},{})", data.victim_id, data.killer_id, data.x, data.y);
     }
 }
 
 void ws_message_handler::handle_entity_despawn(const json& message)
 {
-    if (!message.contains("data")) return;
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
 
     uint32_t entity_id = d.value("entity_id", static_cast<uint32_t>(0));
-    if (entity_id == 0) return;
+    if (entity_id == 0)
+        return;
 
     game_->entities().remove_entity(entity_id);
 
@@ -1713,8 +1822,7 @@ void ws_message_handler::handle_combat_effect(const json& message)
             if (sp->projectile_effect != 0)
             {
                 game_->effects().add_effect_world(
-                    static_cast<effect_type_id>(sp->projectile_effect),
-                    src_wx, src_wy, dest_wx, dest_wy);
+                    static_cast<effect_type_id>(sp->projectile_effect), src_wx, src_wy, dest_wx, dest_wy);
             }
             else if (sp->effect_sprite != 0)
             {
@@ -1722,15 +1830,12 @@ void ws_message_handler::handle_combat_effect(const json& message)
                 // Single-target spells with no target entity render on the caster
                 float fx = dest_wx;
                 float fy = dest_wy;
-                if (data.target_id == 0
-                    && sp->target_type == spell_target::single)
+                if (data.target_id == 0 && sp->target_type == spell_target::single)
                 {
                     fx = src_wx;
                     fy = src_wy;
                 }
-                game_->effects().add_effect_at_pixel(
-                    static_cast<effect_type_id>(sp->effect_sprite),
-                    fx, fy);
+                game_->effects().add_effect_at_pixel(static_cast<effect_type_id>(sp->effect_sprite), fx, fy);
             }
         }
     }
@@ -1781,7 +1886,12 @@ void ws_message_handler::handle_combat_effect(const json& message)
     }
 
     spdlog::debug("Combat effect: {} -> {} type={} value={} spell={} critical={}",
-                  data.source_id, data.target_id, data.effect_type, data.value, data.spell_id, data.is_critical);
+                  data.source_id,
+                  data.target_id,
+                  data.effect_type,
+                  data.value,
+                  data.spell_id,
+                  data.is_critical);
 }
 
 void ws_message_handler::handle_player_death_info(const json& message)
@@ -1799,16 +1909,20 @@ void ws_message_handler::handle_player_death_info(const json& message)
     }
 
     dlg->set_death_info(data.killer_name, data.is_pvp, data.xp_lost);
-    dlg->set_on_restart([this]() {
-        game_->ui().close_dialog(dialog_type::death);
-        json msg = make_player_respawn_request();
-        game_->ws_connection().send(msg);
-        spdlog::info("Sent player respawn request");
-    });
-    dlg->set_on_resurrect([this]() {
-        // TODO: send accept resurrection request
-        spdlog::info("Accept resurrection requested (not yet implemented)");
-    });
+    dlg->set_on_restart(
+        [this]()
+        {
+            game_->ui().close_dialog(dialog_type::death);
+            json msg = make_player_respawn_request();
+            game_->ws_connection().send(msg);
+            spdlog::info("Sent player respawn request");
+        });
+    dlg->set_on_resurrect(
+        [this]()
+        {
+            // TODO: send accept resurrection request
+            spdlog::info("Accept resurrection requested (not yet implemented)");
+        });
     dlg->open();
 
     // Mark local player as dead and play dying animation
@@ -1821,13 +1935,18 @@ void ws_message_handler::handle_player_death_info(const json& message)
     }
 
     spdlog::info("Player died! Killer: {} (pvp={}) XP lost: {} Respawn: {} ({},{})",
-                 data.killer_name, data.is_pvp, data.xp_lost,
-                 data.respawn_map, data.respawn_x, data.respawn_y);
+                 data.killer_name,
+                 data.is_pvp,
+                 data.xp_lost,
+                 data.respawn_map,
+                 data.respawn_x,
+                 data.respawn_y);
 }
 
 void ws_message_handler::handle_respawn_response(const json& message)
 {
-    if (!message.contains("data")) return;
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
 
     bool success = d.value("success", false);
@@ -1860,7 +1979,8 @@ void ws_message_handler::handle_player_teleport(const json& message)
     std::vector<entity_id> to_remove;
     // We can't iterate and remove, so collect IDs to remove
     for (auto* ent : entities.get_entities_of_type(entity_type::character))
-        if (ent->id() != local_id) to_remove.push_back(ent->id());
+        if (ent->id() != local_id)
+            to_remove.push_back(ent->id());
     for (auto* ent : entities.get_entities_of_type(entity_type::monster))
         to_remove.push_back(ent->id());
     for (auto* ent : entities.get_entities_of_type(entity_type::npc))
@@ -1872,8 +1992,7 @@ void ws_message_handler::handle_player_teleport(const json& message)
     game_->ground_items().clear();
 
     // Load new map if different, or if current map data isn't loaded (retry failed loads)
-    if (!data.dest_map.empty() &&
-        (data.dest_map != world.current_map().name() || !world.current_map().is_loaded()))
+    if (!data.dest_map.empty() && (data.dest_map != world.current_map().name() || !world.current_map().is_loaded()))
     {
         if (!world.load_map(data.dest_map))
         {
@@ -1914,13 +2033,13 @@ void ws_message_handler::handle_player_teleport(const json& message)
     // Reset input state
     game_->input_handler().set_move_dest(-1, -1);
 
-    spdlog::info("Teleported to {} at ({},{}) dir={}",
-                 data.dest_map, data.dest_x, data.dest_y, data.dest_dir);
+    spdlog::info("Teleported to {} at ({},{}) dir={}", data.dest_map, data.dest_x, data.dest_y, data.dest_dir);
 }
 
 void ws_message_handler::handle_environment_update(const json& message)
 {
-    if (!game_ || !message.contains("data")) return;
+    if (!game_ || !message.contains("data"))
+        return;
 
     const auto& d = message["data"];
 
@@ -1962,8 +2081,10 @@ void ws_message_handler::handle_entity_spawn(const json& message)
         return;
 
     entity_type type = entity_type::character;
-    if (data.type == "npc") type = entity_type::npc;
-    else if (data.type == "monster") type = entity_type::monster;
+    if (data.type == "npc")
+        type = entity_type::npc;
+    else if (data.type == "monster")
+        type = entity_type::monster;
 
     auto& ent = entities.create_entity_with_id(data.entity_id, type);
 
@@ -2015,7 +2136,14 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     }
 
     spdlog::info("Entity spawned: {} '{}' id={} faction={} combat={} dead={} at ({},{})",
-                 data.type, data.name, data.entity_id, data.faction, data.combat_mode, data.is_dead, data.x, data.y);
+                 data.type,
+                 data.name,
+                 data.entity_id,
+                 data.faction,
+                 data.combat_mode,
+                 data.is_dead,
+                 data.x,
+                 data.y);
 }
 
 void ws_message_handler::handle_npc_spawn(const json& message)
@@ -2049,9 +2177,8 @@ void ws_message_handler::handle_npc_spawn(const json& message)
 
     // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
     // Falls back to template_id if sprite_id not provided
-    uint16_t visual_type = data.sprite_id > 0
-        ? static_cast<uint16_t>(data.sprite_id)
-        : static_cast<uint16_t>(data.template_id);
+    uint16_t visual_type =
+        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
 
     if (visual_type > 0)
     {
@@ -2089,8 +2216,14 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     }
 
     spdlog::info("NPC spawned: '{}' id={} sprite={} at ({},{}) hp={}/{} dead={}",
-                 data.name, data.entity_id, visual_type, data.x, data.y,
-                 data.hp, data.max_hp, data.is_dead);
+                 data.name,
+                 data.entity_id,
+                 visual_type,
+                 data.x,
+                 data.y,
+                 data.hp,
+                 data.max_hp,
+                 data.is_dead);
 }
 
 void ws_message_handler::handle_npc_despawn(const json& message)
@@ -2125,7 +2258,11 @@ void ws_message_handler::handle_ground_item_spawn(const json& message)
     items.add(std::move(item));
 
     spdlog::debug("Ground item spawned: '{}' id={} x{} at ({},{})",
-                  items.get(data.item_id)->name, data.item_id, data.count, data.x, data.y);
+                  items.get(data.item_id)->name,
+                  data.item_id,
+                  data.count,
+                  data.x,
+                  data.y);
 }
 
 void ws_message_handler::handle_stat_update(const json& message)
@@ -2133,7 +2270,8 @@ void ws_message_handler::handle_stat_update(const json& message)
     auto data = stat_update_data::from_json(message);
 
     entity* player = game_->local_player();
-    if (!player) return;
+    if (!player)
+        return;
 
     auto& stats = player->stats();
     stats.max_hp = data.max_hp;
@@ -2148,18 +2286,29 @@ void ws_message_handler::handle_stat_update(const json& message)
     stats.critical_ratio = data.critical_rate;
 
     // Full stat updates (teleport/respawn) include current vitals
-    if (data.hp) stats.hp = *data.hp;
-    if (data.mp) stats.mp = *data.mp;
-    if (data.sp) stats.sp = *data.sp;
-    if (data.experience) stats.experience = static_cast<uint32_t>(*data.experience);
-    if (data.level) stats.level = *data.level;
-    if (data.hunger_level) stats.hunger = *data.hunger_level;
-    if (data.pk_count && player->has_combat()) player->combat().pk_count = *data.pk_count;
+    if (data.hp)
+        stats.hp = *data.hp;
+    if (data.mp)
+        stats.mp = *data.mp;
+    if (data.sp)
+        stats.sp = *data.sp;
+    if (data.experience)
+        stats.experience = static_cast<uint32_t>(*data.experience);
+    if (data.level)
+        stats.level = *data.level;
+    if (data.hunger_level)
+        stats.hunger = *data.hunger_level;
+    if (data.pk_count && player->has_combat())
+        player->combat().pk_count = *data.pk_count;
 
     game_->update_icon_panel();
 
     spdlog::debug("Stats updated: max_hp={} max_mp={} max_sp={} atk={} def={}",
-                  data.max_hp, data.max_mp, data.max_sp, data.attack_power, data.defense);
+                  data.max_hp,
+                  data.max_mp,
+                  data.max_sp,
+                  data.attack_power,
+                  data.defense);
 }
 
 void ws_message_handler::handle_entity_hp_update(const json& message)
@@ -2197,7 +2346,10 @@ void ws_message_handler::handle_equipment_change_broadcast(const json& message)
         return;
 
     spdlog::debug("Entity {} equipment slot {} changed: item={} template={}",
-                  data.entity_id, data.slot, data.item_id, data.template_id);
+                  data.entity_id,
+                  data.slot,
+                  data.item_id,
+                  data.template_id);
 
     // TODO: Update other player's visual equipment when character rendering supports it
 }
@@ -2208,9 +2360,11 @@ void ws_message_handler::handle_combat_mode_change_broadcast(const json& message
 
     auto& entities = game_->entities();
     entity* ent = entities.get_entity(data.entity_id);
-    if (!ent) return;
+    if (!ent)
+        return;
 
-    if (!ent->has_combat()) return;
+    if (!ent->has_combat())
+        return;
 
     ent->combat().combat_stance = data.combat_mode;
 
@@ -2262,10 +2416,12 @@ void ws_message_handler::handle_player_action_broadcast(const json& message)
     auto& entities = game_->entities();
 
     // Don't apply to local player — we already play our own animations
-    if (data.entity_id == entities.local_player_id()) return;
+    if (data.entity_id == entities.local_player_id())
+        return;
 
     entity* ent = entities.get_entity(data.entity_id);
-    if (!ent) return;
+    if (!ent)
+        return;
 
     auto& t = ent->transform();
     t.facing = direction_from_protocol(data.direction).value_or(t.facing);
@@ -2319,10 +2475,8 @@ void ws_message_handler::handle_player_unequip_response(const json& message)
         return;
     }
 
-    spdlog::info("Unequipped '{}' from slot {} -> inventory slot {}",
-                 data.item_name, data.slot, data.inventory_slot);
+    spdlog::info("Unequipped '{}' from slot {} -> inventory slot {}", data.item_name, data.slot, data.inventory_slot);
 }
-
 
 
 void ws_message_handler::handle_inventory_data(const json& message)
@@ -2370,18 +2524,41 @@ void ws_message_handler::handle_equipment_data(const json& message)
         equip_slot slot = equip_slot::none;
         switch (eq_item.slot)
         {
-            case 0: slot = equip_slot::head; break;
-            case 1: slot = equip_slot::body; break;
-            case 2: slot = equip_slot::arms; break;
-            case 3: slot = equip_slot::pants; break;
-            case 4: slot = equip_slot::boots; break;
-            case 5: slot = equip_slot::right_hand; break;
-            case 6: slot = equip_slot::left_hand; break;
-            case 7: slot = equip_slot::right_finger; break;
-            case 8: slot = equip_slot::left_finger; break;
-            case 9: slot = equip_slot::neck; break;
-            case 10: slot = equip_slot::back; break;
-            default: break;
+        case 0:
+            slot = equip_slot::head;
+            break;
+        case 1:
+            slot = equip_slot::body;
+            break;
+        case 2:
+            slot = equip_slot::arms;
+            break;
+        case 3:
+            slot = equip_slot::pants;
+            break;
+        case 4:
+            slot = equip_slot::boots;
+            break;
+        case 5:
+            slot = equip_slot::right_hand;
+            break;
+        case 6:
+            slot = equip_slot::left_hand;
+            break;
+        case 7:
+            slot = equip_slot::right_finger;
+            break;
+        case 8:
+            slot = equip_slot::left_finger;
+            break;
+        case 9:
+            slot = equip_slot::neck;
+            break;
+        case 10:
+            slot = equip_slot::back;
+            break;
+        default:
+            break;
         }
         if (slot != equip_slot::none)
             inventory.set_equipped(slot, itm);
@@ -2409,7 +2586,12 @@ void ws_message_handler::handle_skills_data(const json& message)
         skills.set_sub_progress(sk.skill_id, progress);
 
         spdlog::info("  skill_id={} level={} mastery={} uses={}/{} progress={:.2f}",
-                     sk.skill_id, sk.level, mastery, sk.uses_this_level, sk.uses_to_next_level, progress);
+                     sk.skill_id,
+                     sk.level,
+                     mastery,
+                     sk.uses_this_level,
+                     sk.uses_to_next_level,
+                     progress);
     }
 
     // Push skill data to the dialog
@@ -2454,7 +2636,8 @@ void ws_message_handler::handle_player_skill_response(const json& message)
 
 void ws_message_handler::handle_player_interact_response(const json& message)
 {
-    if (!message.contains("data")) return;
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
 
     bool success = d.value("success", false);
@@ -2465,7 +2648,8 @@ void ws_message_handler::handle_player_interact_response(const json& message)
         return;
     }
 
-    if (!d.contains("result")) return;
+    if (!d.contains("result"))
+        return;
     const auto& result = d["result"];
 
     std::string interaction_type = result.value("interaction_type", "");
@@ -2774,13 +2958,11 @@ void ws_message_handler::handle_guild_invite_received(const json& message)
 {
     auto data = guild_invite_received_data::from_json(message);
 
-    spdlog::info("Received guild invite from '{}' to join [{}] {}",
-                 data.inviter_name, data.guild_tag, data.guild_name);
+    spdlog::info("Received guild invite from '{}' to join [{}] {}", data.inviter_name, data.guild_tag, data.guild_name);
 
     game_->guild().set_pending_invite(data.guild_name, data.guild_tag, data.inviter_name);
     game_->get_status_log().add_event(
-        data.inviter_name + " invites you to join [" + data.guild_tag + "] " + data.guild_name,
-        message_color::green);
+        data.inviter_name + " invites you to join [" + data.guild_tag + "] " + data.guild_name, message_color::green);
 }
 
 void ws_message_handler::handle_guild_invite_respond_response(const json& message)
@@ -2800,8 +2982,8 @@ void ws_message_handler::handle_guild_invite_respond_response(const json& messag
     {
         spdlog::info("Joined guild: {} [{}]", data.guild_name, data.guild_tag);
         game_->guild().set_guild(data.guild_name, data.guild_tag, 4); // recruit rank
-        game_->get_status_log().add_event(
-            "You joined [" + data.guild_tag + "] " + data.guild_name + "!", message_color::green);
+        game_->get_status_log().add_event("You joined [" + data.guild_tag + "] " + data.guild_name + "!",
+                                          message_color::green);
 
         if (auto* player = game_->local_player())
         {
@@ -2887,9 +3069,7 @@ void ws_message_handler::handle_guild_info_response(const json& message)
         });
     }
 
-    game_->guild().set_guild_info(data.guild_name, data.tag,
-                                   data.motd, data.master_name,
-                                   std::move(members));
+    game_->guild().set_guild_info(data.guild_name, data.tag, data.motd, data.master_name, std::move(members));
 
     spdlog::info("Guild info: {} [{}] - {} members", data.guild_name, data.tag, data.member_count);
 }
@@ -2969,11 +3149,16 @@ void ws_message_handler::handle_available_commands(const json& message)
     for (const auto& cmd_json : message["data"]["commands"])
     {
         command_entry entry;
-        if (cmd_json.contains("name")) entry.name = cmd_json["name"].get<std::string>();
-        if (cmd_json.contains("description")) entry.description = cmd_json["description"].get<std::string>();
-        if (cmd_json.contains("usage")) entry.usage = cmd_json["usage"].get<std::string>();
-        if (cmd_json.contains("category")) entry.category = cmd_json["category"].get<std::string>();
-        if (cmd_json.contains("enabled")) entry.enabled = cmd_json["enabled"].get<bool>();
+        if (cmd_json.contains("name"))
+            entry.name = cmd_json["name"].get<std::string>();
+        if (cmd_json.contains("description"))
+            entry.description = cmd_json["description"].get<std::string>();
+        if (cmd_json.contains("usage"))
+            entry.usage = cmd_json["usage"].get<std::string>();
+        if (cmd_json.contains("category"))
+            entry.category = cmd_json["category"].get<std::string>();
+        if (cmd_json.contains("enabled"))
+            entry.enabled = cmd_json["enabled"].get<bool>();
         commands.push_back(std::move(entry));
     }
 
@@ -2994,9 +3179,7 @@ void ws_message_handler::handle_command_availability_update(const json& message)
     {
         if (cmd_json.contains("name") && cmd_json.contains("enabled"))
         {
-            chat.update_command_availability(
-                cmd_json["name"].get<std::string>(),
-                cmd_json["enabled"].get<bool>());
+            chat.update_command_availability(cmd_json["name"].get<std::string>(), cmd_json["enabled"].get<bool>());
         }
     }
 }

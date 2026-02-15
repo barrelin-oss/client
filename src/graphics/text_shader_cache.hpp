@@ -6,7 +6,8 @@
 #include <unordered_map>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // Loads and caches GLSL fragment shaders for text effects.
 // Each shader effect maps to a .frag file in assets/shaders/.

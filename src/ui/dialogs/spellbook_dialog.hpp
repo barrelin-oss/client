@@ -6,16 +6,18 @@
 #include <vector>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 enum class spellbook_view_mode : uint8_t
 {
-    classic,  // Organized by level (id / 10 + 1)
-    type      // Organized by spell_category
+    classic, // Organized by level (id / 10 + 1)
+    type     // Organized by spell_category
 };
 
 // Spellbook dialog - displays known spells organized by level or type
-class spellbook_dialog : public dialog {
+class spellbook_dialog : public dialog
+{
 public:
     static constexpr int32_t row_height = 22;
     static constexpr int32_t icon_size = 14;
@@ -55,8 +57,8 @@ public:
     void set_on_spell_click(spell_callback callback) { on_spell_click_ = std::move(callback); }
 
 private:
-    void render_spell_row(renderer& rend, const spell& sp, int32_t x, int32_t y,
-                          int32_t width, bool selected, bool hovered);
+    void
+    render_spell_row(renderer& rend, const spell& sp, int32_t x, int32_t y, int32_t width, bool selected, bool hovered);
     std::optional<size_t> spell_index_at(int32_t x, int32_t y) const;
 
     void rebuild_filtered_spells();
@@ -77,7 +79,7 @@ private:
     spellbook_view_mode view_mode_ = spellbook_view_mode::classic;
 
     // Classic mode state
-    uint8_t current_level_ = 1;  // 1-10
+    uint8_t current_level_ = 1; // 1-10
     static constexpr uint8_t max_levels = 10;
 
     // Type mode state
@@ -90,7 +92,7 @@ private:
 
     int32_t content_start_y_ = 0;
     int32_t content_width_ = 0;
-    int32_t tabs_y_ = 0;  // Y position of tabs row for hit-testing
+    int32_t tabs_y_ = 0; // Y position of tabs row for hit-testing
 };
 
 } // namespace hb

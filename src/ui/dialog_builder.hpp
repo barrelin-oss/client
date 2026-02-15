@@ -5,7 +5,8 @@
 #include <cstdint>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
 // Fluent builder API for creating dialog definitions
 // Usage:
@@ -16,7 +17,8 @@ namespace hb {
 //       .label("lbl_message", 20, 30, "Hello World")
 //       .button("btn_ok", 110, 150, 80, 28, "OK")
 //       .build();
-class dialog_builder {
+class dialog_builder
+{
 public:
     // Start building a new dialog definition
     static dialog_builder create(std::string_view id);
@@ -25,7 +27,7 @@ public:
 
     dialog_builder& title(std::string_view title);
     dialog_builder& bounds(int32_t x, int32_t y, int32_t w, int32_t h);
-    dialog_builder& size(int32_t w, int32_t h);  // Position will be centered
+    dialog_builder& size(int32_t w, int32_t h); // Position will be centered
     dialog_builder& modal(bool m = true);
     dialog_builder& draggable(bool d = true);
     dialog_builder& closeable(bool c = true);
@@ -45,73 +47,89 @@ public:
     // === Element creation methods ===
 
     // Label (static text)
-    dialog_builder& label(std::string_view id, int32_t x, int32_t y,
+    dialog_builder& label(std::string_view id,
+                          int32_t x,
+                          int32_t y,
                           std::string_view text,
                           sf::Color color = sf::Color::White,
                           uint32_t font_size = 12);
 
     // Button
-    dialog_builder& button(std::string_view id, int32_t x, int32_t y,
-                           int32_t w, int32_t h,
-                           std::string_view text);
+    dialog_builder& button(std::string_view id, int32_t x, int32_t y, int32_t w, int32_t h, std::string_view text);
 
-    dialog_builder& button_styled(std::string_view id, int32_t x, int32_t y,
-                                  int32_t w, int32_t h,
+    dialog_builder& button_styled(std::string_view id,
+                                  int32_t x,
+                                  int32_t y,
+                                  int32_t w,
+                                  int32_t h,
                                   std::string_view text,
-                                  sf::Color bg, sf::Color hover, sf::Color pressed);
+                                  sf::Color bg,
+                                  sf::Color hover,
+                                  sf::Color pressed);
 
     // Sprite button (for classic UI)
-    dialog_builder& sprite_button(std::string_view id, int32_t x, int32_t y,
-                                  std::string_view pak, int32_t sprite_idx,
-                                  int32_t normal_frame, int32_t hover_frame = -1,
+    dialog_builder& sprite_button(std::string_view id,
+                                  int32_t x,
+                                  int32_t y,
+                                  std::string_view pak,
+                                  int32_t sprite_idx,
+                                  int32_t normal_frame,
+                                  int32_t hover_frame = -1,
                                   int32_t pressed_frame = -1);
 
     // Text input
-    dialog_builder& text_input(std::string_view id, int32_t x, int32_t y,
-                               int32_t w, int32_t h,
-                               int32_t max_chars = 32,
-                               bool password = false);
+    dialog_builder& text_input(
+        std::string_view id, int32_t x, int32_t y, int32_t w, int32_t h, int32_t max_chars = 32, bool password = false);
 
     // Image (static sprite)
-    dialog_builder& image(std::string_view id, int32_t x, int32_t y,
-                          std::string_view pak, int32_t sprite_idx, int32_t frame = 0);
+    dialog_builder&
+    image(std::string_view id, int32_t x, int32_t y, std::string_view pak, int32_t sprite_idx, int32_t frame = 0);
 
     // Progress bar
-    dialog_builder& progress_bar(std::string_view id, int32_t x, int32_t y,
-                                 int32_t w, int32_t h,
+    dialog_builder& progress_bar(std::string_view id,
+                                 int32_t x,
+                                 int32_t y,
+                                 int32_t w,
+                                 int32_t h,
                                  sf::Color fill = sf::Color(100, 200, 100),
                                  sf::Color bg = sf::Color(40, 40, 50));
 
     // Checkbox
-    dialog_builder& checkbox(std::string_view id, int32_t x, int32_t y,
-                             std::string_view label_text);
+    dialog_builder& checkbox(std::string_view id, int32_t x, int32_t y, std::string_view label_text);
 
     // Slider
-    dialog_builder& slider(std::string_view id, int32_t x, int32_t y,
-                           int32_t w, int32_t h,
-                           float min_val = 0.0f, float max_val = 1.0f, float step = 0.01f);
+    dialog_builder& slider(std::string_view id,
+                           int32_t x,
+                           int32_t y,
+                           int32_t w,
+                           int32_t h,
+                           float min_val = 0.0f,
+                           float max_val = 1.0f,
+                           float step = 0.01f);
 
     // List box
-    dialog_builder& list_box(std::string_view id, int32_t x, int32_t y,
-                             int32_t w, int32_t h);
+    dialog_builder& list_box(std::string_view id, int32_t x, int32_t y, int32_t w, int32_t h);
 
     // Grid (for inventory-style layouts)
-    dialog_builder& grid(std::string_view id, int32_t x, int32_t y,
-                         int32_t cols, int32_t rows,
-                         int32_t cell_w, int32_t cell_h,
+    dialog_builder& grid(std::string_view id,
+                         int32_t x,
+                         int32_t y,
+                         int32_t cols,
+                         int32_t rows,
+                         int32_t cell_w,
+                         int32_t cell_h,
                          int32_t padding = 2);
 
     // Panel (container)
-    dialog_builder& panel(std::string_view id, int32_t x, int32_t y,
-                          int32_t w, int32_t h,
-                          sf::Color bg = sf::Color(40, 40, 50, 200));
+    dialog_builder&
+    panel(std::string_view id, int32_t x, int32_t y, int32_t w, int32_t h, sf::Color bg = sf::Color(40, 40, 50, 200));
 
     // Separator line
     dialog_builder& separator(int32_t x, int32_t y, int32_t length, bool horizontal = true);
 
     // Raw sprite (for custom graphics)
-    dialog_builder& sprite(std::string_view id, int32_t x, int32_t y,
-                           std::string_view pak, int32_t sprite_idx, int32_t frame = 0);
+    dialog_builder&
+    sprite(std::string_view id, int32_t x, int32_t y, std::string_view pak, int32_t sprite_idx, int32_t frame = 0);
 
     // === Element modification (applies to last added element) ===
 

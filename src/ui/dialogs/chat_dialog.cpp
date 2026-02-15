@@ -7,13 +7,14 @@
 #include <cctype>
 #include <ctime>
 
-namespace hb {
+namespace hb
+{
 
-namespace {
+namespace
+{
 
 constexpr std::string_view tab_labels[] = {
-    "All", "Global", "Trade", "Town", "Nearby", "Guild", "Party", "Drops", "Misc"
-};
+    "All", "Global", "Trade", "Town", "Nearby", "Guild", "Party", "Drops", "Misc"};
 
 constexpr int32_t tab_width = 42;
 constexpr int32_t tab_height = 18;
@@ -23,13 +24,17 @@ constexpr int32_t search_icon_size = 16;
 
 bool ci_contains(std::string_view haystack, std::string_view needle)
 {
-    if (needle.empty()) return true;
-    if (haystack.size() < needle.size()) return false;
+    if (needle.empty())
+        return true;
+    if (haystack.size() < needle.size())
+        return false;
     auto it = std::search(
-        haystack.begin(), haystack.end(),
-        needle.begin(), needle.end(),
-        [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) ==
-                                     std::tolower(static_cast<unsigned char>(b)); });
+        haystack.begin(),
+        haystack.end(),
+        needle.begin(),
+        needle.end(),
+        [](char a, char b)
+        { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); });
     return it != haystack.end();
 }
 
@@ -49,8 +54,7 @@ std::string format_timestamp(std::chrono::system_clock::time_point tp)
 
 } // anonymous namespace
 
-chat_dialog::chat_dialog()
-    : dialog(dialog_type::chat)
+chat_dialog::chat_dialog() : dialog(dialog_type::chat)
 {
     set_title("Chat");
     set_bounds({0, static_cast<int32_t>(screen_height) - 200, min_width, 200});
@@ -83,33 +87,34 @@ void chat_dialog::update(float delta_time, const input& inp)
         if (wheel != 0)
         {
             scroll_offset_ += wheel * 3;
-            if (scroll_offset_ < 0) scroll_offset_ = 0;
+            if (scroll_offset_ < 0)
+                scroll_offset_ = 0;
 
             // Clamp to max
             int32_t total = 0;
             for (auto& m : messages_)
-                if (should_show_message(m)) total++;
+                if (should_show_message(m))
+                    total++;
             int32_t msg_area_top = tabs_y_ + tab_height + 2;
-            int32_t msg_area_bottom = bounds_.y + bounds_.height
-                - (search_bar_visible() ? search_bar_height : 0);
+            int32_t msg_area_bottom = bounds_.y + bounds_.height - (search_bar_visible() ? search_bar_height : 0);
             int32_t visible_lines = std::max(1, (msg_area_bottom - msg_area_top) / line_height);
             int32_t max_scroll = std::max(0, total - visible_lines);
-            if (scroll_offset_ > max_scroll) scroll_offset_ = max_scroll;
+            if (scroll_offset_ > max_scroll)
+                scroll_offset_ = max_scroll;
         }
     }
 }
 
 void chat_dialog::render(renderer& rend)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     bool bar_visible = search_bar_visible();
 
     // Background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(0, 0, 0, 120), true);
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(60, 60, 80, 160), false);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(0, 0, 0, 120), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(60, 60, 80, 160), false);
 
     // Title bar
     render_title_bar(rend);
@@ -149,8 +154,7 @@ void chat_dialog::render(renderer& rend)
 
     // Message area
     int32_t msg_area_top = tabs_y_ + tab_height + 2;
-    int32_t msg_area_bottom = bounds_.y + bounds_.height
-        - (bar_visible ? search_bar_height : 0) - resize_handle_size;
+    int32_t msg_area_bottom = bounds_.y + bounds_.height - (bar_visible ? search_bar_height : 0) - resize_handle_size;
     int32_t msg_area_height = msg_area_bottom - msg_area_top;
     int32_t visible_lines = std::max(1, msg_area_height / line_height);
 
@@ -184,8 +188,7 @@ void chat_dialog::render(renderer& rend)
             const auto& msg = messages_[filtered[fi]];
 
             std::string display_text;
-            if (config::instance().chat().show_timestamps
-                && msg.timestamp.time_since_epoch().count() > 0)
+            if (config::instance().chat().show_timestamps && msg.timestamp.time_since_epoch().count() > 0)
             {
                 display_text = format_timestamp(msg.timestamp) + " " + msg.formatted();
             }
@@ -333,8 +336,10 @@ void chat_dialog::render(renderer& rend)
 
 bool chat_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 {
-    if (!visible_) return false;
-    if (!bounds_.contains(x, y)) return false;
+    if (!visible_)
+        return false;
+    if (!bounds_.contains(x, y))
+        return false;
 
     // Resize handle
     int32_t rx = bounds_.x + bounds_.width - resize_handle_size;
@@ -533,9 +538,11 @@ bool chat_dialog::handle_key_press(sf::Keyboard::Key key)
 
 bool chat_dialog::handle_text_input(char32_t unicode)
 {
-    if (!search_focused_) return false;
+    if (!search_focused_)
+        return false;
 
-    if (unicode < 32 || unicode == 127) return false;
+    if (unicode < 32 || unicode == 127)
+        return false;
 
     if (unicode < 128 && search_text_.size() < 64)
     {
@@ -607,20 +614,34 @@ bool chat_dialog::should_show_message(const chat_message& msg) const
     bool type_ok = false;
     switch (active_tab_)
     {
-        case chat_tab::all:     type_ok = true; break;
-        case chat_tab::global:  type_ok = (msg.type == chat_type::shout ||
-                                           msg.type == chat_type::gm ||
-                                           msg.type == chat_type::system); break;
-        case chat_tab::trade:   type_ok = (msg.type == chat_type::trade); break;
-        case chat_tab::town:    type_ok = (msg.type == chat_type::faction); break;
-        case chat_tab::nearby:  type_ok = (msg.type == chat_type::normal ||
-                                           msg.type == chat_type::emote); break;
-        case chat_tab::guild:   type_ok = (msg.type == chat_type::guild); break;
-        case chat_tab::party:   type_ok = (msg.type == chat_type::party); break;
-        case chat_tab::drops:   return false;
-        case chat_tab::misc:    return false;
+    case chat_tab::all:
+        type_ok = true;
+        break;
+    case chat_tab::global:
+        type_ok = (msg.type == chat_type::shout || msg.type == chat_type::gm || msg.type == chat_type::system);
+        break;
+    case chat_tab::trade:
+        type_ok = (msg.type == chat_type::trade);
+        break;
+    case chat_tab::town:
+        type_ok = (msg.type == chat_type::faction);
+        break;
+    case chat_tab::nearby:
+        type_ok = (msg.type == chat_type::normal || msg.type == chat_type::emote);
+        break;
+    case chat_tab::guild:
+        type_ok = (msg.type == chat_type::guild);
+        break;
+    case chat_tab::party:
+        type_ok = (msg.type == chat_type::party);
+        break;
+    case chat_tab::drops:
+        return false;
+    case chat_tab::misc:
+        return false;
     }
-    if (!type_ok) return false;
+    if (!type_ok)
+        return false;
 
     if (!search_text_.empty())
         return matches_search(msg);

@@ -6,10 +6,12 @@
 #include <vector>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Skills dialog - displays skill levels and progress
-class skills_dialog : public dialog {
+class skills_dialog : public dialog
+{
 public:
     skills_dialog();
     ~skills_dialog() override = default;
@@ -25,7 +27,8 @@ public:
     void clear_skills();
 
     // Category filter
-    enum class filter_category {
+    enum class filter_category
+    {
         all,
         combat,
         magic,

@@ -4,12 +4,14 @@
 #include "network/protocol.hpp"
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 class game_state_manager;
 
 // Motion/Event handler for entity movement and actions
-class motion_handler {
+class motion_handler
+{
 public:
     motion_handler() = default;
 

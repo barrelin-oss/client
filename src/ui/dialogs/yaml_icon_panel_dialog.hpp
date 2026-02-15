@@ -4,13 +4,15 @@
 #include <functional>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 
 // YAML-based icon panel that uses YAML for layout but custom rendering for HUD elements
 // This demonstrates the hybrid approach: YAML defines positions, code handles complex rendering
-class yaml_icon_panel_dialog : public managed_dialog {
+class yaml_icon_panel_dialog : public managed_dialog
+{
 public:
     explicit yaml_icon_panel_dialog(dialog_definition def);
     ~yaml_icon_panel_dialog() override = default;

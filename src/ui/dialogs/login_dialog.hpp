@@ -5,9 +5,11 @@
 #include <string>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
-class login_dialog : public dialog {
+class login_dialog : public dialog
+{
 public:
     login_dialog();
     ~login_dialog() override = default;
@@ -44,7 +46,8 @@ private:
     void on_login_clicked();
     void on_create_clicked();
 
-    struct server_info {
+    struct server_info
+    {
         std::string name;
         std::string host;
         uint16_t port;

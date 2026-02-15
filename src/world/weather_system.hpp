@@ -5,16 +5,17 @@
 #include <cstdint>
 #include <random>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 
 // Weather particle for rain/snow effects
 struct weather_particle
 {
-    float x = 0.0f;        // Screen-space X
-    float y = 0.0f;        // Screen-space Y
-    int16_t step = 0;      // Animation step (-N = spawn delay, 0+ = active)
+    float x = 0.0f;   // Screen-space X
+    float y = 0.0f;   // Screen-space Y
+    int16_t step = 0; // Animation step (-N = spawn delay, 0+ = active)
 };
 
 inline constexpr int32_t max_weather_particles = 600;
@@ -71,7 +72,7 @@ private:
 
     // Time accumulator for fixed-step particle updates (legacy: 30ms per step)
     float particle_accumulator_ = 0.0f;
-    static constexpr float particle_step_interval = 0.030f;  // 30ms
+    static constexpr float particle_step_interval = 0.030f; // 30ms
 
     // RNG
     std::mt19937 rng_{std::random_device{}()};

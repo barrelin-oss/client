@@ -10,14 +10,16 @@
 #include <memory>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
 class sprite_manager;
 
 // Screen types
-enum class screen_type {
+enum class screen_type
+{
     none,
     main_menu,
     login,
@@ -30,7 +32,8 @@ enum class screen_type {
 };
 
 // Manages screen transitions and updates
-class screen_manager {
+class screen_manager
+{
 public:
     using state_change_callback = std::function<void(screen_type)>;
 

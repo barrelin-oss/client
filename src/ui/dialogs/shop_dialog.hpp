@@ -6,17 +6,20 @@
 #include <optional>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Shop item for sale
-struct shop_item {
+struct shop_item
+{
     item item_data;
     uint32_t price = 0;
-    uint32_t stock = 0;  // 0 = unlimited
+    uint32_t stock = 0; // 0 = unlimited
 };
 
 // Shop dialog - for buying items from NPCs
-class shop_dialog : public dialog {
+class shop_dialog : public dialog
+{
 public:
     static constexpr int32_t items_per_page = 8;
     static constexpr int32_t item_row_height = 32;
@@ -73,7 +76,8 @@ private:
 };
 
 // Shop sell dialog - for selling items to NPCs
-class shop_sell_dialog : public dialog {
+class shop_sell_dialog : public dialog
+{
 public:
     static constexpr int32_t items_per_page = 8;
     static constexpr int32_t item_row_height = 32;
@@ -87,7 +91,8 @@ public:
     bool handle_mouse_move(int32_t x, int32_t y) override;
 
     // Set sellable items (from inventory)
-    struct sell_item {
+    struct sell_item
+    {
         const item* item_ptr = nullptr;
         int32_t inventory_slot = -1;
         uint32_t sell_price = 0;

@@ -10,17 +10,20 @@
 #include <vector>
 #endif
 
-namespace hb {
+namespace hb
+{
 
 // Sprite IDs for login screen
-namespace login_sprites {
-    inline constexpr uint16_t background = 53;  // DEF_SPRID_INTERFACE_ND_LOGIN
-    inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
-    inline constexpr uint16_t game4 = 63;       // DEF_SPRID_INTERFACE_ND_GAME4 (for gateway message)
-}
+namespace login_sprites
+{
+inline constexpr uint16_t background = 53;  // DEF_SPRID_INTERFACE_ND_LOGIN
+inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
+inline constexpr uint16_t game4 = 63;       // DEF_SPRID_INTERFACE_ND_GAME4 (for gateway message)
+} // namespace login_sprites
 
 // Login button IDs
-enum class login_focus : int32_t {
+enum class login_focus : int32_t
+{
     account_name = 1,
     password = 2,
     connect = 3,
@@ -28,7 +31,8 @@ enum class login_focus : int32_t {
 };
 
 // Login screen - modern equivalent of UpdateScreen_OnLogin
-class login_screen : public screen_base {
+class login_screen : public screen_base
+{
 public:
     using login_callback = std::function<void(const std::string& name, const std::string& password)>;
     using cancel_callback = std::function<void()>;

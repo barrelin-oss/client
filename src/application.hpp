@@ -16,11 +16,16 @@
 #include <memory>
 #include <string_view>
 
-namespace hb { class sprite; }
+namespace hb
+{
+class sprite;
+}
 
-namespace hb {
+namespace hb
+{
 
-class application {
+class application
+{
 public:
     application() = default;
     ~application() = default;
@@ -59,7 +64,7 @@ private:
 
     // State
     bool running_ = false;
-    bool had_focus_ = true;  // Track focus changes for borderless topmost
+    bool had_focus_ = true; // Track focus changes for borderless topmost
 
     // Loading screen character
     const sprite* loading_char_sprite_ = nullptr;

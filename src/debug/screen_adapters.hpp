@@ -4,15 +4,15 @@
 #include <cstdint>
 #include <string>
 
-namespace hb::debug {
+namespace hb::debug
+{
 
 // Adapter that wraps a simple (x, y) point as a positionable element
 // with a fixed size (for elements that are just a position like a panel origin)
 class screen_point_adapter : public positionable
 {
 public:
-    screen_point_adapter(std::string id, int32_t& x_ref, int32_t& y_ref,
-                         int32_t width, int32_t height)
+    screen_point_adapter(std::string id, int32_t& x_ref, int32_t& y_ref, int32_t width, int32_t height)
         : id_(std::move(id))
         , x_ref_(x_ref)
         , y_ref_(y_ref)
@@ -21,15 +21,9 @@ public:
     {
     }
 
-    std::string position_id() const override
-    {
-        return id_;
-    }
+    std::string position_id() const override { return id_; }
 
-    bounds get_bounds() const override
-    {
-        return {x_ref_, y_ref_, width_, height_};
-    }
+    bounds get_bounds() const override { return {x_ref_, y_ref_, width_, height_}; }
 
     void set_position(int32_t x, int32_t y) override
     {
@@ -50,8 +44,7 @@ private:
 class screen_rect_adapter : public positionable
 {
 public:
-    screen_rect_adapter(std::string id, int32_t& x_ref, int32_t& y_ref,
-                        int32_t& width_ref, int32_t& height_ref)
+    screen_rect_adapter(std::string id, int32_t& x_ref, int32_t& y_ref, int32_t& width_ref, int32_t& height_ref)
         : id_(std::move(id))
         , x_ref_(x_ref)
         , y_ref_(y_ref)
@@ -60,15 +53,9 @@ public:
     {
     }
 
-    std::string position_id() const override
-    {
-        return id_;
-    }
+    std::string position_id() const override { return id_; }
 
-    bounds get_bounds() const override
-    {
-        return {x_ref_, y_ref_, width_ref_, height_ref_};
-    }
+    bounds get_bounds() const override { return {x_ref_, y_ref_, width_ref_, height_ref_}; }
 
     void set_position(int32_t x, int32_t y) override
     {
@@ -89,8 +76,7 @@ private:
 class button_adapter : public positionable
 {
 public:
-    button_adapter(std::string id, int32_t& x_ref, int32_t& y_ref,
-                   int32_t width, int32_t height)
+    button_adapter(std::string id, int32_t& x_ref, int32_t& y_ref, int32_t width, int32_t height)
         : id_(std::move(id))
         , x_ref_(x_ref)
         , y_ref_(y_ref)
@@ -99,15 +85,9 @@ public:
     {
     }
 
-    std::string position_id() const override
-    {
-        return id_;
-    }
+    std::string position_id() const override { return id_; }
 
-    bounds get_bounds() const override
-    {
-        return {x_ref_, y_ref_, width_, height_};
-    }
+    bounds get_bounds() const override { return {x_ref_, y_ref_, width_, height_}; }
 
     void set_position(int32_t x, int32_t y) override
     {

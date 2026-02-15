@@ -4,7 +4,8 @@
 #include <functional>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // Screen shown when launcher-provided credentials are available.
 // Displays the HELBREATH XTREME fire title with a single "Reconnect" button.

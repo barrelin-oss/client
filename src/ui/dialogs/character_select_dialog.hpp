@@ -6,15 +6,17 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Character information for display
-struct character_display_info {
+struct character_display_info
+{
     std::string name;
     uint16_t level = 1;
     std::string map_name;
-    std::string class_name;  // "Warrior" or "Mage"
-    uint8_t gender = 0;      // 0 = male, 1 = female
+    std::string class_name; // "Warrior" or "Mage"
+    uint8_t gender = 0;     // 0 = male, 1 = female
     bool warrior = true;
     // Stats for display
     uint16_t strength = 0;
@@ -25,7 +27,8 @@ struct character_display_info {
     uint16_t charisma = 0;
 };
 
-class character_select_dialog : public dialog {
+class character_select_dialog : public dialog
+{
 public:
     character_select_dialog();
     ~character_select_dialog() override = default;

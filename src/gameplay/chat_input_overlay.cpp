@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
 // ============================================================
 // Command autocomplete helpers
@@ -17,13 +18,16 @@ void chat_input_overlay::set_commands(std::vector<command_entry> commands)
     commands.push_back({"tooff", "Stop whispering", "/tooff", "chat", true});
 
     // Sort by category display order, then alphabetically within each category
-    std::sort(commands.begin(), commands.end(), [](const command_entry& a, const command_entry& b)
-    {
-        int oa = category_sort_order(a.category);
-        int ob = category_sort_order(b.category);
-        if (oa != ob) return oa < ob;
-        return a.name < b.name;
-    });
+    std::sort(commands.begin(),
+              commands.end(),
+              [](const command_entry& a, const command_entry& b)
+              {
+                  int oa = category_sort_order(a.category);
+                  int ob = category_sort_order(b.category);
+                  if (oa != ob)
+                      return oa < ob;
+                  return a.name < b.name;
+              });
 
     commands_ = std::move(commands);
     spdlog::info("Chat autocomplete: received {} commands", commands_.size());
@@ -43,21 +47,31 @@ void chat_input_overlay::update_command_availability(const std::string& name, bo
 
 int32_t chat_input_overlay::category_sort_order(const std::string& cat)
 {
-    if (cat == "general") return 0;
-    if (cat == "chat") return 1;
-    if (cat == "guild") return 2;
-    if (cat == "gm") return 3;
-    if (cat == "admin") return 4;
+    if (cat == "general")
+        return 0;
+    if (cat == "chat")
+        return 1;
+    if (cat == "guild")
+        return 2;
+    if (cat == "gm")
+        return 3;
+    if (cat == "admin")
+        return 4;
     return 5;
 }
 
 sf::Color chat_input_overlay::category_stripe_color(const std::string& cat)
 {
-    if (cat == "general") return sf::Color(200, 200, 200);
-    if (cat == "guild") return sf::Color(100, 200, 100);
-    if (cat == "chat") return sf::Color(120, 180, 255);
-    if (cat == "gm") return sf::Color(0, 220, 220);
-    if (cat == "admin") return sf::Color(220, 100, 100);
+    if (cat == "general")
+        return sf::Color(200, 200, 200);
+    if (cat == "guild")
+        return sf::Color(100, 200, 100);
+    if (cat == "chat")
+        return sf::Color(120, 180, 255);
+    if (cat == "gm")
+        return sf::Color(0, 220, 220);
+    if (cat == "admin")
+        return sf::Color(220, 100, 100);
     return sf::Color(140, 140, 140);
 }
 
@@ -91,7 +105,8 @@ void chat_input_overlay::update_popup_filter()
 
     for (const auto& cmd : commands_)
     {
-        if (!cmd.enabled) continue;
+        if (!cmd.enabled)
+            continue;
 
         // Match if command name starts with prefix
         if (prefix.empty())
@@ -186,33 +201,51 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
             char ch = text[0];
             switch (ch)
             {
-                case '!': activate(); mode_ = chat_mode::shout; return true;
-                case '~': activate(); mode_ = chat_mode::faction; return true;
-                case '@': activate(); mode_ = chat_mode::guild; return true;
-                case '$': activate(); mode_ = chat_mode::party; return true;
-                case '%': activate(); mode_ = chat_mode::trade; return true;
-                case '^': activate(); mode_ = chat_mode::gm; return true;
-                case '#':
-                    // # overrides whisper for one message -> force say mode
+            case '!':
+                activate();
+                mode_ = chat_mode::shout;
+                return true;
+            case '~':
+                activate();
+                mode_ = chat_mode::faction;
+                return true;
+            case '@':
+                activate();
+                mode_ = chat_mode::guild;
+                return true;
+            case '$':
+                activate();
+                mode_ = chat_mode::party;
+                return true;
+            case '%':
+                activate();
+                mode_ = chat_mode::trade;
+                return true;
+            case '^':
+                activate();
+                mode_ = chat_mode::gm;
+                return true;
+            case '#':
+                // # overrides whisper for one message -> force say mode
+                activate();
+                mode_ = chat_mode::say;
+                return true;
+            case '/':
+                activate();
+                input_text_ = "/";
+                cursor_pos_ = 1;
+                update_popup_filter();
+                return true;
+            default:
+                // Type-to-chat: any printable character opens chat and seeds input
+                if (type_to_chat_ && ch >= 32 && ch != 127)
+                {
                     activate();
-                    mode_ = chat_mode::say;
-                    return true;
-                case '/':
-                    activate();
-                    input_text_ = "/";
+                    input_text_ = std::string(1, ch);
                     cursor_pos_ = 1;
-                    update_popup_filter();
                     return true;
-                default:
-                    // Type-to-chat: any printable character opens chat and seeds input
-                    if (type_to_chat_ && ch >= 32 && ch != 127)
-                    {
-                        activate();
-                        input_text_ = std::string(1, ch);
-                        cursor_pos_ = 1;
-                        return true;
-                    }
-                    break;
+                }
+                break;
             }
         }
 
@@ -235,8 +268,7 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
         // Mouse hover detection
         int32_t mx = inp.mouse_x();
         int32_t my = inp.mouse_y();
-        if (mx >= popup_x_ && mx < popup_x_ + popup_width_ &&
-            my >= popup_y_ && my < popup_y_ + popup_height_)
+        if (mx >= popup_x_ && mx < popup_x_ + popup_width_ && my >= popup_y_ && my < popup_y_ + popup_height_)
         {
             int32_t row = (my - popup_y_) / popup_row_height + popup_scroll_offset_;
             if (row >= 0 && row < static_cast<int32_t>(popup_filtered_.size()))
@@ -294,8 +326,7 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
         }
 
         // Enter or Tab selects highlighted command
-        if (inp.is_key_pressed(sf::Keyboard::Key::Enter) ||
-            inp.is_key_pressed(sf::Keyboard::Key::Tab))
+        if (inp.is_key_pressed(sf::Keyboard::Key::Enter) || inp.is_key_pressed(sf::Keyboard::Key::Tab))
         {
             select_popup_command();
             update_popup_filter();
@@ -357,8 +388,10 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
     auto text = inp.text_input();
     for (char ch : text)
     {
-        if (ch < 32 || ch == 127) continue;
-        if (input_text_.size() >= max_input_length) break;
+        if (ch < 32 || ch == 127)
+            continue;
+        if (input_text_.size() >= max_input_length)
+            break;
         input_text_.insert(cursor_pos_, 1, ch);
         cursor_pos_++;
     }
@@ -374,7 +407,7 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
     // Update popup filter after any text change
     update_popup_filter();
 
-    return true;  // Consuming all input while active
+    return true; // Consuming all input while active
 }
 
 // ============================================================
@@ -383,7 +416,8 @@ bool chat_input_overlay::update(float delta_time, const input& inp)
 
 void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t screen_height)
 {
-    if (!active_) return;
+    if (!active_)
+        return;
 
     // Position: above icon panel (icon panel is ~34px tall at bottom)
     constexpr int32_t bar_height = 24;
@@ -467,43 +501,38 @@ void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t sc
         for (int32_t i = 0; i < visible_count; ++i)
         {
             int32_t idx = i + popup_scroll_offset_;
-            if (idx < 0 || idx >= static_cast<int32_t>(popup_filtered_.size())) break;
+            if (idx < 0 || idx >= static_cast<int32_t>(popup_filtered_.size()))
+                break;
 
             const auto* cmd = popup_filtered_[idx];
             int32_t row_y = py + i * popup_row_height;
 
             // Category background tint
-            rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
-                category_tint_color(cmd->category), true);
+            rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height, category_tint_color(cmd->category), true);
 
             // Selection or hover highlight
             if (idx == popup_selected_)
             {
-                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
-                    sf::Color(60, 60, 120, 200), true);
+                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height, sf::Color(60, 60, 120, 200), true);
             }
             else if (idx == popup_hovered_)
             {
-                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height,
-                    sf::Color(50, 50, 90, 150), true);
+                rend.draw_rect(px + 1, row_y, pw - 2, popup_row_height, sf::Color(50, 50, 90, 150), true);
             }
 
             // Category color stripe (left edge)
-            rend.draw_rect(px + 1, row_y, stripe_width, popup_row_height,
-                category_stripe_color(cmd->category), true);
+            rend.draw_rect(px + 1, row_y, stripe_width, popup_row_height, category_stripe_color(cmd->category), true);
 
             int32_t text_y = row_y + 3;
 
             // Command name
             std::string name_str = "/" + cmd->name;
-            rend.draw_text(name_str, px + name_offset_x, text_y,
-                sf::Color::White, font_size);
+            rend.draw_text(name_str, px + name_offset_x, text_y, sf::Color::White, font_size);
 
             // Description (after command name, with gap)
             float name_w = rend.text().measure_width(name_str, font_size);
             int32_t desc_x = px + name_offset_x + static_cast<int32_t>(name_w) + 12;
-            rend.draw_text(cmd->description, desc_x, text_y,
-                sf::Color(160, 160, 160), font_size);
+            rend.draw_text(cmd->description, desc_x, text_y, sf::Color(160, 160, 160), font_size);
 
             // Usage (right-aligned)
             float usage_w = rend.text().measure_width(cmd->usage, font_size);
@@ -511,8 +540,7 @@ void chat_input_overlay::render(renderer& rend, int32_t screen_width, int32_t sc
             // Only draw if it wouldn't overlap description
             if (usage_x > desc_x + 40)
             {
-                rend.draw_text(cmd->usage, usage_x, text_y,
-                    sf::Color(100, 100, 100), font_size);
+                rend.draw_text(cmd->usage, usage_x, text_y, sf::Color(100, 100, 100), font_size);
             }
         }
 
@@ -537,8 +565,10 @@ void chat_input_overlay::send_current()
 {
     // Trim whitespace
     std::string text = input_text_;
-    while (!text.empty() && text.back() == ' ') text.pop_back();
-    while (!text.empty() && text.front() == ' ') text.erase(text.begin());
+    while (!text.empty() && text.back() == ' ')
+        text.pop_back();
+    while (!text.empty() && text.front() == ' ')
+        text.erase(text.begin());
 
     if (text.empty())
     {
@@ -580,7 +610,8 @@ void chat_input_overlay::parse_command(std::string_view text)
     {
         std::string target(text.substr(4));
         // Trim
-        while (!target.empty() && target.back() == ' ') target.pop_back();
+        while (!target.empty() && target.back() == ' ')
+            target.pop_back();
         if (!target.empty())
         {
             whisper_target_ = target;
@@ -610,14 +641,22 @@ std::string_view chat_input_overlay::channel_for_mode() const
 {
     switch (mode_)
     {
-        case chat_mode::say:     return "local";
-        case chat_mode::shout:   return "shout";
-        case chat_mode::faction: return "faction";
-        case chat_mode::guild:   return "guild";
-        case chat_mode::party:   return "party";
-        case chat_mode::trade:   return "trade";
-        case chat_mode::gm:      return "gm";
-        case chat_mode::whisper: return "whisper";
+    case chat_mode::say:
+        return "local";
+    case chat_mode::shout:
+        return "shout";
+    case chat_mode::faction:
+        return "faction";
+    case chat_mode::guild:
+        return "guild";
+    case chat_mode::party:
+        return "party";
+    case chat_mode::trade:
+        return "trade";
+    case chat_mode::gm:
+        return "gm";
+    case chat_mode::whisper:
+        return "whisper";
     }
     return "local";
 }
@@ -626,14 +665,22 @@ sf::Color chat_input_overlay::color_for_mode() const
 {
     switch (mode_)
     {
-        case chat_mode::say:     return get_chat_bubble_style("local").color;
-        case chat_mode::shout:   return get_chat_bubble_style("shout").color;
-        case chat_mode::faction: return get_chat_bubble_style("faction").color;
-        case chat_mode::guild:   return get_chat_bubble_style("guild").color;
-        case chat_mode::party:   return get_chat_bubble_style("party").color;
-        case chat_mode::trade:   return get_chat_bubble_style("trade").color;
-        case chat_mode::gm:      return get_chat_bubble_style("gm").color;
-        case chat_mode::whisper: return get_chat_bubble_style("whisper").color;
+    case chat_mode::say:
+        return get_chat_bubble_style("local").color;
+    case chat_mode::shout:
+        return get_chat_bubble_style("shout").color;
+    case chat_mode::faction:
+        return get_chat_bubble_style("faction").color;
+    case chat_mode::guild:
+        return get_chat_bubble_style("guild").color;
+    case chat_mode::party:
+        return get_chat_bubble_style("party").color;
+    case chat_mode::trade:
+        return get_chat_bubble_style("trade").color;
+    case chat_mode::gm:
+        return get_chat_bubble_style("gm").color;
+    case chat_mode::whisper:
+        return get_chat_bubble_style("whisper").color;
     }
     return get_chat_bubble_style("local").color;
 }
@@ -647,14 +694,22 @@ std::string chat_input_overlay::label_for_mode() const
 
     switch (mode_)
     {
-        case chat_mode::say:     return "[Say]";
-        case chat_mode::shout:   return "[Shout]";
-        case chat_mode::faction: return "[Faction]";
-        case chat_mode::guild:   return "[Guild]";
-        case chat_mode::party:   return "[Party]";
-        case chat_mode::trade:   return "[Trade]";
-        case chat_mode::gm:      return "[GM]";
-        case chat_mode::whisper: return "[Whisper]";
+    case chat_mode::say:
+        return "[Say]";
+    case chat_mode::shout:
+        return "[Shout]";
+    case chat_mode::faction:
+        return "[Faction]";
+    case chat_mode::guild:
+        return "[Guild]";
+    case chat_mode::party:
+        return "[Party]";
+    case chat_mode::trade:
+        return "[Trade]";
+    case chat_mode::gm:
+        return "[GM]";
+    case chat_mode::whisper:
+        return "[Whisper]";
     }
     return "[Say]";
 }

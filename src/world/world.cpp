@@ -8,7 +8,8 @@
 #include <filesystem>
 #include <unordered_map>
 
-namespace hb {
+namespace hb
+{
 
 bool world::initialize(tile_sprite_registry& registry)
 {
@@ -48,10 +49,8 @@ void world::update(float delta_time)
         double screen_center_y = static_cast<double>(screen_height_) / 2.0;
 
         // Camera position that keeps anchor_world at anchor_screen with current zoom
-        camera_x_ = zoom_anchor_world_x_ - screen_center_x -
-                    (zoom_anchor_screen_x_ - screen_center_x) * zoom_level_;
-        camera_y_ = zoom_anchor_world_y_ - screen_center_y -
-                    (zoom_anchor_screen_y_ - screen_center_y) * zoom_level_;
+        camera_x_ = zoom_anchor_world_x_ - screen_center_x - (zoom_anchor_screen_x_ - screen_center_x) * zoom_level_;
+        camera_y_ = zoom_anchor_world_y_ - screen_center_y - (zoom_anchor_screen_y_ - screen_center_y) * zoom_level_;
 
         // Clear anchor when close enough - no explicit snap to avoid jump
         if (std::abs(zoom_level_ - zoom_target_) < 0.001)
@@ -80,12 +79,14 @@ void world::render_terrain(renderer& rend)
 
 void world::render_objects_row(renderer& rend, int32_t row_y, const sf::IntRect* player_bounds)
 {
-    map_renderer_.render_objects_row(rend, current_map_, row_y, static_cast<int32_t>(camera_x_), static_cast<int32_t>(camera_y_), player_bounds);
+    map_renderer_.render_objects_row(
+        rend, current_map_, row_y, static_cast<int32_t>(camera_x_), static_cast<int32_t>(camera_y_), player_bounds);
 }
 
 map_renderer::visible_range world::get_visible_tile_range() const
 {
-    return map_renderer_.get_visible_range(current_map_, static_cast<int32_t>(camera_x_), static_cast<int32_t>(camera_y_));
+    return map_renderer_.get_visible_range(
+        current_map_, static_cast<int32_t>(camera_x_), static_cast<int32_t>(camera_y_));
 }
 
 void world::apply_zoom_view(renderer& rend)
@@ -122,8 +123,10 @@ static std::string find_amd_case_insensitive(const std::string& dir, const std::
         {
             auto name = entry.path().filename().string();
             std::string lower = name;
-            std::transform(lower.begin(), lower.end(), lower.begin(),
-                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(lower.begin(),
+                           lower.end(),
+                           lower.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             amd_file_cache[lower] = entry.path().string();
         }
         amd_cache_built = true;
@@ -141,7 +144,9 @@ bool world::load_map(std::string_view map_name)
 {
     // Convert map name to lowercase for file lookup
     std::string name_lower(map_name);
-    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
+    std::transform(name_lower.begin(),
+                   name_lower.end(),
+                   name_lower.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     // AMD files are in assets/data/mapdata/ directory relative to the binary
@@ -155,8 +160,9 @@ bool world::load_map(std::string_view map_name)
         if (!resolved.empty())
         {
             path = resolved;
-            spdlog::debug("AMD case-insensitive match: {}.amd -> {}", name_lower,
-                         std::filesystem::path(resolved).filename().string());
+            spdlog::debug("AMD case-insensitive match: {}.amd -> {}",
+                          name_lower,
+                          std::filesystem::path(resolved).filename().string());
         }
     }
 
@@ -235,7 +241,7 @@ void world::center_on_player()
 
     camera_x_ = target_x;
     camera_y_ = target_y;
-    has_zoom_anchor_ = false;  // Clear anchor when camera is repositioned
+    has_zoom_anchor_ = false; // Clear anchor when camera is repositioned
 }
 
 void world::set_screen_size(uint32_t width, uint32_t height)
@@ -304,7 +310,8 @@ void world::move_camera(int32_t dx, int32_t dy)
 
 void world::start_drag(int32_t mouse_x, int32_t mouse_y)
 {
-    if (!cinematic_mode_) return;
+    if (!cinematic_mode_)
+        return;
 
     drag_active_ = true;
     drag_start_mouse_x_ = mouse_x;
@@ -315,7 +322,8 @@ void world::start_drag(int32_t mouse_x, int32_t mouse_y)
 
 void world::update_drag(int32_t mouse_x, int32_t mouse_y)
 {
-    if (!drag_active_ || !cinematic_mode_) return;
+    if (!drag_active_ || !cinematic_mode_)
+        return;
 
     // Calculate delta from drag start (inverted - drag right moves camera left)
     double dx = static_cast<double>(drag_start_mouse_x_ - mouse_x);
@@ -330,7 +338,7 @@ void world::update_drag(int32_t mouse_x, int32_t mouse_y)
 
     camera_x_ = static_cast<double>(drag_start_camera_x_) + dx;
     camera_y_ = static_cast<double>(drag_start_camera_y_) + dy;
-    has_zoom_anchor_ = false;  // Clear anchor when panning
+    has_zoom_anchor_ = false; // Clear anchor when panning
 }
 
 void world::end_drag()
@@ -354,18 +362,25 @@ void world::set_clock(uint8_t hour, uint8_t minute)
 {
     clock_hour_ = hour;
     clock_minute_ = minute;
-    clock_accumulator_ = 0.0f;  // Reset accumulator on server sync
+    clock_accumulator_ = 0.0f; // Reset accumulator on server sync
 }
 
 static time_of_day hour_to_time_of_day(uint8_t hour)
 {
-    if (hour < 5)  return time_of_day::midnight;
-    if (hour < 7)  return time_of_day::dawn;
-    if (hour < 10) return time_of_day::morning;
-    if (hour < 14) return time_of_day::noon;
-    if (hour < 17) return time_of_day::afternoon;
-    if (hour < 19) return time_of_day::dusk;
-    if (hour < 23) return time_of_day::night;
+    if (hour < 5)
+        return time_of_day::midnight;
+    if (hour < 7)
+        return time_of_day::dawn;
+    if (hour < 10)
+        return time_of_day::morning;
+    if (hour < 14)
+        return time_of_day::noon;
+    if (hour < 17)
+        return time_of_day::afternoon;
+    if (hour < 19)
+        return time_of_day::dusk;
+    if (hour < 23)
+        return time_of_day::night;
     return time_of_day::midnight;
 }
 
@@ -373,7 +388,8 @@ void world::update_clock(float delta_time)
 {
     // Server game clock: 1 real second = 1 game minute (60x speed)
     clock_accumulator_ += delta_time;
-    if (clock_accumulator_ < 1.0f) return;
+    if (clock_accumulator_ < 1.0f)
+        return;
 
     // Advance by whole minutes
     auto minutes = static_cast<int>(clock_accumulator_);
@@ -421,10 +437,8 @@ std::pair<int32_t, int32_t> world::screen_to_world(int32_t screen_x, int32_t scr
     {
         double cx = static_cast<double>(screen_width_) / 2.0;
         double cy = static_cast<double>(screen_height_) / 2.0;
-        return {
-            static_cast<int32_t>(camera_x_ + cx + (static_cast<double>(screen_x) - cx) * zoom_level_),
-            static_cast<int32_t>(camera_y_ + cy + (static_cast<double>(screen_y) - cy) * zoom_level_)
-        };
+        return {static_cast<int32_t>(camera_x_ + cx + (static_cast<double>(screen_x) - cx) * zoom_level_),
+                static_cast<int32_t>(camera_y_ + cy + (static_cast<double>(screen_y) - cy) * zoom_level_)};
     }
     return {screen_x + static_cast<int32_t>(camera_x_), screen_y + static_cast<int32_t>(camera_y_)};
 }
@@ -435,10 +449,8 @@ std::pair<int32_t, int32_t> world::world_to_screen(int32_t world_x, int32_t worl
     {
         double cx = static_cast<double>(screen_width_) / 2.0;
         double cy = static_cast<double>(screen_height_) / 2.0;
-        return {
-            static_cast<int32_t>(cx + (static_cast<double>(world_x) - camera_x_ - cx) / zoom_level_),
-            static_cast<int32_t>(cy + (static_cast<double>(world_y) - camera_y_ - cy) / zoom_level_)
-        };
+        return {static_cast<int32_t>(cx + (static_cast<double>(world_x) - camera_x_ - cx) / zoom_level_),
+                static_cast<int32_t>(cy + (static_cast<double>(world_y) - camera_y_ - cy) / zoom_level_)};
     }
     return {world_x - static_cast<int32_t>(camera_x_), world_y - static_cast<int32_t>(camera_y_)};
 }
@@ -464,8 +476,10 @@ void world::update_camera(float delta_time)
             float current_intensity = shake_intensity_ * (1.0f - progress);
 
             // Random offset within intensity range
-            shake_offset_x_ = static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
-            shake_offset_y_ = static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
+            shake_offset_x_ =
+                static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
+            shake_offset_y_ =
+                static_cast<int32_t>((static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * current_intensity);
         }
     }
 
@@ -495,39 +509,38 @@ void world::update_tint(float delta_time)
 
 void world::render_overlay(renderer& rend)
 {
-    if (!tint_visible_) return;
+    if (!tint_visible_)
+        return;
     auto a = static_cast<uint8_t>(std::clamp(current_tint_a_, 0.0f, 255.0f));
-    if (a == 0) return;
+    if (a == 0)
+        return;
 
-    sf::Color tint(
-        static_cast<uint8_t>(std::clamp(current_tint_r_, 0.0f, 255.0f)),
-        static_cast<uint8_t>(std::clamp(current_tint_g_, 0.0f, 255.0f)),
-        static_cast<uint8_t>(std::clamp(current_tint_b_, 0.0f, 255.0f)),
-        a);
-    rend.draw_rect(0, 0,
-        static_cast<int32_t>(rend.scene_width()),
-        static_cast<int32_t>(rend.scene_height()),
-        tint, true);
+    sf::Color tint(static_cast<uint8_t>(std::clamp(current_tint_r_, 0.0f, 255.0f)),
+                   static_cast<uint8_t>(std::clamp(current_tint_g_, 0.0f, 255.0f)),
+                   static_cast<uint8_t>(std::clamp(current_tint_b_, 0.0f, 255.0f)),
+                   a);
+    rend.draw_rect(
+        0, 0, static_cast<int32_t>(rend.scene_width()), static_cast<int32_t>(rend.scene_height()), tint, true);
 }
 
 tint_color world::tint_for_time(time_of_day t)
 {
     switch (t)
     {
-        case time_of_day::dawn:
-            return {200, 140, 80, 35};       // Warm orange
-        case time_of_day::morning:
-            return {0, 0, 0, 0};             // No tint
-        case time_of_day::noon:
-            return {0, 0, 0, 0};             // No tint
-        case time_of_day::afternoon:
-            return {200, 160, 100, 15};      // Warm
-        case time_of_day::dusk:
-            return {160, 60, 40, 55};        // Orange-red
-        case time_of_day::night:
-            return {10, 10, 50, 110};        // Dark blue
-        case time_of_day::midnight:
-            return {5, 5, 30, 140};          // Deep blue
+    case time_of_day::dawn:
+        return {200, 140, 80, 35}; // Warm orange
+    case time_of_day::morning:
+        return {0, 0, 0, 0}; // No tint
+    case time_of_day::noon:
+        return {0, 0, 0, 0}; // No tint
+    case time_of_day::afternoon:
+        return {200, 160, 100, 15}; // Warm
+    case time_of_day::dusk:
+        return {160, 60, 40, 55}; // Orange-red
+    case time_of_day::night:
+        return {10, 10, 50, 110}; // Dark blue
+    case time_of_day::midnight:
+        return {5, 5, 30, 140}; // Deep blue
     }
     return {0, 0, 0, 0};
 }
@@ -546,12 +559,14 @@ void world::set_zoom_mode_enabled(bool enabled)
 
 void world::adjust_zoom(float delta, int32_t cursor_x, int32_t cursor_y)
 {
-    if (!zoom_mode_enabled_) return;
+    if (!zoom_mode_enabled_)
+        return;
 
     // Zoom limits: 0.5 = 2x zoom in, 8.0 = 8x zoom out
     double new_zoom = std::clamp(zoom_target_ + static_cast<double>(delta), 0.5, 8.0);
 
-    if (new_zoom == zoom_target_) return;
+    if (new_zoom == zoom_target_)
+        return;
 
     // If cursor position provided, set up anchor to keep tile center under cursor stationary
     if (cursor_x >= 0 && cursor_y >= 0)

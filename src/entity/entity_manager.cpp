@@ -12,9 +12,11 @@
 #include <array>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
-namespace {
+namespace
+{
 
 // Character sprite constants (from menu_character_renderer.hpp)
 struct character_sprite_constants
@@ -36,7 +38,7 @@ struct npc_sprite_constants
 {
     static constexpr uint16_t npc_base = 1220;
     static constexpr uint16_t npc_type_offset = 10;
-    static constexpr uint16_t frames_per_type = 56;  // 7 actions * 8 directions
+    static constexpr uint16_t frames_per_type = 56; // 7 actions * 8 directions
     static constexpr uint16_t directions_per_action = 8;
 };
 
@@ -54,19 +56,17 @@ inline int32_t calculate_owner_type(uint8_t gender, uint8_t skin_color)
 inline uint16_t calculate_body_sprite_id(int32_t owner_type, int32_t action, int32_t direction)
 {
     // Body sprite ID: 500 + (owner_type - 1) * 120 + action * 8 + (dir - 1)
-    return static_cast<uint16_t>(
-        character_sprite_constants::body_base +
-        (owner_type - 1) * character_sprite_constants::body_stride +
-        action * 8 + (direction - 1));
+    return static_cast<uint16_t>(character_sprite_constants::body_base +
+                                 (owner_type - 1) * character_sprite_constants::body_stride + action * 8 +
+                                 (direction - 1));
 }
 
 // Calculate underwear sprite ID for a character
 inline uint16_t calculate_underwear_sprite_id(bool is_female, uint8_t underwear_color, int32_t action)
 {
     uint8_t clamped_color = std::clamp(underwear_color, uint8_t(0), uint8_t(7));
-    uint16_t base = is_female ?
-        character_sprite_constants::female_underwear_base :
-        character_sprite_constants::male_underwear_base;
+    uint16_t base =
+        is_female ? character_sprite_constants::female_underwear_base : character_sprite_constants::male_underwear_base;
     return static_cast<uint16_t>(base + clamped_color * character_sprite_constants::underwear_stride + action);
 }
 
@@ -74,9 +74,8 @@ inline uint16_t calculate_underwear_sprite_id(bool is_female, uint8_t underwear_
 inline uint16_t calculate_hair_sprite_id(bool is_female, uint8_t hair_style, int32_t action)
 {
     uint8_t clamped_style = std::clamp(hair_style, uint8_t(0), uint8_t(7));
-    uint16_t base = is_female ?
-        character_sprite_constants::female_hair_base :
-        character_sprite_constants::male_hair_base;
+    uint16_t base =
+        is_female ? character_sprite_constants::female_hair_base : character_sprite_constants::male_hair_base;
     return static_cast<uint16_t>(base + clamped_style * character_sprite_constants::hair_stride + action);
 }
 
@@ -86,10 +85,14 @@ inline int32_t equipment_frames_per_direction(int32_t action)
 {
     switch (action)
     {
-        case 8:  return 16; // magic
-        case 9:  return 4;  // get_item
-        case 10: return 4;  // damage
-        default: return 8;
+    case 8:
+        return 16; // magic
+    case 9:
+        return 4; // get_item
+    case 10:
+        return 4; // damage
+    default:
+        return 8;
     }
 }
 
@@ -102,22 +105,22 @@ struct hair_color_offset
 };
 
 static constexpr hair_color_offset hair_colors[16] = {
-    { 14.0f/31,  -5.0f/63,  -5.0f/31},  //  0: dark red
-    { 20.0f/31,   0.0f/63,   0.0f/31},  //  1: orange
-    { 22.0f/31,  13.0f/63, -10.0f/31},  //  2: light brown
-    {  0.0f/31,  10.0f/63,   0.0f/31},  //  3: green
-    {  0.0f/31,   0.0f/63,  22.0f/31},  //  4: flashy blue
-    { -5.0f/31,  -5.0f/63,  15.0f/31},  //  5: dark blue
-    { 15.0f/31,  -5.0f/63,  16.0f/31},  //  6: mauve
-    { -6.0f/31,  -6.0f/63,  -6.0f/31},  //  7: black
-    {-10.0f/31,   0.0f/63,   0.0f/31},  //  8: dark
-    {  0.0f/31,   0.0f/63,   0.0f/31},  //  9: natural
-    {  0.0f/31,   0.0f/63,   0.0f/31},  // 10: natural
-    { 22.0f/31,  22.0f/63,  22.0f/31},  // 11: white/bright
-    { 22.0f/31,  17.0f/63,   0.0f/31},  // 12: golden
-    { -5.0f/31,   0.0f/63,  22.0f/31},  // 13: cyan-blue
-    {  0.0f/31,   0.0f/63,   0.0f/31},  // 14: natural
-    {  0.0f/31,  22.0f/63,   0.0f/31},  // 15: green
+    {14.0f / 31, -5.0f / 63, -5.0f / 31},  //  0: dark red
+    {20.0f / 31, 0.0f / 63, 0.0f / 31},    //  1: orange
+    {22.0f / 31, 13.0f / 63, -10.0f / 31}, //  2: light brown
+    {0.0f / 31, 10.0f / 63, 0.0f / 31},    //  3: green
+    {0.0f / 31, 0.0f / 63, 22.0f / 31},    //  4: flashy blue
+    {-5.0f / 31, -5.0f / 63, 15.0f / 31},  //  5: dark blue
+    {15.0f / 31, -5.0f / 63, 16.0f / 31},  //  6: mauve
+    {-6.0f / 31, -6.0f / 63, -6.0f / 31},  //  7: black
+    {-10.0f / 31, 0.0f / 63, 0.0f / 31},   //  8: dark
+    {0.0f / 31, 0.0f / 63, 0.0f / 31},     //  9: natural
+    {0.0f / 31, 0.0f / 63, 0.0f / 31},     // 10: natural
+    {22.0f / 31, 22.0f / 63, 22.0f / 31},  // 11: white/bright
+    {22.0f / 31, 17.0f / 63, 0.0f / 31},   // 12: golden
+    {-5.0f / 31, 0.0f / 63, 22.0f / 31},   // 13: cyan-blue
+    {0.0f / 31, 0.0f / 63, 0.0f / 31},     // 14: natural
+    {0.0f / 31, 22.0f / 63, 0.0f / 31},    // 15: green
 };
 
 // Map object_action to NPC action index (0-6)
@@ -126,26 +129,26 @@ inline int32_t action_to_npc_action_index(object_action action)
 {
     switch (action)
     {
-        case object_action::stop_peace:
-        case object_action::stop_combat:
-            return 0;  // Stop/idle
-        case object_action::move_peace:
-        case object_action::move_combat:
-        case object_action::run:
-            return 1;  // Move
-        case object_action::attack_peace:
-        case object_action::attack_combat:
-        case object_action::attack_combat_bow:
-            return 2;  // Attack
-        case object_action::damage:
-            return 3;  // Damage
-        case object_action::dying:
-            return 4;  // Dying
-        case object_action::magic:
-            return 6;  // Magic
-        case object_action::get_item:
-        default:
-            return 0;  // Default to stop
+    case object_action::stop_peace:
+    case object_action::stop_combat:
+        return 0; // Stop/idle
+    case object_action::move_peace:
+    case object_action::move_combat:
+    case object_action::run:
+        return 1; // Move
+    case object_action::attack_peace:
+    case object_action::attack_combat:
+    case object_action::attack_combat_bow:
+        return 2; // Attack
+    case object_action::damage:
+        return 3; // Damage
+    case object_action::dying:
+        return 4; // Dying
+    case object_action::magic:
+        return 6; // Magic
+    case object_action::get_item:
+    default:
+        return 0; // Default to stop
     }
 }
 
@@ -157,11 +160,10 @@ inline uint16_t calculate_npc_sprite_id(uint16_t npc_type, int32_t action, int32
     // Clamp direction to valid range (1-8)
     dir = std::clamp(dir, 1, 8);
 
-    return static_cast<uint16_t>(
-        npc_sprite_constants::npc_base +
-        (npc_type - npc_sprite_constants::npc_type_offset) * npc_sprite_constants::frames_per_type +
-        action * npc_sprite_constants::directions_per_action +
-        (dir - 1));
+    return static_cast<uint16_t>(npc_sprite_constants::npc_base +
+                                 (npc_type - npc_sprite_constants::npc_type_offset) *
+                                     npc_sprite_constants::frames_per_type +
+                                 action * npc_sprite_constants::directions_per_action + (dir - 1));
 }
 
 // NPC/Monster animation frame data from legacy MapData.cpp
@@ -201,7 +203,8 @@ static bool npc_frame_table_ready = false;
 
 static void init_npc_frame_table()
 {
-    if (npc_frame_table_ready) return;
+    if (npc_frame_table_ready)
+        return;
 
     // Initialize all to "use default"
     for (int i = 0; i < npc_type_count; i++)
@@ -213,11 +216,13 @@ static void init_npc_frame_table()
         npc_frame_table[i][act_move].max_frame = 7;
 
     // Helper lambda: set(type, action, maxFrame, frameTime)
-    auto set = [](int type, int action, int16_t mf, int16_t ft) {
+    auto set = [](int type, int action, int16_t mf, int16_t ft)
+    {
         npc_frame_table[type - npc_type_first][action] = {mf, ft};
     };
     // Helper: set only frame time
-    auto set_ft = [](int type, int action, int16_t ft) {
+    auto set_ft = [](int type, int action, int16_t ft)
+    {
         npc_frame_table[type - npc_type_first][action].frame_time_ms = ft;
     };
 
@@ -227,7 +232,7 @@ static void init_npc_frame_table()
     set(10, act_stop, 3, 240);
     set_ft(10, act_move, 120);
     set(10, act_attack, 3, 90);
-    set(10, act_damage, 7, 150);   // 3+4
+    set(10, act_damage, 7, 150); // 3+4
     set(10, act_dying, 3, 240);
 
     // Skeleton (11)
@@ -446,7 +451,7 @@ static void init_npc_frame_table()
     set(43, act_stop, 7, 250);
     set_ft(43, act_move, 100);
     set(43, act_attack, 7, 60);
-    set(43, act_damage, 10, 120);  // 3+7
+    set(43, act_damage, 10, 120); // 3+7
     set(43, act_dying, 9, 100);
 
     // God's Hand Knight (44)
@@ -510,84 +515,84 @@ static void init_npc_frame_table()
     set_ft(52, act_move, 100);
     set(52, act_attack, 9, 70);
     set(52, act_damage, 7, 120);
-    set(52, act_dying, 14, 100);  // 11+3
+    set(52, act_dying, 14, 100); // 11+3
 
     // Beholder (53)
     set(53, act_stop, 7, 250);
     set_ft(53, act_move, 100);
     set(53, act_attack, 12, 60);
     set(53, act_damage, 7, 120);
-    set(53, act_dying, 10, 70);   // 7+3
+    set(53, act_dying, 10, 70); // 7+3
 
     // DarkElf (54)
     set(54, act_stop, 7, 250);
     set_ft(54, act_move, 100);
     set(54, act_attack, 9, 60);
     set(54, act_damage, 7, 120);
-    set(54, act_dying, 10, 100);  // 7+3
+    set(54, act_dying, 10, 100); // 7+3
 
     // Bunny (55)
     set(55, act_stop, 7, 250);
     set_ft(55, act_move, 70);
     set(55, act_attack, 7, 100);
     set(55, act_damage, 7, 100);
-    set(55, act_dying, 10, 150);  // 7+3
+    set(55, act_dying, 10, 150); // 7+3
 
     // Cat (56)
     set(56, act_stop, 7, 250);
     set_ft(56, act_move, 100);
     set(56, act_attack, 7, 60);
     set(56, act_damage, 7, 100);
-    set(56, act_dying, 10, 150);  // 7+3
+    set(56, act_dying, 10, 150); // 7+3
 
     // GiantFrog (57)
     set(57, act_stop, 7, 300);
     set_ft(57, act_move, 100);
     set(57, act_attack, 7, 100);
     set(57, act_damage, 7, 100);
-    set(57, act_dying, 10, 150);  // 7+3
+    set(57, act_dying, 10, 150); // 7+3
 
     // Mountain Giant (58)
     set(58, act_stop, 7, 250);
     set_ft(58, act_move, 90);
     set(58, act_attack, 7, 100);
     set(58, act_damage, 7, 100);
-    set(58, act_dying, 10, 150);  // 7+3
+    set(58, act_dying, 10, 150); // 7+3
 
     // Ettin (59)
     set(59, act_stop, 7, 250);
     set_ft(59, act_move, 90);
     set(59, act_attack, 7, 100);
     set(59, act_damage, 7, 100);
-    set(59, act_dying, 10, 150);  // 7+3
+    set(59, act_dying, 10, 150); // 7+3
 
     // Cannibal Plant (60)
     set(60, act_stop, 7, 250);
     set_ft(60, act_move, 120);
     set(60, act_attack, 7, 100);
     set(60, act_damage, 7, 100);
-    set(60, act_dying, 10, 150);  // 7+3
+    set(60, act_dying, 10, 150); // 7+3
 
     // Rudolph (61)
     set(61, act_stop, 7, 200);
     set_ft(61, act_move, 90);
     set(61, act_attack, 7, 120);
     set(61, act_damage, 7, 60);
-    set(61, act_dying, 10, 150);  // 7+3
+    set(61, act_dying, 10, 150); // 7+3
 
     // Dire Boar (62)
     set(62, act_stop, 7, 200);
     set_ft(62, act_move, 60);
     set(62, act_attack, 7, 60);
     set(62, act_damage, 7, 60);
-    set(62, act_dying, 10, 150);  // 7+3
+    set(62, act_dying, 10, 150); // 7+3
 
     // Frost (63)
     set(63, act_stop, 7, 200);
     set_ft(63, act_move, 60);
     set(63, act_attack, 7, 80);
     set(63, act_damage, 7, 60);
-    set(63, act_dying, 8, 150);   // 5+3
+    set(63, act_dying, 8, 150); // 5+3
 
     // Crop (64)
     set(64, act_stop, 40, 200);
@@ -601,35 +606,35 @@ static void init_npc_frame_table()
     set_ft(65, act_move, 140);
     set(65, act_attack, 7, 105);
     set(65, act_damage, 7, 60);
-    set(65, act_dying, 10, 150);  // 7+3
+    set(65, act_dying, 10, 150); // 7+3
 
     // Wyvern (66)
     set(66, act_stop, 7, 100);
     set_ft(66, act_move, 90);
     set(66, act_attack, 7, 80);
     set(66, act_damage, 7, 60);
-    set(66, act_dying, 18, 65);   // 15+3
+    set(66, act_dying, 18, 65); // 15+3
 
     // McGaffin (67)
     set(67, act_stop, 3, 200);
     set_ft(67, act_move, 120);
     set(67, act_attack, 3, 80);
     set(67, act_damage, 3, 60);
-    set(67, act_dying, 6, 65);    // 3+3
+    set(67, act_dying, 6, 65); // 3+3
 
     // Perry (68)
     set(68, act_stop, 3, 200);
     set(68, act_move, 3, 90);
     set(68, act_attack, 3, 80);
     set(68, act_damage, 3, 60);
-    set(68, act_dying, 6, 65);    // 3+3
+    set(68, act_dying, 6, 65); // 3+3
 
     // Devlin (69)
     set(69, act_stop, 3, 200);
     set(69, act_move, 3, 90);
     set(69, act_attack, 3, 80);
     set(69, act_damage, 3, 60);
-    set(69, act_dying, 6, 65);    // 3+3
+    set(69, act_dying, 6, 65); // 3+3
 
     // Legacy inherited defaults for NPC types (MapData.cpp lines 44-55):
     // RUN = MOVE, DAMAGEMOVE = DAMAGE, ATTACKMOVE = ATTACK, MAGIC = STOP, GETITEM = STOP
@@ -655,18 +660,29 @@ inline int anim_state_to_legacy_action(entity_anim_state state)
 {
     switch (state)
     {
-        case entity_anim_state::stop:        return act_stop;
-        case entity_anim_state::move:        return act_move;
-        case entity_anim_state::run:         return act_run;
-        case entity_anim_state::attack:      return act_attack;
-        case entity_anim_state::attack_move: return act_attackmove;
-        case entity_anim_state::damage:      return act_damage;
-        case entity_anim_state::damage_move: return act_damagemove;
-        case entity_anim_state::magic:
-        case entity_anim_state::magic_attack: return act_magic;
-        case entity_anim_state::get_item:    return act_getitem;
-        case entity_anim_state::dying:       return act_dying;
-        default:                             return act_stop;
+    case entity_anim_state::stop:
+        return act_stop;
+    case entity_anim_state::move:
+        return act_move;
+    case entity_anim_state::run:
+        return act_run;
+    case entity_anim_state::attack:
+        return act_attack;
+    case entity_anim_state::attack_move:
+        return act_attackmove;
+    case entity_anim_state::damage:
+        return act_damage;
+    case entity_anim_state::damage_move:
+        return act_damagemove;
+    case entity_anim_state::magic:
+    case entity_anim_state::magic_attack:
+        return act_magic;
+    case entity_anim_state::get_item:
+        return act_getitem;
+    case entity_anim_state::dying:
+        return act_dying;
+    default:
+        return act_stop;
     }
 }
 
@@ -702,68 +718,76 @@ inline uint16_t get_entity_visual_type(const entity& e)
     uint16_t visual_type = e.visual_type();
     if (visual_type == 0)
     {
-        if (e.has_npc()) visual_type = e.npc().npc_type;
-        else if (e.has_monster()) visual_type = e.monster().monster_type;
+        if (e.has_npc())
+            visual_type = e.npc().npc_type;
+        else if (e.has_monster())
+            visual_type = e.monster().monster_type;
     }
     return visual_type;
 }
 
 } // anonymous namespace
 
-void entity_manager::initialize(sound_manager* sounds) {
+void entity_manager::initialize(sound_manager* sounds)
+{
     sounds_ = sounds;
     spdlog::info("Entity manager initialized");
 }
 
-void entity_manager::shutdown() {
+void entity_manager::shutdown()
+{
     remove_all_entities();
     spdlog::info("Entity manager shutdown");
 }
 
-entity& entity_manager::create_entity(entity_type type) {
+entity& entity_manager::create_entity(entity_type type)
+{
     entity_id id = next_entity_id_++;
     return create_entity_with_id(id, type);
 }
 
-entity& entity_manager::create_entity_with_id(entity_id id, entity_type type) {
+entity& entity_manager::create_entity_with_id(entity_id id, entity_type type)
+{
     auto e = std::make_unique<entity>(id, type);
 
     // Add default components based on type
-    switch (type) {
-        case entity_type::player:
-        case entity_type::character:
-            e->add_stats();
-            e->add_combat();
-            e->add_name();
-            e->add_movement();
-            break;
+    switch (type)
+    {
+    case entity_type::player:
+    case entity_type::character:
+        e->add_stats();
+        e->add_combat();
+        e->add_name();
+        e->add_movement();
+        break;
 
-        case entity_type::npc:
-            e->add_name();
-            e->add_npc();
-            e->add_movement();
-            break;
+    case entity_type::npc:
+        e->add_name();
+        e->add_npc();
+        e->add_movement();
+        break;
 
-        case entity_type::monster:
-            e->add_stats();
-            e->add_combat();
-            e->add_name();
-            e->add_movement();
-            e->add_monster();
-            break;
+    case entity_type::monster:
+        e->add_stats();
+        e->add_combat();
+        e->add_name();
+        e->add_movement();
+        e->add_monster();
+        break;
 
-        case entity_type::effect:
-            e->add_effect();
-            break;
+    case entity_type::effect:
+        e->add_effect();
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     entity& ref = *e;
     entities_[id] = std::move(e);
 
-    if (on_created_) {
+    if (on_created_)
+    {
         on_created_(ref);
     }
 
@@ -771,36 +795,45 @@ entity& entity_manager::create_entity_with_id(entity_id id, entity_type type) {
     return ref;
 }
 
-entity* entity_manager::get_entity(entity_id id) {
+entity* entity_manager::get_entity(entity_id id)
+{
     auto it = entities_.find(id);
-    if (it != entities_.end()) {
+    if (it != entities_.end())
+    {
         return it->second.get();
     }
     return nullptr;
 }
 
-const entity* entity_manager::get_entity(entity_id id) const {
+const entity* entity_manager::get_entity(entity_id id) const
+{
     auto it = entities_.find(id);
-    if (it != entities_.end()) {
+    if (it != entities_.end())
+    {
         return it->second.get();
     }
     return nullptr;
 }
 
-bool entity_manager::entity_exists(entity_id id) const {
+bool entity_manager::entity_exists(entity_id id) const
+{
     return entities_.find(id) != entities_.end();
 }
 
-void entity_manager::remove_entity(entity_id id) {
+void entity_manager::remove_entity(entity_id id)
+{
     auto it = entities_.find(id);
-    if (it != entities_.end()) {
+    if (it != entities_.end())
+    {
         it->second->begin_fade_out();
     }
 }
 
-void entity_manager::transition_to_dead(entity_id id) {
+void entity_manager::transition_to_dead(entity_id id)
+{
     entity* ent = get_entity(id);
-    if (!ent) return;
+    if (!ent)
+        return;
 
     ent->set_alive(false);
 
@@ -808,19 +841,21 @@ void entity_manager::transition_to_dead(entity_id id) {
     const auto& t = ent->transform();
     for (auto& [oid, other] : entities_)
     {
-        if (oid == id || other->should_remove()) continue;
-        if (!other->is_alive() &&
-            other->transform().tile_x == t.tile_x &&
-            other->transform().tile_y == t.tile_y)
+        if (oid == id || other->should_remove())
+            continue;
+        if (!other->is_alive() && other->transform().tile_x == t.tile_x && other->transform().tile_y == t.tile_y)
         {
             other->mark_for_removal();
         }
     }
 }
 
-void entity_manager::remove_all_entities() {
-    for (auto& [id, e] : entities_) {
-        if (on_removed_) {
+void entity_manager::remove_all_entities()
+{
+    for (auto& [id, e] : entities_)
+    {
+        if (on_removed_)
+        {
             on_removed_(id);
         }
     }
@@ -828,81 +863,105 @@ void entity_manager::remove_all_entities() {
     local_player_id_ = invalid_entity_id;
 }
 
-void entity_manager::remove_entities_of_type(entity_type type) {
-    for (auto& [id, e] : entities_) {
-        if (e->type() == type) {
+void entity_manager::remove_entities_of_type(entity_type type)
+{
+    for (auto& [id, e] : entities_)
+    {
+        if (e->type() == type)
+        {
             e->mark_for_removal();
         }
     }
 }
 
-std::vector<entity*> entity_manager::get_entities_of_type(entity_type type) {
+std::vector<entity*> entity_manager::get_entities_of_type(entity_type type)
+{
     std::vector<entity*> result;
-    for (auto& [id, e] : entities_) {
-        if (e->type() == type && !e->should_remove()) {
+    for (auto& [id, e] : entities_)
+    {
+        if (e->type() == type && !e->should_remove())
+        {
             result.push_back(e.get());
         }
     }
     return result;
 }
 
-std::vector<entity*> entity_manager::get_entities_in_range(int32_t x, int32_t y, int32_t range) {
+std::vector<entity*> entity_manager::get_entities_in_range(int32_t x, int32_t y, int32_t range)
+{
     std::vector<entity*> result;
     int32_t range_sq = range * range;
 
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove() || e->is_fading_out()) continue;
+    for (auto& [id, e] : entities_)
+    {
+        if (e->should_remove() || e->is_fading_out())
+            continue;
 
         const auto& t = e->transform();
         int32_t dx = t.x - x;
         int32_t dy = t.y - y;
-        if (dx * dx + dy * dy <= range_sq) {
+        if (dx * dx + dy * dy <= range_sq)
+        {
             result.push_back(e.get());
         }
     }
     return result;
 }
 
-std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_t tile_y) {
+std::vector<entity*> entity_manager::get_entities_on_tile(int32_t tile_x, int32_t tile_y)
+{
     std::vector<entity*> result;
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove() || e->is_fading_out()) continue;
+    for (auto& [id, e] : entities_)
+    {
+        if (e->should_remove() || e->is_fading_out())
+            continue;
 
         const auto& t = e->transform();
-        if (t.tile_x == tile_x && t.tile_y == tile_y) {
+        if (t.tile_x == tile_x && t.tile_y == tile_y)
+        {
             result.push_back(e.get());
         }
     }
     return result;
 }
 
-std::vector<std::pair<int32_t, int32_t>> entity_manager::get_occupied_tiles() const {
+std::vector<std::pair<int32_t, int32_t>> entity_manager::get_occupied_tiles() const
+{
     std::vector<std::pair<int32_t, int32_t>> result;
-    for (const auto& [id, e] : entities_) {
-        if (e->should_remove() || e->is_fading_out()) continue;
-        if (!e->is_alive()) continue;
+    for (const auto& [id, e] : entities_)
+    {
+        if (e->should_remove() || e->is_fading_out())
+            continue;
+        if (!e->is_alive())
+            continue;
         const auto& t = e->transform();
         result.emplace_back(t.tile_x, t.tile_y);
     }
     return result;
 }
 
-entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y) {
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove() || e->is_fading_out()) continue;
-        if (!e->is_alive()) continue;  // Skip dead entities (corpses)
-        if (id == local_player_id_) continue;  // Skip local player
+entity* entity_manager::find_at_tile(int32_t tile_x, int32_t tile_y)
+{
+    for (auto& [id, e] : entities_)
+    {
+        if (e->should_remove() || e->is_fading_out())
+            continue;
+        if (!e->is_alive())
+            continue; // Skip dead entities (corpses)
+        if (id == local_player_id_)
+            continue; // Skip local player
 
         const auto& t = e->transform();
-        if (t.tile_x == tile_x && t.tile_y == tile_y) {
+        if (t.tile_x == tile_x && t.tile_y == tile_y)
+        {
             return e.get();
         }
     }
     return nullptr;
 }
 
-entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y,
-                                                  int32_t camera_x, int32_t camera_y) {
+entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y)
+{
     // Convert screen to world position
     int32_t world_x = screen_x + camera_x;
     int32_t world_y = screen_y + camera_y;
@@ -912,32 +971,43 @@ entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t scree
     int32_t closest_dist_sq = INT32_MAX;
 
     // Two-pass: prefer alive entities, fall back to dead
-    for (int pass = 0; pass < 2; ++pass) {
+    for (int pass = 0; pass < 2; ++pass)
+    {
         bool want_alive = (pass == 0);
-        for (auto& [id, e] : entities_) {
-            if (e->should_remove() || e->is_fading_out()) continue;
-            if (e->type() == entity_type::effect) continue;
-            if (e->is_alive() != want_alive) continue;
+        for (auto& [id, e] : entities_)
+        {
+            if (e->should_remove() || e->is_fading_out())
+                continue;
+            if (e->type() == entity_type::effect)
+                continue;
+            if (e->is_alive() != want_alive)
+                continue;
 
             const auto& t = e->transform();
             int32_t dx = t.x - world_x;
             int32_t dy = t.y - world_y;
             int32_t dist_sq = dx * dx + dy * dy;
 
-            if (dist_sq < 32 * 32 && dist_sq < closest_dist_sq) {
+            if (dist_sq < 32 * 32 && dist_sq < closest_dist_sq)
+            {
                 closest = e.get();
                 closest_dist_sq = dist_sq;
             }
         }
-        if (closest) break;  // Found alive entity, don't check dead
+        if (closest)
+            break; // Found alive entity, don't check dead
     }
 
     return closest;
 }
 
-bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& sprites,
-                                                int32_t camera_x, int32_t camera_y,
-                                                int32_t mouse_x, int32_t mouse_y) const {
+bool entity_manager::is_point_in_entity_sprite(const entity& e,
+                                               sprite_manager& sprites,
+                                               int32_t camera_x,
+                                               int32_t camera_y,
+                                               int32_t mouse_x,
+                                               int32_t mouse_y) const
+{
     const auto& t = e.transform();
     const auto& s = e.sprite();
     const auto& a = e.animation();
@@ -946,11 +1016,13 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
     int32_t screen_y = t.y - camera_y;
 
     // Get sprite bounds based on entity type
-    if (e.type() == entity_type::effect) {
+    if (e.type() == entity_type::effect)
+    {
         // Effects are not clickable
         return false;
     }
-    else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+    else if (e.type() == entity_type::npc || e.type() == entity_type::monster)
+    {
         // NPCs and monsters - use NPC sprite bounds
         int32_t dir = direction_to_sprite_index(t.facing);
         int32_t npc_action = action_to_npc_action_index(e.current_action());
@@ -958,15 +1030,17 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         uint16_t visual_type = get_entity_visual_type(e);
 
         // No valid visual type - use fallback bounds
-        if (visual_type < npc_sprite_constants::npc_type_offset) {
-            return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
-                    mouse_y >= screen_y - 48 && mouse_y < screen_y + 16);
+        if (visual_type < npc_sprite_constants::npc_type_offset)
+        {
+            return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 && mouse_y >= screen_y - 48 &&
+                    mouse_y < screen_y + 16);
         }
 
         uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
         const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
-        if (npc_spr && npc_spr->has_metadata()) {
+        if (npc_spr && npc_spr->has_metadata())
+        {
             uint32_t frame = a.current_frame;
             if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count())
                 frame = frame % npc_spr->frame_count();
@@ -976,10 +1050,11 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         }
 
         // Fallback to approximate bounds
-        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
-                mouse_y >= screen_y - 48 && mouse_y < screen_y + 16);
+        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 && mouse_y >= screen_y - 48 &&
+                mouse_y < screen_y + 16);
     }
-    else {
+    else
+    {
         // Player characters - use body sprite bounds
         int32_t dir = direction_to_sprite_index(t.facing);
         int32_t action = static_cast<int32_t>(e.current_action());
@@ -988,7 +1063,8 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         uint16_t body_id = calculate_body_sprite_id(owner_type, action, dir);
         const sprite* body_spr = sprites.get_sprite_by_id(body_id);
 
-        if (body_spr && body_spr->has_metadata()) {
+        if (body_spr && body_spr->has_metadata())
+        {
             uint32_t frame = a.current_frame;
             if (body_spr->frame_count() > 0 && frame >= body_spr->frame_count())
                 frame = frame % body_spr->frame_count();
@@ -998,13 +1074,14 @@ bool entity_manager::is_point_in_entity_sprite(const entity& e, sprite_manager& 
         }
 
         // Fallback to approximate 64x64 bounds if sprite not available
-        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 &&
-                mouse_y >= screen_y - 64 && mouse_y < screen_y);
+        return (mouse_x >= screen_x - 32 && mouse_x < screen_x + 32 && mouse_y >= screen_y - 64 && mouse_y < screen_y);
     }
 }
 
-std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity& e, sprite_manager& sprites,
-                                                                    int32_t camera_x, int32_t camera_y) const
+std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity& e,
+                                                                    sprite_manager& sprites,
+                                                                    int32_t camera_x,
+                                                                    int32_t camera_y) const
 {
     const auto& t = e.transform();
     const auto& s = e.sprite();
@@ -1054,18 +1131,23 @@ std::optional<sf::IntRect> entity_manager::get_entity_screen_bounds(const entity
     return std::nullopt;
 }
 
-entity* entity_manager::local_player() {
+entity* entity_manager::local_player()
+{
     return get_entity(local_player_id_);
 }
 
-const entity* entity_manager::local_player() const {
+const entity* entity_manager::local_player() const
+{
     return get_entity(local_player_id_);
 }
 
-void entity_manager::update(float delta_time, world& w, bool local_player_combat_mode) {
+void entity_manager::update(float delta_time, world& w, bool local_player_combat_mode)
+{
     // Update all entities
-    for (auto& [id, e] : entities_) {
-        if (!e->should_remove()) {
+    for (auto& [id, e] : entities_)
+    {
+        if (!e->should_remove())
+        {
             update_entity(*e, delta_time, w, local_player_combat_mode);
         }
     }
@@ -1074,22 +1156,30 @@ void entity_manager::update(float delta_time, world& w, bool local_player_combat
     cleanup_removed_entities();
 }
 
-void entity_manager::cleanup_removed_entities() {
-    for (auto it = entities_.begin(); it != entities_.end(); ) {
-        if (it->second->should_remove()) {
-            if (on_removed_) {
+void entity_manager::cleanup_removed_entities()
+{
+    for (auto it = entities_.begin(); it != entities_.end();)
+    {
+        if (it->second->should_remove())
+        {
+            if (on_removed_)
+            {
                 on_removed_(it->first);
             }
             it = entities_.erase(it);
-        } else {
+        }
+        else
+        {
             ++it;
         }
     }
 }
 
-void entity_manager::update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
+void entity_manager::update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode)
+{
     // Update fade-out (skip everything else if fading)
-    if (e.is_fading_out()) {
+    if (e.is_fading_out())
+    {
         e.update_fade(delta_time);
         return;
     }
@@ -1098,22 +1188,28 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
     update_animation(e, delta_time, local_player_combat_mode);
 
     // Update movement
-    if (e.has_movement()) {
+    if (e.has_movement())
+    {
         update_movement(e, delta_time, w, local_player_combat_mode);
     }
 
     // Update combat cooldowns
-    if (e.has_combat()) {
+    if (e.has_combat())
+    {
         auto& combat = e.combat();
-        if (combat.attack_cooldown > 0) {
+        if (combat.attack_cooldown > 0)
+        {
             combat.attack_cooldown -= delta_time;
         }
-        if (combat.spell_cooldown > 0) {
+        if (combat.spell_cooldown > 0)
+        {
             combat.spell_cooldown -= delta_time;
         }
-        if (combat.status_duration > 0) {
+        if (combat.status_duration > 0)
+        {
             combat.status_duration -= delta_time;
-            if (combat.status_duration <= 0) {
+            if (combat.status_duration <= 0)
+            {
                 // Clear status effects
                 combat.poisoned = false;
                 combat.paralyzed = false;
@@ -1123,12 +1219,15 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
     }
 
     // Update chat bubble timer
-    if (e.has_name()) {
+    if (e.has_name())
+    {
         auto& name = e.name();
-        if (name.chat_timer > 0) {
+        if (name.chat_timer > 0)
+        {
             name.chat_timer -= delta_time;
             name.chat_elapsed += delta_time;
-            if (name.chat_timer <= 0) {
+            if (name.chat_timer <= 0)
+            {
                 name.chat_message.clear();
                 name.chat_elapsed = 0.0f;
             }
@@ -1136,10 +1235,12 @@ void entity_manager::update_entity(entity& e, float delta_time, world& w, bool l
     }
 
     // Update effect
-    if (e.has_effect()) {
+    if (e.has_effect())
+    {
         auto& effect = e.effect();
         effect.effect_timer += delta_time;
-        if (effect.effect_timer >= effect.effect_duration) {
+        if (effect.effect_timer >= effect.effect_duration)
+        {
             e.mark_for_removal();
         }
     }
@@ -1165,98 +1266,115 @@ struct monster_sounds
 
 static monster_sounds get_monster_sounds(uint16_t visual_type);
 
-void entity_manager::update_animation(entity& e, float delta_time, bool local_player_combat_mode) {
+void entity_manager::update_animation(entity& e, float delta_time, bool local_player_combat_mode)
+{
     auto& anim = e.animation();
 
     // Override frame count and timing for NPCs/monsters using per-type data
-    if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+    if (e.type() == entity_type::npc || e.type() == entity_type::monster)
+    {
         uint16_t vtype = get_entity_visual_type(e);
-        if (vtype >= npc_type_first) {
+        if (vtype >= npc_type_first)
+        {
             apply_npc_frame_data(anim, vtype);
             // Clamp frame if override reduced frame_count below current position
-            if (anim.current_frame >= anim.frame_count) {
-                if (anim.state == entity_anim_state::dying) {
+            if (anim.current_frame >= anim.frame_count)
+            {
+                if (anim.state == entity_anim_state::dying)
+                {
                     spdlog::warn("Entity {} dying frame CLAMPED: frame={} >= count={} (resetting to 0)",
-                                 e.id(), anim.current_frame, anim.frame_count);
+                                 e.id(),
+                                 anim.current_frame,
+                                 anim.frame_count);
                 }
                 anim.current_frame = 0;
             }
         }
     }
 
-    if (anim.finished && !anim.looping) {
+    if (anim.finished && !anim.looping)
+    {
         // Handle state transitions when animation finishes
-        switch (anim.state) {
-            case entity_anim_state::attack:
-            case entity_anim_state::attack_move:
-            case entity_anim_state::damage:
-            case entity_anim_state::damage_move:
-            case entity_anim_state::magic:
-            case entity_anim_state::magic_attack:
-            case entity_anim_state::get_item:
-                // Return to idle after these animations (combat idle if in combat mode)
-                {
-                    bool combat = (e.id() == local_player_id_)
-                        ? local_player_combat_mode
-                        : (e.has_combat() && e.combat().combat_stance);
-                    e.set_action_with_combat_mode(object_action::stop_peace, combat);
-                }
-                break;
-            case entity_anim_state::dying:
-                // Hold on last frame — transition_to_dead already called at death time
-                anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
-                break;
-            default:
-                break;
+        switch (anim.state)
+        {
+        case entity_anim_state::attack:
+        case entity_anim_state::attack_move:
+        case entity_anim_state::damage:
+        case entity_anim_state::damage_move:
+        case entity_anim_state::magic:
+        case entity_anim_state::magic_attack:
+        case entity_anim_state::get_item:
+            // Return to idle after these animations (combat idle if in combat mode)
+            {
+                bool combat = (e.id() == local_player_id_) ? local_player_combat_mode
+                                                           : (e.has_combat() && e.combat().combat_stance);
+                e.set_action_with_combat_mode(object_action::stop_peace, combat);
+            }
+            break;
+        case entity_anim_state::dying:
+            // Hold on last frame — transition_to_dead already called at death time
+            anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
+            break;
+        default:
+            break;
         }
         return;
     }
 
     anim.frame_timer += delta_time;
-    if (anim.frame_timer >= anim.frame_duration) {
+    if (anim.frame_timer >= anim.frame_duration)
+    {
         anim.frame_timer -= anim.frame_duration;
         anim.current_frame++;
 
-        if (!e.is_alive() && anim.state == entity_anim_state::dying) {
+        if (!e.is_alive() && anim.state == entity_anim_state::dying)
+        {
             spdlog::debug("Entity {} dying frame tick: {}/{} (dt={:.3f} dur={:.3f})",
-                          e.id(), anim.current_frame, anim.frame_count, delta_time, anim.frame_duration);
+                          e.id(),
+                          anim.current_frame,
+                          anim.frame_count,
+                          delta_time,
+                          anim.frame_duration);
         }
 
         // Play footstep sounds on walk/run animations
         // Walk: frames 1 and 3 (alternating footsteps)
         // Run: frames 1 and 3 as well
-        if (anim.state == entity_anim_state::move) {
-            if (anim.current_frame == 1 || anim.current_frame == 3) {
-                play_footstep_sound(e, false);  // Walking
+        if (anim.state == entity_anim_state::move)
+        {
+            if (anim.current_frame == 1 || anim.current_frame == 3)
+            {
+                play_footstep_sound(e, false); // Walking
             }
         }
-        else if (anim.state == entity_anim_state::run) {
-            if (anim.current_frame == 1 || anim.current_frame == 3) {
-                play_footstep_sound(e, true);  // Running
+        else if (anim.state == entity_anim_state::run)
+        {
+            if (anim.current_frame == 1 || anim.current_frame == 3)
+            {
+                play_footstep_sound(e, true); // Running
             }
         }
 
         // Play monster movement sound on frame 1
-        if (anim.current_frame == 1 &&
-            (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+        if (anim.current_frame == 1 && (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
             (anim.state == entity_anim_state::move || anim.state == entity_anim_state::run))
         {
             play_monster_sound(e, monster_sound_type::move);
         }
 
         // Check for attack trigger frame (frame 4 for attacks)
-        if (anim.state == entity_anim_state::attack ||
-            anim.state == entity_anim_state::attack_move ||
-            anim.state == entity_anim_state::magic_attack) {
-            if (anim.current_frame == 4 && !anim.attack_triggered) {
+        if (anim.state == entity_anim_state::attack || anim.state == entity_anim_state::attack_move ||
+            anim.state == entity_anim_state::magic_attack)
+        {
+            if (anim.current_frame == 4 && !anim.attack_triggered)
+            {
                 anim.attack_triggered = true;
                 // Attack damage would be triggered here through callback
             }
         }
 
         // Play monster attack sound on frame 1
-        if (anim.current_frame == 1 &&
-            (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
+        if (anim.current_frame == 1 && (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
             (anim.state == entity_anim_state::attack || anim.state == entity_anim_state::attack_move))
         {
             play_monster_sound(e, monster_sound_type::attack);
@@ -1275,8 +1393,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
         }
 
         // Play player/character hurt sound on frame 5 of damage animation
-        if (anim.current_frame == 5 &&
-            (e.type() == entity_type::player || e.type() == entity_type::character) &&
+        if (anim.current_frame == 5 && (e.type() == entity_type::player || e.type() == entity_type::character) &&
             (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move))
         {
             if (sounds_)
@@ -1289,8 +1406,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
         }
 
         // Play player/character death sound on frame 7 of dying animation
-        if (anim.current_frame == 7 &&
-            (e.type() == entity_type::player || e.type() == entity_type::character) &&
+        if (anim.current_frame == 7 && (e.type() == entity_type::player || e.type() == entity_type::character) &&
             anim.state == entity_anim_state::dying)
         {
             if (sounds_)
@@ -1315,42 +1431,53 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
         }
 
         // Play magic cast sound at frame 1 of magic animation
-        if ((anim.state == entity_anim_state::magic ||
-             anim.state == entity_anim_state::magic_attack) &&
-            anim.current_frame == 1 && !anim.attack_triggered) {
+        if ((anim.state == entity_anim_state::magic || anim.state == entity_anim_state::magic_attack) &&
+            anim.current_frame == 1 && !anim.attack_triggered)
+        {
             anim.attack_triggered = true;
-            if (sounds_) {
-                sounds_->play_character_sound_at(
-                    character_sound::magic_cast, e.transform().x, e.transform().y);
+            if (sounds_)
+            {
+                sounds_->play_character_sound_at(character_sound::magic_cast, e.transform().x, e.transform().y);
             }
         }
 
-        if (anim.current_frame >= anim.frame_count) {
-            if (anim.looping) {
+        if (anim.current_frame >= anim.frame_count)
+        {
+            if (anim.looping)
+            {
                 anim.current_frame = 0;
-            } else {
+            }
+            else
+            {
                 anim.current_frame = anim.frame_count - 1;
                 anim.finished = true;
-                if (anim.state == entity_anim_state::dying) {
+                if (anim.state == entity_anim_state::dying)
+                {
                     spdlog::debug("Entity {} dying animation FINISHED at frame {}/{}",
-                                  e.id(), anim.current_frame, anim.frame_count);
+                                  e.id(),
+                                  anim.current_frame,
+                                  anim.frame_count);
                 }
             }
         }
     }
 }
 
-void entity_manager::update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode) {
+void entity_manager::update_movement(entity& e, float delta_time, world& w, bool local_player_combat_mode)
+{
     auto& t = e.transform();
     auto& m = e.movement();
 
-    if (!t.moving || !m.can_move) {
+    if (!t.moving || !m.can_move)
+    {
         return;
     }
 
     // Update facing direction during movement (from origin toward destination)
-    if (t.move_start_x != t.tile_x || t.move_start_y != t.tile_y) {
-        if (auto dir = calculate_direction(t.move_start_x, t.move_start_y, t.tile_x, t.tile_y)) {
+    if (t.move_start_x != t.tile_x || t.move_start_y != t.tile_y)
+    {
+        if (auto dir = calculate_direction(t.move_start_x, t.move_start_y, t.tile_x, t.tile_y))
+        {
             t.facing = *dir;
         }
     }
@@ -1369,7 +1496,8 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
 
     t.move_progress += delta_time / move_time_sec;
 
-    if (t.move_progress >= 1.0f) {
+    if (t.move_progress >= 1.0f)
+    {
         // Arrived at destination - snap to tile position
         t.move_start_x = t.tile_x;
         t.move_start_y = t.tile_y;
@@ -1379,34 +1507,43 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
         t.moving = false;
 
         // Check for next waypoint in path
-        if (m.path_index < m.path.size()) {
+        if (m.path_index < m.path.size())
+        {
             auto [next_x, next_y] = m.path[m.path_index++];
-            if (w.current_map().is_walkable(next_x, next_y)) {
+            if (w.current_map().is_walkable(next_x, next_y))
+            {
                 t.move_start_x = t.tile_x;
                 t.move_start_y = t.tile_y;
                 t.tile_x = next_x;
                 t.tile_y = next_y;
                 t.moving = true;
-            } else {
+            }
+            else
+            {
                 m.path.clear();
                 m.path_index = 0;
                 {
-                    bool combat = (e.id() == local_player_id_)
-                        ? local_player_combat_mode
-                        : (e.has_combat() && e.combat().combat_stance);
+                    bool combat = (e.id() == local_player_id_) ? local_player_combat_mode
+                                                               : (e.has_combat() && e.combat().combat_stance);
                     e.set_action_with_combat_mode(object_action::stop_peace, combat);
                 }
             }
-        } else {
-            bool reached_destination = (m.target_x < 0 || m.target_y < 0) ||
-                                       (t.tile_x == m.target_x && t.tile_y == m.target_y);
+        }
+        else
+        {
+            bool reached_destination =
+                (m.target_x < 0 || m.target_y < 0) || (t.tile_x == m.target_x && t.tile_y == m.target_y);
 
-            if (e.animation().state == entity_anim_state::attack_move) {
+            if (e.animation().state == entity_anim_state::attack_move)
+            {
                 // During attack_move (dash), the movement arrives early while the
                 // attack animation is still playing. Don't override it with idle —
                 // update_animation will transition to idle when the animation finishes.
-            } else {
-                if (reached_destination) {
+            }
+            else
+            {
+                if (reached_destination)
+                {
                     m.target_x = -1;
                     m.target_y = -1;
                 }
@@ -1414,18 +1551,24 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
                 // the idle transition to avoid a 1-frame animation flash between
                 // tiles during continuous movement. The input handler will either
                 // continue movement or transition to idle on the next frame.
-                if (e.id() == local_player_id_) {
+                if (e.id() == local_player_id_)
+                {
                     auto anim_state = e.animation().state;
-                    if (anim_state != entity_anim_state::run && anim_state != entity_anim_state::move) {
+                    if (anim_state != entity_anim_state::run && anim_state != entity_anim_state::move)
+                    {
                         e.set_action_with_combat_mode(object_action::stop_peace, local_player_combat_mode);
                     }
-                } else {
+                }
+                else
+                {
                     bool combat = e.has_combat() && e.combat().combat_stance;
                     e.set_action_with_combat_mode(object_action::stop_peace, combat);
                 }
             }
         }
-    } else {
+    }
+    else
+    {
         // Interpolate world position from move_start toward tile (destination)
         int32_t start_x = t.move_start_x * tile_width + 16;
         int32_t start_y = t.move_start_y * tile_height + 16;
@@ -1437,7 +1580,9 @@ void entity_manager::update_movement(entity& e, float delta_time, world& w, bool
     }
 }
 
-void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
+void entity_manager::render(
+    renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y)
+{
     // Collect visible entities and sort by Y position for depth ordering
     std::vector<entity*> visible_entities;
 
@@ -1450,14 +1595,19 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     // Extended mode: entities outside fair zone are hidden
     bool extended_cull = rend.current_view_mode() == view_mode::extended;
     sf::IntRect fair;
-    if (extended_cull) fair = rend.fair_bounds();
+    if (extended_cull)
+        fair = rend.fair_bounds();
 
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
-        if (!e->sprite().visible) continue;
+    for (auto& [id, e] : entities_)
+    {
+        if (e->should_remove())
+            continue;
+        if (!e->sprite().visible)
+            continue;
 
         // In global render mode, skip distance culling - render all entities
-        if (global_render_mode_) {
+        if (global_render_mode_)
+        {
             visible_entities.push_back(e.get());
             continue;
         }
@@ -1467,10 +1617,12 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
         int32_t screen_y = t.y - camera_y;
 
         // Check if on screen (with margin to prevent pop-in/pop-out)
-        if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
-            screen_y >= -render_margin && screen_y < scr_height + render_margin) {
+        if (screen_x >= -render_margin && screen_x < scr_width + render_margin && screen_y >= -render_margin &&
+            screen_y < scr_height + render_margin)
+        {
             // Extended mode: additionally check fair zone bounds
-            if (extended_cull) {
+            if (extended_cull)
+            {
                 if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
                     screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
                     continue;
@@ -1481,16 +1633,19 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
 
     // Sort by Y position (entities lower on screen render on top)
     // Dead entities (corpses) render before alive ones at the same Y
-    std::sort(visible_entities.begin(), visible_entities.end(),
-        [](const entity* a, const entity* b) {
-            if (a->transform().y != b->transform().y)
-                return a->transform().y < b->transform().y;
-            // Dead entities sort before alive at same Y (render underneath)
-            return !a->is_alive() && b->is_alive();
-        });
+    std::sort(visible_entities.begin(),
+              visible_entities.end(),
+              [](const entity* a, const entity* b)
+              {
+                  if (a->transform().y != b->transform().y)
+                      return a->transform().y < b->transform().y;
+                  // Dead entities sort before alive at same Y (render underneath)
+                  return !a->is_alive() && b->is_alive();
+              });
 
     // Pass 1: Render all entity sprites, collecting hover state
-    struct name_overlay {
+    struct name_overlay
+    {
         const entity* ent;
         int32_t screen_x;
         int32_t screen_y;
@@ -1498,14 +1653,13 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     };
     std::vector<name_overlay> name_overlays;
 
-    for (entity* e : visible_entities) {
+    for (entity* e : visible_entities)
+    {
         render_entity(rend, sprites, *e, camera_x, camera_y, mouse_x, mouse_y);
 
         // Collect entities that need name/health overlay
-        if (e->has_name() && (e->type() == entity_type::player ||
-                              e->type() == entity_type::character ||
-                              e->type() == entity_type::npc ||
-                              e->type() == entity_type::monster))
+        if (e->has_name() && (e->type() == entity_type::player || e->type() == entity_type::character ||
+                              e->type() == entity_type::npc || e->type() == entity_type::monster))
         {
             const auto& t = e->transform();
             int32_t sx = t.x - camera_x;
@@ -1516,12 +1670,14 @@ void entity_manager::render(renderer& rend, sprite_manager& sprites, int32_t cam
     }
 
     // Pass 2: Render names (with inline health bars) on top of all sprites
-    for (const auto& overlay : name_overlays) {
+    for (const auto& overlay : name_overlays)
+    {
         render_entity_name(rend, *overlay.ent, overlay.screen_x, overlay.screen_y, overlay.hovered);
     }
 }
 
-std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend, int32_t camera_x, int32_t camera_y) {
+std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend, int32_t camera_x, int32_t camera_y)
+{
     std::vector<entity*> visible_entities;
 
     static constexpr int32_t render_margin = 128;
@@ -1531,13 +1687,18 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
     // Extended mode: entities outside fair zone are hidden
     bool extended_cull = rend.current_view_mode() == view_mode::extended;
     sf::IntRect fair;
-    if (extended_cull) fair = rend.fair_bounds();
+    if (extended_cull)
+        fair = rend.fair_bounds();
 
-    for (auto& [id, e] : entities_) {
-        if (e->should_remove()) continue;
-        if (!e->sprite().visible) continue;
+    for (auto& [id, e] : entities_)
+    {
+        if (e->should_remove())
+            continue;
+        if (!e->sprite().visible)
+            continue;
 
-        if (global_render_mode_) {
+        if (global_render_mode_)
+        {
             visible_entities.push_back(e.get());
             continue;
         }
@@ -1546,10 +1707,12 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
         int32_t screen_x = t.x - camera_x;
         int32_t screen_y = t.y - camera_y;
 
-        if (screen_x >= -render_margin && screen_x < scr_width + render_margin &&
-            screen_y >= -render_margin && screen_y < scr_height + render_margin) {
+        if (screen_x >= -render_margin && screen_x < scr_width + render_margin && screen_y >= -render_margin &&
+            screen_y < scr_height + render_margin)
+        {
             // Extended mode: additionally check fair zone bounds
-            if (extended_cull) {
+            if (extended_cull)
+            {
                 if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
                     screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
                     continue;
@@ -1559,29 +1722,43 @@ std::vector<entity*> entity_manager::get_visible_entities_sorted(renderer& rend,
     }
 
     // Dead entities (corpses) render before alive ones at the same Y
-    std::sort(visible_entities.begin(), visible_entities.end(),
-        [](const entity* a, const entity* b) {
-            if (a->transform().y != b->transform().y)
-                return a->transform().y < b->transform().y;
-            return !a->is_alive() && b->is_alive();
-        });
+    std::sort(visible_entities.begin(),
+              visible_entities.end(),
+              [](const entity* a, const entity* b)
+              {
+                  if (a->transform().y != b->transform().y)
+                      return a->transform().y < b->transform().y;
+                  return !a->is_alive() && b->is_alive();
+              });
 
     return visible_entities;
 }
 
-void entity_manager::render_single_entity(renderer& rend, sprite_manager& sprites, entity& e, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y) {
+void entity_manager::render_single_entity(renderer& rend,
+                                          sprite_manager& sprites,
+                                          entity& e,
+                                          int32_t camera_x,
+                                          int32_t camera_y,
+                                          int32_t mouse_x,
+                                          int32_t mouse_y)
+{
     render_entity(rend, sprites, e, camera_x, camera_y, mouse_x, mouse_y);
 }
 
-void entity_manager::render_name_overlays(renderer& rend, sprite_manager& sprites,
-                                           const std::vector<entity*>& visible, int32_t camera_x, int32_t camera_y,
-                                           int32_t mouse_x, int32_t mouse_y)
+void entity_manager::render_name_overlays(renderer& rend,
+                                          sprite_manager& sprites,
+                                          const std::vector<entity*>& visible,
+                                          int32_t camera_x,
+                                          int32_t camera_y,
+                                          int32_t mouse_x,
+                                          int32_t mouse_y)
 {
     for (const entity* e : visible)
     {
-        if (!e->has_name()) continue;
-        if (e->type() != entity_type::player && e->type() != entity_type::character &&
-            e->type() != entity_type::npc && e->type() != entity_type::monster)
+        if (!e->has_name())
+            continue;
+        if (e->type() != entity_type::player && e->type() != entity_type::character && e->type() != entity_type::npc &&
+            e->type() != entity_type::monster)
             continue;
 
         const auto& t = e->transform();
@@ -1593,7 +1770,14 @@ void entity_manager::render_name_overlays(renderer& rend, sprite_manager& sprite
     }
 }
 
-void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, const entity& e, int32_t camera_x, int32_t camera_y, [[maybe_unused]] int32_t mouse_x, [[maybe_unused]] int32_t mouse_y) {
+void entity_manager::render_entity(renderer& rend,
+                                   sprite_manager& sprites,
+                                   const entity& e,
+                                   int32_t camera_x,
+                                   int32_t camera_y,
+                                   [[maybe_unused]] int32_t mouse_x,
+                                   [[maybe_unused]] int32_t mouse_y)
+{
     const auto& t = e.transform();
     const auto& a = e.animation();
 
@@ -1601,20 +1785,30 @@ void entity_manager::render_entity(renderer& rend, sprite_manager& sprites, cons
     int32_t screen_y = t.y - camera_y;
 
     // Render sprite layers based on entity type (names/health drawn in separate pass)
-    if (e.type() == entity_type::effect) {
-        if (e.has_effect() && e.effect().effect_sprite) {
+    if (e.type() == entity_type::effect)
+    {
+        if (e.has_effect() && e.effect().effect_sprite)
+        {
             const auto& eff = e.effect();
             rend.draw_sprite(*eff.effect_sprite, screen_x + eff.offset_x, screen_y + eff.offset_y, eff.effect_frame);
         }
-    } else if (e.type() == entity_type::npc || e.type() == entity_type::monster) {
+    }
+    else if (e.type() == entity_type::npc || e.type() == entity_type::monster)
+    {
         render_npc_or_monster(rend, sprites, e, screen_x, screen_y, a);
-    } else {
+    }
+    else
+    {
         render_player_character(rend, sprites, e, screen_x, screen_y, a);
     }
 }
 
-void entity_manager::render_player_character(renderer& rend, sprite_manager& sprites, const entity& e,
-                                              int32_t screen_x, int32_t screen_y, const animation_component& a)
+void entity_manager::render_player_character(renderer& rend,
+                                             sprite_manager& sprites,
+                                             const entity& e,
+                                             int32_t screen_x,
+                                             int32_t screen_y,
+                                             const animation_component& a)
 {
     const auto& t = e.transform();
     const auto& s = e.sprite();
@@ -1627,9 +1821,7 @@ void entity_manager::render_player_character(renderer& rend, sprite_manager& spr
     uint8_t sprite_frame = a.current_frame;
     if (a.state == entity_anim_state::attack_move)
     {
-        static constexpr uint8_t attack_move_frame_map[] = {
-            0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 5, 6, 7
-        };
+        static constexpr uint8_t attack_move_frame_map[] = {0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 5, 6, 7};
         sprite_frame = (a.current_frame < 13) ? attack_move_frame_map[a.current_frame] : 7;
     }
 
@@ -1651,44 +1843,60 @@ void entity_manager::render_player_character(renderer& rend, sprite_manager& spr
     const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
 
     // Draw layers: body (skin) first, then underwear on top, then hair
-    if (body_spr) {
-        if (s.alpha < 1.0f) {
+    if (body_spr)
+    {
+        if (s.alpha < 1.0f)
+        {
             rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, sprite_frame, s.alpha);
-        } else {
+        }
+        else
+        {
             rend.draw_sprite(*body_spr, screen_x, screen_y, sprite_frame);
         }
     }
 
-    if (underwear_spr) {
-        if (s.alpha < 1.0f) {
+    if (underwear_spr)
+    {
+        if (s.alpha < 1.0f)
+        {
             rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, equip_frame, s.alpha);
-        } else {
+        }
+        else
+        {
             rend.draw_sprite(*underwear_spr, screen_x, screen_y, equip_frame);
         }
     }
 
     // Hair with color tinting (if no helm)
-    if (!s.helm_sprite && hair_spr) {
+    if (!s.helm_sprite && hair_spr)
+    {
         uint8_t hc = std::clamp(s.hair_color, uint8_t(0), uint8_t(15));
         const auto& tint = hair_colors[hc];
-        if (tint.r == 0.0f && tint.g == 0.0f && tint.b == 0.0f) {
+        if (tint.r == 0.0f && tint.g == 0.0f && tint.b == 0.0f)
+        {
             rend.draw_sprite(*hair_spr, screen_x, screen_y, equip_frame);
-        } else {
-            rend.draw_sprite_tinted(*hair_spr, screen_x, screen_y, equip_frame,
-                                    tint.r, tint.g, tint.b);
+        }
+        else
+        {
+            rend.draw_sprite_tinted(*hair_spr, screen_x, screen_y, equip_frame, tint.r, tint.g, tint.b);
         }
     }
 
     // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
 
     // Effect overlay (keep using pre-loaded sprite pointer)
-    if (s.effect_sprite) {
+    if (s.effect_sprite)
+    {
         rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);
     }
 }
 
-void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprites, const entity& e,
-                                            int32_t screen_x, int32_t screen_y, const animation_component& a)
+void entity_manager::render_npc_or_monster(renderer& rend,
+                                           sprite_manager& sprites,
+                                           const entity& e,
+                                           int32_t screen_x,
+                                           int32_t screen_y,
+                                           const animation_component& a)
 {
     const auto& t = e.transform();
     const auto& s = e.sprite();
@@ -1700,42 +1908,53 @@ void entity_manager::render_npc_or_monster(renderer& rend, sprite_manager& sprit
     uint16_t visual_type = get_entity_visual_type(e);
 
     // Skip rendering if no valid visual type is set
-    if (visual_type < npc_sprite_constants::npc_type_offset) {
+    if (visual_type < npc_sprite_constants::npc_type_offset)
+    {
         return;
     }
 
     uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
     const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
-    if (npc_spr) {
+    if (npc_spr)
+    {
         // Clamp frame to actual sprite frame count to avoid invisible frames
         uint32_t frame = a.current_frame;
-        if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count()) {
+        if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count())
+        {
             frame = frame % npc_spr->frame_count();
         }
 
-        if (s.alpha < 1.0f) {
+        if (s.alpha < 1.0f)
+        {
             rend.draw_sprite_alpha(*npc_spr, screen_x, screen_y, frame, s.alpha);
-        } else {
+        }
+        else
+        {
             rend.draw_sprite(*npc_spr, screen_x, screen_y, frame);
         }
     }
 
     // Effect overlay
-    if (s.effect_sprite) {
+    if (s.effect_sprite)
+    {
         uint32_t effect_frame = a.current_frame;
-        if (s.effect_sprite->frame_count() > 0 && effect_frame >= s.effect_sprite->frame_count()) {
+        if (s.effect_sprite->frame_count() > 0 && effect_frame >= s.effect_sprite->frame_count())
+        {
             effect_frame = effect_frame % s.effect_sprite->frame_count();
         }
         rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, effect_frame);
     }
 }
 
-void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered) {
+void entity_manager::render_entity_name(
+    renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y, bool is_hovered)
+{
     const auto& name = e.name();
 
     // Only render name if mouse is hovering
-    if (is_hovered) {
+    if (is_hovered)
+    {
         static constexpr float outline_thickness = 1.5f;
         static constexpr uint32_t name_font_size = 14;
         static constexpr uint32_t sub_font_size = 12;
@@ -1756,22 +1975,22 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
             if (name.pk == pk_status::murderer)
                 name_color = sf::Color::Red;
             else if (name.pk == pk_status::criminal)
-                name_color = sf::Color(255, 165, 0);  // Orange
+                name_color = sf::Color(255, 165, 0); // Orange
             else if (name.hostile == hostility::friendly)
-                name_color = sf::Color(80, 255, 80);  // Green
+                name_color = sf::Color(80, 255, 80); // Green
             else if (name.hostile == hostility::enemy)
-                name_color = sf::Color(255, 80, 80);  // Red
+                name_color = sf::Color(255, 80, 80); // Red
             else
                 name_color = sf::Color(80, 160, 255); // Blue - neutral
         }
         else if (e.type() == entity_type::npc || e.type() == entity_type::monster)
         {
             if (name.hostile == hostility::friendly)
-                name_color = sf::Color(80, 255, 80);  // Green
+                name_color = sf::Color(80, 255, 80); // Green
             else if (name.hostile == hostility::neutral)
                 name_color = sf::Color(80, 160, 255); // Blue
             else
-                name_color = sf::Color(255, 80, 80);  // Red - enemy (default)
+                name_color = sf::Color(255, 80, 80); // Red - enemy (default)
         }
 
         // Position below entity feet
@@ -1792,13 +2011,13 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
         }
 
         // Players: show guild below name
-        if ((e.type() == entity_type::player || e.type() == entity_type::character)
-            && !name.guild_name.empty())
+        if ((e.type() == entity_type::player || e.type() == entity_type::character) && !name.guild_name.empty())
         {
             auto guild_text = "<" + name.guild_name + ">";
             float guild_w = rend.text().measure_width(guild_text, sub_font_size);
             int32_t guild_x = screen_x - static_cast<int32_t>(guild_w * 0.5f);
-            rend.draw_text_outlined(guild_text, guild_x, cur_y, guild_color, outline_color, sub_font_size, outline_thickness);
+            rend.draw_text_outlined(
+                guild_text, guild_x, cur_y, guild_color, outline_color, sub_font_size, outline_thickness);
             cur_y += line_spacing;
         }
 
@@ -1812,7 +2031,8 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
             {
                 float attr_w = rend.text().measure_width(attr, sub_font_size);
                 int32_t attr_x = screen_x - static_cast<int32_t>(attr_w * 0.5f);
-                rend.draw_text_outlined(attr, attr_x, cur_y, attrib_color, outline_color, sub_font_size, outline_thickness);
+                rend.draw_text_outlined(
+                    attr, attr_x, cur_y, attrib_color, outline_color, sub_font_size, outline_thickness);
                 cur_y += line_spacing;
             }
 
@@ -1820,22 +2040,26 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
             if (mon.berserked || mon.frozen)
             {
                 std::string status;
-                if (mon.berserked) status = "Berserked";
+                if (mon.berserked)
+                    status = "Berserked";
                 if (mon.frozen)
                 {
-                    if (!status.empty()) status += ", ";
+                    if (!status.empty())
+                        status += ", ";
                     status += "Frozen";
                 }
                 static const sf::Color status_color = sf::Color(255, 120, 120); // Light red
                 float status_w = rend.text().measure_width(status, sub_font_size);
                 int32_t status_x = screen_x - static_cast<int32_t>(status_w * 0.5f);
-                rend.draw_text_outlined(status, status_x, cur_y, status_color, outline_color, sub_font_size, outline_thickness);
+                rend.draw_text_outlined(
+                    status, status_x, cur_y, status_color, outline_color, sub_font_size, outline_thickness);
             }
         }
     }
 
     // Always render chat bubble (above entity, not affected by hover)
-    if (!name.chat_message.empty()) {
+    if (!name.chat_message.empty())
+    {
         // Legacy slide-up animation (Game.cpp:21412-21424)
         float elapsed_ms = name.chat_elapsed * 1000.0f;
         int32_t slide_offset = 0;
@@ -1883,7 +2107,8 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
                 }
                 lines[line_count++] = msg.substr(pos, break_at);
                 pos += break_at;
-                if (pos < msg.size() && msg[pos] == ' ') ++pos;
+                if (pos < msg.size() && msg[pos] == ' ')
+                    ++pos;
             }
         }
 
@@ -1902,15 +2127,18 @@ void entity_manager::render_entity_name(renderer& rend, const entity& e, int32_t
     }
 }
 
-void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y) {
+void entity_manager::render_entity_health_bar(renderer& rend, const entity& e, int32_t screen_x, int32_t screen_y)
+{
     // This overload exists for API compatibility but is no longer called directly.
     // Health bars are now drawn inline via render_entity_name.
     int32_t cur_y = screen_y + 26;
     render_health_bar_inline(rend, e, screen_x, cur_y);
 }
 
-void entity_manager::render_health_bar_inline(renderer& rend, const entity& e, int32_t center_x, int32_t& cur_y) {
-    if (!e.has_stats()) return;
+void entity_manager::render_health_bar_inline(renderer& rend, const entity& e, int32_t center_x, int32_t& cur_y)
+{
+    if (!e.has_stats())
+        return;
     const auto& stats = e.stats();
 
     static constexpr int32_t bar_width = 64;
@@ -1922,18 +2150,19 @@ void entity_manager::render_health_bar_inline(renderer& rend, const entity& e, i
     int32_t bar_y = cur_y;
 
     // Outer border (dark)
-    rend.draw_rect(bar_x - border, bar_y - border,
-                   bar_width + border * 2, bar_height + border * 2,
-                   sf::Color(30, 30, 30), true);
+    rend.draw_rect(
+        bar_x - border, bar_y - border, bar_width + border * 2, bar_height + border * 2, sf::Color(30, 30, 30), true);
 
     // Background (gray = missing health)
     rend.draw_rect(bar_x, bar_y, bar_width, bar_height, sf::Color(80, 80, 80), true);
 
     // Health fill (red)
-    if (stats.max_hp > 0) {
+    if (stats.max_hp > 0)
+    {
         float hp_ratio = std::clamp(static_cast<float>(stats.hp) / static_cast<float>(stats.max_hp), 0.0f, 1.0f);
         int32_t fill_width = static_cast<int32_t>(bar_width * hp_ratio);
-        if (fill_width > 0) {
+        if (fill_width > 0)
+        {
             rend.draw_rect(bar_x, bar_y, fill_width, bar_height, sf::Color(200, 30, 30), true);
         }
     }
@@ -1942,14 +2171,18 @@ void entity_manager::render_health_bar_inline(renderer& rend, const entity& e, i
     rend.draw_rect(bar_x, bar_y, bar_width, 1, sf::Color(255, 255, 255, 40), true);
 
     // Border outline
-    rend.draw_rect(bar_x - border, bar_y - border,
-                   bar_width + border * 2, bar_height + border * 2,
-                   sf::Color(120, 120, 120), false);
+    rend.draw_rect(bar_x - border,
+                   bar_y - border,
+                   bar_width + border * 2,
+                   bar_height + border * 2,
+                   sf::Color(120, 120, 120),
+                   false);
 
     cur_y += bar_height + border * 2 + 3;
 }
 
-void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites) {
+void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites)
+{
     auto& s = ent.sprite();
 
     // Action index for idle/stop (action 0)
@@ -1970,34 +2203,48 @@ void entity_manager::load_character_sprites(entity& ent, sprite_manager& sprites
     s.hair_sprite = sprites.get_sprite_by_id(hair_id);
 
     spdlog::debug("Loaded character sprites - body:{} underwear:{} hair:{} (gender:{} skin:{} hair_style:{})",
-                  body_id, underwear_id, hair_id, s.gender, s.skin_color, s.hair_style);
+                  body_id,
+                  underwear_id,
+                  hair_id,
+                  s.gender,
+                  s.skin_color,
+                  s.hair_style);
 
-    if (!s.body_sprite) {
+    if (!s.body_sprite)
+    {
         spdlog::warn("Failed to load body sprite ID {}", body_id);
     }
-    if (!s.underwear_sprite) {
+    if (!s.underwear_sprite)
+    {
         spdlog::warn("Failed to load underwear sprite ID {}", underwear_id);
     }
-    if (!s.hair_sprite) {
+    if (!s.hair_sprite)
+    {
         spdlog::warn("Failed to load hair sprite ID {}", hair_id);
     }
 }
 
-size_t entity_manager::entity_count_of_type(entity_type type) const {
+size_t entity_manager::entity_count_of_type(entity_type type) const
+{
     size_t count = 0;
-    for (const auto& [id, e] : entities_) {
-        if (e->type() == type && !e->should_remove()) {
+    for (const auto& [id, e] : entities_)
+    {
+        if (e->type() == type && !e->should_remove())
+        {
             ++count;
         }
     }
     return count;
 }
 
-void entity_manager::play_footstep_sound(const entity& e, bool running) {
-    if (!sounds_) return;
+void entity_manager::play_footstep_sound(const entity& e, bool running)
+{
+    if (!sounds_)
+        return;
 
     // Only play footsteps for players and characters
-    if (e.type() != entity_type::player && e.type() != entity_type::character) {
+    if (e.type() != entity_type::player && e.type() != entity_type::character)
+    {
         return;
     }
 
@@ -2082,29 +2329,42 @@ static monster_sounds get_monster_sounds(uint16_t visual_type)
         case 99: return {{'E',   6}, {'M', 149}, {'M', 129}, 1, {'M', 129}, 1};  // Ice Elemental
         // clang-format on
 
-        default: return {{0, 0}, {'C', 2}, {0, 0}, 0, {'C', 15}, 5};
+    default:
+        return {{0, 0}, {'C', 2}, {0, 0}, 0, {'C', 15}, 5};
     }
 }
 
 void entity_manager::play_monster_sound(const entity& e, monster_sound_type sound_type)
 {
-    if (!sounds_) return;
-    if (e.type() != entity_type::npc && e.type() != entity_type::monster) return;
+    if (!sounds_)
+        return;
+    if (e.type() != entity_type::npc && e.type() != entity_type::monster)
+        return;
 
     uint16_t vtype = get_entity_visual_type(e);
-    if (vtype == 0) return;
+    if (vtype == 0)
+        return;
 
     auto sounds = get_monster_sounds(vtype);
     monster_sound_entry entry;
     switch (sound_type)
     {
-        case monster_sound_type::move:   entry = sounds.move; break;
-        case monster_sound_type::attack: entry = sounds.attack; break;
-        case monster_sound_type::damage: entry = sounds.damage; break;
-        case monster_sound_type::death:  entry = sounds.death; break;
+    case monster_sound_type::move:
+        entry = sounds.move;
+        break;
+    case monster_sound_type::attack:
+        entry = sounds.attack;
+        break;
+    case monster_sound_type::damage:
+        entry = sounds.damage;
+        break;
+    case monster_sound_type::death:
+        entry = sounds.death;
+        break;
     }
 
-    if (entry.type == 0) return;
+    if (entry.type == 0)
+        return;
 
     const auto& t = e.transform();
     sounds_->play_sound_at(entry.type, entry.num, t.x, t.y);

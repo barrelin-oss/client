@@ -6,7 +6,8 @@
 #include <cctype>
 #include <charconv>
 
-namespace hb {
+namespace hb
+{
 
 bool tile_sprite_registry::initialize(sprite_manager& sprites, std::string_view sprites_path)
 {
@@ -142,7 +143,10 @@ const sprite* tile_sprite_registry::get_sprite(int16_t id)
         if (!logged_first)
         {
             spdlog::info("First tile sprite loaded: ID {} from {}.pak[{}] - {} frames",
-                         id, source.pak_name, source.pak_index, owned_sprite->frame_count());
+                         id,
+                         source.pak_name,
+                         source.pak_index,
+                         owned_sprite->frame_count());
             logged_first = true;
         }
 
@@ -152,8 +156,7 @@ const sprite* tile_sprite_registry::get_sprite(int16_t id)
     }
 
     // Failed to load - cache nullptr
-    spdlog::debug("Failed to load sprite ID {} from {}.pak index {}",
-                  id, source.pak_name, source.pak_index);
+    spdlog::debug("Failed to load sprite ID {} from {}.pak index {}", id, source.pak_name, source.pak_index);
     cache_[id] = nullptr;
     return nullptr;
 }
@@ -197,10 +200,10 @@ void tile_sprite_registry::register_core_paks()
     register_range(150, "TreeShadows", 46);
 
     // Objects - multiple PAK files
-    register_range(200, "Objects1", 8);   // IDs 200-207
-    register_range(211, "Objects2", 5);   // IDs 211-215
-    register_range(216, "Objects3", 4);   // IDs 216-219
-    register_range(220, "objects4", 1);   // ID 220
+    register_range(200, "Objects1", 8); // IDs 200-207
+    register_range(211, "Objects2", 5); // IDs 211-215
+    register_range(216, "Objects3", 4); // IDs 216-219
+    register_range(220, "objects4", 1); // ID 220
 
     // Additional terrain - maptiles2.pak (15 sprites at IDs 300-314)
     register_range(300, "maptiles2", 15);

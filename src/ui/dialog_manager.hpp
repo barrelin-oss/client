@@ -13,7 +13,8 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 class renderer;
@@ -21,7 +22,8 @@ class input;
 
 // Central coordinator for the new dialog system
 // Manages dialog definitions, creation, and lifecycle
-class dialog_manager {
+class dialog_manager
+{
 public:
     dialog_manager() = default;
     ~dialog_manager() = default;
@@ -57,8 +59,7 @@ public:
     managed_dialog* create_dialog(std::string_view definition_id);
 
     // Create a custom dialog subclass from a registered definition
-    template<typename T, typename... Args>
-    T* create_custom_dialog(std::string_view definition_id, Args&&... args);
+    template<typename T, typename... Args> T* create_custom_dialog(std::string_view definition_id, Args&&... args);
 
     // Create the YAML-based help dialog with topics loaded from YAML
     yaml_help_dialog* create_help_dialog();
@@ -154,17 +155,20 @@ private:
 // === Template implementation ===
 
 template<typename T, typename... Args>
-T* dialog_manager::create_custom_dialog(std::string_view definition_id, Args&&... args) {
+T* dialog_manager::create_custom_dialog(std::string_view definition_id, Args&&... args)
+{
     // Find definition
     auto def_it = definitions_.find(std::string(definition_id));
-    if (def_it == definitions_.end()) {
+    if (def_it == definitions_.end())
+    {
         return nullptr;
     }
 
     // Check if already created
     std::string id_str(definition_id);
     auto dlg_it = dialogs_.find(id_str);
-    if (dlg_it != dialogs_.end()) {
+    if (dlg_it != dialogs_.end())
+    {
         // Return existing dialog (downcasted)
         return dynamic_cast<T*>(dlg_it->second.get());
     }

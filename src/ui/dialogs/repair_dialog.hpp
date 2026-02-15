@@ -7,10 +7,12 @@
 #include <string>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Repair item info
-struct repair_item_info {
+struct repair_item_info
+{
     int32_t inventory_slot = -1;
     const item* itm = nullptr;
     int32_t current_durability = 0;
@@ -19,7 +21,8 @@ struct repair_item_info {
 };
 
 // Repair dialog - for repairing items at NPC smiths
-class repair_dialog : public dialog {
+class repair_dialog : public dialog
+{
 public:
     repair_dialog();
     ~repair_dialog() override = default;
@@ -35,7 +38,11 @@ public:
     // Items that can be repaired
     void set_repair_items(std::vector<repair_item_info> items) { repair_items_ = std::move(items); }
     void add_repair_item(repair_item_info item) { repair_items_.push_back(std::move(item)); }
-    void clear_repair_items() { repair_items_.clear(); selected_item_ = -1; }
+    void clear_repair_items()
+    {
+        repair_items_.clear();
+        selected_item_ = -1;
+    }
 
     // Player gold
     void set_player_gold(uint32_t gold) { player_gold_ = gold; }

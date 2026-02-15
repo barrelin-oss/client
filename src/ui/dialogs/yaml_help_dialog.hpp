@@ -5,17 +5,20 @@
 #include <string>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Help topic structure (matches YAML format)
-struct yaml_help_topic {
+struct yaml_help_topic
+{
     std::string title;
     std::vector<std::string> content_lines;
     int32_t category = 0;
 };
 
 // Help category
-struct help_category {
+struct help_category
+{
     std::string name;
     int32_t id = 0;
 };
@@ -25,7 +28,8 @@ struct help_category {
 // - Category tabs
 // - Topic list with scrolling
 // - Content area with text formatting
-class yaml_help_dialog : public managed_dialog {
+class yaml_help_dialog : public managed_dialog
+{
 public:
     explicit yaml_help_dialog(dialog_definition def);
     ~yaml_help_dialog() override = default;
@@ -66,7 +70,7 @@ private:
     std::vector<help_category> categories_;
 
     int32_t selected_topic_ = -1;
-    int32_t current_category_ = -1;  // -1 = all
+    int32_t current_category_ = -1; // -1 = all
 
     int32_t topic_scroll_ = 0;
     int32_t content_scroll_ = 0;
@@ -94,7 +98,8 @@ private:
     int32_t content_area_h_ = 0;
 
     // Scrollbar areas (computed during render)
-    struct scrollbar_info {
+    struct scrollbar_info
+    {
         int32_t track_x = 0;
         int32_t track_y = 0;
         int32_t track_w = 0;
@@ -107,7 +112,12 @@ private:
     scrollbar_info content_scrollbar_;
 
     // Scrollbar dragging state
-    enum class drag_target { none, topic_scrollbar, content_scrollbar };
+    enum class drag_target
+    {
+        none,
+        topic_scrollbar,
+        content_scrollbar
+    };
     drag_target dragging_ = drag_target::none;
     int32_t drag_start_y_ = 0;
     int32_t drag_start_scroll_ = 0;

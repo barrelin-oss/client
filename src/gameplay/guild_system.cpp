@@ -1,6 +1,7 @@
 #include "gameplay/guild_system.hpp"
 
-namespace hb {
+namespace hb
+{
 
 void guild_system::clear()
 {
@@ -45,9 +46,11 @@ void guild_system::clear_guild()
     notify();
 }
 
-void guild_system::set_guild_info(std::string_view name, std::string_view tag,
-                                   std::string_view motd, std::string_view master_name,
-                                   std::vector<guild_member_info> members)
+void guild_system::set_guild_info(std::string_view name,
+                                  std::string_view tag,
+                                  std::string_view motd,
+                                  std::string_view master_name,
+                                  std::vector<guild_member_info> members)
 {
     guild_name_ = name;
     guild_tag_ = tag;
@@ -57,8 +60,9 @@ void guild_system::set_guild_info(std::string_view name, std::string_view tag,
     notify();
 }
 
-void guild_system::set_pending_invite(std::string_view guild_name, std::string_view guild_tag,
-                                       std::string_view inviter_name)
+void guild_system::set_pending_invite(std::string_view guild_name,
+                                      std::string_view guild_tag,
+                                      std::string_view inviter_name)
 {
     pending_invite_ = pending_guild_invite{
         .guild_name = std::string(guild_name),

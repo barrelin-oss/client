@@ -6,7 +6,8 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 
@@ -15,11 +16,11 @@ struct floating_text_entry
 {
     std::string text;
     text_style style;
-    float world_x = 0.0f;          // World-space position
+    float world_x = 0.0f; // World-space position
     float world_y = 0.0f;
     float elapsed = 0.0f;
     float lifetime = 2.0f;
-    float velocity_y = -50.0f;     // Pixels/sec (negative = upward)
+    float velocity_y = -50.0f; // Pixels/sec (negative = upward)
     float velocity_x = 0.0f;
 };
 

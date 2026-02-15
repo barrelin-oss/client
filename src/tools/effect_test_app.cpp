@@ -5,7 +5,8 @@
 #include <cmath>
 #include <format>
 
-namespace hb {
+namespace hb
+{
 
 // Effect PAK loading table (same as game_state.cpp)
 struct effect_pak_entry
@@ -16,23 +17,22 @@ struct effect_pak_entry
     uint8_t local_start;
 };
 
-static constexpr std::array effect_paks =
-{
-    effect_pak_entry{"effect",       0, 10, 0},
-    effect_pak_entry{"effect2",     10,  3, 0},
-    effect_pak_entry{"effect3",     13,  6, 0},
-    effect_pak_entry{"effect4",     19,  5, 0},
-    effect_pak_entry{"effect5",     24,  7, 1},
-    effect_pak_entry{"CruEffect1",  31,  9, 0},
-    effect_pak_entry{"effect6",     40,  5, 0},
-    effect_pak_entry{"effect7",     45, 12, 0},
-    effect_pak_entry{"effect8",     57,  9, 0},
-    effect_pak_entry{"effect9",     66, 21, 0},
-    effect_pak_entry{"effect10",    87,  2, 0},
-    effect_pak_entry{"effect11",    89, 14, 0},
-    effect_pak_entry{"effect11s",  104,  1, 0},
-    effect_pak_entry{"effect13",   105,  3, 0},
-    effect_pak_entry{"effect12",   148,  4, 0},
+static constexpr std::array effect_paks = {
+    effect_pak_entry{"effect", 0, 10, 0},
+    effect_pak_entry{"effect2", 10, 3, 0},
+    effect_pak_entry{"effect3", 13, 6, 0},
+    effect_pak_entry{"effect4", 19, 5, 0},
+    effect_pak_entry{"effect5", 24, 7, 1},
+    effect_pak_entry{"CruEffect1", 31, 9, 0},
+    effect_pak_entry{"effect6", 40, 5, 0},
+    effect_pak_entry{"effect7", 45, 12, 0},
+    effect_pak_entry{"effect8", 57, 9, 0},
+    effect_pak_entry{"effect9", 66, 21, 0},
+    effect_pak_entry{"effect10", 87, 2, 0},
+    effect_pak_entry{"effect11", 89, 14, 0},
+    effect_pak_entry{"effect11s", 104, 1, 0},
+    effect_pak_entry{"effect13", 105, 3, 0},
+    effect_pak_entry{"effect12", 148, 4, 0},
 };
 
 bool effect_test_app::initialize()
@@ -108,8 +108,7 @@ bool effect_test_app::initialize()
 
     // Populate spell list
     all_spells_ = magic_.get_all_spells();
-    std::sort(all_spells_.begin(), all_spells_.end(),
-        [](const spell* a, const spell* b) { return a->id < b->id; });
+    std::sort(all_spells_.begin(), all_spells_.end(), [](const spell* a, const spell* b) { return a->id < b->id; });
 
     spdlog::info("Loaded {} spells", all_spells_.size());
 
@@ -132,7 +131,8 @@ void effect_test_app::run()
         last_frame_time_ = now;
 
         // Cap delta time
-        if (delta > 0.25f) delta = 0.25f;
+        if (delta > 0.25f)
+            delta = 0.25f;
 
         process_events();
         update(delta);
@@ -260,9 +260,7 @@ void effect_test_app::process_events()
         {
             if (wheel->position.x > 280)
             {
-                world_.adjust_zoom(wheel->delta * 0.1f,
-                                   wheel->position.x,
-                                   wheel->position.y);
+                world_.adjust_zoom(wheel->delta * 0.1f, wheel->position.x, wheel->position.y);
             }
         }
     }
@@ -358,8 +356,7 @@ void effect_test_app::render_controls()
         auto label = std::format("[{}] {}", sp->id, sp->name);
         renderer_.draw_text(label, 10, y, color_white, 14);
         y += 20;
-        auto info = std::format("Circle {} | Proj:{} Impact:{}",
-            sp->circle, sp->projectile_effect, sp->effect_sprite);
+        auto info = std::format("Circle {} | Proj:{} Impact:{}", sp->circle, sp->projectile_effect, sp->effect_sprite);
         renderer_.draw_text(info, 10, y, color_grey, 11);
     }
     else
@@ -376,8 +373,7 @@ void effect_test_app::render_controls()
     y += 20;
 
     auto additive_label = std::format("Additive: {}  [A]", use_additive_blend_ ? "ON" : "OFF");
-    renderer_.draw_text(additive_label, 10, y,
-        use_additive_blend_ ? color_green : color_grey, 12);
+    renderer_.draw_text(additive_label, 10, y, use_additive_blend_ ? color_green : color_grey, 12);
     y += 18;
 
     auto intensity_label = std::format("Intensity: {:.1f}  [+/-]", additive_intensity_);
@@ -393,8 +389,7 @@ void effect_test_app::render_controls()
 
     // Loop mode
     auto loop_label = std::format("Loop: {}  [L]", loop_mode_ ? "ON" : "OFF");
-    renderer_.draw_text(loop_label, 10, y,
-        loop_mode_ ? color_green : color_grey, 12);
+    renderer_.draw_text(loop_label, 10, y, loop_mode_ ? color_green : color_grey, 12);
     y += 24;
 
     renderer_.draw_line(10, y, 270, y, sf::Color(60, 60, 80));
@@ -474,8 +469,7 @@ void effect_test_app::render_info_overlay()
     {
         auto [tx, ty] = world_.screen_to_tile(mx, my);
         auto label = std::format("Tile: ({}, {})  Mouse: ({}, {})", tx, ty, mx, my);
-        renderer_.draw_text_outlined(label, 290, 748,
-            sf::Color::White, sf::Color::Black, 11, 1.0f);
+        renderer_.draw_text_outlined(label, 290, 748, sf::Color::White, sf::Color::Black, 11, 1.0f);
     }
 }
 
@@ -507,32 +501,32 @@ void effect_test_app::trigger_effect()
     float dst_wy = dst_ty * 32.0f + 16.0f;
 
     spdlog::info("Triggering spell '{}' (id={}) proj={} impact={} from ({},{}) to ({},{})",
-        sp->name, sp->id, sp->projectile_effect, sp->effect_sprite,
-        src_tx, src_ty, dst_tx, dst_ty);
+                 sp->name,
+                 sp->id,
+                 sp->projectile_effect,
+                 sp->effect_sprite,
+                 src_tx,
+                 src_ty,
+                 dst_tx,
+                 dst_ty);
 
     // Trigger projectile (source -> dest)
     if (sp->projectile_effect > 0)
     {
-        effects_.add_effect_world(
-            static_cast<effect_type_id>(sp->projectile_effect),
-            src_wx, src_wy, dst_wx, dst_wy);
+        effects_.add_effect_world(static_cast<effect_type_id>(sp->projectile_effect), src_wx, src_wy, dst_wx, dst_wy);
     }
 
     // Trigger impact effect (at dest)
     if (sp->effect_sprite > 0)
     {
-        effects_.add_effect_at_pixel(
-            static_cast<effect_type_id>(sp->effect_sprite),
-            dst_wx, dst_wy);
+        effects_.add_effect_at_pixel(static_cast<effect_type_id>(sp->effect_sprite), dst_wx, dst_wy);
     }
 
     // If neither, try using spell_id as direct effect type for testing
     if (sp->projectile_effect == 0 && sp->effect_sprite == 0)
     {
         spdlog::info("Spell has no effects, using spell_id {} as direct effect type", sp->id);
-        effects_.add_effect_world(
-            static_cast<effect_type_id>(sp->id),
-            src_wx, src_wy, dst_wx, dst_wy);
+        effects_.add_effect_world(static_cast<effect_type_id>(sp->id), src_wx, src_wy, dst_wx, dst_wy);
     }
 
     effect_in_progress_ = true;
@@ -541,7 +535,8 @@ void effect_test_app::trigger_effect()
 
 void effect_test_app::cycle_spell(int direction)
 {
-    if (all_spells_.empty()) return;
+    if (all_spells_.empty())
+        return;
 
     spell_index_ += direction;
     if (spell_index_ < 0)

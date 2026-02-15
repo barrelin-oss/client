@@ -5,13 +5,13 @@
 #include <cstdint>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Simple 8-direction calculation toward destination (no obstacle avoidance)
 // Equivalent to legacy CMisc::cGetNextMoveDir
 // Returns nullopt when from == to
-inline std::optional<direction> get_next_move_dir(int32_t from_x, int32_t from_y,
-                                                   int32_t to_x, int32_t to_y)
+inline std::optional<direction> get_next_move_dir(int32_t from_x, int32_t from_y, int32_t to_x, int32_t to_y)
 {
     if (from_x == to_x && from_y == to_y)
     {
@@ -22,14 +22,22 @@ inline std::optional<direction> get_next_move_dir(int32_t from_x, int32_t from_y
     int32_t dy = to_y - from_y;
 
     // 8-direction movement toward destination
-    if (dx > 0 && dy > 0) return direction::south_east;
-    if (dx > 0 && dy < 0) return direction::north_east;
-    if (dx < 0 && dy > 0) return direction::south_west;
-    if (dx < 0 && dy < 0) return direction::north_west;
-    if (dx > 0) return direction::east;
-    if (dx < 0) return direction::west;
-    if (dy > 0) return direction::south;
-    if (dy < 0) return direction::north;
+    if (dx > 0 && dy > 0)
+        return direction::south_east;
+    if (dx > 0 && dy < 0)
+        return direction::north_east;
+    if (dx < 0 && dy > 0)
+        return direction::south_west;
+    if (dx < 0 && dy < 0)
+        return direction::north_west;
+    if (dx > 0)
+        return direction::east;
+    if (dx < 0)
+        return direction::west;
+    if (dy > 0)
+        return direction::south;
+    if (dy < 0)
+        return direction::north;
 
     return std::nullopt;
 }
@@ -51,10 +59,8 @@ inline std::optional<direction> get_next_move_dir(int32_t from_x, int32_t from_y
 //
 // Returns the best walkable direction, or nullopt if completely blocked.
 template<typename Predicate>
-std::optional<direction> get_next_walkable_dir(int32_t from_x, int32_t from_y,
-                                                int32_t to_x, int32_t to_y,
-                                                bool player_turn,
-                                                Predicate&& is_passable)
+std::optional<direction> get_next_walkable_dir(
+    int32_t from_x, int32_t from_y, int32_t to_x, int32_t to_y, bool player_turn, Predicate&& is_passable)
 {
     if (from_x == to_x && from_y == to_y)
     {

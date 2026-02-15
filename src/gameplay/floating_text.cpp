@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace hb {
+namespace hb
+{
 
 void floating_text_manager::add(floating_text_entry entry)
 {
@@ -90,11 +91,10 @@ void floating_text_manager::update(float delta_time)
     }
 
     // Remove expired entries
-    entries_.erase(
-        std::remove_if(entries_.begin(), entries_.end(),
-            [](const floating_text_entry& e) { return e.elapsed >= e.lifetime; }),
-        entries_.end()
-    );
+    entries_.erase(std::remove_if(entries_.begin(),
+                                  entries_.end(),
+                                  [](const floating_text_entry& e) { return e.elapsed >= e.lifetime; }),
+                   entries_.end());
 }
 
 void floating_text_manager::render(renderer& rend, int32_t camera_x, int32_t camera_y)
@@ -102,7 +102,8 @@ void floating_text_manager::render(renderer& rend, int32_t camera_x, int32_t cam
     // Extended mode: floating text outside fair zone is hidden
     bool extended_cull = rend.current_view_mode() == view_mode::extended;
     sf::IntRect fair;
-    if (extended_cull) fair = rend.fair_bounds();
+    if (extended_cull)
+        fair = rend.fair_bounds();
 
     for (const auto& entry : entries_)
     {
@@ -111,14 +112,15 @@ void floating_text_manager::render(renderer& rend, int32_t camera_x, int32_t cam
         auto screen_y = static_cast<int32_t>(entry.world_y) - camera_y;
 
         // Skip if off screen (with generous margin)
-        if (screen_x < -200 || screen_x > static_cast<int32_t>(rend.scene_width()) + 200 ||
-            screen_y < -100 || screen_y > static_cast<int32_t>(rend.scene_height()) + 100)
+        if (screen_x < -200 || screen_x > static_cast<int32_t>(rend.scene_width()) + 200 || screen_y < -100 ||
+            screen_y > static_cast<int32_t>(rend.scene_height()) + 100)
         {
             continue;
         }
 
         // Extended mode: additionally check fair zone bounds
-        if (extended_cull) {
+        if (extended_cull)
+        {
             if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
                 screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
                 continue;

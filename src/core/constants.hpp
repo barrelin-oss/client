@@ -3,7 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 // Display constants
 inline constexpr uint32_t screen_width = 640;

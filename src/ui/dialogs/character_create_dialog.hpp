@@ -5,9 +5,11 @@
 #include <string>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
-class character_create_dialog : public dialog {
+class character_create_dialog : public dialog
+{
 public:
     character_create_dialog();
     ~character_create_dialog() override = default;
@@ -16,19 +18,20 @@ public:
     void render(renderer& rend) override;
 
     // Character creation data
-    struct character_data {
+    struct character_data
+    {
         std::string name;
-        uint8_t gender = 0;       // 0 = male, 1 = female
-        uint8_t skin_color = 0;   // 0-2
-        uint8_t hair_style = 0;   // 0-7
-        uint8_t hair_color = 0;   // 0-3
+        uint8_t gender = 0;     // 0 = male, 1 = female
+        uint8_t skin_color = 0; // 0-2
+        uint8_t hair_style = 0; // 0-7
+        uint8_t hair_color = 0; // 0-3
         uint16_t strength = 10;
         uint16_t vitality = 10;
         uint16_t dexterity = 10;
         uint16_t intelligence = 10;
         uint16_t magic = 10;
         uint16_t charisma = 10;
-        bool warrior = true;      // true = warrior, false = mage
+        bool warrior = true; // true = warrior, false = mage
     };
 
     // Get current character data
@@ -49,9 +52,9 @@ public:
     void reset();
 
     // Starting stat points
-    static constexpr uint16_t total_stat_points = 70;  // Base 10 each = 60, + 10 bonus
+    static constexpr uint16_t total_stat_points = 70; // Base 10 each = 60, + 10 bonus
     static constexpr uint16_t min_stat = 10;
-    static constexpr uint16_t max_stat = 14;  // Can add max 4 points per stat at start
+    static constexpr uint16_t max_stat = 14; // Can add max 4 points per stat at start
 
 private:
     void create_ui();
@@ -68,7 +71,7 @@ private:
     uint16_t get_stat_points_used() const;
 
     character_data char_data_;
-    uint16_t points_remaining_ = 10;  // 10 bonus points to distribute
+    uint16_t points_remaining_ = 10; // 10 bonus points to distribute
 
     std::string status_message_;
     bool status_is_error_ = false;

@@ -5,7 +5,8 @@
 #include <functional>
 #include <unordered_map>
 
-namespace hb {
+namespace hb
+{
 
 // Forward declarations
 class game_state_manager;
@@ -14,7 +15,8 @@ class game_state_manager;
 using notify_handler_fn = std::function<void(game_state_manager&, packet_reader&)>;
 
 // Notification handler dispatcher
-class notify_handler {
+class notify_handler
+{
 public:
     notify_handler() = default;
 

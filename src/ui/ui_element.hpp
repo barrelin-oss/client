@@ -8,25 +8,26 @@
 #include <memory>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
 
 // UI element rectangle
-struct ui_rect {
+struct ui_rect
+{
     int32_t x = 0;
     int32_t y = 0;
     int32_t width = 0;
     int32_t height = 0;
 
-    bool contains(int32_t px, int32_t py) const {
-        return px >= x && px < x + width && py >= y && py < y + height;
-    }
+    bool contains(int32_t px, int32_t py) const { return px >= x && px < x + width && py >= y && py < y + height; }
 };
 
 // Base UI element
-class ui_element {
+class ui_element
+{
 public:
     ui_element() = default;
     virtual ~ui_element() = default;
@@ -101,7 +102,8 @@ protected:
 };
 
 // Panel - container with optional background
-class ui_panel : public ui_element {
+class ui_panel : public ui_element
+{
 public:
     void render(renderer& rend) override;
 
@@ -116,7 +118,8 @@ protected:
 };
 
 // Label - text display
-class ui_label : public ui_element {
+class ui_label : public ui_element
+{
 public:
     void render(renderer& rend) override;
 
@@ -126,7 +129,12 @@ public:
     void set_text_color(sf::Color color) { text_color_ = color; }
     void set_font_size(uint32_t size) { font_size_ = size; }
 
-    enum class alignment { left, center, right };
+    enum class alignment
+    {
+        left,
+        center,
+        right
+    };
     void set_alignment(alignment align) { alignment_ = align; }
 
 protected:
@@ -137,7 +145,8 @@ protected:
 };
 
 // Button - clickable element
-class ui_button : public ui_element {
+class ui_button : public ui_element
+{
 public:
     using click_callback = std::function<void()>;
 
@@ -167,7 +176,8 @@ protected:
 };
 
 // Text input field
-class ui_text_input : public ui_element {
+class ui_text_input : public ui_element
+{
 public:
     using change_callback = std::function<void(std::string_view)>;
 
@@ -202,15 +212,16 @@ protected:
 };
 
 // Progress bar
-class ui_progress_bar : public ui_element {
+class ui_progress_bar : public ui_element
+{
 public:
     void render(renderer& rend) override;
 
-    void set_value(float value);  // 0.0 to 1.0
+    void set_value(float value); // 0.0 to 1.0
     float value() const { return value_; }
 
     void set_min_max(float min_val, float max_val);
-    void set_current(float current);  // Will be clamped to min/max
+    void set_current(float current); // Will be clamped to min/max
 
     void set_fill_color(sf::Color color) { fill_color_ = color; }
     void set_background_color(sf::Color color) { bg_color_ = color; }
@@ -227,7 +238,8 @@ protected:
 };
 
 // Scrollbar
-class ui_scrollbar : public ui_element {
+class ui_scrollbar : public ui_element
+{
 public:
     using scroll_callback = std::function<void(float)>;
 
@@ -237,7 +249,7 @@ public:
     bool handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) override;
     bool handle_mouse_move(int32_t x, int32_t y) override;
 
-    void set_value(float value);  // 0.0 to 1.0
+    void set_value(float value); // 0.0 to 1.0
     float value() const { return value_; }
 
     void set_thumb_size(float size) { thumb_size_ = size; }
@@ -259,7 +271,8 @@ protected:
 };
 
 // List box
-class ui_list_box : public ui_element {
+class ui_list_box : public ui_element
+{
 public:
     using select_callback = std::function<void(int32_t)>;
 
@@ -293,7 +306,8 @@ protected:
 };
 
 // Dropdown - collapsible selection widget
-class ui_dropdown : public ui_element {
+class ui_dropdown : public ui_element
+{
 public:
     using select_callback = std::function<void(int32_t)>;
 
@@ -352,8 +366,8 @@ protected:
     // Animation state
     bool animation_enabled_ = true;
     bool animating_ = false;
-    float animation_progress_ = 0.0f;  // 0.0 = closed, 1.0 = fully open
-    float animation_speed_ = 8.0f;     // Speed multiplier
+    float animation_progress_ = 0.0f; // 0.0 = closed, 1.0 = fully open
+    float animation_speed_ = 8.0f;    // Speed multiplier
 
     select_callback on_select_;
 

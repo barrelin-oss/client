@@ -3,10 +3,12 @@
 #include "ui/ui_system.hpp"
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 // Gauge panel - HP/MP/SP/EXP bars displayed during gameplay
-class gauge_panel_dialog : public dialog {
+class gauge_panel_dialog : public dialog
+{
 public:
     gauge_panel_dialog();
     ~gauge_panel_dialog() override = default;
@@ -38,9 +40,16 @@ public:
     bool show_values() const { return show_values_; }
 
 private:
-    void render_bar(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height,
-                   float percent, sf::Color fill_color, sf::Color bg_color,
-                   std::string_view label, std::string_view value_text);
+    void render_bar(renderer& rend,
+                    int32_t x,
+                    int32_t y,
+                    int32_t width,
+                    int32_t height,
+                    float percent,
+                    sf::Color fill_color,
+                    sf::Color bg_color,
+                    std::string_view label,
+                    std::string_view value_text);
 
     // Current values
     int32_t current_hp_ = 100;
@@ -61,7 +70,7 @@ private:
     bool show_values_ = true;
 
     // Animation
-    float hp_display_ = 1.0f;  // Smoothly interpolated display values
+    float hp_display_ = 1.0f; // Smoothly interpolated display values
     float mp_display_ = 1.0f;
     float sp_display_ = 1.0f;
     float exp_display_ = 0.0f;

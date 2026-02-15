@@ -3,17 +3,24 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 
-namespace hb {
+namespace hb
+{
 
-namespace {
+namespace
+{
 
 skill_category parse_category(const std::string& str)
 {
-    if (str == "combat") return skill_category::combat;
-    if (str == "magic") return skill_category::magic;
-    if (str == "crafting") return skill_category::crafting;
-    if (str == "gathering") return skill_category::gathering;
-    if (str == "misc") return skill_category::misc;
+    if (str == "combat")
+        return skill_category::combat;
+    if (str == "magic")
+        return skill_category::magic;
+    if (str == "crafting")
+        return skill_category::crafting;
+    if (str == "gathering")
+        return skill_category::gathering;
+    if (str == "misc")
+        return skill_category::misc;
     spdlog::warn("Unknown skill category '{}', defaulting to misc", str);
     return skill_category::misc;
 }
@@ -102,13 +109,14 @@ bool skills_system::is_skill_mastered(uint16_t skill_id) const noexcept
 bool skills_system::can_use_skill(uint16_t skill_id) const
 {
     auto* s = get_skill(skill_id);
-    if (!s || !s->is_useable) return false;
+    if (!s || !s->is_useable)
+        return false;
     return is_skill_ready(skill_id);
 }
 
 void skills_system::update_cooldowns(float delta_time)
 {
-    for (auto it = cooldowns_.begin(); it != cooldowns_.end(); )
+    for (auto it = cooldowns_.begin(); it != cooldowns_.end();)
     {
         it->second -= delta_time;
         if (it->second <= 0)

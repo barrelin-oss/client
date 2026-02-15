@@ -1,6 +1,7 @@
 #pragma once
 
-namespace hb {
+namespace hb
+{
 
 class game_state_manager;
 class managed_dialog;

@@ -6,10 +6,12 @@
 #include <optional>
 #include <array>
 
-namespace hb {
+namespace hb
+{
 
 // Bank dialog - for storing items in bank/warehouse
-class bank_dialog : public dialog {
+class bank_dialog : public dialog
+{
 public:
     static constexpr int32_t grid_cols = 11;
     static constexpr int32_t grid_rows = 11;
@@ -56,7 +58,8 @@ private:
     void render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y);
     ui_rect get_slot_rect(int32_t slot) const;
 
-    struct slot_data {
+    struct slot_data
+    {
         const item* item_ptr = nullptr;
         bool occupied = false;
     };

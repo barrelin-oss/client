@@ -7,15 +7,17 @@
 #include <optional>
 #include <array>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 
 // Equipment dialog - displays equipped items on character silhouette
-class equipment_dialog : public dialog {
+class equipment_dialog : public dialog
+{
 public:
     static constexpr int32_t slot_size = 40;
-    static constexpr size_t max_equip_slots = 15;  // full_body (13) + auxiliary + 1
+    static constexpr size_t max_equip_slots = 15; // full_body (13) + auxiliary + 1
 
     equipment_dialog();
     ~equipment_dialog() override = default;
@@ -46,7 +48,8 @@ private:
     ui_rect get_slot_rect(equip_slot slot) const;
     std::optional<equip_slot> slot_at(int32_t x, int32_t y) const;
 
-    struct equipment_slot_data {
+    struct equipment_slot_data
+    {
         const item* item_ptr = nullptr;
     };
 
@@ -60,7 +63,8 @@ private:
     slot_callback on_slot_right_click_;
 
     // Slot positions relative to dialog (for character silhouette layout)
-    struct slot_position {
+    struct slot_position
+    {
         int32_t x;
         int32_t y;
         const char* label;

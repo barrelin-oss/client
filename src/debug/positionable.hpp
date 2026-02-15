@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <string>
 
-namespace hb::debug {
+namespace hb::debug
+{
 
 // Bounds structure for positionable elements
 struct bounds
@@ -13,10 +14,7 @@ struct bounds
     int32_t width = 0;
     int32_t height = 0;
 
-    bool contains(int32_t px, int32_t py) const
-    {
-        return px >= x && px < x + width && py >= y && py < y + height;
-    }
+    bool contains(int32_t px, int32_t py) const { return px >= x && px < x + width && py >= y && py < y + height; }
 };
 
 // Simple point structure

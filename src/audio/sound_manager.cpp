@@ -5,20 +5,22 @@
 #include <cmath>
 #include <filesystem>
 
-namespace hb {
+namespace hb
+{
 
 namespace fs = std::filesystem;
 
-namespace {
+namespace
+{
 
 // Case-insensitive string comparison
 bool iequals(std::string_view a, std::string_view b)
 {
-    if (a.size() != b.size()) return false;
+    if (a.size() != b.size())
+        return false;
     for (size_t i = 0; i < a.size(); ++i)
     {
-        if (std::tolower(static_cast<unsigned char>(a[i])) !=
-            std::tolower(static_cast<unsigned char>(b[i])))
+        if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i])))
         {
             return false;
         }
@@ -100,14 +102,18 @@ void sound_manager::load_sounds()
     // Scan directory for sound files
     for (const auto& entry : fs::directory_iterator(sound_dir_))
     {
-        if (!entry.is_regular_file()) continue;
-        if (!is_wav_extension(entry.path())) continue;
+        if (!entry.is_regular_file())
+            continue;
+        if (!is_wav_extension(entry.path()))
+            continue;
 
         auto stem = entry.path().stem().string();
-        if (stem.empty()) continue;
+        if (stem.empty())
+            continue;
 
         char prefix = static_cast<char>(std::toupper(static_cast<unsigned char>(stem[0])));
-        if (prefix != 'C' && prefix != 'E' && prefix != 'M') continue;
+        if (prefix != 'C' && prefix != 'E' && prefix != 'M')
+            continue;
 
         // Parse number from filename (e.g., "C14" -> 14)
         int num = 0;
@@ -117,10 +123,11 @@ void sound_manager::load_sounds()
         }
         catch (...)
         {
-            continue;  // Not a valid sound filename
+            continue; // Not a valid sound filename
         }
 
-        if (num <= 0) continue;
+        if (num <= 0)
+            continue;
 
         // Load the sound
         sound_id id = audio_->load_sound(entry.path().string());
@@ -133,26 +140,26 @@ void sound_manager::load_sounds()
         // Store in appropriate array/map
         switch (prefix)
         {
-            case 'C':
-                if (num < static_cast<int>(character_sounds_.size()))
-                {
-                    character_sounds_[num] = id;
-                    ++loaded_count;
-                }
-                break;
-
-            case 'E':
-                if (num < static_cast<int>(effect_sounds_.size()))
-                {
-                    effect_sounds_[num] = id;
-                    ++loaded_count;
-                }
-                break;
-
-            case 'M':
-                monster_sounds_[num] = id;
+        case 'C':
+            if (num < static_cast<int>(character_sounds_.size()))
+            {
+                character_sounds_[num] = id;
                 ++loaded_count;
-                break;
+            }
+            break;
+
+        case 'E':
+            if (num < static_cast<int>(effect_sounds_.size()))
+            {
+                effect_sounds_[num] = id;
+                ++loaded_count;
+            }
+            break;
+
+        case 'M':
+            monster_sounds_[num] = id;
+            ++loaded_count;
+            break;
         }
     }
 
@@ -164,12 +171,15 @@ sound_id sound_manager::find_and_load_sound(char prefix, int num)
     // This is a fallback for on-demand loading (not currently used)
     std::string pattern = std::string(1, prefix) + std::to_string(num);
 
-    if (!fs::exists(sound_dir_)) return invalid_sound_id;
+    if (!fs::exists(sound_dir_))
+        return invalid_sound_id;
 
     for (const auto& entry : fs::directory_iterator(sound_dir_))
     {
-        if (!entry.is_regular_file()) continue;
-        if (!is_wav_extension(entry.path())) continue;
+        if (!entry.is_regular_file())
+            continue;
+        if (!is_wav_extension(entry.path()))
+            continue;
 
         auto stem = entry.path().stem().string();
         if (iequals(stem, pattern))
@@ -183,33 +193,34 @@ sound_id sound_manager::find_and_load_sound(char prefix, int num)
 
 sound_id sound_manager::get_sound_id(char type, int num) const
 {
-    if (num <= 0) return invalid_sound_id;
+    if (num <= 0)
+        return invalid_sound_id;
 
     switch (std::toupper(static_cast<unsigned char>(type)))
     {
-        case 'C':
-            if (num < static_cast<int>(character_sounds_.size()))
-            {
-                return character_sounds_[num];
-            }
-            break;
-
-        case 'E':
-            if (num < static_cast<int>(effect_sounds_.size()))
-            {
-                return effect_sounds_[num];
-            }
-            break;
-
-        case 'M':
+    case 'C':
+        if (num < static_cast<int>(character_sounds_.size()))
         {
-            auto it = monster_sounds_.find(num);
-            if (it != monster_sounds_.end())
-            {
-                return it->second;
-            }
-            break;
+            return character_sounds_[num];
         }
+        break;
+
+    case 'E':
+        if (num < static_cast<int>(effect_sounds_.size()))
+        {
+            return effect_sounds_[num];
+        }
+        break;
+
+    case 'M':
+    {
+        auto it = monster_sounds_.find(num);
+        if (it != monster_sounds_.end())
+        {
+            return it->second;
+        }
+        break;
+    }
     }
 
     return invalid_sound_id;
@@ -217,11 +228,14 @@ sound_id sound_manager::get_sound_id(char type, int num) const
 
 void sound_manager::play_sound(char type, int num, int tile_distance, float pan)
 {
-    if (!sfx_enabled_ || !audio_) return;
-    if (tile_distance > max_sound_distance) return;
+    if (!sfx_enabled_ || !audio_)
+        return;
+    if (tile_distance > max_sound_distance)
+        return;
 
     sound_id id = get_sound_id(type, num);
-    if (id == invalid_sound_id) return;
+    if (id == invalid_sound_id)
+        return;
 
     // Calculate volume: 0 tiles = 1.0, max_sound_distance tiles = 0.0
     float volume = 1.0f;
@@ -244,13 +258,16 @@ void sound_manager::play_ui_sound(int effect_num)
 
 void sound_manager::start_ambient(char type, int num)
 {
-    if (!sfx_enabled_ || !audio_) return;
+    if (!sfx_enabled_ || !audio_)
+        return;
 
     sound_id id = get_sound_id(type, num);
-    if (id == invalid_sound_id) return;
+    if (id == invalid_sound_id)
+        return;
 
     // Already playing this ambient
-    if (ambient_sound_id_ == id) return;
+    if (ambient_sound_id_ == id)
+        return;
 
     // Stop any existing ambient
     stop_ambient();
@@ -272,7 +289,8 @@ void sound_manager::stop_ambient()
 
 void sound_manager::play_sound_at(char type, int num, int32_t world_x, int32_t world_y)
 {
-    if (!sfx_enabled_ || !audio_) return;
+    if (!sfx_enabled_ || !audio_)
+        return;
 
     // Calculate tile positions
     int32_t sound_tile_x = world_x / tile_size;
@@ -313,8 +331,8 @@ std::string sound_manager::select_bgm_track(std::string_view map_name, int weath
 {
     // Convert map name to lowercase for comparison
     std::string map_lower(map_name);
-    std::transform(map_lower.begin(), map_lower.end(), map_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        map_lower.begin(), map_lower.end(), map_lower.begin(), [](unsigned char c) { return std::tolower(c); });
 
     // Christmas weather (4-6)
     if (weather_type >= 4 && weather_type <= 6)
@@ -350,7 +368,8 @@ std::string sound_manager::select_bgm_track(std::string_view map_name, int weath
 
 void sound_manager::start_bgm(std::string_view map_name, int weather_type)
 {
-    if (!music_enabled_ || !audio_) return;
+    if (!music_enabled_ || !audio_)
+        return;
 
     std::string track = select_bgm_track(map_name, weather_type);
 
@@ -369,7 +388,8 @@ void sound_manager::start_bgm(std::string_view map_name, int weather_type)
 
 void sound_manager::play_bgm_track(std::string_view track, bool loop)
 {
-    if (!music_enabled_ || !audio_) return;
+    if (!music_enabled_ || !audio_)
+        return;
 
     std::string track_str(track);
 

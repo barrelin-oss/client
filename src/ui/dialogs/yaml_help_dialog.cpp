@@ -5,27 +5,32 @@
 #include <format>
 #include <cstring>
 
-namespace hb {
+namespace hb
+{
 
-yaml_help_dialog::yaml_help_dialog(dialog_definition def)
-    : managed_dialog(std::move(def)) {
-}
+yaml_help_dialog::yaml_help_dialog(dialog_definition def) : managed_dialog(std::move(def)) {}
 
-void yaml_help_dialog::set_topics(std::vector<yaml_help_topic> topics) {
+void yaml_help_dialog::set_topics(std::vector<yaml_help_topic> topics)
+{
     topics_ = std::move(topics);
     selected_topic_ = -1;
     topic_scroll_ = 0;
     content_scroll_ = 0;
 }
 
-void yaml_help_dialog::set_categories(std::vector<help_category> categories) {
+void yaml_help_dialog::set_categories(std::vector<help_category> categories)
+{
     categories_ = std::move(categories);
 }
 
-void yaml_help_dialog::set_category(int32_t category_index) {
-    if (category_index < 0 || category_index >= static_cast<int32_t>(categories_.size())) {
+void yaml_help_dialog::set_category(int32_t category_index)
+{
+    if (category_index < 0 || category_index >= static_cast<int32_t>(categories_.size()))
+    {
         current_category_ = -1;
-    } else {
+    }
+    else
+    {
         current_category_ = categories_[category_index].id;
     }
     topic_scroll_ = 0;
@@ -33,25 +38,30 @@ void yaml_help_dialog::set_category(int32_t category_index) {
     content_scroll_ = 0;
 }
 
-void yaml_help_dialog::select_topic(int32_t index) {
+void yaml_help_dialog::select_topic(int32_t index)
+{
     auto filtered = get_filtered_topics();
-    if (index >= 0 && index < static_cast<int32_t>(filtered.size())) {
+    if (index >= 0 && index < static_cast<int32_t>(filtered.size()))
+    {
         selected_topic_ = index;
         content_scroll_ = 0;
     }
 }
 
-void yaml_help_dialog::on_open_impl() {
+void yaml_help_dialog::on_open_impl()
+{
     selected_topic_ = -1;
     topic_scroll_ = 0;
     content_scroll_ = 0;
 }
 
-void yaml_help_dialog::on_update_impl(float /*delta_time*/) {
+void yaml_help_dialog::on_update_impl(float /*delta_time*/)
+{
     // No per-frame updates needed
 }
 
-bool yaml_help_dialog::on_custom_render(renderer& rend) {
+bool yaml_help_dialog::on_custom_render(renderer& rend)
+{
     const auto& def = definition();
     auto dlg_bounds = bounds();
 
@@ -66,15 +76,18 @@ bool yaml_help_dialog::on_custom_render(renderer& rend) {
     // Draw title bar
     sf::Color title_bar_color = def.title_bar_color.value_or(sf::Color(50, 50, 70));
     rend.draw_rect(dlg_bounds.x, dlg_bounds.y, dlg_bounds.width, title_bar_height_, title_bar_color, true);
-    rend.draw_line(dlg_bounds.x, dlg_bounds.y + title_bar_height_,
-                   dlg_bounds.x + dlg_bounds.width, dlg_bounds.y + title_bar_height_,
+    rend.draw_line(dlg_bounds.x,
+                   dlg_bounds.y + title_bar_height_,
+                   dlg_bounds.x + dlg_bounds.width,
+                   dlg_bounds.y + title_bar_height_,
                    sf::Color(100, 100, 140));
 
     // Title text
     rend.draw_text(def.title, dlg_bounds.x + 8, dlg_bounds.y + 4, sf::Color::White);
 
     // Close button
-    if (def.closeable) {
+    if (def.closeable)
+    {
         int32_t close_x = dlg_bounds.x + dlg_bounds.width - 20;
         int32_t close_y = dlg_bounds.y + 4;
         rend.draw_rect(close_x, close_y, 16, 16, sf::Color(120, 60, 60), true);
@@ -105,7 +118,8 @@ bool yaml_help_dialog::on_custom_render(renderer& rend) {
     // Scroll hint label
     const element_def* hint_elem = def.find_element("scroll_hint");
     int32_t hint_x = dlg_bounds.x + (hint_elem ? hint_elem->bounds.x : content_x - dlg_bounds.x);
-    int32_t hint_y = dlg_bounds.y + title_bar_height_ + (hint_elem ? hint_elem->bounds.y : (content_y - dlg_bounds.y - title_bar_height_ + content_h + 8));
+    int32_t hint_y = dlg_bounds.y + title_bar_height_ +
+                     (hint_elem ? hint_elem->bounds.y : (content_y - dlg_bounds.y - title_bar_height_ + content_h + 8));
 
     // Update visible counts based on area heights
     visible_topics_ = topic_h / topic_row_height_;
@@ -141,27 +155,32 @@ bool yaml_help_dialog::on_custom_render(renderer& rend) {
     render_content_area(rend, content_x, content_y, content_w, content_h);
 
     // Scroll hint for content
-    if (selected_topic_ >= 0) {
+    if (selected_topic_ >= 0)
+    {
         auto filtered = get_filtered_topics();
-        if (selected_topic_ < static_cast<int32_t>(filtered.size())) {
+        if (selected_topic_ < static_cast<int32_t>(filtered.size()))
+        {
             const auto* topic = filtered[selected_topic_];
-            if (topic->content_lines.size() > static_cast<size_t>(visible_content_lines_)) {
-                std::string hint = std::format("Use Up/Down to scroll ({}/{})",
-                    content_scroll_ + 1,
-                    static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_ + 1);
-                sf::Color hint_color = hint_elem && hint_elem->text_color.has_value()
-                    ? hint_elem->text_color.value()
-                    : sf::Color(150, 150, 150);
+            if (topic->content_lines.size() > static_cast<size_t>(visible_content_lines_))
+            {
+                std::string hint =
+                    std::format("Use Up/Down to scroll ({}/{})",
+                                content_scroll_ + 1,
+                                static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_ + 1);
+                sf::Color hint_color = hint_elem && hint_elem->text_color.has_value() ? hint_elem->text_color.value()
+                                                                                      : sf::Color(150, 150, 150);
                 rend.draw_text(hint, hint_x, hint_y, hint_color, 10);
             }
         }
     }
 
-    return true;  // We handled all rendering
+    return true; // We handled all rendering
 }
 
-void yaml_help_dialog::render_category_tabs(renderer& rend, int32_t x, int32_t y) {
-    for (size_t i = 0; i < categories_.size(); ++i) {
+void yaml_help_dialog::render_category_tabs(renderer& rend, int32_t x, int32_t y)
+{
+    for (size_t i = 0; i < categories_.size(); ++i)
+    {
         int32_t tab_x = x + static_cast<int32_t>(i) * (tab_width_ + 4);
         int32_t actual_category = categories_[i].id;
 
@@ -169,16 +188,22 @@ void yaml_help_dialog::render_category_tabs(renderer& rend, int32_t x, int32_t y
         bool hovered = hovered_category_.has_value() && hovered_category_.value() == static_cast<int32_t>(i);
 
         sf::Color bg_color;
-        if (selected) {
+        if (selected)
+        {
             bg_color = sf::Color(60, 80, 100);
-        } else if (hovered) {
+        }
+        else if (hovered)
+        {
             bg_color = sf::Color(50, 50, 65);
-        } else {
+        }
+        else
+        {
             bg_color = sf::Color(40, 40, 50);
         }
 
         rend.draw_rect(tab_x, y, tab_width_, tab_height_, bg_color, true);
-        if (selected) {
+        if (selected)
+        {
             rend.draw_rect(tab_x, y, tab_width_, tab_height_, sf::Color(100, 120, 150), false);
         }
 
@@ -188,16 +213,19 @@ void yaml_help_dialog::render_category_tabs(renderer& rend, int32_t x, int32_t y
     }
 }
 
-void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height) {
+void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height)
+{
     // Background
     rend.draw_rect(x, y, width, height, sf::Color(30, 30, 40), true);
     rend.draw_rect(x, y, width, height, sf::Color(60, 60, 80), false);
 
     auto filtered = get_filtered_topics();
 
-    for (int32_t i = 0; i < visible_topics_; ++i) {
+    for (int32_t i = 0; i < visible_topics_; ++i)
+    {
         int32_t topic_idx = topic_scroll_ + i;
-        if (topic_idx >= static_cast<int32_t>(filtered.size())) break;
+        if (topic_idx >= static_cast<int32_t>(filtered.size()))
+            break;
 
         const auto* topic = filtered[topic_idx];
         int32_t row_y = y + i * topic_row_height_;
@@ -206,11 +234,16 @@ void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, i
         bool selected = selected_topic_ == topic_idx;
 
         sf::Color bg_color;
-        if (selected) {
+        if (selected)
+        {
             bg_color = sf::Color(50, 70, 90);
-        } else if (hovered) {
+        }
+        else if (hovered)
+        {
             bg_color = sf::Color(40, 45, 55);
-        } else {
+        }
+        else
+        {
             bg_color = sf::Color(35, 35, 45);
         }
 
@@ -218,14 +251,16 @@ void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, i
 
         sf::Color text_color = selected ? sf::Color::White : sf::Color(200, 200, 200);
         std::string title = topic->title;
-        if (title.length() > 18) {
+        if (title.length() > 18)
+        {
             title = title.substr(0, 15) + "...";
         }
         rend.draw_text(title, x + 6, row_y + 4, text_color, 11);
     }
 
     // Scroll indicator
-    if (filtered.size() > static_cast<size_t>(visible_topics_)) {
+    if (filtered.size() > static_cast<size_t>(visible_topics_))
+    {
         int32_t scroll_x = x + width - scrollbar_width_;
         int32_t scroll_y = y + 2;
         int32_t scroll_height = height - 4;
@@ -233,8 +268,7 @@ void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, i
         float visible_ratio = static_cast<float>(visible_topics_) / static_cast<float>(filtered.size());
         int32_t thumb_height = std::max(15, static_cast<int32_t>(scroll_height * visible_ratio));
 
-        float scroll_ratio = static_cast<float>(topic_scroll_) /
-            static_cast<float>(filtered.size() - visible_topics_);
+        float scroll_ratio = static_cast<float>(topic_scroll_) / static_cast<float>(filtered.size() - visible_topics_);
         int32_t thumb_y = scroll_y + static_cast<int32_t>((scroll_height - thumb_height) * scroll_ratio);
 
         // Store scrollbar info for hit testing
@@ -250,22 +284,25 @@ void yaml_help_dialog::render_topic_list(renderer& rend, int32_t x, int32_t y, i
         rend.draw_rect(scroll_x, scroll_y, scrollbar_width_, scroll_height, sf::Color(25, 25, 35), true);
 
         // Draw thumb (highlight if dragging)
-        sf::Color thumb_color = (dragging_ == drag_target::topic_scrollbar)
-            ? sf::Color(100, 100, 130)
-            : sf::Color(70, 70, 90);
+        sf::Color thumb_color =
+            (dragging_ == drag_target::topic_scrollbar) ? sf::Color(100, 100, 130) : sf::Color(70, 70, 90);
         rend.draw_rect(scroll_x, thumb_y, scrollbar_width_, thumb_height, thumb_color, true);
-    } else {
+    }
+    else
+    {
         topic_scrollbar_.visible = false;
     }
 }
 
-void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height) {
+void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height)
+{
     // Background
     rend.draw_rect(x, y, width, height, sf::Color(25, 28, 35), true);
     rend.draw_rect(x, y, width, height, sf::Color(60, 60, 80), false);
 
     auto filtered = get_filtered_topics();
-    if (selected_topic_ < 0 || selected_topic_ >= static_cast<int32_t>(filtered.size())) {
+    if (selected_topic_ < 0 || selected_topic_ >= static_cast<int32_t>(filtered.size()))
+    {
         rend.draw_text("Select a topic from the list.", x + 10, y + 20, sf::Color(150, 150, 150));
         return;
     }
@@ -278,13 +315,15 @@ void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y,
 
     // Content
     int32_t line_y = y + 28;
-    int32_t end_line = std::min(content_scroll_ + visible_content_lines_,
-                                static_cast<int32_t>(topic->content_lines.size()));
+    int32_t end_line =
+        std::min(content_scroll_ + visible_content_lines_, static_cast<int32_t>(topic->content_lines.size()));
 
-    for (int32_t i = content_scroll_; i < end_line; ++i) {
+    for (int32_t i = content_scroll_; i < end_line; ++i)
+    {
         const auto& line = topic->content_lines[i];
 
-        if (line.empty()) {
+        if (line.empty())
+        {
             // Empty line - just advance
             line_y += content_line_height_;
             continue;
@@ -297,61 +336,62 @@ void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y,
         std::string display_text;
         int32_t indent = 8;
 
-        switch (prefix) {
-            case '#':
-                // Header - gold/tan, prefix stripped
-                text_color = sf::Color(200, 180, 140);
-                display_text = line.substr(1);
-                break;
+        switch (prefix)
+        {
+        case '#':
+            // Header - gold/tan, prefix stripped
+            text_color = sf::Color(200, 180, 140);
+            display_text = line.substr(1);
+            break;
 
-            case '*':
-                // Bullet point - green
-                text_color = sf::Color(180, 200, 180);
-                display_text = line;
-                break;
+        case '*':
+            // Bullet point - green
+            text_color = sf::Color(180, 200, 180);
+            display_text = line;
+            break;
 
-            case '-':
-                // Sub-bullet/secondary - dimmer gray, indented
-                text_color = sf::Color(170, 170, 180);
-                display_text = line;
-                indent = 16;
-                break;
+        case '-':
+            // Sub-bullet/secondary - dimmer gray, indented
+            text_color = sf::Color(170, 170, 180);
+            display_text = line;
+            indent = 16;
+            break;
 
-            case '!':
-                // Warning/important - red
-                text_color = sf::Color(220, 140, 140);
-                display_text = line.substr(1);  // Strip prefix
-                break;
+        case '!':
+            // Warning/important - red
+            text_color = sf::Color(220, 140, 140);
+            display_text = line.substr(1); // Strip prefix
+            break;
 
-            case '>':
-                // Tip/info - blue
-                text_color = sf::Color(140, 180, 220);
-                display_text = line.substr(1);  // Strip prefix
-                break;
+        case '>':
+            // Tip/info - blue
+            text_color = sf::Color(140, 180, 220);
+            display_text = line.substr(1); // Strip prefix
+            break;
 
-            case '@':
-                // Command/shortcut - cyan
-                text_color = sf::Color(140, 220, 220);
-                display_text = line.substr(1);  // Strip prefix
-                break;
+        case '@':
+            // Command/shortcut - cyan
+            text_color = sf::Color(140, 220, 220);
+            display_text = line.substr(1); // Strip prefix
+            break;
 
-            case '~':
-                // Muted/note - dim gray
-                text_color = sf::Color(140, 140, 150);
-                display_text = line.substr(1);  // Strip prefix
-                break;
+        case '~':
+            // Muted/note - dim gray
+            text_color = sf::Color(140, 140, 150);
+            display_text = line.substr(1); // Strip prefix
+            break;
 
-            case '+':
-                // Positive/success - bright green
-                text_color = sf::Color(140, 220, 140);
-                display_text = line.substr(1);  // Strip prefix
-                break;
+        case '+':
+            // Positive/success - bright green
+            text_color = sf::Color(140, 220, 140);
+            display_text = line.substr(1); // Strip prefix
+            break;
 
-            default:
-                // Normal text - light gray
-                text_color = sf::Color(220, 220, 220);
-                display_text = line;
-                break;
+        default:
+            // Normal text - light gray
+            text_color = sf::Color(220, 220, 220);
+            display_text = line;
+            break;
         }
 
         rend.draw_text(display_text, x + indent, line_y, text_color, 11);
@@ -360,9 +400,10 @@ void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y,
 
     // Content scrollbar
     int32_t total_lines = static_cast<int32_t>(topic->content_lines.size());
-    if (total_lines > visible_content_lines_) {
+    if (total_lines > visible_content_lines_)
+    {
         int32_t scroll_x = x + width - scrollbar_width_ - 2;
-        int32_t scroll_y = y + 28;  // After title
+        int32_t scroll_y = y + 28; // After title
         int32_t scroll_height = height - 32;
 
         float visible_ratio = static_cast<float>(visible_content_lines_) / static_cast<float>(total_lines);
@@ -385,28 +426,34 @@ void yaml_help_dialog::render_content_area(renderer& rend, int32_t x, int32_t y,
         rend.draw_rect(scroll_x, scroll_y, scrollbar_width_, scroll_height, sf::Color(20, 22, 28), true);
 
         // Draw thumb (highlight if dragging)
-        sf::Color thumb_color = (dragging_ == drag_target::content_scrollbar)
-            ? sf::Color(100, 100, 130)
-            : sf::Color(60, 65, 80);
+        sf::Color thumb_color =
+            (dragging_ == drag_target::content_scrollbar) ? sf::Color(100, 100, 130) : sf::Color(60, 65, 80);
         rend.draw_rect(scroll_x, thumb_y, scrollbar_width_, thumb_height, thumb_color, true);
-    } else {
+    }
+    else
+    {
         content_scrollbar_.visible = false;
     }
 }
 
-std::vector<const yaml_help_topic*> yaml_help_dialog::get_filtered_topics() const {
+std::vector<const yaml_help_topic*> yaml_help_dialog::get_filtered_topics() const
+{
     std::vector<const yaml_help_topic*> result;
-    for (const auto& topic : topics_) {
-        if (current_category_ == -1 || topic.category == current_category_) {
+    for (const auto& topic : topics_)
+    {
+        if (current_category_ == -1 || topic.category == current_category_)
+        {
             result.push_back(&topic);
         }
     }
     return result;
 }
 
-std::optional<int32_t> yaml_help_dialog::topic_at(int32_t mx, int32_t my) const {
-    if (mx < topic_area_x_ || mx >= topic_area_x_ + topic_area_w_ ||
-        my < topic_area_y_ || my >= topic_area_y_ + topic_area_h_) {
+std::optional<int32_t> yaml_help_dialog::topic_at(int32_t mx, int32_t my) const
+{
+    if (mx < topic_area_x_ || mx >= topic_area_x_ + topic_area_w_ || my < topic_area_y_ ||
+        my >= topic_area_y_ + topic_area_h_)
+    {
         return std::nullopt;
     }
 
@@ -414,59 +461,72 @@ std::optional<int32_t> yaml_help_dialog::topic_at(int32_t mx, int32_t my) const 
     int32_t row = (my - topic_area_y_) / topic_row_height_;
     int32_t idx = topic_scroll_ + row;
 
-    if (idx >= 0 && idx < static_cast<int32_t>(filtered.size())) {
+    if (idx >= 0 && idx < static_cast<int32_t>(filtered.size()))
+    {
         return idx;
     }
     return std::nullopt;
 }
 
-std::optional<int32_t> yaml_help_dialog::category_at(int32_t mx, int32_t my) const {
-    if (my < tab_area_y_ || my >= tab_area_y_ + tab_height_) {
+std::optional<int32_t> yaml_help_dialog::category_at(int32_t mx, int32_t my) const
+{
+    if (my < tab_area_y_ || my >= tab_area_y_ + tab_height_)
+    {
         return std::nullopt;
     }
 
-    for (size_t i = 0; i < categories_.size(); ++i) {
+    for (size_t i = 0; i < categories_.size(); ++i)
+    {
         int32_t tab_x = tab_area_x_ + static_cast<int32_t>(i) * (tab_width_ + 4);
-        if (mx >= tab_x && mx < tab_x + tab_width_) {
+        if (mx >= tab_x && mx < tab_x + tab_width_)
+        {
             return static_cast<int32_t>(i);
         }
     }
     return std::nullopt;
 }
 
-bool yaml_help_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) {
-    if (btn != sf::Mouse::Button::Left) return false;
+bool yaml_help_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
+{
+    if (btn != sf::Mouse::Button::Left)
+        return false;
 
     // Check close button
     const auto& def = definition();
     auto dlg_bounds = bounds();
-    if (def.closeable) {
+    if (def.closeable)
+    {
         int32_t close_x = dlg_bounds.x + dlg_bounds.width - 20;
         int32_t close_y = dlg_bounds.y + 4;
-        if (x >= close_x && x < close_x + 16 && y >= close_y && y < close_y + 16) {
+        if (x >= close_x && x < close_x + 16 && y >= close_y && y < close_y + 16)
+        {
             close();
             return true;
         }
     }
 
     // Check topic scrollbar
-    if (topic_scrollbar_.visible) {
+    if (topic_scrollbar_.visible)
+    {
         if (x >= topic_scrollbar_.track_x && x < topic_scrollbar_.track_x + topic_scrollbar_.track_w &&
-            y >= topic_scrollbar_.track_y && y < topic_scrollbar_.track_y + topic_scrollbar_.track_h) {
-
+            y >= topic_scrollbar_.track_y && y < topic_scrollbar_.track_y + topic_scrollbar_.track_h)
+        {
             auto filtered = get_filtered_topics();
             int32_t max_scroll = std::max(0, static_cast<int32_t>(filtered.size()) - visible_topics_);
 
             // Check if clicking on thumb (start drag) or track (jump)
-            if (y >= topic_scrollbar_.thumb_y && y < topic_scrollbar_.thumb_y + topic_scrollbar_.thumb_h) {
+            if (y >= topic_scrollbar_.thumb_y && y < topic_scrollbar_.thumb_y + topic_scrollbar_.thumb_h)
+            {
                 // Start dragging thumb
                 dragging_ = drag_target::topic_scrollbar;
                 drag_start_y_ = y;
                 drag_start_scroll_ = topic_scroll_;
-            } else {
+            }
+            else
+            {
                 // Click on track - jump to position
-                float click_ratio = static_cast<float>(y - topic_scrollbar_.track_y) /
-                    static_cast<float>(topic_scrollbar_.track_h);
+                float click_ratio =
+                    static_cast<float>(y - topic_scrollbar_.track_y) / static_cast<float>(topic_scrollbar_.track_h);
                 topic_scroll_ = static_cast<int32_t>(click_ratio * (filtered.size() - visible_topics_ + 1));
                 topic_scroll_ = std::clamp(topic_scroll_, 0, max_scroll);
             }
@@ -475,27 +535,33 @@ bool yaml_help_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::But
     }
 
     // Check content scrollbar
-    if (content_scrollbar_.visible) {
+    if (content_scrollbar_.visible)
+    {
         if (x >= content_scrollbar_.track_x && x < content_scrollbar_.track_x + content_scrollbar_.track_w &&
-            y >= content_scrollbar_.track_y && y < content_scrollbar_.track_y + content_scrollbar_.track_h) {
-
+            y >= content_scrollbar_.track_y && y < content_scrollbar_.track_y + content_scrollbar_.track_h)
+        {
             auto filtered = get_filtered_topics();
-            if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size())) {
+            if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size()))
+            {
                 const auto* topic = filtered[selected_topic_];
-                int32_t max_scroll = std::max(0,
-                    static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
+                int32_t max_scroll =
+                    std::max(0, static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
 
                 // Check if clicking on thumb (start drag) or track (jump)
-                if (y >= content_scrollbar_.thumb_y && y < content_scrollbar_.thumb_y + content_scrollbar_.thumb_h) {
+                if (y >= content_scrollbar_.thumb_y && y < content_scrollbar_.thumb_y + content_scrollbar_.thumb_h)
+                {
                     // Start dragging thumb
                     dragging_ = drag_target::content_scrollbar;
                     drag_start_y_ = y;
                     drag_start_scroll_ = content_scroll_;
-                } else {
+                }
+                else
+                {
                     // Click on track - jump to position
                     float click_ratio = static_cast<float>(y - content_scrollbar_.track_y) /
-                        static_cast<float>(content_scrollbar_.track_h);
-                    content_scroll_ = static_cast<int32_t>(click_ratio * (topic->content_lines.size() - visible_content_lines_ + 1));
+                                        static_cast<float>(content_scrollbar_.track_h);
+                    content_scroll_ =
+                        static_cast<int32_t>(click_ratio * (topic->content_lines.size() - visible_content_lines_ + 1));
                     content_scroll_ = std::clamp(content_scroll_, 0, max_scroll);
                 }
                 return true;
@@ -505,14 +571,16 @@ bool yaml_help_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::But
 
     // Category tab click
     auto cat = category_at(x, y);
-    if (cat.has_value()) {
+    if (cat.has_value())
+    {
         set_category(cat.value());
         return true;
     }
 
     // Topic click
     auto topic = topic_at(x, y);
-    if (topic.has_value()) {
+    if (topic.has_value())
+    {
         select_topic(topic.value());
         return true;
     }
@@ -520,26 +588,31 @@ bool yaml_help_dialog::on_custom_mouse_down(int32_t x, int32_t y, sf::Mouse::But
     return false;
 }
 
-bool yaml_help_dialog::on_custom_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) {
+bool yaml_help_dialog::on_custom_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn)
+{
     (void)x;
     (void)y;
 
-    if (btn == sf::Mouse::Button::Left && dragging_ != drag_target::none) {
+    if (btn == sf::Mouse::Button::Left && dragging_ != drag_target::none)
+    {
         dragging_ = drag_target::none;
         return true;
     }
     return false;
 }
 
-bool yaml_help_dialog::on_custom_mouse_move(int32_t x, int32_t y) {
+bool yaml_help_dialog::on_custom_mouse_move(int32_t x, int32_t y)
+{
     // Handle scrollbar dragging
-    if (dragging_ == drag_target::topic_scrollbar && topic_scrollbar_.visible) {
+    if (dragging_ == drag_target::topic_scrollbar && topic_scrollbar_.visible)
+    {
         auto filtered = get_filtered_topics();
         int32_t max_scroll = std::max(0, static_cast<int32_t>(filtered.size()) - visible_topics_);
 
         // Calculate scroll based on drag distance
         int32_t drag_range = topic_scrollbar_.track_h - topic_scrollbar_.thumb_h;
-        if (drag_range > 0) {
+        if (drag_range > 0)
+        {
             float drag_ratio = static_cast<float>(y - drag_start_y_) / static_cast<float>(drag_range);
             int32_t scroll_delta = static_cast<int32_t>(drag_ratio * max_scroll);
             topic_scroll_ = std::clamp(drag_start_scroll_ + scroll_delta, 0, max_scroll);
@@ -547,16 +620,19 @@ bool yaml_help_dialog::on_custom_mouse_move(int32_t x, int32_t y) {
         return true;
     }
 
-    if (dragging_ == drag_target::content_scrollbar && content_scrollbar_.visible) {
+    if (dragging_ == drag_target::content_scrollbar && content_scrollbar_.visible)
+    {
         auto filtered = get_filtered_topics();
-        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size())) {
+        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size()))
+        {
             const auto* topic = filtered[selected_topic_];
-            int32_t max_scroll = std::max(0,
-                static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
+            int32_t max_scroll =
+                std::max(0, static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
 
             // Calculate scroll based on drag distance
             int32_t drag_range = content_scrollbar_.track_h - content_scrollbar_.thumb_h;
-            if (drag_range > 0) {
+            if (drag_range > 0)
+            {
                 float drag_ratio = static_cast<float>(y - drag_start_y_) / static_cast<float>(drag_range);
                 int32_t scroll_delta = static_cast<int32_t>(drag_ratio * max_scroll);
                 content_scroll_ = std::clamp(drag_start_scroll_ + scroll_delta, 0, max_scroll);
@@ -567,21 +643,26 @@ bool yaml_help_dialog::on_custom_mouse_move(int32_t x, int32_t y) {
 
     hovered_topic_ = topic_at(x, y);
     hovered_category_ = category_at(x, y);
-    return false;  // Don't consume, let base class handle drag
+    return false; // Don't consume, let base class handle drag
 }
 
-bool yaml_help_dialog::on_custom_mouse_wheel(int32_t x, int32_t y, int32_t delta) {
+bool yaml_help_dialog::on_custom_mouse_wheel(int32_t x, int32_t y, int32_t delta)
+{
     // Check if mouse is over topic list area
-    if (x >= topic_area_x_ && x < topic_area_x_ + topic_area_w_ &&
-        y >= topic_area_y_ && y < topic_area_y_ + topic_area_h_) {
+    if (x >= topic_area_x_ && x < topic_area_x_ + topic_area_w_ && y >= topic_area_y_ &&
+        y < topic_area_y_ + topic_area_h_)
+    {
         // Scroll topic list
         auto filtered = get_filtered_topics();
         int32_t max_scroll = std::max(0, static_cast<int32_t>(filtered.size()) - visible_topics_);
 
-        if (delta > 0) {
+        if (delta > 0)
+        {
             // Scroll up
             topic_scroll_ = std::max(0, topic_scroll_ - 1);
-        } else if (delta < 0) {
+        }
+        else if (delta < 0)
+        {
             // Scroll down
             topic_scroll_ = std::min(topic_scroll_ + 1, max_scroll);
         }
@@ -589,20 +670,26 @@ bool yaml_help_dialog::on_custom_mouse_wheel(int32_t x, int32_t y, int32_t delta
     }
 
     // Check if mouse is over content area
-    if (x >= content_area_x_ && x < content_area_x_ + content_area_w_ &&
-        y >= content_area_y_ && y < content_area_y_ + content_area_h_) {
+    if (x >= content_area_x_ && x < content_area_x_ + content_area_w_ && y >= content_area_y_ &&
+        y < content_area_y_ + content_area_h_)
+    {
         // Scroll content
-        if (selected_topic_ >= 0) {
+        if (selected_topic_ >= 0)
+        {
             auto filtered = get_filtered_topics();
-            if (selected_topic_ < static_cast<int32_t>(filtered.size())) {
+            if (selected_topic_ < static_cast<int32_t>(filtered.size()))
+            {
                 const auto* topic = filtered[selected_topic_];
-                int32_t max_scroll = std::max(0,
-                    static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
+                int32_t max_scroll =
+                    std::max(0, static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
 
-                if (delta > 0) {
+                if (delta > 0)
+                {
                     // Scroll up
                     content_scroll_ = std::max(0, content_scroll_ - 1);
-                } else if (delta < 0) {
+                }
+                else if (delta < 0)
+                {
                     // Scroll down
                     content_scroll_ = std::min(content_scroll_ + 1, max_scroll);
                 }
@@ -614,35 +701,42 @@ bool yaml_help_dialog::on_custom_mouse_wheel(int32_t x, int32_t y, int32_t delta
     return false;
 }
 
-bool yaml_help_dialog::on_custom_key_press(sf::Keyboard::Key key) {
-    if (key == sf::Keyboard::Key::Down) {
+bool yaml_help_dialog::on_custom_key_press(sf::Keyboard::Key key)
+{
+    if (key == sf::Keyboard::Key::Down)
+    {
         auto filtered = get_filtered_topics();
-        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size())) {
+        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size()))
+        {
             const auto* topic = filtered[selected_topic_];
-            int32_t max_scroll = std::max(0,
-                static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
+            int32_t max_scroll =
+                std::max(0, static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
             content_scroll_ = std::min(content_scroll_ + 1, max_scroll);
         }
         return true;
     }
 
-    if (key == sf::Keyboard::Key::Up) {
+    if (key == sf::Keyboard::Key::Up)
+    {
         content_scroll_ = std::max(0, content_scroll_ - 1);
         return true;
     }
 
-    if (key == sf::Keyboard::Key::PageDown) {
+    if (key == sf::Keyboard::Key::PageDown)
+    {
         auto filtered = get_filtered_topics();
-        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size())) {
+        if (selected_topic_ >= 0 && selected_topic_ < static_cast<int32_t>(filtered.size()))
+        {
             const auto* topic = filtered[selected_topic_];
-            int32_t max_scroll = std::max(0,
-                static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
+            int32_t max_scroll =
+                std::max(0, static_cast<int32_t>(topic->content_lines.size()) - visible_content_lines_);
             content_scroll_ = std::min(content_scroll_ + visible_content_lines_, max_scroll);
         }
         return true;
     }
 
-    if (key == sf::Keyboard::Key::PageUp) {
+    if (key == sf::Keyboard::Key::PageUp)
+    {
         content_scroll_ = std::max(0, content_scroll_ - visible_content_lines_);
         return true;
     }

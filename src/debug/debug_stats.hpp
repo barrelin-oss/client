@@ -4,21 +4,23 @@
 #include <string>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class entity;
 class input;
 
-namespace debug {
+namespace debug
+{
 
 // Snapshot of a single entity on the hovered tile (for debug display)
 struct tile_entity_info
 {
     uint32_t id = 0;
     std::string name;
-    int type = 0;       // entity_type as int
-    int action = 0;     // current_action as int
+    int type = 0;   // entity_type as int
+    int action = 0; // current_action as int
     bool alive = true;
     bool moving = false;
     int direction = 0;
@@ -66,7 +68,7 @@ enum class debug_tab : uint8_t
     perf = 0,
     world,
     net,
-    input_tab,  // avoid name clash with hb::input
+    input_tab, // avoid name clash with hb::input
     count
 };
 
@@ -121,16 +123,33 @@ public:
     void set_draw_calls(uint32_t count) { draw_calls_ = count; }
     void add_sprites_rendered(int32_t count) { sprites_rendered_ += count; }
     void add_tiles_rendered(int32_t count) { tiles_rendered_ += count; }
-    void reset_frame_counters() { sprites_rendered_ = 0; tiles_rendered_ = 0; objects_rendered_ = 0; }
+    void reset_frame_counters()
+    {
+        sprites_rendered_ = 0;
+        tiles_rendered_ = 0;
+        objects_rendered_ = 0;
+    }
 
     // === Memory/Assets ===
     void set_sprite_cache_count(int32_t count) { sprite_cache_count_ = count; }
     void set_pak_files_loaded(int32_t count) { pak_files_loaded_ = count; }
 
     // === Input ===
-    void set_mouse_screen_pos(int32_t x, int32_t y) { mouse_screen_x_ = x; mouse_screen_y_ = y; }
-    void set_mouse_world_pos(int32_t x, int32_t y) { mouse_world_x_ = x; mouse_world_y_ = y; }
-    void set_mouse_tile_pos(int32_t x, int32_t y) { mouse_tile_x_ = x; mouse_tile_y_ = y; }
+    void set_mouse_screen_pos(int32_t x, int32_t y)
+    {
+        mouse_screen_x_ = x;
+        mouse_screen_y_ = y;
+    }
+    void set_mouse_world_pos(int32_t x, int32_t y)
+    {
+        mouse_world_x_ = x;
+        mouse_world_y_ = y;
+    }
+    void set_mouse_tile_pos(int32_t x, int32_t y)
+    {
+        mouse_tile_x_ = x;
+        mouse_tile_y_ = y;
+    }
     void set_hovered_entity(const std::string& info) { hovered_entity_ = info; }
     void set_hovered_tile(tile_info info) { hovered_tile_ = std::move(info); }
 

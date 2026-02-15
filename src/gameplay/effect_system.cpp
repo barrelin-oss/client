@@ -11,24 +11,29 @@
 #include <cstdlib>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 // Helper: draw an effect sprite with additive blending, using tinted variant when tint is set
-static void draw_additive(renderer& rend, const effect& eff, const sprite& spr,
-                           int32_t x, int32_t y, uint32_t frame, float alpha)
+static void
+draw_additive(renderer& rend, const effect& eff, const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha)
 {
     if (eff.def->rgb_tint_r != 0 || eff.def->rgb_tint_g != 0 || eff.def->rgb_tint_b != 0)
-        rend.draw_sprite_additive_tinted(spr, x, y, frame, alpha,
-                                          eff.def->rgb_tint_r, eff.def->rgb_tint_g, eff.def->rgb_tint_b);
+        rend.draw_sprite_additive_tinted(
+            spr, x, y, frame, alpha, eff.def->rgb_tint_r, eff.def->rgb_tint_g, eff.def->rgb_tint_b);
     else
         rend.draw_sprite_additive_alpha(spr, x, y, frame, alpha);
 }
 
 // Forward declaration (defined below render_thunder)
 static void draw_thunder_bolt(renderer& rend,
-                               int32_t sx, int32_t sy, int32_t dx, int32_t dy,
-                               int32_t seed_offset, bool thick,
-                               const thunder_params& params);
+                              int32_t sx,
+                              int32_t sy,
+                              int32_t dx,
+                              int32_t dy,
+                              int32_t seed_offset,
+                              bool thick,
+                              const thunder_params& params);
 
 bool effect_system::initialize(sprite_manager& sprites, sound_manager& sounds, world& w)
 {
@@ -47,21 +52,21 @@ bool effect_system::initialize(sprite_manager& sprites, sound_manager& sounds, w
         uint8_t local_start;
     };
     static constexpr pak_mapping mappings[] = {
-        {"effect",       0, 10, 0},
-        {"effect2",     10,  3, 0},
-        {"effect3",     13,  6, 0},
-        {"effect4",     19,  5, 0},
-        {"effect5",     24,  7, 1},   // local starts at 1
-        {"CruEffect1",  31,  9, 0},
-        {"effect6",     40,  5, 0},
-        {"effect7",     45, 12, 0},
-        {"effect8",     57,  9, 0},
-        {"effect9",     66, 21, 0},
-        {"effect10",    87,  2, 0},
-        {"effect11",    89, 14, 0},
-        {"effect11s",  104,  1, 0},
-        {"effect13",   105,  3, 0},
-        {"effect12",   148,  4, 0},
+        {"effect", 0, 10, 0},
+        {"effect2", 10, 3, 0},
+        {"effect3", 13, 6, 0},
+        {"effect4", 19, 5, 0},
+        {"effect5", 24, 7, 1}, // local starts at 1
+        {"CruEffect1", 31, 9, 0},
+        {"effect6", 40, 5, 0},
+        {"effect7", 45, 12, 0},
+        {"effect8", 57, 9, 0},
+        {"effect9", 66, 21, 0},
+        {"effect10", 87, 2, 0},
+        {"effect11", 89, 14, 0},
+        {"effect11s", 104, 1, 0},
+        {"effect13", 105, 3, 0},
+        {"effect12", 148, 4, 0},
     };
 
     int loaded = 0;
@@ -70,7 +75,8 @@ bool effect_system::initialize(sprite_manager& sprites, sound_manager& sounds, w
         for (uint8_t i = 0; i < m.count; ++i)
         {
             uint8_t global_idx = m.global_start + i;
-            if (global_idx >= max_effect_sprites) break;
+            if (global_idx >= max_effect_sprites)
+                break;
 
             auto* spr = sprites_->get_sprite(m.pak_name, m.local_start + i);
             if (spr)
@@ -114,18 +120,18 @@ void effect_system::update(float delta_time)
 
         switch (eff.def->behavior)
         {
-            case effect_behavior::static_anim:
-                update_static(eff, delta_time);
-                break;
-            case effect_behavior::projectile:
-                update_projectile(eff, delta_time);
-                break;
-            case effect_behavior::physics:
-                update_physics(eff, delta_time);
-                break;
-            case effect_behavior::composite:
-                update_composite(eff, delta_time);
-                break;
+        case effect_behavior::static_anim:
+            update_static(eff, delta_time);
+            break;
+        case effect_behavior::projectile:
+            update_projectile(eff, delta_time);
+            break;
+        case effect_behavior::physics:
+            update_physics(eff, delta_time);
+            break;
+        case effect_behavior::composite:
+            update_composite(eff, delta_time);
+            break;
         }
     }
 }
@@ -138,7 +144,8 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
     // Extended mode: effects outside fair zone are hidden
     bool extended_cull = rend.current_view_mode() == view_mode::extended;
     sf::IntRect fair;
-    if (extended_cull) fair = rend.fair_bounds();
+    if (extended_cull)
+        fair = rend.fair_bounds();
 
     for (const auto& eff : effects_)
     {
@@ -166,14 +173,14 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
             margin = std::max(margin, std::abs(static_cast<int32_t>(eff.def->height_offset)) + 64);
             margin = std::max(margin, std::abs(static_cast<int32_t>(eff.def->x_offset)) + 64);
         }
-        if (screen_x < -margin || screen_x > screen_w + margin ||
-            screen_y < -margin || screen_y > screen_h + margin)
+        if (screen_x < -margin || screen_x > screen_w + margin || screen_y < -margin || screen_y > screen_h + margin)
         {
             continue;
         }
 
         // Extended mode: additionally check fair zone bounds
-        if (extended_cull) {
+        if (extended_cull)
+        {
             if (screen_x < fair.position.x - 64 || screen_x > fair.position.x + fair.size.x + 64 ||
                 screen_y < fair.position.y - 64 || screen_y > fair.position.y + fair.size.y)
                 continue;
@@ -184,8 +191,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
         {
             // Determine source and destination in screen space
             float thunder_sx, thunder_sy, thunder_dx, thunder_dy;
-            if (std::abs(eff.src_x - eff.dest_x) < 1.0f &&
-                std::abs(eff.src_y - eff.dest_y) < 1.0f)
+            if (std::abs(eff.src_x - eff.dest_x) < 1.0f && std::abs(eff.src_y - eff.dest_y) < 1.0f)
             {
                 // Single-point effect (type 143): lightning from sky
                 thunder_sx = static_cast<float>(screen_x);
@@ -201,8 +207,7 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
                 thunder_dx = eff.dest_x - static_cast<float>(camera_x);
                 thunder_dy = eff.dest_y - static_cast<float>(camera_y);
             }
-            render_thunder(rend, thunder_sx, thunder_sy, thunder_dx, thunder_dy,
-                           eff.rx, eff.ry);
+            render_thunder(rend, thunder_sx, thunder_sy, thunder_dx, thunder_dy, eff.rx, eff.ry);
             continue;
         }
 
@@ -218,9 +223,8 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
         // For directional effects, offset frame by direction
         if (eff.def->directional)
         {
-            uint32_t stride = eff.def->frames_per_direction > 0
-                ? eff.def->frames_per_direction
-                : (eff.def->max_frames + 1);
+            uint32_t stride =
+                eff.def->frames_per_direction > 0 ? eff.def->frames_per_direction : (eff.def->max_frames + 1);
             frame = static_cast<uint32_t>(eff.direction_index) * stride;
             if (eff.def->randomize_direction_frame && stride > 0)
             {
@@ -254,124 +258,132 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
 
         switch (eff.def->render_mode)
         {
-            case effect_render_mode::normal:
-            case effect_render_mode::transparent:
-                if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
-                else if (alpha_mul < 1.0f)
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
-                else
-                    rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
-                break;
+        case effect_render_mode::normal:
+        case effect_render_mode::transparent:
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+            else if (alpha_mul < 1.0f)
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+            else
+                rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
+            break;
 
-            case effect_render_mode::alpha_25:
+        case effect_render_mode::alpha_25:
+        {
+            float a = 0.25f * alpha_mul;
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
+            else
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+            break;
+        }
+
+        case effect_render_mode::alpha_50:
+        {
+            float a = 0.5f * alpha_mul;
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
+            else
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+            break;
+        }
+
+        case effect_render_mode::alpha_70:
+        {
+            float a = 0.7f * alpha_mul;
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
+            else
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
+            break;
+        }
+
+        case effect_render_mode::fade:
+        {
+            // Fade out over the effect lifetime
+            float total_time =
+                static_cast<float>(eff.def->max_frames) * static_cast<float>(eff.def->frame_time_ms) / 1000.0f;
+            float alpha = 1.0f;
+            if (total_time > 0.0f)
             {
-                float a = 0.25f * alpha_mul;
+                alpha = 1.0f - (eff.elapsed / total_time);
+                if (alpha < 0.0f)
+                    alpha = 0.0f;
+            }
+            alpha *= alpha_mul;
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha);
+            else
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
+            break;
+        }
+
+        case effect_render_mode::arrow_trail:
+        {
+            // Multi-point fading trail behind projectile (legacy lightning arrow)
+            // Compute backward direction from current pos toward source
+            float bx = eff.src_x - eff.pos_x;
+            float by = eff.src_y - eff.pos_y;
+            float blen = std::sqrt(bx * bx + by * by);
+            if (blen < 1.0f)
+                blen = 1.0f;
+            float nx = bx / blen;
+            float ny = by / blen;
+
+            uint32_t stride = eff.def->frames_per_direction > 0 ? eff.def->frames_per_direction : 1;
+
+            // 5 trailing copies at distances 75, 60, 45, 30, 15 behind projectile
+            // Alphas: 25%, 25%, 50%, 50%, 70% (tail to head)
+            struct trail_point
+            {
+                float dist;
+                float alpha;
+            };
+            static constexpr trail_point points[] = {
+                {75.0f, 0.25f},
+                {60.0f, 0.25f},
+                {45.0f, 0.50f},
+                {30.0f, 0.50f},
+                {15.0f, 0.70f},
+            };
+
+            for (const auto& pt : points)
+            {
+                int32_t tx = screen_x + static_cast<int32_t>(nx * pt.dist);
+                int32_t ty = screen_y + static_cast<int32_t>(ny * pt.dist);
+                // Each trail copy gets independently randomized directional frame
+                uint32_t tf = static_cast<uint32_t>(eff.direction_index) * stride +
+                              static_cast<uint32_t>(std::rand() % stride) + eff.def->frame_offset;
+                float a = pt.alpha * alpha_mul;
                 if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
+                    draw_additive(rend, eff, *eff.sprite_ptr, tx, ty, tf, a);
                 else
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
-                break;
+                    rend.draw_sprite_alpha(*eff.sprite_ptr, tx, ty, tf, a);
             }
 
-            case effect_render_mode::alpha_50:
-            {
-                float a = 0.5f * alpha_mul;
-                if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
-                else
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
-                break;
-            }
+            // Head at full opacity
+            if (use_additive)
+                draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+            else if (alpha_mul < 1.0f)
+                rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
+            else
+                rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
+            break;
+        }
 
-            case effect_render_mode::alpha_70:
-            {
-                float a = 0.7f * alpha_mul;
-                if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, a);
-                else
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, a);
-                break;
-            }
-
-            case effect_render_mode::fade:
-            {
-                // Fade out over the effect lifetime
-                float total_time = static_cast<float>(eff.def->max_frames) *
-                                   static_cast<float>(eff.def->frame_time_ms) / 1000.0f;
-                float alpha = 1.0f;
-                if (total_time > 0.0f)
-                {
-                    alpha = 1.0f - (eff.elapsed / total_time);
-                    if (alpha < 0.0f) alpha = 0.0f;
-                }
-                alpha *= alpha_mul;
-                if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha);
-                else
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha);
-                break;
-            }
-
-            case effect_render_mode::arrow_trail:
-            {
-                // Multi-point fading trail behind projectile (legacy lightning arrow)
-                // Compute backward direction from current pos toward source
-                float bx = eff.src_x - eff.pos_x;
-                float by = eff.src_y - eff.pos_y;
-                float blen = std::sqrt(bx * bx + by * by);
-                if (blen < 1.0f) blen = 1.0f;
-                float nx = bx / blen;
-                float ny = by / blen;
-
-                uint32_t stride = eff.def->frames_per_direction > 0
-                    ? eff.def->frames_per_direction : 1;
-
-                // 5 trailing copies at distances 75, 60, 45, 30, 15 behind projectile
-                // Alphas: 25%, 25%, 50%, 50%, 70% (tail to head)
-                struct trail_point { float dist; float alpha; };
-                static constexpr trail_point points[] = {
-                    {75.0f, 0.25f}, {60.0f, 0.25f},
-                    {45.0f, 0.50f}, {30.0f, 0.50f},
-                    {15.0f, 0.70f},
-                };
-
-                for (const auto& pt : points)
-                {
-                    int32_t tx = screen_x + static_cast<int32_t>(nx * pt.dist);
-                    int32_t ty = screen_y + static_cast<int32_t>(ny * pt.dist);
-                    // Each trail copy gets independently randomized directional frame
-                    uint32_t tf = static_cast<uint32_t>(eff.direction_index) * stride
-                                + static_cast<uint32_t>(std::rand() % stride)
-                                + eff.def->frame_offset;
-                    float a = pt.alpha * alpha_mul;
-                    if (use_additive)
-                        draw_additive(rend, eff, *eff.sprite_ptr, tx, ty, tf, a);
-                    else
-                        rend.draw_sprite_alpha(*eff.sprite_ptr, tx, ty, tf, a);
-                }
-
-                // Head at full opacity
-                if (use_additive)
-                    draw_additive(rend, eff, *eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
-                else if (alpha_mul < 1.0f)
-                    rend.draw_sprite_alpha(*eff.sprite_ptr, screen_x, screen_y, frame, alpha_mul);
-                else
-                    rend.draw_sprite(*eff.sprite_ptr, screen_x, screen_y, frame);
-                break;
-            }
-
-            case effect_render_mode::thunder:
-                break; // Handled above
+        case effect_render_mode::thunder:
+            break; // Handled above
         }
     }
-
 }
 
 void effect_system::add_effect(effect_type_id type_id,
-                                int32_t src_x, int32_t src_y,
-                                int32_t dest_x, int32_t dest_y,
-                                int8_t start_frame, int32_t value)
+                               int32_t src_x,
+                               int32_t src_y,
+                               int32_t dest_x,
+                               int32_t dest_y,
+                               int8_t start_frame,
+                               int32_t value)
 {
     const auto* def = get_effect_definition(type_id);
     if (!def)
@@ -420,9 +432,7 @@ void effect_system::add_effect(effect_type_id type_id,
     trigger_shake(*def);
 }
 
-void effect_system::add_effect_world(effect_type_id type_id,
-                                      float src_x, float src_y,
-                                      float dest_x, float dest_y)
+void effect_system::add_effect_world(effect_type_id type_id, float src_x, float src_y, float dest_x, float dest_y)
 {
     const auto* def = get_effect_definition(type_id);
     if (!def)
@@ -575,10 +585,14 @@ int32_t effect_system::find_free_slot() const
     return -1;
 }
 
-void effect_system::init_effect(effect& eff, const effect_definition& def,
-                                 float src_x, float src_y,
-                                 float dest_x, float dest_y,
-                                 int8_t start_frame, int32_t value)
+void effect_system::init_effect(effect& eff,
+                                const effect_definition& def,
+                                float src_x,
+                                float src_y,
+                                float dest_x,
+                                float dest_y,
+                                int8_t start_frame,
+                                int32_t value)
 {
     eff.clear();
     eff.def = &def;
@@ -612,9 +626,10 @@ void effect_system::init_effect(effect& eff, const effect_definition& def,
     // Calculate direction for directional effects
     if (def.directional || def.behavior == effect_behavior::projectile)
     {
-        auto dir = calculate_direction(
-            static_cast<int32_t>(src_x), static_cast<int32_t>(src_y),
-            static_cast<int32_t>(dest_x), static_cast<int32_t>(dest_y));
+        auto dir = calculate_direction(static_cast<int32_t>(src_x),
+                                       static_cast<int32_t>(src_y),
+                                       static_cast<int32_t>(dest_x),
+                                       static_cast<int32_t>(dest_y));
         if (dir)
         {
             eff.direction_index = static_cast<uint8_t>(direction_to_sprite_index(*dir) - 1);
@@ -788,10 +803,8 @@ void effect_system::update_composite(effect& eff, float delta_time)
 
         // Velocity/gravity movement: apply after fall_start_frame, including death frame
         // (legacy applies physics before the death check, so the final position is correct)
-        if ((eff.def->fall_initial_speed != 0 || eff.def->fall_initial_speed_x != 0
-             || eff.def->gravity != 0)
-            && eff.current_frame >= eff.def->fall_start_frame
-            && eff.current_frame > 0)
+        if ((eff.def->fall_initial_speed != 0 || eff.def->fall_initial_speed_x != 0 || eff.def->gravity != 0) &&
+            eff.current_frame >= eff.def->fall_start_frame && eff.current_frame > 0)
         {
             eff.pos_x += eff.velocity_x;
             eff.pos_y += eff.velocity_y;
@@ -809,14 +822,9 @@ void effect_system::update_composite(effect& eff, float delta_time)
     }
 
     // Sub-frame interpolation for smooth movement between frame ticks
-    bool has_velocity = eff.def->fall_initial_speed != 0
-                     || eff.def->fall_initial_speed_x != 0
-                     || eff.def->gravity != 0;
-    if (has_velocity
-        && eff.current_frame >= eff.def->fall_start_frame
-        && eff.current_frame > 0
-        && eff.current_frame <= eff.max_frame
-        && frame_time > 0.0f)
+    bool has_velocity = eff.def->fall_initial_speed != 0 || eff.def->fall_initial_speed_x != 0 || eff.def->gravity != 0;
+    if (has_velocity && eff.current_frame >= eff.def->fall_start_frame && eff.current_frame > 0 &&
+        eff.current_frame <= eff.max_frame && frame_time > 0.0f)
     {
         float t = eff.frame_accumulator / frame_time;
         eff.interp_x = eff.velocity_x * t;
@@ -907,19 +915,26 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
 
                 // Look up the child effect definition
                 const auto* child_def = get_effect_definition(child_spec.type);
-                if (!child_def) continue;
+                if (!child_def)
+                    continue;
 
                 int32_t slot = find_free_slot();
-                if (slot < 0) return;
+                if (slot < 0)
+                    return;
 
                 auto& eff = effects_[slot];
                 // Parent's src/dest already have parent's offsets applied.
                 // Subtract child's offsets so init_effect doesn't double-apply them.
                 float child_xo = static_cast<float>(child_def->x_offset);
                 float child_h = static_cast<float>(child_def->height_offset);
-                init_effect(eff, *child_def,
-                            parent.src_x - child_xo, parent.src_y - child_h,
-                            dest_x - child_xo, dest_y - child_h, sf, 1);
+                init_effect(eff,
+                            *child_def,
+                            parent.src_x - child_xo,
+                            parent.src_y - child_h,
+                            dest_x - child_xo,
+                            dest_y - child_h,
+                            sf,
+                            1);
                 play_effect_sound(*child_def, eff.pos_x, eff.pos_y);
                 trigger_shake(*child_def);
             }
@@ -930,8 +945,10 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
 
                 if (child_spec.random_offset)
                 {
-                    offset_x += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
-                    offset_y += static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                    offset_x +=
+                        static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
+                    offset_y +=
+                        static_cast<float>((std::rand() % (child_spec.random_range * 2 + 1)) - child_spec.random_range);
                 }
 
                 float child_x = parent.pos_x + offset_x;
@@ -939,16 +956,16 @@ void effect_system::spawn_children(const effect& parent, const effect_definition
 
                 // Use inline spawning to support staggered start frames
                 const auto* child_def = get_effect_definition(child_spec.type);
-                if (!child_def) continue;
+                if (!child_def)
+                    continue;
 
                 int32_t slot = find_free_slot();
-                if (slot < 0) return;
+                if (slot < 0)
+                    return;
 
                 auto& eff = effects_[slot];
                 // Pass position directly; let init_effect apply the child's own offsets
-                init_effect(eff, *child_def,
-                            child_x, child_y,
-                            child_x, child_y, sf, 1);
+                init_effect(eff, *child_def, child_x, child_y, child_x, child_y, sf, 1);
                 play_effect_sound(*child_def, eff.pos_x, eff.pos_y);
                 trigger_shake(*child_def);
             }
@@ -998,9 +1015,13 @@ const sprite* effect_system::resolve_sprite(const effect_definition& def)
 // Uses midpoint displacement for natural-looking arcs with perpendicular offsets.
 // thick=true draws the main bolt (multi-line glow), thick=false draws a thin companion bolt.
 static void draw_thunder_bolt(renderer& rend,
-                               int32_t sx, int32_t sy, int32_t dx, int32_t dy,
-                               int32_t seed_offset, bool thick,
-                               const thunder_params& params)
+                              int32_t sx,
+                              int32_t sy,
+                              int32_t dx,
+                              int32_t dy,
+                              int32_t seed_offset,
+                              bool thick,
+                              const thunder_params& params)
 {
     static const sf::Color col_core(255, 255, 255);
     static const sf::Color col_inner(220, 220, 255);
@@ -1012,7 +1033,8 @@ static void draw_thunder_bolt(renderer& rend,
     float line_dx = static_cast<float>(dx - sx);
     float line_dy = static_cast<float>(dy - sy);
     float line_len = std::sqrt(line_dx * line_dx + line_dy * line_dy);
-    if (line_len < 1.0f) return;
+    if (line_len < 1.0f)
+        return;
 
     // Perpendicular direction for offsets
     float perp_x = -line_dy / line_len;
@@ -1076,9 +1098,7 @@ static void draw_thunder_bolt(renderer& rend,
     }
 }
 
-void effect_system::render_thunder(renderer& rend,
-                                    float sx, float sy, float dx, float dy,
-                                    int8_t rx, int8_t ry)
+void effect_system::render_thunder(renderer& rend, float sx, float sy, float dx, float dy, int8_t rx, int8_t ry)
 {
     int32_t x0 = static_cast<int32_t>(sx);
     int32_t y0 = static_cast<int32_t>(sy);
@@ -1091,19 +1111,20 @@ void effect_system::render_thunder(renderer& rend,
     static constexpr int32_t companion_seeds[] = {3, -2, 5, -4};
     for (int32_t i = 0; i < thunder_params_.thin_bolt_count && i < 4; ++i)
     {
-        int32_t seed = (i == 0) ? static_cast<int32_t>(rx) + companion_seeds[i]
-                                : static_cast<int32_t>(ry) + companion_seeds[i];
+        int32_t seed =
+            (i == 0) ? static_cast<int32_t>(rx) + companion_seeds[i] : static_cast<int32_t>(ry) + companion_seeds[i];
         draw_thunder_bolt(rend, x0, y0, x1, y1, seed, false, thunder_params_);
     }
 }
 
-void effect_system::render_overlay(renderer& rend, const effect& eff,
-                                    const effect_definition::sprite_overlay& ov,
-                                    int32_t screen_x, int32_t screen_y)
+void effect_system::render_overlay(
+    renderer& rend, const effect& eff, const effect_definition::sprite_overlay& ov, int32_t screen_x, int32_t screen_y)
 {
-    if (ov.pak_index >= max_effect_sprites) return;
+    if (ov.pak_index >= max_effect_sprites)
+        return;
     auto* spr = effect_sprites_[ov.pak_index];
-    if (!spr) return;
+    if (!spr)
+        return;
 
     uint8_t fo = ov.frame_offset != 0 ? ov.frame_offset : eff.def->frame_offset;
     uint32_t frame = static_cast<uint32_t>(eff.current_frame) + fo;
@@ -1112,16 +1133,16 @@ void effect_system::render_overlay(renderer& rend, const effect& eff,
 
     switch (ov.render_mode)
     {
-        case effect_render_mode::normal:
-        case effect_render_mode::transparent:
-            rend.draw_sprite_additive(*spr, ox, oy, frame);
-            break;
-        case effect_render_mode::alpha_50:
-            rend.draw_sprite_additive_alpha(*spr, ox, oy, frame, 0.5f);
-            break;
-        default:
-            rend.draw_sprite_additive(*spr, ox, oy, frame);
-            break;
+    case effect_render_mode::normal:
+    case effect_render_mode::transparent:
+        rend.draw_sprite_additive(*spr, ox, oy, frame);
+        break;
+    case effect_render_mode::alpha_50:
+        rend.draw_sprite_additive_alpha(*spr, ox, oy, frame, 0.5f);
+        break;
+    default:
+        rend.draw_sprite_additive(*spr, ox, oy, frame);
+        break;
     }
 }
 

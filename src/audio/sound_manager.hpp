@@ -7,7 +7,8 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace hb {
+namespace hb
+{
 
 // Maximum audible distance in tiles (0 = full volume, >14 = silent)
 inline constexpr int max_sound_distance = 14;
@@ -84,10 +85,10 @@ private:
 
     // Sound buffers - indexed by sound number
     // Character sounds: C1-C24
-    std::array<sound_id, 25> character_sounds_{};   // Index 0 unused, 1-24 valid
+    std::array<sound_id, 25> character_sounds_{}; // Index 0 unused, 1-24 valid
 
     // Effect sounds: E1-E53 (with gaps)
-    std::array<sound_id, 60> effect_sounds_{};      // Index 0 unused, room for expansion
+    std::array<sound_id, 60> effect_sounds_{}; // Index 0 unused, room for expansion
 
     // Monster sounds: M1-M156 (sparse, many gaps)
     std::unordered_map<int, sound_id> monster_sounds_;

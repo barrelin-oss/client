@@ -5,10 +5,11 @@
 #include "core/constants.hpp"
 #include <format>
 
-namespace hb {
+namespace hb
+{
 
-character_dialog::character_dialog()
-    : dialog(dialog_type::character_info) {
+character_dialog::character_dialog() : dialog(dialog_type::character_info)
+{
     set_title("Character");
     set_bounds({20, 50, 220, 380});
     set_draggable(true);
@@ -18,16 +19,20 @@ character_dialog::character_dialog()
     create_ui();
 }
 
-void character_dialog::create_ui() {
+void character_dialog::create_ui()
+{
     // Dialog will be rendered directly, no child widgets needed
 }
 
-void character_dialog::update(float delta_time, const input& inp) {
+void character_dialog::update(float delta_time, const input& inp)
+{
     dialog::update(delta_time, inp);
 }
 
-void character_dialog::render(renderer& rend) {
-    if (!visible_) return;
+void character_dialog::render(renderer& rend)
+{
+    if (!visible_)
+        return;
 
     dialog::render(rend);
 
@@ -47,7 +52,8 @@ void character_dialog::render(renderer& rend) {
 
     float exp_pct = exp_next_ > 0 ? static_cast<float>(exp_) / exp_next_ : 0.0f;
     int32_t fill_width = static_cast<int32_t>(bar_width * exp_pct);
-    if (fill_width > 0) {
+    if (fill_width > 0)
+    {
         rend.draw_rect(bar_x, y, fill_width, 14, sf::Color(100, 150, 200), true);
     }
     rend.draw_rect(bar_x, y, bar_width, 14, sf::Color(80, 80, 100), false);
@@ -58,7 +64,8 @@ void character_dialog::render(renderer& rend) {
     y += 8;
 
     // HP/MP/SP bars
-    auto draw_resource_bar = [&](const char* name, int32_t current, int32_t max, sf::Color color) {
+    auto draw_resource_bar = [&](const char* name, int32_t current, int32_t max, sf::Color color)
+    {
         rend.draw_text(name, x, y, sf::Color::White);
 
         int32_t bar_start = x + 35;
@@ -66,7 +73,8 @@ void character_dialog::render(renderer& rend) {
 
         float pct = max > 0 ? static_cast<float>(current) / max : 0.0f;
         int32_t fw = static_cast<int32_t>((bar_width - 35) * pct);
-        if (fw > 0) {
+        if (fw > 0)
+        {
             rend.draw_rect(bar_start, y, fw, 14, color, true);
         }
         rend.draw_rect(bar_start, y, bar_width - 35, 14, sf::Color(60, 60, 80), false);
@@ -88,9 +96,9 @@ void character_dialog::render(renderer& rend) {
 
     // Base stats section
     rend.draw_text("Base Stats", x, y, sf::Color::Yellow);
-    if (stat_points_ > 0) {
-        rend.draw_text(std::format("Points: {}", stat_points_),
-                      x + 100, y, sf::Color(100, 255, 100));
+    if (stat_points_ > 0)
+    {
+        rend.draw_text(std::format("Points: {}", stat_points_), x + 100, y, sf::Color(100, 255, 100));
     }
     y += 22;
 
@@ -115,7 +123,8 @@ void character_dialog::render(renderer& rend) {
     rend.draw_text("Combat Stats", x, y, sf::Color::Yellow);
     y += 22;
 
-    auto draw_combat_stat = [&](const char* name, int32_t value) {
+    auto draw_combat_stat = [&](const char* name, int32_t value)
+    {
         rend.draw_text(name, x, y, sf::Color::White);
         rend.draw_text(std::to_string(value), x + label_width, y, sf::Color(200, 200, 255));
         y += 18;
@@ -127,27 +136,28 @@ void character_dialog::render(renderer& rend) {
     draw_combat_stat("M.Resist:", magic_resist_);
 }
 
-void character_dialog::render_stat_row(renderer& rend, int32_t y, const char* name,
-                                       int32_t value, [[maybe_unused]] int32_t stat_index) {
+void character_dialog::render_stat_row(
+    renderer& rend, int32_t y, const char* name, int32_t value, [[maybe_unused]] int32_t stat_index)
+{
     int32_t x = bounds_.x + 10;
 
     rend.draw_text(name, x, y, sf::Color::White);
     rend.draw_text(std::to_string(value), x + 90, y, sf::Color(200, 200, 255));
 
     // Draw + button if stat points available
-    if (stat_points_ > 0) {
+    if (stat_points_ > 0)
+    {
         int32_t btn_x = x + 130;
         int32_t btn_y = y - 2;
 
-        rend.draw_rect(btn_x, btn_y, stat_button_size, stat_button_size,
-                      sf::Color(60, 100, 60), true);
-        rend.draw_rect(btn_x, btn_y, stat_button_size, stat_button_size,
-                      sf::Color(80, 140, 80), false);
+        rend.draw_rect(btn_x, btn_y, stat_button_size, stat_button_size, sf::Color(60, 100, 60), true);
+        rend.draw_rect(btn_x, btn_y, stat_button_size, stat_button_size, sf::Color(80, 140, 80), false);
         rend.draw_text("+", btn_x + 4, btn_y, sf::Color::White);
     }
 }
 
-void character_dialog::update_stats(const stats_component& stats) {
+void character_dialog::update_stats(const stats_component& stats)
+{
     strength_ = stats.strength;
     vitality_ = stats.vitality;
     dexterity_ = stats.dexterity;

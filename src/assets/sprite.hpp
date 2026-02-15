@@ -6,22 +6,25 @@
 #include <vector>
 #include <chrono>
 
-namespace hb {
+namespace hb
+{
 
 class pak_file;
 struct pak_sprite_data;
 struct pak_sprite_metadata;
 
 // Individual frame within a sprite
-struct sprite_frame {
-    sf::IntRect source_rect;  // Region in texture
-    int16_t pivot_x;          // X offset for drawing
-    int16_t pivot_y;          // Y offset for drawing
+struct sprite_frame
+{
+    sf::IntRect source_rect; // Region in texture
+    int16_t pivot_x;         // X offset for drawing
+    int16_t pivot_y;         // Y offset for drawing
 };
 
 // Sprite loaded from PAK file
 // Supports two-tier loading: metadata first, bitmap on-demand
-class sprite {
+class sprite
+{
 public:
     sprite() = default;
     ~sprite() = default;
@@ -95,17 +98,21 @@ public:
     const sf::Texture& texture() const;
 
     // Set PAK source for on-demand loading
-    void set_pak_source(pak_file* pak, uint32_t index) { pak_source_ = pak; pak_index_ = index; }
+    void set_pak_source(pak_file* pak, uint32_t index)
+    {
+        pak_source_ = pak;
+        pak_index_ = index;
+    }
 
 private:
     // Texture (only populated when bitmap is loaded)
-    sf::Texture texture_;              // Texture WITH color key applied (transparent)
+    sf::Texture texture_; // Texture WITH color key applied (transparent)
 
     // Metadata (loaded first, always kept)
     std::vector<sprite_frame> frames_;
     uint32_t bitmap_width_ = 0;
     uint32_t bitmap_height_ = 0;
-    sf::Color color_key_;              // The color key (from pixel 0,0)
+    sf::Color color_key_; // The color key (from pixel 0,0)
 
     // Source for on-demand loading
     pak_file* pak_source_ = nullptr;

@@ -4,7 +4,8 @@
 #include <cmath>
 #include <random>
 
-namespace hb {
+namespace hb
+{
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -25,13 +26,20 @@ std::string_view transition_type_name(transition_type type)
 {
     switch (type)
     {
-        case transition_type::diamond_wave:      return "Diamond Wave";
-        case transition_type::circle_expand:      return "Circle Expand";
-        case transition_type::horizontal_blinds:  return "Horizontal Blinds";
-        case transition_type::vertical_blinds:    return "Vertical Blinds";
-        case transition_type::diagonal_wipe:      return "Diagonal Wipe";
-        case transition_type::rain:               return "Rain";
-        default:                                  return "Unknown";
+    case transition_type::diamond_wave:
+        return "Diamond Wave";
+    case transition_type::circle_expand:
+        return "Circle Expand";
+    case transition_type::horizontal_blinds:
+        return "Horizontal Blinds";
+    case transition_type::vertical_blinds:
+        return "Vertical Blinds";
+    case transition_type::diagonal_wipe:
+        return "Diagonal Wipe";
+    case transition_type::rain:
+        return "Rain";
+    default:
+        return "Unknown";
     }
 }
 
@@ -73,8 +81,10 @@ void screen_transition::build_grid(uint32_t screen_width, uint32_t screen_height
 
     grid_cols_ = static_cast<int32_t>((screen_width + target_cell_size - 1) / target_cell_size);
     grid_rows_ = static_cast<int32_t>((screen_height + target_cell_size - 1) / target_cell_size);
-    if (grid_cols_ < 1) grid_cols_ = 1;
-    if (grid_rows_ < 1) grid_rows_ = 1;
+    if (grid_cols_ < 1)
+        grid_cols_ = 1;
+    if (grid_rows_ < 1)
+        grid_rows_ = 1;
 
     float cell_w = static_cast<float>(screen_width) / static_cast<float>(grid_cols_);
     float cell_h = static_cast<float>(screen_height) / static_cast<float>(grid_rows_);
@@ -118,152 +128,154 @@ void screen_transition::assign_delays()
 
     switch (type_)
     {
-        // ── Diamond Wave ───────────────────────────────────────────────
-        case transition_type::diamond_wave:
+    // ── Diamond Wave ───────────────────────────────────────────────
+    case transition_type::diamond_wave:
+    {
+        float max_dist = center_col + center_row;
+        if (max_dist < 1.0f)
+            max_dist = 1.0f;
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            float max_dist = center_col + center_row;
-            if (max_dist < 1.0f) max_dist = 1.0f;
-
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    float dist = std::abs(static_cast<float>(c) - center_col)
-                               + std::abs(static_cast<float>(r) - center_row);
-                    cl.normalized_delay = dist / max_dist;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                float dist =
+                    std::abs(static_cast<float>(c) - center_col) + std::abs(static_cast<float>(r) - center_row);
+                cl.normalized_delay = dist / max_dist;
             }
-            open_stagger_ = 0.7f;
-            open_cell_time_ = 0.35f;
-            break;
         }
+        open_stagger_ = 0.7f;
+        open_cell_time_ = 0.35f;
+        break;
+    }
 
-        // ── Circle Expand ──────────────────────────────────────────────
-        case transition_type::circle_expand:
+    // ── Circle Expand ──────────────────────────────────────────────
+    case transition_type::circle_expand:
+    {
+        float max_dist = std::sqrt(center_col * center_col + center_row * center_row);
+        if (max_dist < 1.0f)
+            max_dist = 1.0f;
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            float max_dist = std::sqrt(center_col * center_col + center_row * center_row);
-            if (max_dist < 1.0f) max_dist = 1.0f;
-
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    float dx = static_cast<float>(c) - center_col;
-                    float dy = static_cast<float>(r) - center_row;
-                    cl.normalized_delay = std::sqrt(dx * dx + dy * dy) / max_dist;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                float dx = static_cast<float>(c) - center_col;
+                float dy = static_cast<float>(r) - center_row;
+                cl.normalized_delay = std::sqrt(dx * dx + dy * dy) / max_dist;
             }
-            open_stagger_ = 0.75f;
-            open_cell_time_ = 0.3f;
-            break;
         }
+        open_stagger_ = 0.75f;
+        open_cell_time_ = 0.3f;
+        break;
+    }
 
-        // ── Horizontal Blinds ──────────────────────────────────────────
-        case transition_type::horizontal_blinds:
+    // ── Horizontal Blinds ──────────────────────────────────────────
+    case transition_type::horizontal_blinds:
+    {
+        anim_style_ = cell_anim::slide;
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            anim_style_ = cell_anim::slide;
+            // Stagger from center rows outward
+            float row_delay = std::abs(static_cast<float>(r) - center_row) / std::max(center_row, 1.0f);
 
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                // Stagger from center rows outward
-                float row_delay = std::abs(static_cast<float>(r) - center_row) / std::max(center_row, 1.0f);
-
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    cl.normalized_delay = row_delay;
-                    // Alternate rows slide up vs down
-                    cl.slide_dx = 0.0f;
-                    cl.slide_dy = (r % 2 == 0) ? -1.0f : 1.0f;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                cl.normalized_delay = row_delay;
+                // Alternate rows slide up vs down
+                cl.slide_dx = 0.0f;
+                cl.slide_dy = (r % 2 == 0) ? -1.0f : 1.0f;
             }
-            open_stagger_ = 0.5f;
-            open_cell_time_ = 0.4f;
-            break;
         }
+        open_stagger_ = 0.5f;
+        open_cell_time_ = 0.4f;
+        break;
+    }
 
-        // ── Vertical Blinds ───────────────────────────────────────────
-        case transition_type::vertical_blinds:
+    // ── Vertical Blinds ───────────────────────────────────────────
+    case transition_type::vertical_blinds:
+    {
+        anim_style_ = cell_anim::slide;
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            anim_style_ = cell_anim::slide;
-
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    // Stagger from center columns outward
-                    cl.normalized_delay = std::abs(static_cast<float>(c) - center_col)
-                                        / std::max(center_col, 1.0f);
-                    // Alternate columns slide left vs right
-                    cl.slide_dx = (c % 2 == 0) ? -1.0f : 1.0f;
-                    cl.slide_dy = 0.0f;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                // Stagger from center columns outward
+                cl.normalized_delay = std::abs(static_cast<float>(c) - center_col) / std::max(center_col, 1.0f);
+                // Alternate columns slide left vs right
+                cl.slide_dx = (c % 2 == 0) ? -1.0f : 1.0f;
+                cl.slide_dy = 0.0f;
             }
-            open_stagger_ = 0.5f;
-            open_cell_time_ = 0.4f;
-            break;
         }
+        open_stagger_ = 0.5f;
+        open_cell_time_ = 0.4f;
+        break;
+    }
 
-        // ── Diagonal Wipe ──────────────────────────────────────────────
-        case transition_type::diagonal_wipe:
+    // ── Diagonal Wipe ──────────────────────────────────────────────
+    case transition_type::diagonal_wipe:
+    {
+        anim_style_ = cell_anim::slide;
+        float max_sum = static_cast<float>(grid_cols_ - 1 + grid_rows_ - 1);
+        if (max_sum < 1.0f)
+            max_sum = 1.0f;
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            anim_style_ = cell_anim::slide;
-            float max_sum = static_cast<float>(grid_cols_ - 1 + grid_rows_ - 1);
-            if (max_sum < 1.0f) max_sum = 1.0f;
-
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    cl.normalized_delay = static_cast<float>(c + r) / max_sum;
-                    // Slide diagonally toward top-left
-                    cl.slide_dx = -0.7f;
-                    cl.slide_dy = -0.7f;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                cl.normalized_delay = static_cast<float>(c + r) / max_sum;
+                // Slide diagonally toward top-left
+                cl.slide_dx = -0.7f;
+                cl.slide_dy = -0.7f;
             }
-            open_stagger_ = 0.7f;
-            open_cell_time_ = 0.35f;
-            break;
         }
+        open_stagger_ = 0.7f;
+        open_cell_time_ = 0.35f;
+        break;
+    }
 
-        // ── Rain ───────────────────────────────────────────────────────
-        case transition_type::rain:
+    // ── Rain ───────────────────────────────────────────────────────
+    case transition_type::rain:
+    {
+        anim_style_ = cell_anim::slide;
+
+        // Deterministic per-column offset for organic feel
+        std::mt19937 rng(123);
+        std::uniform_real_distribution<float> jitter(0.0f, 0.15f);
+
+        std::vector<float> col_offsets(static_cast<size_t>(grid_cols_));
+        for (auto& off : col_offsets)
+            off = jitter(rng);
+
+        float max_row = std::max(static_cast<float>(grid_rows_ - 1), 1.0f);
+
+        for (int32_t r = 0; r < grid_rows_; ++r)
         {
-            anim_style_ = cell_anim::slide;
-
-            // Deterministic per-column offset for organic feel
-            std::mt19937 rng(123);
-            std::uniform_real_distribution<float> jitter(0.0f, 0.15f);
-
-            std::vector<float> col_offsets(static_cast<size_t>(grid_cols_));
-            for (auto& off : col_offsets)
-                off = jitter(rng);
-
-            float max_row = std::max(static_cast<float>(grid_rows_ - 1), 1.0f);
-
-            for (int32_t r = 0; r < grid_rows_; ++r)
+            for (int32_t c = 0; c < grid_cols_; ++c)
             {
-                for (int32_t c = 0; c < grid_cols_; ++c)
-                {
-                    auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
-                    float base = static_cast<float>(r) / max_row;
-                    cl.normalized_delay = std::clamp(base + col_offsets[static_cast<size_t>(c)], 0.0f, 1.0f);
-                    // All cells slide downward
-                    cl.slide_dx = 0.0f;
-                    cl.slide_dy = 1.0f;
-                }
+                auto& cl = cells_[static_cast<size_t>(r * grid_cols_ + c)];
+                float base = static_cast<float>(r) / max_row;
+                cl.normalized_delay = std::clamp(base + col_offsets[static_cast<size_t>(c)], 0.0f, 1.0f);
+                // All cells slide downward
+                cl.slide_dx = 0.0f;
+                cl.slide_dy = 1.0f;
             }
-            open_stagger_ = 0.6f;
-            open_cell_time_ = 0.35f;
-            break;
         }
+        open_stagger_ = 0.6f;
+        open_cell_time_ = 0.35f;
+        break;
+    }
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -278,8 +290,7 @@ void screen_transition::start_reveal(uint32_t screen_width, uint32_t screen_heig
     midpoint_fired_ = false;
 }
 
-void screen_transition::start_full(uint32_t screen_width, uint32_t screen_height,
-                                   std::function<void()> on_midpoint)
+void screen_transition::start_full(uint32_t screen_width, uint32_t screen_height, std::function<void()> on_midpoint)
 {
     build_grid(screen_width, screen_height);
     phase_ = transition_phase::closing;
@@ -357,46 +368,46 @@ void screen_transition::render(renderer& rend)
 
         switch (anim_style_)
         {
-            case cell_anim::shrink:
+        case cell_anim::shrink:
+        {
+            float eased = is_opening ? ease_out_cubic(t) : ease_in_cubic(t);
+            if (is_opening)
             {
-                float eased = is_opening ? ease_out_cubic(t) : ease_in_cubic(t);
-                if (is_opening)
-                {
-                    alpha = 1.0f - eased;
-                    scale = 1.0f - eased * 0.55f;
-                }
-                else
-                {
-                    alpha = eased;
-                    scale = 0.45f + eased * 0.55f;
-                }
-                break;
+                alpha = 1.0f - eased;
+                scale = 1.0f - eased * 0.55f;
             }
-
-            case cell_anim::slide:
+            else
             {
-                float eased = is_opening ? ease_out_cubic(t) : ease_in_cubic(t);
-                if (is_opening)
-                {
-                    alpha = 1.0f - eased;
-                    scale = 1.0f;
-                    offset_x = cl.slide_dx * eased * cell_pixel_size;
-                    offset_y = cl.slide_dy * eased * cell_pixel_size;
-                }
-                else
-                {
-                    alpha = eased;
-                    scale = 1.0f;
-                    offset_x = cl.slide_dx * (1.0f - eased) * cell_pixel_size;
-                    offset_y = cl.slide_dy * (1.0f - eased) * cell_pixel_size;
-                }
-                break;
+                alpha = eased;
+                scale = 0.45f + eased * 0.55f;
             }
+            break;
+        }
 
-            default:
-                alpha = is_opening ? (1.0f - t) : t;
+        case cell_anim::slide:
+        {
+            float eased = is_opening ? ease_out_cubic(t) : ease_in_cubic(t);
+            if (is_opening)
+            {
+                alpha = 1.0f - eased;
                 scale = 1.0f;
-                break;
+                offset_x = cl.slide_dx * eased * cell_pixel_size;
+                offset_y = cl.slide_dy * eased * cell_pixel_size;
+            }
+            else
+            {
+                alpha = eased;
+                scale = 1.0f;
+                offset_x = cl.slide_dx * (1.0f - eased) * cell_pixel_size;
+                offset_y = cl.slide_dy * (1.0f - eased) * cell_pixel_size;
+            }
+            break;
+        }
+
+        default:
+            alpha = is_opening ? (1.0f - t) : t;
+            scale = 1.0f;
+            break;
         }
 
         if (alpha < 0.004f)
@@ -408,14 +419,12 @@ void screen_transition::render(renderer& rend)
         float x = cl.center_x - w * 0.5f + offset_x;
         float y = cl.center_y - h * 0.5f + offset_y;
 
-        rend.draw_rect(
-            static_cast<int32_t>(x),
-            static_cast<int32_t>(y),
-            static_cast<int32_t>(std::ceil(w)),
-            static_cast<int32_t>(std::ceil(h)),
-            sf::Color(overlay_r, overlay_g, overlay_b, a),
-            true
-        );
+        rend.draw_rect(static_cast<int32_t>(x),
+                       static_cast<int32_t>(y),
+                       static_cast<int32_t>(std::ceil(w)),
+                       static_cast<int32_t>(std::ceil(h)),
+                       sf::Color(overlay_r, overlay_g, overlay_b, a),
+                       true);
     }
 
     // ── label ──────────────────────────────────────────────────────
@@ -425,9 +434,7 @@ void screen_transition::render(renderer& rend)
         // Draw in bottom-left with outline for readability
         int32_t lx = 12;
         int32_t ly = static_cast<int32_t>(screen_height_) - 36;
-        rend.draw_text_outlined(name, lx, ly,
-                                sf::Color(220, 200, 140), sf::Color::Black,
-                                16, 2.0f);
+        rend.draw_text_outlined(name, lx, ly, sf::Color(220, 200, 140), sf::Color::Black, 16, 2.0f);
     }
 }
 

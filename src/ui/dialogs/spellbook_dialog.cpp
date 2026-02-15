@@ -6,7 +6,8 @@
 #include <algorithm>
 #include <format>
 
-namespace hb {
+namespace hb
+{
 
 // Category tabs displayed in type mode
 static constexpr spell_category category_tabs[] = {
@@ -18,8 +19,7 @@ static constexpr spell_category category_tabs[] = {
 };
 static constexpr size_t num_category_tabs = std::size(category_tabs);
 
-spellbook_dialog::spellbook_dialog()
-    : dialog(dialog_type::spellbook)
+spellbook_dialog::spellbook_dialog() : dialog(dialog_type::spellbook)
 {
     set_title("Spellbook");
     set_bounds({100, 80, 280, 380});
@@ -36,7 +36,8 @@ void spellbook_dialog::update(float delta_time, const input& inp)
 
 void spellbook_dialog::render(renderer& rend)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     if (filter_dirty_)
     {
@@ -87,9 +88,8 @@ void spellbook_dialog::render(renderer& rend)
 
     if (filtered_spells_.empty())
     {
-        const char* empty_msg = (view_mode_ == spellbook_view_mode::classic)
-            ? "No spells at this level"
-            : "No spells in this category";
+        const char* empty_msg =
+            (view_mode_ == spellbook_view_mode::classic) ? "No spells at this level" : "No spells in this category";
         rend.draw_text(empty_msg, x + 4, y + 8, sf::Color(120, 120, 120), 11);
         return;
     }
@@ -103,13 +103,10 @@ void spellbook_dialog::render(renderer& rend)
         if (row_y + row_height > bounds_.y + bounds_.height - 4)
             break;
 
-        bool is_selected = selected_spell_.has_value() &&
-                          selected_spell_.value() == filtered_spells_[i].id;
-        bool is_hovered = hovered_index_.has_value() &&
-                         hovered_index_.value() == i;
+        bool is_selected = selected_spell_.has_value() && selected_spell_.value() == filtered_spells_[i].id;
+        bool is_hovered = hovered_index_.has_value() && hovered_index_.value() == i;
 
-        render_spell_row(rend, filtered_spells_[i], x, row_y, content_width_,
-                         is_selected, is_hovered);
+        render_spell_row(rend, filtered_spells_[i], x, row_y, content_width_, is_selected, is_hovered);
     }
 }
 
@@ -130,15 +127,11 @@ void spellbook_dialog::render_classic_tabs(renderer& rend, int32_t x, int32_t& y
             }
         }
 
-        sf::Color bg = is_current ? sf::Color(80, 80, 120)
-                     : has_spells ? sf::Color(50, 50, 70)
-                                  : sf::Color(35, 35, 45);
+        sf::Color bg = is_current ? sf::Color(80, 80, 120) : has_spells ? sf::Color(50, 50, 70) : sf::Color(35, 35, 45);
         rend.draw_rect(tab_x, y, 22, 18, bg, true);
         rend.draw_rect(tab_x, y, 22, 18, sf::Color(80, 80, 100), false);
 
-        sf::Color text_color = is_current ? sf::Color::Yellow
-                             : has_spells ? sf::Color::White
-                                          : sf::Color(80, 80, 80);
+        sf::Color text_color = is_current ? sf::Color::Yellow : has_spells ? sf::Color::White : sf::Color(80, 80, 80);
         rend.draw_text(std::to_string(level), tab_x + 7, y + 2, text_color, 12);
     }
     y += 24;
@@ -165,15 +158,11 @@ void spellbook_dialog::render_type_tabs(renderer& rend, int32_t x, int32_t& y)
             }
         }
 
-        sf::Color bg = is_current ? sf::Color(80, 80, 120)
-                     : has_spells ? sf::Color(50, 50, 70)
-                                  : sf::Color(35, 35, 45);
+        sf::Color bg = is_current ? sf::Color(80, 80, 120) : has_spells ? sf::Color(50, 50, 70) : sf::Color(35, 35, 45);
         rend.draw_rect(tab_x, y, tab_width, 18, bg, true);
         rend.draw_rect(tab_x, y, tab_width, 18, sf::Color(80, 80, 100), false);
 
-        sf::Color text_color = is_current ? sf::Color::Yellow
-                             : has_spells ? sf::Color::White
-                                          : sf::Color(80, 80, 80);
+        sf::Color text_color = is_current ? sf::Color::Yellow : has_spells ? sf::Color::White : sf::Color(80, 80, 80);
         rend.draw_text(category_label(cat), tab_x + 4, y + 2, text_color, 11);
     }
     y += 24;
@@ -204,15 +193,14 @@ void spellbook_dialog::rebuild_filtered_spells()
         }
     }
 
-    std::sort(filtered_spells_.begin(), filtered_spells_.end(),
-        [](const spell& a, const spell& b) { return a.id < b.id; });
+    std::sort(
+        filtered_spells_.begin(), filtered_spells_.end(), [](const spell& a, const spell& b) { return a.id < b.id; });
 
     filter_dirty_ = false;
 }
 
-void spellbook_dialog::render_spell_row(renderer& rend, const spell& sp,
-                                         int32_t x, int32_t y, int32_t width,
-                                         bool selected, bool hovered)
+void spellbook_dialog::render_spell_row(
+    renderer& rend, const spell& sp, int32_t x, int32_t y, int32_t width, bool selected, bool hovered)
 {
     bool is_learned = sp.learned;
 
@@ -246,8 +234,8 @@ void spellbook_dialog::render_spell_row(renderer& rend, const spell& sp,
     }
     int32_t icon_y = y + (row_height - icon_size) / 2;
     rend.draw_rect(x + 4, icon_y, icon_size, icon_size, icon_color, true);
-    rend.draw_rect(x + 4, icon_y, icon_size, icon_size,
-                   sf::Color(icon_color.r / 2, icon_color.g / 2, icon_color.b / 2), false);
+    rend.draw_rect(
+        x + 4, icon_y, icon_size, icon_size, sf::Color(icon_color.r / 2, icon_color.g / 2, icon_color.b / 2), false);
 
     // Spell name
     sf::Color name_color = is_learned ? sf::Color::White : sf::Color(70, 70, 70);
@@ -265,51 +253,55 @@ sf::Color spellbook_dialog::spell_type_color(magic_type type) const
 {
     switch (type)
     {
-        case magic_type::damage_spot:
-        case magic_type::damage_area:
-        case magic_type::damage_area_no_spot:
-        case magic_type::bloody_shock_wave:
-        case magic_type::tremor:
-        case magic_type::ice:
-        case magic_type::earthworm_strike:
-        case magic_type::earth_shock_wave:
-        case magic_type::mass_magic_missile:
-            return sf::Color(200, 80, 80);    // Red for damage
+    case magic_type::damage_spot:
+    case magic_type::damage_area:
+    case magic_type::damage_area_no_spot:
+    case magic_type::bloody_shock_wave:
+    case magic_type::tremor:
+    case magic_type::ice:
+    case magic_type::earthworm_strike:
+    case magic_type::earth_shock_wave:
+    case magic_type::mass_magic_missile:
+        return sf::Color(200, 80, 80); // Red for damage
 
-        case magic_type::hp_up_spot:
-        case magic_type::sp_up_spot:
-        case magic_type::sp_up_area:
-        case magic_type::resurrection:
-            return sf::Color(80, 200, 80);    // Green for healing
+    case magic_type::hp_up_spot:
+    case magic_type::sp_up_spot:
+    case magic_type::sp_up_area:
+    case magic_type::resurrection:
+        return sf::Color(80, 200, 80); // Green for healing
 
-        case magic_type::protect:
-        case magic_type::berserk:
-        case magic_type::invisibility:
-            return sf::Color(80, 140, 220);   // Blue for buffs
+    case magic_type::protect:
+    case magic_type::berserk:
+    case magic_type::invisibility:
+        return sf::Color(80, 140, 220); // Blue for buffs
 
-        case magic_type::hold_object:
-        case magic_type::poison:
-        case magic_type::confuse:
-        case magic_type::armor_break:
-        case magic_type::cancellation:
-        case magic_type::inhibition_casting:
-            return sf::Color(170, 80, 200);   // Purple for debuffs
+    case magic_type::hold_object:
+    case magic_type::poison:
+    case magic_type::confuse:
+    case magic_type::armor_break:
+    case magic_type::cancellation:
+    case magic_type::inhibition_casting:
+        return sf::Color(170, 80, 200); // Purple for debuffs
 
-        default:
-            return sf::Color(140, 140, 170);  // Grey for utility
+    default:
+        return sf::Color(140, 140, 170); // Grey for utility
     }
 }
 
 std::optional<size_t> spellbook_dialog::spell_index_at(int32_t x, int32_t y) const
 {
-    if (content_start_y_ == 0) return std::nullopt;
-    if (filtered_spells_.empty()) return std::nullopt;
+    if (content_start_y_ == 0)
+        return std::nullopt;
+    if (filtered_spells_.empty())
+        return std::nullopt;
 
     int32_t base_x = bounds_.x + 8;
 
     // Check if x is within the content area
-    if (x < base_x || x > base_x + content_width_) return std::nullopt;
-    if (y < content_start_y_) return std::nullopt;
+    if (x < base_x || x > base_x + content_width_)
+        return std::nullopt;
+    if (y < content_start_y_)
+        return std::nullopt;
 
     int32_t rel_y = y - content_start_y_;
     auto idx = static_cast<size_t>(rel_y / row_height);
@@ -329,8 +321,10 @@ std::optional<size_t> spellbook_dialog::spell_index_at(int32_t x, int32_t y) con
 
 bool spellbook_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 {
-    if (!visible_) return false;
-    if (!bounds_.contains(x, y)) return false;
+    if (!visible_)
+        return false;
+    if (!bounds_.contains(x, y))
+        return false;
 
     // Ensure filtered spells are current
     if (filter_dirty_)
@@ -431,7 +425,8 @@ bool spellbook_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
 
 bool spellbook_dialog::handle_mouse_move(int32_t x, int32_t y)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
     if (filter_dirty_)
     {
@@ -451,8 +446,8 @@ void spellbook_dialog::set_spells(const std::vector<spell>& spells)
 
 void spellbook_dialog::add_spell(const spell& sp)
 {
-    auto it = std::find_if(spells_.begin(), spells_.end(),
-        [&sp](const spell& existing) { return existing.id == sp.id; });
+    auto it =
+        std::find_if(spells_.begin(), spells_.end(), [&sp](const spell& existing) { return existing.id == sp.id; });
 
     if (it != spells_.end())
     {
@@ -486,9 +481,8 @@ void spellbook_dialog::set_view_mode(spellbook_view_mode mode)
 
 void spellbook_dialog::toggle_view_mode()
 {
-    set_view_mode(view_mode_ == spellbook_view_mode::classic
-        ? spellbook_view_mode::type
-        : spellbook_view_mode::classic);
+    set_view_mode(view_mode_ == spellbook_view_mode::classic ? spellbook_view_mode::type
+                                                             : spellbook_view_mode::classic);
 }
 
 void spellbook_dialog::set_current_level(uint8_t level)
@@ -512,13 +506,20 @@ const char* spellbook_dialog::category_label(spell_category cat)
 {
     switch (cat)
     {
-        case spell_category::attack:  return "Atk";
-        case spell_category::defense: return "Def";
-        case spell_category::healing: return "Heal";
-        case spell_category::buff:    return "Buff";
-        case spell_category::debuff:  return "Debuf";
-        case spell_category::summon:  return "Summ";
-        case spell_category::utility: return "Util";
+    case spell_category::attack:
+        return "Atk";
+    case spell_category::defense:
+        return "Def";
+    case spell_category::healing:
+        return "Heal";
+    case spell_category::buff:
+        return "Buff";
+    case spell_category::debuff:
+        return "Debuf";
+    case spell_category::summon:
+        return "Summ";
+    case spell_category::utility:
+        return "Util";
     }
     return "???";
 }

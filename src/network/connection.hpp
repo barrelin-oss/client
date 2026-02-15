@@ -10,16 +10,19 @@
 #include <optional>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
-enum class connection_state {
+enum class connection_state
+{
     disconnected,
     connecting,
     connected,
     failed
 };
 
-class connection {
+class connection
+{
 public:
     connection();
     ~connection();

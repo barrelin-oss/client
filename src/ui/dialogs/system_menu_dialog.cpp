@@ -8,31 +8,27 @@
 #include <format>
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
 // =============================================================================
 // Tab labels and metadata
 // =============================================================================
 
-static constexpr const char* tab_labels[] = {
-    "Game", "Video", "Audio", "Social", "Keys", "Help", "System", "Debug"
-};
+static constexpr const char* tab_labels[] = {"Game", "Video", "Audio", "Social", "Keys", "Help", "System", "Debug"};
 static constexpr int32_t tab_count = static_cast<int32_t>(settings_tab::count);
 
 // =============================================================================
 // Settings Dialog - Construction
 // =============================================================================
 
-settings_dialog::settings_dialog()
-    : dialog(dialog_type::options)
+settings_dialog::settings_dialog() : dialog(dialog_type::options)
 {
     set_title("Settings");
-    set_bounds({
-        static_cast<int32_t>(screen_width) / 2 - dialog_width / 2,
-        static_cast<int32_t>(screen_height) / 2 - dialog_height / 2,
-        dialog_width,
-        dialog_height
-    });
+    set_bounds({static_cast<int32_t>(screen_width) / 2 - dialog_width / 2,
+                static_cast<int32_t>(screen_height) / 2 - dialog_height / 2,
+                dialog_width,
+                dialog_height});
     set_modal(true);
     set_closeable(true);
     set_draggable(true);
@@ -48,17 +44,15 @@ settings_dialog::settings_dialog()
 
 void settings_dialog::init_resolution_options()
 {
-    resolution_options_ = {
-        {800, 600, "800x600"},
-        {1024, 768, "1024x768"},
-        {1280, 720, "1280x720 (HD)"},
-        {1280, 1024, "1280x1024"},
-        {1366, 768, "1366x768"},
-        {1600, 900, "1600x900"},
-        {1920, 1080, "1920x1080 (Full HD)"},
-        {2560, 1440, "2560x1440 (QHD)"},
-        {3840, 2160, "3840x2160 (4K)"}
-    };
+    resolution_options_ = {{800, 600, "800x600"},
+                           {1024, 768, "1024x768"},
+                           {1280, 720, "1280x720 (HD)"},
+                           {1280, 1024, "1280x1024"},
+                           {1366, 768, "1366x768"},
+                           {1600, 900, "1600x900"},
+                           {1920, 1080, "1920x1080 (Full HD)"},
+                           {2560, 1440, "2560x1440 (QHD)"},
+                           {3840, 2160, "3840x2160 (4K)"}};
     selected_resolution_ = 0;
 }
 
@@ -82,7 +76,11 @@ void settings_dialog::rebuild_resolution_options()
         max_h = monitor_options_[selected_monitor_].height;
     }
 
-    struct standard_res { uint32_t w, h; const char* suffix; };
+    struct standard_res
+    {
+        uint32_t w, h;
+        const char* suffix;
+    };
     static constexpr standard_res all_resolutions[] = {
         {640, 480, ""},
         {800, 600, ""},
@@ -139,15 +137,13 @@ void settings_dialog::rebuild_resolution_options()
 
 void settings_dialog::init_framerate_options()
 {
-    framerate_options_ = {
-        {30, "30 FPS"},
-        {60, "60 FPS"},
-        {120, "120 FPS"},
-        {144, "144 FPS"},
-        {200, "200 FPS"},
-        {240, "240 FPS"},
-        {0, "Unlimited"}
-    };
+    framerate_options_ = {{30, "30 FPS"},
+                          {60, "60 FPS"},
+                          {120, "120 FPS"},
+                          {144, "144 FPS"},
+                          {200, "200 FPS"},
+                          {240, "240 FPS"},
+                          {0, "Unlimited"}};
     selected_framerate_ = 1;
 }
 
@@ -217,8 +213,8 @@ void settings_dialog::set_monitors(std::vector<monitor_info> monitors)
         opt.width = m.width;
         opt.height = m.height;
 
-        std::string label = "Monitor " + std::to_string(i + 1) + " - "
-            + std::to_string(m.width) + "x" + std::to_string(m.height);
+        std::string label =
+            "Monitor " + std::to_string(i + 1) + " - " + std::to_string(m.width) + "x" + std::to_string(m.height);
         if (m.primary)
         {
             label += " (primary)";
@@ -317,12 +313,14 @@ void settings_dialog::open()
 
 bool settings_dialog::handle_key_press(sf::Keyboard::Key key)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
     if (key == sf::Keyboard::Key::Escape)
     {
         close();
-        if (on_close_cb_) on_close_cb_();
+        if (on_close_cb_)
+            on_close_cb_();
         return true;
     }
 
@@ -335,7 +333,8 @@ bool settings_dialog::handle_key_press(sf::Keyboard::Key key)
 
 void settings_dialog::update(float delta_time, const input& inp)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     dialog::update(delta_time, inp);
 
@@ -353,9 +352,12 @@ void settings_dialog::update(float delta_time, const input& inp)
 
             if (on_resolution_change_)
             {
-                on_resolution_change_(revert_state_.width, revert_state_.height,
-                                      revert_state_.fullscreen, revert_state_.borderless,
-                                      revert_state_.monitor_x, revert_state_.monitor_y);
+                on_resolution_change_(revert_state_.width,
+                                      revert_state_.height,
+                                      revert_state_.fullscreen,
+                                      revert_state_.borderless,
+                                      revert_state_.monitor_x,
+                                      revert_state_.monitor_y);
             }
             applied_resolution_ = selected_resolution_;
             applied_display_mode_ = selected_display_mode_;
@@ -368,16 +370,19 @@ void settings_dialog::update(float delta_time, const input& inp)
     // Animate dropdowns (video tab only)
     if (active_tab_ == settings_tab::video)
     {
-        auto animate = [&](bool expanded, float& animation) {
+        auto animate = [&](bool expanded, float& animation)
+        {
             if (expanded)
             {
                 animation += delta_time * dropdown_animation_speed_;
-                if (animation > 1.0f) animation = 1.0f;
+                if (animation > 1.0f)
+                    animation = 1.0f;
             }
             else
             {
                 animation -= delta_time * dropdown_animation_speed_;
-                if (animation < 0.0f) animation = 0.0f;
+                if (animation < 0.0f)
+                    animation = 0.0f;
             }
         };
 
@@ -391,8 +396,10 @@ void settings_dialog::update(float delta_time, const input& inp)
         // Display mode is at content_y + section_header (25) + 0
         int32_t dd_y = content_y + section_header_height;
 
-        auto update_dropdown_hover = [&](bool expanded, int32_t dropdown_y, int32_t count, int32_t& hovered) {
-            if (!expanded) return;
+        auto update_dropdown_hover = [&](bool expanded, int32_t dropdown_y, int32_t count, int32_t& hovered)
+        {
+            if (!expanded)
+                return;
             int32_t dropdown_x = bounds_.x + content_padding + 100;
             int32_t dropdown_width = dialog_width - content_padding * 2 - 100;
             int32_t item_height = 22;
@@ -413,17 +420,21 @@ void settings_dialog::update(float delta_time, const input& inp)
             }
         };
 
-        update_dropdown_hover(display_mode_dropdown_expanded_, dd_y,
-                              display_mode_count_, display_mode_dropdown_hovered_);
+        update_dropdown_hover(
+            display_mode_dropdown_expanded_, dd_y, display_mode_count_, display_mode_dropdown_hovered_);
         dd_y += dropdown_row_height;
-        update_dropdown_hover(monitor_dropdown_expanded_, dd_y,
-                              static_cast<int32_t>(monitor_options_.size()), monitor_dropdown_hovered_);
+        update_dropdown_hover(
+            monitor_dropdown_expanded_, dd_y, static_cast<int32_t>(monitor_options_.size()), monitor_dropdown_hovered_);
         dd_y += dropdown_row_height;
-        update_dropdown_hover(resolution_dropdown_expanded_, dd_y,
-                              static_cast<int32_t>(resolution_options_.size()), resolution_dropdown_hovered_);
+        update_dropdown_hover(resolution_dropdown_expanded_,
+                              dd_y,
+                              static_cast<int32_t>(resolution_options_.size()),
+                              resolution_dropdown_hovered_);
         dd_y += dropdown_row_height;
-        update_dropdown_hover(framerate_dropdown_expanded_, dd_y,
-                              static_cast<int32_t>(framerate_options_.size()), framerate_dropdown_hovered_);
+        update_dropdown_hover(framerate_dropdown_expanded_,
+                              dd_y,
+                              static_cast<int32_t>(framerate_options_.size()),
+                              framerate_dropdown_hovered_);
     }
 
     // Slider dragging
@@ -438,22 +449,26 @@ void settings_dialog::update(float delta_time, const input& inp)
         if (dragging_slider_index_ == elem_master_slider)
         {
             master_volume_ = value;
-            if (on_master_volume_change_) on_master_volume_change_(value);
+            if (on_master_volume_change_)
+                on_master_volume_change_(value);
         }
         else if (dragging_slider_index_ == elem_music_slider)
         {
             music_volume_ = value;
-            if (on_music_volume_change_) on_music_volume_change_(value);
+            if (on_music_volume_change_)
+                on_music_volume_change_(value);
         }
         else if (dragging_slider_index_ == elem_sound_slider)
         {
             sound_volume_ = value;
-            if (on_sound_volume_change_) on_sound_volume_change_(value);
+            if (on_sound_volume_change_)
+                on_sound_volume_change_(value);
         }
         else if (dragging_slider_index_ == elem_ui_scale_slider)
         {
-            ui_scale_ = 0.5f + value * 2.5f;  // 0.5 to 3.0 range
-            if (on_ui_scale_change_) on_ui_scale_change_(ui_scale_);
+            ui_scale_ = 0.5f + value * 2.5f; // 0.5 to 3.0 range
+            if (on_ui_scale_change_)
+                on_ui_scale_change_(ui_scale_);
         }
     }
     else
@@ -472,17 +487,15 @@ void settings_dialog::update(float delta_time, const input& inp)
 
 void settings_dialog::render(renderer& rend)
 {
-    if (!visible_) return;
+    if (!visible_)
+        return;
 
     // Dialog background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(30, 30, 45, 245), true);
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height,
-                   sf::Color(80, 80, 100), false);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(30, 30, 45, 245), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, bounds_.height, sf::Color(80, 80, 100), false);
 
     // Title bar
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, title_bar_height,
-                   sf::Color(50, 50, 70), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, title_bar_height, sf::Color(50, 50, 70), true);
     rend.draw_text(title_, bounds_.x + 10, bounds_.y + 6, sf::Color::White, 12);
 
     // Close button
@@ -502,15 +515,32 @@ void settings_dialog::render(renderer& rend)
 
     switch (active_tab_)
     {
-        case settings_tab::game:        render_game_tab(rend, content_y); break;
-        case settings_tab::video:       render_video_tab(rend, content_y); break;
-        case settings_tab::audio:       render_audio_tab(rend, content_y); break;
-        case settings_tab::social:      render_social_tab(rend, content_y); break;
-        case settings_tab::keybindings: render_keybindings_tab(rend, content_y); break;
-        case settings_tab::help:        render_help_tab(rend, content_y); break;
-        case settings_tab::system:      render_system_tab(rend, content_y); break;
-        case settings_tab::debug:       render_debug_tab(rend, content_y); break;
-        default: break;
+    case settings_tab::game:
+        render_game_tab(rend, content_y);
+        break;
+    case settings_tab::video:
+        render_video_tab(rend, content_y);
+        break;
+    case settings_tab::audio:
+        render_audio_tab(rend, content_y);
+        break;
+    case settings_tab::social:
+        render_social_tab(rend, content_y);
+        break;
+    case settings_tab::keybindings:
+        render_keybindings_tab(rend, content_y);
+        break;
+    case settings_tab::help:
+        render_help_tab(rend, content_y);
+        break;
+    case settings_tab::system:
+        render_system_tab(rend, content_y);
+        break;
+    case settings_tab::debug:
+        render_debug_tab(rend, content_y);
+        break;
+    default:
+        break;
     }
 }
 
@@ -519,11 +549,12 @@ void settings_dialog::render_tab_bar(renderer& rend)
     int32_t tab_y = bounds_.y + title_bar_height;
 
     // Tab bar background
-    rend.draw_rect(bounds_.x, tab_y, bounds_.width, tab_bar_height,
-                   sf::Color(40, 40, 58), true);
+    rend.draw_rect(bounds_.x, tab_y, bounds_.width, tab_bar_height, sf::Color(40, 40, 58), true);
     // Bottom border
-    rend.draw_line(bounds_.x, tab_y + tab_bar_height - 1,
-                   bounds_.x + bounds_.width, tab_y + tab_bar_height - 1,
+    rend.draw_line(bounds_.x,
+                   tab_y + tab_bar_height - 1,
+                   bounds_.x + bounds_.width,
+                   tab_y + tab_bar_height - 1,
                    sf::Color(80, 80, 100));
 
     int32_t visible_tabs = tab_count;
@@ -540,7 +571,7 @@ void settings_dialog::render_tab_bar(renderer& rend)
         sf::Color bg;
         if (active)
         {
-            bg = sf::Color(30, 30, 45);  // Match content bg
+            bg = sf::Color(30, 30, 45); // Match content bg
         }
         else if (hovered)
         {
@@ -556,23 +587,25 @@ void settings_dialog::render_tab_bar(renderer& rend)
         if (active)
         {
             // Active tab indicator
-            rend.draw_line(tx, tab_y + tab_bar_height - 1,
-                           tx + tw, tab_y + tab_bar_height - 1,
-                           sf::Color(30, 30, 45));  // Erase bottom border
-            rend.draw_line(tx, tab_y, tx + tw, tab_y, sf::Color(100, 140, 200));  // Top highlight
+            rend.draw_line(tx,
+                           tab_y + tab_bar_height - 1,
+                           tx + tw,
+                           tab_y + tab_bar_height - 1,
+                           sf::Color(30, 30, 45));                               // Erase bottom border
+            rend.draw_line(tx, tab_y, tx + tw, tab_y, sf::Color(100, 140, 200)); // Top highlight
         }
 
         // Tab separator
         if (i > 0)
         {
-            rend.draw_line(tx, tab_y + 4, tx, tab_y + tab_bar_height - 5,
-                           sf::Color(60, 60, 80));
+            rend.draw_line(tx, tab_y + 4, tx, tab_y + tab_bar_height - 5, sf::Color(60, 60, 80));
         }
 
         // Tab label
         int32_t text_w = static_cast<int32_t>(strlen(tab_labels[i])) * 7;
         int32_t text_x = tx + (tw - text_w) / 2;
-        sf::Color text_color = active ? sf::Color(200, 220, 255) : (hovered ? sf::Color(220, 220, 240) : sf::Color(160, 160, 180));
+        sf::Color text_color =
+            active ? sf::Color(200, 220, 255) : (hovered ? sf::Color(220, 220, 240) : sf::Color(160, 160, 180));
         rend.draw_text(tab_labels[i], text_x, tab_y + 7, text_color, 11);
     }
 }
@@ -588,12 +621,11 @@ void settings_dialog::render_game_tab(renderer& rend, int32_t content_y)
     render_section_header(rend, y, "User Interface");
     y += section_header_height;
 
-    render_toggle_option(rend, y, "Classic (Original)", current_style_ == ui_style::classic,
-                         hovered_element_ == elem_style_classic);
+    render_toggle_option(
+        rend, y, "Classic (Original)", current_style_ == ui_style::classic, hovered_element_ == elem_style_classic);
     y += checkbox_row_height;
 
-    render_toggle_option(rend, y, "Modern", current_style_ == ui_style::modern,
-                         hovered_element_ == elem_style_modern);
+    render_toggle_option(rend, y, "Modern", current_style_ == ui_style::modern, hovered_element_ == elem_style_modern);
     y += checkbox_row_height + 10;
 
     render_section_header(rend, y, "Gameplay");
@@ -615,8 +647,8 @@ void settings_dialog::render_game_tab(renderer& rend, int32_t content_y)
     y += checkbox_row_height;
 
     render_checkbox(rend, y, "Type to Chat (Legacy)", type_to_chat_, hovered_element_ == elem_type_to_chat);
-    rend.draw_text("Disables WASD movement when enabled",
-                   bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
+    rend.draw_text(
+        "Disables WASD movement when enabled", bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
 }
 
 void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
@@ -630,17 +662,21 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
 
     // Display mode dropdown
     std::string mode_text = (selected_display_mode_ >= 0 && selected_display_mode_ < display_mode_count_)
-        ? display_mode_labels_[selected_display_mode_] : "Select...";
-    render_dropdown(rend, y, "Mode", mode_text,
-                    hovered_element_ == elem_display_mode_dropdown,
-                    display_mode_dropdown_animation_);
+                                ? display_mode_labels_[selected_display_mode_]
+                                : "Select...";
+    render_dropdown(
+        rend, y, "Mode", mode_text, hovered_element_ == elem_display_mode_dropdown, display_mode_dropdown_animation_);
     y += dropdown_row_height;
 
     // Monitor dropdown
     bool mon_disabled = (selected_display_mode_ == 0);
     std::string mon_text = (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
-        ? monitor_options_[selected_monitor_].label : "Select...";
-    render_dropdown(rend, y, "Monitor", mon_text,
+                               ? monitor_options_[selected_monitor_].label
+                               : "Select...";
+    render_dropdown(rend,
+                    y,
+                    "Monitor",
+                    mon_text,
                     !mon_disabled && hovered_element_ == elem_monitor_dropdown,
                     monitor_dropdown_animation_);
     if (mon_disabled)
@@ -666,10 +702,15 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
     }
     else
     {
-        res_text = (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size()))
-            ? resolution_options_[selected_resolution_].label : "Select...";
+        res_text =
+            (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size()))
+                ? resolution_options_[selected_resolution_].label
+                : "Select...";
     }
-    render_dropdown(rend, y, "Resolution", res_text,
+    render_dropdown(rend,
+                    y,
+                    "Resolution",
+                    res_text,
                     !res_disabled && hovered_element_ == elem_resolution_dropdown,
                     resolution_dropdown_animation_);
     if (res_disabled)
@@ -679,17 +720,19 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
     y += dropdown_row_height;
 
     // Framerate dropdown
-    std::string fps_text = (selected_framerate_ >= 0 && selected_framerate_ < static_cast<int32_t>(framerate_options_.size()))
-        ? framerate_options_[selected_framerate_].label : "Select...";
-    render_dropdown(rend, y, "Framerate", fps_text,
-                    hovered_element_ == elem_framerate_dropdown,
-                    framerate_dropdown_animation_);
+    std::string fps_text =
+        (selected_framerate_ >= 0 && selected_framerate_ < static_cast<int32_t>(framerate_options_.size()))
+            ? framerate_options_[selected_framerate_].label
+            : "Select...";
+    render_dropdown(
+        rend, y, "Framerate", fps_text, hovered_element_ == elem_framerate_dropdown, framerate_dropdown_animation_);
     y += dropdown_row_height;
 
     // Checkboxes
     render_checkbox(rend, y, "VSync", vsync_, hovered_element_ == elem_vsync_checkbox);
     y += checkbox_row_height;
-    render_checkbox(rend, y, "Remember Window Position", remember_position_, hovered_element_ == elem_remember_position_checkbox);
+    render_checkbox(
+        rend, y, "Remember Window Position", remember_position_, hovered_element_ == elem_remember_position_checkbox);
     y += checkbox_row_height + 8;
 
     // Apply button
@@ -698,16 +741,23 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
     int32_t btn_x = bounds_.x + (dialog_width - btn_width) / 2;
 
     bool btn_hovered = hovered_element_ == elem_apply_button;
-    render_button_widget(rend, btn_x, y, btn_width, btn_height, "Apply",
-                         btn_hovered, sf::Color(50, 80, 50), sf::Color(70, 100, 70), sf::Color(100, 140, 100));
+    render_button_widget(rend,
+                         btn_x,
+                         y,
+                         btn_width,
+                         btn_height,
+                         "Apply",
+                         btn_hovered,
+                         sf::Color(50, 80, 50),
+                         sf::Color(70, 100, 70),
+                         sf::Color(100, 140, 100));
 
     // Revert countdown overlay
     if (revert_countdown_active_)
     {
         int32_t overlay_y = bounds_.y + content_start_y_offset;
         int32_t overlay_h = bounds_.height - content_start_y_offset;
-        rend.draw_rect(bounds_.x + 1, overlay_y, bounds_.width - 2, overlay_h,
-                       sf::Color(0, 0, 0, 180), true);
+        rend.draw_rect(bounds_.x + 1, overlay_y, bounds_.width - 2, overlay_h, sf::Color(0, 0, 0, 180), true);
 
         int32_t countdown_secs = static_cast<int32_t>(revert_countdown_timer_) + 1;
         std::string countdown_text = "Keep these display settings?";
@@ -724,23 +774,38 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
         int32_t keep_w = 120, keep_h = 30;
         int32_t keep_x = center_x - keep_w - 10;
         int32_t keep_y = center_y + 55;
-        render_button_widget(rend, keep_x, keep_y, keep_w, keep_h, "Keep Changes",
+        render_button_widget(rend,
+                             keep_x,
+                             keep_y,
+                             keep_w,
+                             keep_h,
+                             "Keep Changes",
                              hovered_element_ == elem_keep_changes_button,
-                             sf::Color(50, 90, 50), sf::Color(70, 120, 70), sf::Color(100, 160, 100));
+                             sf::Color(50, 90, 50),
+                             sf::Color(70, 120, 70),
+                             sf::Color(100, 160, 100));
 
         int32_t rev_w = 120, rev_h = 30;
         int32_t rev_x = center_x + 10;
         int32_t rev_y = center_y + 55;
-        render_button_widget(rend, rev_x, rev_y, rev_w, rev_h, "Revert",
+        render_button_widget(rend,
+                             rev_x,
+                             rev_y,
+                             rev_w,
+                             rev_h,
+                             "Revert",
                              hovered_element_ == elem_revert_button,
-                             sf::Color(90, 50, 50), sf::Color(120, 60, 60), sf::Color(160, 100, 100));
+                             sf::Color(90, 50, 50),
+                             sf::Color(120, 60, 60),
+                             sf::Color(160, 100, 100));
     }
 
     // Dropdown overlays (must render last, on top of everything)
-    auto render_dropdown_list = [&](float animation, int32_t dropdown_y, int32_t count,
-                                    int32_t hovered, int32_t selected,
-                                    auto get_label) {
-        if (animation <= 0.0f) return;
+    auto render_dropdown_list =
+        [&](float animation, int32_t dropdown_y, int32_t count, int32_t hovered, int32_t selected, auto get_label)
+    {
+        if (animation <= 0.0f)
+            return;
 
         int32_t item_height = 22;
         int32_t list_y = dropdown_y + 24;
@@ -774,21 +839,33 @@ void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
     };
 
     int32_t dd_base_y = content_y + section_header_height;
-    render_dropdown_list(display_mode_dropdown_animation_, dd_base_y,
-        display_mode_count_, display_mode_dropdown_hovered_, selected_display_mode_,
-        [](int32_t i) -> const char* { return display_mode_labels_[i]; });
+    render_dropdown_list(display_mode_dropdown_animation_,
+                         dd_base_y,
+                         display_mode_count_,
+                         display_mode_dropdown_hovered_,
+                         selected_display_mode_,
+                         [](int32_t i) -> const char* { return display_mode_labels_[i]; });
 
-    render_dropdown_list(monitor_dropdown_animation_, dd_base_y + dropdown_row_height,
-        static_cast<int32_t>(monitor_options_.size()), monitor_dropdown_hovered_, selected_monitor_,
-        [&](int32_t i) -> const std::string& { return monitor_options_[i].label; });
+    render_dropdown_list(monitor_dropdown_animation_,
+                         dd_base_y + dropdown_row_height,
+                         static_cast<int32_t>(monitor_options_.size()),
+                         monitor_dropdown_hovered_,
+                         selected_monitor_,
+                         [&](int32_t i) -> const std::string& { return monitor_options_[i].label; });
 
-    render_dropdown_list(resolution_dropdown_animation_, dd_base_y + dropdown_row_height * 2,
-        static_cast<int32_t>(resolution_options_.size()), resolution_dropdown_hovered_, selected_resolution_,
-        [&](int32_t i) -> const std::string& { return resolution_options_[i].label; });
+    render_dropdown_list(resolution_dropdown_animation_,
+                         dd_base_y + dropdown_row_height * 2,
+                         static_cast<int32_t>(resolution_options_.size()),
+                         resolution_dropdown_hovered_,
+                         selected_resolution_,
+                         [&](int32_t i) -> const std::string& { return resolution_options_[i].label; });
 
-    render_dropdown_list(framerate_dropdown_animation_, dd_base_y + dropdown_row_height * 3,
-        static_cast<int32_t>(framerate_options_.size()), framerate_dropdown_hovered_, selected_framerate_,
-        [&](int32_t i) -> const std::string& { return framerate_options_[i].label; });
+    render_dropdown_list(framerate_dropdown_animation_,
+                         dd_base_y + dropdown_row_height * 3,
+                         static_cast<int32_t>(framerate_options_.size()),
+                         framerate_dropdown_hovered_,
+                         selected_framerate_,
+                         [&](int32_t i) -> const std::string& { return framerate_options_[i].label; });
 }
 
 void settings_dialog::render_audio_tab(renderer& rend, int32_t content_y)
@@ -822,17 +899,23 @@ void settings_dialog::render_social_tab(renderer& rend, int32_t content_y)
 
     render_checkbox(rend, y, "Show Timestamps", show_timestamps_, hovered_element_ == elem_show_timestamps);
     rend.draw_text("Prepend [HH:MM] to messages in chat history",
-                   bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
+                   bounds_.x + content_padding + 41,
+                   y + 18,
+                   sf::Color(120, 120, 150),
+                   9);
     y += checkbox_row_height + 12;
 
     render_checkbox(rend, y, "Filter Profanity", filter_profanity_, hovered_element_ == elem_filter_profanity);
-    rend.draw_text("Replace profane words with asterisks",
-                   bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
+    rend.draw_text(
+        "Replace profane words with asterisks", bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
     y += checkbox_row_height + 12;
 
     render_checkbox(rend, y, "Block Spam", block_spam_, hovered_element_ == elem_block_spam);
     rend.draw_text("Suppress rapid repeated messages from the same sender",
-                   bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
+                   bounds_.x + content_padding + 41,
+                   y + 18,
+                   sf::Color(120, 120, 150),
+                   9);
 }
 
 void settings_dialog::render_keybindings_tab(renderer& rend, int32_t content_y)
@@ -886,9 +969,16 @@ void settings_dialog::render_help_tab(renderer& rend, int32_t content_y)
     y += section_header_height;
 
     int32_t btn_x = bounds_.x + content_padding + 10;
-    render_button_widget(rend, btn_x, y, 120, 28, "Open Help",
+    render_button_widget(rend,
+                         btn_x,
+                         y,
+                         120,
+                         28,
+                         "Open Help",
                          hovered_element_ == elem_open_help,
-                         sf::Color(50, 70, 90), sf::Color(70, 90, 120), sf::Color(100, 130, 160));
+                         sf::Color(50, 70, 90),
+                         sf::Color(70, 90, 120),
+                         sf::Color(100, 130, 160));
 }
 
 void settings_dialog::render_system_tab(renderer& rend, int32_t content_y)
@@ -900,14 +990,28 @@ void settings_dialog::render_system_tab(renderer& rend, int32_t content_y)
     int32_t btn_h = 36;
     int32_t btn_x = center_x - btn_w / 2;
 
-    render_button_widget(rend, btn_x, y, btn_w, btn_h, "Logout",
+    render_button_widget(rend,
+                         btn_x,
+                         y,
+                         btn_w,
+                         btn_h,
+                         "Logout",
                          hovered_element_ == elem_logout_button,
-                         sf::Color(60, 60, 80), sf::Color(80, 80, 110), sf::Color(100, 100, 140));
+                         sf::Color(60, 60, 80),
+                         sf::Color(80, 80, 110),
+                         sf::Color(100, 100, 140));
     y += btn_h + 20;
 
-    render_button_widget(rend, btn_x, y, btn_w, btn_h, "Exit Game",
+    render_button_widget(rend,
+                         btn_x,
+                         y,
+                         btn_w,
+                         btn_h,
+                         "Exit Game",
                          hovered_element_ == elem_exit_button,
-                         sf::Color(90, 50, 50), sf::Color(120, 60, 60), sf::Color(160, 90, 90));
+                         sf::Color(90, 50, 50),
+                         sf::Color(120, 60, 60),
+                         sf::Color(160, 90, 90));
 }
 
 void settings_dialog::render_debug_tab(renderer& rend, int32_t content_y)
@@ -950,8 +1054,7 @@ void settings_dialog::render_toggle_option(renderer& rend, int32_t y, const char
 
     if (selected)
     {
-        rend.draw_rect(x + 3, y + 6, radio_size - 6, radio_size - 6,
-                       sf::Color(100, 200, 100), true);
+        rend.draw_rect(x + 3, y + 6, radio_size - 6, radio_size - 6, sf::Color(100, 200, 100), true);
     }
 
     sf::Color text_color = hovered ? sf::Color(255, 255, 200) : sf::Color(200, 200, 220);
@@ -987,7 +1090,8 @@ void settings_dialog::render_slider(renderer& rend, int32_t y, const char* label
     rend.draw_text(percent_str, slider_x + slider_width + 10, y + 2, sf::Color(150, 150, 180), 10);
 }
 
-void settings_dialog::render_dropdown(renderer& rend, int32_t y, const char* label, const std::string& value, bool hovered, float animation)
+void settings_dialog::render_dropdown(
+    renderer& rend, int32_t y, const char* label, const std::string& value, bool hovered, float animation)
 {
     int32_t label_x = bounds_.x + content_padding + 10;
     int32_t dropdown_x = bounds_.x + content_padding + 100;
@@ -1022,17 +1126,23 @@ void settings_dialog::render_checkbox(renderer& rend, int32_t y, const char* lab
 
     if (checked)
     {
-        rend.draw_rect(x + 3, y + 5, checkbox_size - 6, checkbox_size - 6,
-                       sf::Color(100, 200, 100), true);
+        rend.draw_rect(x + 3, y + 5, checkbox_size - 6, checkbox_size - 6, sf::Color(100, 200, 100), true);
     }
 
     sf::Color text_color = hovered ? sf::Color(255, 255, 200) : sf::Color(200, 200, 220);
     rend.draw_text(label, x + checkbox_size + 10, y + 3, text_color, 11);
 }
 
-void settings_dialog::render_button_widget(renderer& rend, int32_t x, int32_t y, int32_t w, int32_t h,
-                                           const char* text, bool hovered,
-                                           sf::Color normal, sf::Color hover, sf::Color border)
+void settings_dialog::render_button_widget(renderer& rend,
+                                           int32_t x,
+                                           int32_t y,
+                                           int32_t w,
+                                           int32_t h,
+                                           const char* text,
+                                           bool hovered,
+                                           sf::Color normal,
+                                           sf::Color hover,
+                                           sf::Color border)
 {
     sf::Color bg = hovered ? hover : normal;
     rend.draw_rect(x, y, w, h, bg, true);
@@ -1053,14 +1163,17 @@ void settings_dialog::render_button_widget(renderer& rend, int32_t x, int32_t y,
 int32_t settings_dialog::get_hovered_tab(int32_t mouse_x, int32_t mouse_y) const
 {
     int32_t tab_y = bounds_.y + title_bar_height;
-    if (mouse_y < tab_y || mouse_y >= tab_y + tab_bar_height) return -1;
-    if (mouse_x < bounds_.x || mouse_x >= bounds_.x + bounds_.width) return -1;
+    if (mouse_y < tab_y || mouse_y >= tab_y + tab_bar_height)
+        return -1;
+    if (mouse_x < bounds_.x || mouse_x >= bounds_.x + bounds_.width)
+        return -1;
 
     int32_t visible_tabs = tab_count;
     int32_t tab_width = bounds_.width / visible_tabs;
 
     int32_t index = (mouse_x - bounds_.x) / tab_width;
-    if (index >= 0 && index < visible_tabs) return index;
+    if (index >= 0 && index < visible_tabs)
+        return index;
     return -1;
 }
 
@@ -1089,14 +1202,22 @@ int32_t settings_dialog::get_hovered_element(int32_t mx, int32_t my) const
 
     switch (active_tab_)
     {
-        case settings_tab::game:    return get_hovered_element_game(mx, my, content_y);
-        case settings_tab::video:   return get_hovered_element_video(mx, my, content_y);
-        case settings_tab::audio:   return get_hovered_element_audio(mx, my, content_y);
-        case settings_tab::social:  return get_hovered_element_social(mx, my, content_y);
-        case settings_tab::help:    return get_hovered_element_help(mx, my, content_y);
-        case settings_tab::system:  return get_hovered_element_system(mx, my, content_y);
-        case settings_tab::debug:   return get_hovered_element_debug(mx, my, content_y);
-        default: return -1;
+    case settings_tab::game:
+        return get_hovered_element_game(mx, my, content_y);
+    case settings_tab::video:
+        return get_hovered_element_video(mx, my, content_y);
+    case settings_tab::audio:
+        return get_hovered_element_audio(mx, my, content_y);
+    case settings_tab::social:
+        return get_hovered_element_social(mx, my, content_y);
+    case settings_tab::help:
+        return get_hovered_element_help(mx, my, content_y);
+    case settings_tab::system:
+        return get_hovered_element_system(mx, my, content_y);
+    case settings_tab::debug:
+        return get_hovered_element_debug(mx, my, content_y);
+    default:
+        return -1;
     }
 }
 
@@ -1107,30 +1228,40 @@ int32_t settings_dialog::get_hovered_element_game(int32_t mx, int32_t my, int32_
     int32_t y = content_y + section_header_height;
 
     // Classic toggle
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_style_classic;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_style_classic;
     y += checkbox_row_height;
     // Modern toggle
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_style_modern;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_style_modern;
     y += checkbox_row_height + 10 + section_header_height;
 
     // Gameplay checkboxes
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_damage;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_damage;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_names;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_names;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_guild_names;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_guild_names;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_hp_bars;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_hp_bars;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_camera_shake;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_camera_shake;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_weather;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_weather;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_tint;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_tint;
     y += checkbox_row_height;
 
     // Type to chat
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_type_to_chat;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_type_to_chat;
 
     return -1;
 }
@@ -1145,8 +1276,10 @@ int32_t settings_dialog::get_hovered_element_video(int32_t mx, int32_t my, int32
     int32_t y = content_y + section_header_height;
 
     // Dropdown item helper
-    auto check_dropdown_items = [&](bool expanded, int32_t dd_y, int32_t count, int32_t base) -> int32_t {
-        if (!expanded) return -1;
+    auto check_dropdown_items = [&](bool expanded, int32_t dd_y, int32_t count, int32_t base) -> int32_t
+    {
+        if (!expanded)
+            return -1;
         int32_t list_y = dd_y + 24;
         int32_t item_height = 22;
         int32_t list_height = count * item_height;
@@ -1158,53 +1291,67 @@ int32_t settings_dialog::get_hovered_element_video(int32_t mx, int32_t my, int32
     };
 
     // Display mode
-    if (mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24) return elem_display_mode_dropdown;
-    int32_t item = check_dropdown_items(display_mode_dropdown_expanded_, y, display_mode_count_, elem_display_mode_item_base);
-    if (item >= 0) return item;
+    if (mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24)
+        return elem_display_mode_dropdown;
+    int32_t item =
+        check_dropdown_items(display_mode_dropdown_expanded_, y, display_mode_count_, elem_display_mode_item_base);
+    if (item >= 0)
+        return item;
     y += dropdown_row_height;
 
     // Monitor
     bool mon_disabled = (selected_display_mode_ == 0);
-    if (!mon_disabled && mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24) return elem_monitor_dropdown;
+    if (!mon_disabled && mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24)
+        return elem_monitor_dropdown;
     if (!mon_disabled)
     {
-        item = check_dropdown_items(monitor_dropdown_expanded_, y,
-                                     static_cast<int32_t>(monitor_options_.size()), elem_monitor_item_base);
-        if (item >= 0) return item;
+        item = check_dropdown_items(
+            monitor_dropdown_expanded_, y, static_cast<int32_t>(monitor_options_.size()), elem_monitor_item_base);
+        if (item >= 0)
+            return item;
     }
     y += dropdown_row_height;
 
     // Resolution
     bool res_disabled = (selected_display_mode_ == 1);
-    if (!res_disabled && mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24) return elem_resolution_dropdown;
+    if (!res_disabled && mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24)
+        return elem_resolution_dropdown;
     if (!res_disabled)
     {
-        item = check_dropdown_items(resolution_dropdown_expanded_, y,
-                                     static_cast<int32_t>(resolution_options_.size()), elem_resolution_item_base);
-        if (item >= 0) return item;
+        item = check_dropdown_items(resolution_dropdown_expanded_,
+                                    y,
+                                    static_cast<int32_t>(resolution_options_.size()),
+                                    elem_resolution_item_base);
+        if (item >= 0)
+            return item;
     }
     y += dropdown_row_height;
 
     // Framerate
-    if (mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24) return elem_framerate_dropdown;
-    item = check_dropdown_items(framerate_dropdown_expanded_, y,
-                                 static_cast<int32_t>(framerate_options_.size()), elem_framerate_item_base);
-    if (item >= 0) return item;
+    if (mx >= dd_x && mx < dd_x + dd_w && my >= y && my < y + 24)
+        return elem_framerate_dropdown;
+    item = check_dropdown_items(
+        framerate_dropdown_expanded_, y, static_cast<int32_t>(framerate_options_.size()), elem_framerate_item_base);
+    if (item >= 0)
+        return item;
     y += dropdown_row_height;
 
     // VSync
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_vsync_checkbox;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_vsync_checkbox;
     y += checkbox_row_height;
 
     // Remember position
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_remember_position_checkbox;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_remember_position_checkbox;
     y += checkbox_row_height + 8;
 
     // Apply button
     int32_t btn_w_apply = 100;
     int32_t btn_h_apply = 28;
     int32_t btn_x = bounds_.x + (dialog_width - btn_w_apply) / 2;
-    if (mx >= btn_x && mx < btn_x + btn_w_apply && my >= y && my < y + btn_h_apply) return elem_apply_button;
+    if (mx >= btn_x && mx < btn_x + btn_w_apply && my >= y && my < y + btn_h_apply)
+        return elem_apply_button;
 
     return -1;
 }
@@ -1218,16 +1365,21 @@ int32_t settings_dialog::get_hovered_element_audio(int32_t mx, int32_t my, int32
 
     int32_t y = content_y + section_header_height;
 
-    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20) return elem_master_slider;
+    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20)
+        return elem_master_slider;
     y += slider_row_height;
-    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20) return elem_music_slider;
+    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20)
+        return elem_music_slider;
     y += slider_row_height;
-    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20) return elem_sound_slider;
+    if (mx >= slider_x && mx < slider_x + slider_w && my >= y && my < y + 20)
+        return elem_sound_slider;
     y += slider_row_height + 10 + section_header_height;
 
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_music_enabled;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_music_enabled;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_sfx_enabled;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_sfx_enabled;
 
     return -1;
 }
@@ -1239,11 +1391,14 @@ int32_t settings_dialog::get_hovered_element_social(int32_t mx, int32_t my, int3
     int32_t y = content_y + section_header_height;
 
     // Checkbox rows with description text (checkbox_row_height + 12 spacing)
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_timestamps;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_timestamps;
     y += checkbox_row_height + 12;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_filter_profanity;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_filter_profanity;
     y += checkbox_row_height + 12;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_block_spam;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_block_spam;
 
     return -1;
 }
@@ -1255,17 +1410,20 @@ int32_t settings_dialog::get_hovered_element_help(int32_t mx, int32_t my, int32_
     // Forum link area
     int32_t link_x = bounds_.x + content_padding + 70;
     int32_t link_w = static_cast<int32_t>(strlen("https://forum.helbreathx.net")) * 7;
-    if (mx >= link_x && mx < link_x + link_w && my >= y && my < y + checkbox_row_height) return elem_forum_link;
+    if (mx >= link_x && mx < link_x + link_w && my >= y && my < y + checkbox_row_height)
+        return elem_forum_link;
     y += checkbox_row_height + 4;
 
     // Discord link area
     link_w = static_cast<int32_t>(strlen("https://discord.gg/helbreath")) * 7;
-    if (mx >= link_x && mx < link_x + link_w && my >= y && my < y + checkbox_row_height) return elem_discord_link;
+    if (mx >= link_x && mx < link_x + link_w && my >= y && my < y + checkbox_row_height)
+        return elem_discord_link;
     y += checkbox_row_height + 20 + section_header_height;
 
     // Open Help button
     int32_t btn_x = bounds_.x + content_padding + 10;
-    if (mx >= btn_x && mx < btn_x + 120 && my >= y && my < y + 28) return elem_open_help;
+    if (mx >= btn_x && mx < btn_x + 120 && my >= y && my < y + 28)
+        return elem_open_help;
 
     return -1;
 }
@@ -1277,9 +1435,11 @@ int32_t settings_dialog::get_hovered_element_system(int32_t mx, int32_t my, int3
     int32_t btn_w = 160, btn_h = 36;
     int32_t btn_x = center_x - btn_w / 2;
 
-    if (mx >= btn_x && mx < btn_x + btn_w && my >= y && my < y + btn_h) return elem_logout_button;
+    if (mx >= btn_x && mx < btn_x + btn_w && my >= y && my < y + btn_h)
+        return elem_logout_button;
     y += btn_h + 20;
-    if (mx >= btn_x && mx < btn_x + btn_w && my >= y && my < y + btn_h) return elem_exit_button;
+    if (mx >= btn_x && mx < btn_x + btn_w && my >= y && my < y + btn_h)
+        return elem_exit_button;
 
     return -1;
 }
@@ -1290,13 +1450,17 @@ int32_t settings_dialog::get_hovered_element_debug(int32_t mx, int32_t my, int32
     int32_t w = dialog_width - content_padding * 2;
     int32_t y = content_y + section_header_height;
 
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_debug_stats;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_debug_stats;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_fps_cb;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_fps_cb;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_show_entity_info;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_show_entity_info;
     y += checkbox_row_height;
-    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height) return elem_verbose_logging;
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_verbose_logging;
 
     return -1;
 }
@@ -1307,9 +1471,11 @@ int32_t settings_dialog::get_hovered_element_debug(int32_t mx, int32_t my, int32
 
 bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
 {
-    if (!visible_) return false;
+    if (!visible_)
+        return false;
 
-    auto close_all_dropdowns = [this]() {
+    auto close_all_dropdowns = [this]()
+    {
         monitor_dropdown_expanded_ = false;
         display_mode_dropdown_expanded_ = false;
         resolution_dropdown_expanded_ = false;
@@ -1327,7 +1493,8 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
             {
                 close_all_dropdowns();
                 close();
-                if (on_close_cb_) on_close_cb_();
+                if (on_close_cb_)
+                    on_close_cb_();
                 return true;
             }
         }
@@ -1377,9 +1544,12 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
 
                 if (on_resolution_change_)
                 {
-                    on_resolution_change_(revert_state_.width, revert_state_.height,
-                                          revert_state_.fullscreen, revert_state_.borderless,
-                                          revert_state_.monitor_x, revert_state_.monitor_y);
+                    on_resolution_change_(revert_state_.width,
+                                          revert_state_.height,
+                                          revert_state_.fullscreen,
+                                          revert_state_.borderless,
+                                          revert_state_.monitor_x,
+                                          revert_state_.monitor_y);
                 }
                 applied_resolution_ = selected_resolution_;
                 applied_display_mode_ = selected_display_mode_;
@@ -1388,39 +1558,47 @@ bool settings_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button 
                 spdlog::info("Display settings reverted (user)");
                 return true;
             }
-            return true;  // Block all other clicks during countdown
+            return true; // Block all other clicks during countdown
         }
 
         // Dispatch to per-tab handlers
         switch (active_tab_)
         {
-            case settings_tab::game:
-                if (handle_game_tab_click(clicked)) return true;
-                break;
-            case settings_tab::video:
-                if (handle_video_tab_click(clicked)) return true;
-                break;
-            case settings_tab::audio:
-                if (handle_audio_tab_click(clicked, x)) return true;
-                break;
-            case settings_tab::social:
-                if (handle_social_tab_click(clicked)) return true;
-                break;
-            case settings_tab::help:
-                if (handle_help_tab_click(clicked)) return true;
-                break;
-            case settings_tab::system:
-                if (handle_system_tab_click(clicked)) return true;
-                break;
-            case settings_tab::debug:
-                if (handle_debug_tab_click(clicked)) return true;
-                break;
-            default: break;
+        case settings_tab::game:
+            if (handle_game_tab_click(clicked))
+                return true;
+            break;
+        case settings_tab::video:
+            if (handle_video_tab_click(clicked))
+                return true;
+            break;
+        case settings_tab::audio:
+            if (handle_audio_tab_click(clicked, x))
+                return true;
+            break;
+        case settings_tab::social:
+            if (handle_social_tab_click(clicked))
+                return true;
+            break;
+        case settings_tab::help:
+            if (handle_help_tab_click(clicked))
+                return true;
+            break;
+        case settings_tab::system:
+            if (handle_system_tab_click(clicked))
+                return true;
+            break;
+        case settings_tab::debug:
+            if (handle_debug_tab_click(clicked))
+                return true;
+            break;
+        default:
+            break;
         }
 
         // Close dropdowns on any unhandled click
-        if (monitor_dropdown_expanded_ || display_mode_dropdown_expanded_ ||
-            resolution_dropdown_expanded_ || framerate_dropdown_expanded_)
+        if (monitor_dropdown_expanded_ || display_mode_dropdown_expanded_ || resolution_dropdown_expanded_ ||
+            framerate_dropdown_expanded_)
         {
             close_all_dropdowns();
             return true;
@@ -1434,54 +1612,65 @@ bool settings_dialog::handle_game_tab_click(int32_t elem)
 {
     switch (elem)
     {
-        case elem_style_classic:
-            current_style_ = ui_style::classic;
-            if (on_style_change_) on_style_change_(current_style_);
-            return true;
-        case elem_style_modern:
-            current_style_ = ui_style::modern;
-            if (on_style_change_) on_style_change_(current_style_);
-            return true;
-        case elem_show_damage:
-            show_damage_numbers_ = !show_damage_numbers_;
-            if (on_show_damage_numbers_change_) on_show_damage_numbers_change_(show_damage_numbers_);
-            return true;
-        case elem_show_names:
-            show_names_ = !show_names_;
-            if (on_show_names_change_) on_show_names_change_(show_names_);
-            return true;
-        case elem_show_guild_names:
-            show_guild_names_ = !show_guild_names_;
-            if (on_show_guild_names_change_) on_show_guild_names_change_(show_guild_names_);
-            return true;
-        case elem_show_hp_bars:
-            show_hp_bars_ = !show_hp_bars_;
-            if (on_show_hp_bars_change_) on_show_hp_bars_change_(show_hp_bars_);
-            return true;
-        case elem_camera_shake:
-            camera_shake_ = !camera_shake_;
-            if (on_camera_shake_change_) on_camera_shake_change_(camera_shake_);
-            return true;
-        case elem_show_weather:
-            show_weather_ = !show_weather_;
-            if (on_show_weather_change_) on_show_weather_change_(show_weather_);
-            return true;
-        case elem_show_tint:
-            show_tint_ = !show_tint_;
-            if (on_show_tint_change_) on_show_tint_change_(show_tint_);
-            return true;
-        case elem_type_to_chat:
-            type_to_chat_ = !type_to_chat_;
-            if (on_type_to_chat_change_) on_type_to_chat_change_(type_to_chat_);
-            return true;
-        default:
-            return false;
+    case elem_style_classic:
+        current_style_ = ui_style::classic;
+        if (on_style_change_)
+            on_style_change_(current_style_);
+        return true;
+    case elem_style_modern:
+        current_style_ = ui_style::modern;
+        if (on_style_change_)
+            on_style_change_(current_style_);
+        return true;
+    case elem_show_damage:
+        show_damage_numbers_ = !show_damage_numbers_;
+        if (on_show_damage_numbers_change_)
+            on_show_damage_numbers_change_(show_damage_numbers_);
+        return true;
+    case elem_show_names:
+        show_names_ = !show_names_;
+        if (on_show_names_change_)
+            on_show_names_change_(show_names_);
+        return true;
+    case elem_show_guild_names:
+        show_guild_names_ = !show_guild_names_;
+        if (on_show_guild_names_change_)
+            on_show_guild_names_change_(show_guild_names_);
+        return true;
+    case elem_show_hp_bars:
+        show_hp_bars_ = !show_hp_bars_;
+        if (on_show_hp_bars_change_)
+            on_show_hp_bars_change_(show_hp_bars_);
+        return true;
+    case elem_camera_shake:
+        camera_shake_ = !camera_shake_;
+        if (on_camera_shake_change_)
+            on_camera_shake_change_(camera_shake_);
+        return true;
+    case elem_show_weather:
+        show_weather_ = !show_weather_;
+        if (on_show_weather_change_)
+            on_show_weather_change_(show_weather_);
+        return true;
+    case elem_show_tint:
+        show_tint_ = !show_tint_;
+        if (on_show_tint_change_)
+            on_show_tint_change_(show_tint_);
+        return true;
+    case elem_type_to_chat:
+        type_to_chat_ = !type_to_chat_;
+        if (on_type_to_chat_change_)
+            on_type_to_chat_change_(type_to_chat_);
+        return true;
+    default:
+        return false;
     }
 }
 
 bool settings_dialog::handle_video_tab_click(int32_t elem)
 {
-    auto close_all_dropdowns = [this]() {
+    auto close_all_dropdowns = [this]()
+    {
         monitor_dropdown_expanded_ = false;
         display_mode_dropdown_expanded_ = false;
         resolution_dropdown_expanded_ = false;
@@ -1496,7 +1685,8 @@ bool settings_dialog::handle_video_tab_click(int32_t elem)
         {
             selected_framerate_ = idx;
             framerate_dropdown_expanded_ = false;
-            if (on_framerate_change_) on_framerate_change_(framerate_options_[idx].fps);
+            if (on_framerate_change_)
+                on_framerate_change_(framerate_options_[idx].fps);
         }
         return true;
     }
@@ -1521,8 +1711,10 @@ bool settings_dialog::handle_video_tab_click(int32_t elem)
         {
             selected_display_mode_ = idx;
             display_mode_dropdown_expanded_ = false;
-            if (idx == 0) monitor_dropdown_expanded_ = false;
-            if (idx == 1) resolution_dropdown_expanded_ = false;
+            if (idx == 0)
+                monitor_dropdown_expanded_ = false;
+            if (idx == 1)
+                resolution_dropdown_expanded_ = false;
             fullscreen_ = (idx == 2);
         }
         return true;
@@ -1543,150 +1735,158 @@ bool settings_dialog::handle_video_tab_click(int32_t elem)
 
     switch (elem)
     {
-        case elem_display_mode_dropdown:
-            monitor_dropdown_expanded_ = false;
-            resolution_dropdown_expanded_ = false;
-            framerate_dropdown_expanded_ = false;
-            display_mode_dropdown_expanded_ = !display_mode_dropdown_expanded_;
-            return true;
-        case elem_monitor_dropdown:
-            display_mode_dropdown_expanded_ = false;
-            resolution_dropdown_expanded_ = false;
-            framerate_dropdown_expanded_ = false;
-            monitor_dropdown_expanded_ = !monitor_dropdown_expanded_;
-            return true;
-        case elem_resolution_dropdown:
-            display_mode_dropdown_expanded_ = false;
-            monitor_dropdown_expanded_ = false;
-            framerate_dropdown_expanded_ = false;
-            resolution_dropdown_expanded_ = !resolution_dropdown_expanded_;
-            return true;
-        case elem_framerate_dropdown:
-            display_mode_dropdown_expanded_ = false;
-            monitor_dropdown_expanded_ = false;
-            resolution_dropdown_expanded_ = false;
-            framerate_dropdown_expanded_ = !framerate_dropdown_expanded_;
-            return true;
-        case elem_vsync_checkbox:
-            close_all_dropdowns();
-            vsync_ = !vsync_;
-            if (on_vsync_change_) on_vsync_change_(vsync_);
-            return true;
-        case elem_remember_position_checkbox:
-            close_all_dropdowns();
-            remember_position_ = !remember_position_;
-            if (on_remember_position_change_) on_remember_position_change_(remember_position_);
-            return true;
-        case elem_apply_button:
+    case elem_display_mode_dropdown:
+        monitor_dropdown_expanded_ = false;
+        resolution_dropdown_expanded_ = false;
+        framerate_dropdown_expanded_ = false;
+        display_mode_dropdown_expanded_ = !display_mode_dropdown_expanded_;
+        return true;
+    case elem_monitor_dropdown:
+        display_mode_dropdown_expanded_ = false;
+        resolution_dropdown_expanded_ = false;
+        framerate_dropdown_expanded_ = false;
+        monitor_dropdown_expanded_ = !monitor_dropdown_expanded_;
+        return true;
+    case elem_resolution_dropdown:
+        display_mode_dropdown_expanded_ = false;
+        monitor_dropdown_expanded_ = false;
+        framerate_dropdown_expanded_ = false;
+        resolution_dropdown_expanded_ = !resolution_dropdown_expanded_;
+        return true;
+    case elem_framerate_dropdown:
+        display_mode_dropdown_expanded_ = false;
+        monitor_dropdown_expanded_ = false;
+        resolution_dropdown_expanded_ = false;
+        framerate_dropdown_expanded_ = !framerate_dropdown_expanded_;
+        return true;
+    case elem_vsync_checkbox:
+        close_all_dropdowns();
+        vsync_ = !vsync_;
+        if (on_vsync_change_)
+            on_vsync_change_(vsync_);
+        return true;
+    case elem_remember_position_checkbox:
+        close_all_dropdowns();
+        remember_position_ = !remember_position_;
+        if (on_remember_position_change_)
+            on_remember_position_change_(remember_position_);
+        return true;
+    case elem_apply_button:
+    {
+        close_all_dropdowns();
+        skip_close_after_apply_ = false;
+
+        if (on_resolution_change_)
         {
-            close_all_dropdowns();
-            skip_close_after_apply_ = false;
+            bool is_borderless = (selected_display_mode_ == 1);
+            bool is_fullscreen = (selected_display_mode_ == 2);
 
-            if (on_resolution_change_)
+            uint32_t res_w = 640, res_h = 480;
+            int32_t mon_x = 0, mon_y = 0;
+
+            if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
             {
-                bool is_borderless = (selected_display_mode_ == 1);
-                bool is_fullscreen = (selected_display_mode_ == 2);
+                mon_x = monitor_options_[selected_monitor_].x;
+                mon_y = monitor_options_[selected_monitor_].y;
+            }
 
-                uint32_t res_w = 640, res_h = 480;
-                int32_t mon_x = 0, mon_y = 0;
-
+            if (is_borderless)
+            {
                 if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
                 {
-                    mon_x = monitor_options_[selected_monitor_].x;
-                    mon_y = monitor_options_[selected_monitor_].y;
-                }
-
-                if (is_borderless)
-                {
-                    if (selected_monitor_ >= 0 && selected_monitor_ < static_cast<int32_t>(monitor_options_.size()))
-                    {
-                        res_w = static_cast<uint32_t>(monitor_options_[selected_monitor_].width);
-                        res_h = static_cast<uint32_t>(monitor_options_[selected_monitor_].height);
-                    }
-                }
-                else if (selected_resolution_ >= 0 && selected_resolution_ < static_cast<int32_t>(resolution_options_.size()))
-                {
-                    res_w = resolution_options_[selected_resolution_].width;
-                    res_h = resolution_options_[selected_resolution_].height;
-                }
-
-                bool changed = (selected_resolution_ != applied_resolution_ ||
-                                selected_display_mode_ != applied_display_mode_ ||
-                                selected_monitor_ != applied_monitor_);
-
-                if (changed)
-                {
-                    bool old_borderless = (applied_display_mode_ == 1);
-                    bool old_fullscreen = (applied_display_mode_ == 2);
-                    uint32_t old_w = 640, old_h = 480;
-                    int32_t old_mon_x = 0, old_mon_y = 0;
-
-                    if (old_borderless)
-                    {
-                        auto& video = config::instance().video();
-                        old_w = video.screen_width;
-                        old_h = video.screen_height;
-                    }
-                    else if (applied_resolution_ >= 0 && applied_resolution_ < static_cast<int32_t>(resolution_options_.size()))
-                    {
-                        old_w = resolution_options_[applied_resolution_].width;
-                        old_h = resolution_options_[applied_resolution_].height;
-                    }
-                    else
-                    {
-                        auto& video = config::instance().video();
-                        old_w = video.screen_width;
-                        old_h = video.screen_height;
-                    }
-
-                    auto& video = config::instance().video();
-                    for (const auto& m : monitors_)
-                    {
-                        if (m.index == video.monitor_index)
-                        {
-                            old_mon_x = m.x;
-                            old_mon_y = m.y;
-                            break;
-                        }
-                    }
-
-                    int32_t old_monitor_option_idx = 0;
-                    for (size_t i = 0; i < monitor_options_.size(); ++i)
-                    {
-                        if (monitor_options_[i].index == video.monitor_index)
-                        {
-                            old_monitor_option_idx = static_cast<int32_t>(i);
-                            break;
-                        }
-                    }
-
-                    revert_state_ = {
-                        old_w, old_h, old_fullscreen, old_borderless,
-                        old_mon_x, old_mon_y,
-                        applied_resolution_, applied_display_mode_, old_monitor_option_idx
-                    };
-
-                    on_resolution_change_(res_w, res_h, is_fullscreen, is_borderless, mon_x, mon_y);
-                    applied_resolution_ = selected_resolution_;
-                    applied_display_mode_ = selected_display_mode_;
-                    applied_monitor_ = selected_monitor_;
-                    applied_fullscreen_ = is_fullscreen;
-
-                    revert_countdown_active_ = true;
-                    revert_countdown_timer_ = revert_countdown_duration_;
+                    res_w = static_cast<uint32_t>(monitor_options_[selected_monitor_].width);
+                    res_h = static_cast<uint32_t>(monitor_options_[selected_monitor_].height);
                 }
             }
-
-            if (on_apply_) on_apply_();
-            if (!skip_close_after_apply_ && !revert_countdown_active_)
+            else if (selected_resolution_ >= 0 &&
+                     selected_resolution_ < static_cast<int32_t>(resolution_options_.size()))
             {
-                // Don't close - stay on the video tab
+                res_w = resolution_options_[selected_resolution_].width;
+                res_h = resolution_options_[selected_resolution_].height;
             }
-            skip_close_after_apply_ = false;
-            return true;
+
+            bool changed = (selected_resolution_ != applied_resolution_ ||
+                            selected_display_mode_ != applied_display_mode_ || selected_monitor_ != applied_monitor_);
+
+            if (changed)
+            {
+                bool old_borderless = (applied_display_mode_ == 1);
+                bool old_fullscreen = (applied_display_mode_ == 2);
+                uint32_t old_w = 640, old_h = 480;
+                int32_t old_mon_x = 0, old_mon_y = 0;
+
+                if (old_borderless)
+                {
+                    auto& video = config::instance().video();
+                    old_w = video.screen_width;
+                    old_h = video.screen_height;
+                }
+                else if (applied_resolution_ >= 0 &&
+                         applied_resolution_ < static_cast<int32_t>(resolution_options_.size()))
+                {
+                    old_w = resolution_options_[applied_resolution_].width;
+                    old_h = resolution_options_[applied_resolution_].height;
+                }
+                else
+                {
+                    auto& video = config::instance().video();
+                    old_w = video.screen_width;
+                    old_h = video.screen_height;
+                }
+
+                auto& video = config::instance().video();
+                for (const auto& m : monitors_)
+                {
+                    if (m.index == video.monitor_index)
+                    {
+                        old_mon_x = m.x;
+                        old_mon_y = m.y;
+                        break;
+                    }
+                }
+
+                int32_t old_monitor_option_idx = 0;
+                for (size_t i = 0; i < monitor_options_.size(); ++i)
+                {
+                    if (monitor_options_[i].index == video.monitor_index)
+                    {
+                        old_monitor_option_idx = static_cast<int32_t>(i);
+                        break;
+                    }
+                }
+
+                revert_state_ = {old_w,
+                                 old_h,
+                                 old_fullscreen,
+                                 old_borderless,
+                                 old_mon_x,
+                                 old_mon_y,
+                                 applied_resolution_,
+                                 applied_display_mode_,
+                                 old_monitor_option_idx};
+
+                on_resolution_change_(res_w, res_h, is_fullscreen, is_borderless, mon_x, mon_y);
+                applied_resolution_ = selected_resolution_;
+                applied_display_mode_ = selected_display_mode_;
+                applied_monitor_ = selected_monitor_;
+                applied_fullscreen_ = is_fullscreen;
+
+                revert_countdown_active_ = true;
+                revert_countdown_timer_ = revert_countdown_duration_;
+            }
         }
-        default:
-            return false;
+
+        if (on_apply_)
+            on_apply_();
+        if (!skip_close_after_apply_ && !revert_countdown_active_)
+        {
+            // Don't close - stay on the video tab
+        }
+        skip_close_after_apply_ = false;
+        return true;
+    }
+    default:
+        return false;
     }
 }
 
@@ -1694,28 +1894,30 @@ bool settings_dialog::handle_audio_tab_click(int32_t elem, int32_t /*x*/)
 {
     switch (elem)
     {
-        case elem_master_slider:
-            dragging_slider_ = true;
-            dragging_slider_index_ = elem_master_slider;
-            return true;
-        case elem_music_slider:
-            dragging_slider_ = true;
-            dragging_slider_index_ = elem_music_slider;
-            return true;
-        case elem_sound_slider:
-            dragging_slider_ = true;
-            dragging_slider_index_ = elem_sound_slider;
-            return true;
-        case elem_music_enabled:
-            music_enabled_ = !music_enabled_;
-            if (on_music_enabled_change_) on_music_enabled_change_(music_enabled_);
-            return true;
-        case elem_sfx_enabled:
-            sfx_enabled_ = !sfx_enabled_;
-            if (on_sfx_enabled_change_) on_sfx_enabled_change_(sfx_enabled_);
-            return true;
-        default:
-            return false;
+    case elem_master_slider:
+        dragging_slider_ = true;
+        dragging_slider_index_ = elem_master_slider;
+        return true;
+    case elem_music_slider:
+        dragging_slider_ = true;
+        dragging_slider_index_ = elem_music_slider;
+        return true;
+    case elem_sound_slider:
+        dragging_slider_ = true;
+        dragging_slider_index_ = elem_sound_slider;
+        return true;
+    case elem_music_enabled:
+        music_enabled_ = !music_enabled_;
+        if (on_music_enabled_change_)
+            on_music_enabled_change_(music_enabled_);
+        return true;
+    case elem_sfx_enabled:
+        sfx_enabled_ = !sfx_enabled_;
+        if (on_sfx_enabled_change_)
+            on_sfx_enabled_change_(sfx_enabled_);
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1723,20 +1925,23 @@ bool settings_dialog::handle_social_tab_click(int32_t elem)
 {
     switch (elem)
     {
-        case elem_show_timestamps:
-            show_timestamps_ = !show_timestamps_;
-            if (on_show_timestamps_change_) on_show_timestamps_change_(show_timestamps_);
-            return true;
-        case elem_filter_profanity:
-            filter_profanity_ = !filter_profanity_;
-            if (on_filter_profanity_change_) on_filter_profanity_change_(filter_profanity_);
-            return true;
-        case elem_block_spam:
-            block_spam_ = !block_spam_;
-            if (on_block_spam_change_) on_block_spam_change_(block_spam_);
-            return true;
-        default:
-            return false;
+    case elem_show_timestamps:
+        show_timestamps_ = !show_timestamps_;
+        if (on_show_timestamps_change_)
+            on_show_timestamps_change_(show_timestamps_);
+        return true;
+    case elem_filter_profanity:
+        filter_profanity_ = !filter_profanity_;
+        if (on_filter_profanity_change_)
+            on_filter_profanity_change_(filter_profanity_);
+        return true;
+    case elem_block_spam:
+        block_spam_ = !block_spam_;
+        if (on_block_spam_change_)
+            on_block_spam_change_(block_spam_);
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1744,17 +1949,18 @@ bool settings_dialog::handle_help_tab_click(int32_t elem)
 {
     switch (elem)
     {
-        case elem_forum_link:
-            spdlog::info("Forum link clicked: https://forum.helbreathx.net");
-            return true;
-        case elem_discord_link:
-            spdlog::info("Discord link clicked: https://discord.gg/helbreath");
-            return true;
-        case elem_open_help:
-            if (on_help_) on_help_();
-            return true;
-        default:
-            return false;
+    case elem_forum_link:
+        spdlog::info("Forum link clicked: https://forum.helbreathx.net");
+        return true;
+    case elem_discord_link:
+        spdlog::info("Discord link clicked: https://discord.gg/helbreath");
+        return true;
+    case elem_open_help:
+        if (on_help_)
+            on_help_();
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1762,15 +1968,17 @@ bool settings_dialog::handle_system_tab_click(int32_t elem)
 {
     switch (elem)
     {
-        case elem_logout_button:
-            close();
-            if (on_logout_) on_logout_();
-            return true;
-        case elem_exit_button:
-            if (on_exit_) on_exit_();
-            return true;
-        default:
-            return false;
+    case elem_logout_button:
+        close();
+        if (on_logout_)
+            on_logout_();
+        return true;
+    case elem_exit_button:
+        if (on_exit_)
+            on_exit_();
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1778,24 +1986,28 @@ bool settings_dialog::handle_debug_tab_click(int32_t elem)
 {
     switch (elem)
     {
-        case elem_debug_stats:
-            show_debug_stats_ = !show_debug_stats_;
-            if (on_show_debug_stats_change_) on_show_debug_stats_change_(show_debug_stats_);
-            return true;
-        case elem_show_fps_cb:
-            show_fps_ = !show_fps_;
-            if (on_show_fps_change_) on_show_fps_change_(show_fps_);
-            return true;
-        case elem_show_entity_info:
-            show_entity_info_ = !show_entity_info_;
-            if (on_show_entity_info_change_) on_show_entity_info_change_(show_entity_info_);
-            return true;
-        case elem_verbose_logging:
-            verbose_logging_ = !verbose_logging_;
-            if (on_verbose_logging_change_) on_verbose_logging_change_(verbose_logging_);
-            return true;
-        default:
-            return false;
+    case elem_debug_stats:
+        show_debug_stats_ = !show_debug_stats_;
+        if (on_show_debug_stats_change_)
+            on_show_debug_stats_change_(show_debug_stats_);
+        return true;
+    case elem_show_fps_cb:
+        show_fps_ = !show_fps_;
+        if (on_show_fps_change_)
+            on_show_fps_change_(show_fps_);
+        return true;
+    case elem_show_entity_info:
+        show_entity_info_ = !show_entity_info_;
+        if (on_show_entity_info_change_)
+            on_show_entity_info_change_(show_entity_info_);
+        return true;
+    case elem_verbose_logging:
+        verbose_logging_ = !verbose_logging_;
+        if (on_verbose_logging_change_)
+            on_verbose_logging_change_(verbose_logging_);
+        return true;
+    default:
+        return false;
     }
 }
 

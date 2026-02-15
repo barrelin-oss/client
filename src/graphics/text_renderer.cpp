@@ -4,7 +4,8 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 
-namespace hb {
+namespace hb
+{
 
 text_renderer::text_renderer() = default;
 text_renderer::~text_renderer() = default;
@@ -18,8 +19,7 @@ bool text_renderer::initialize(sf::Font& font, sf::RenderTarget& target)
     shader_cache_ = std::make_unique<text_shader_cache>();
     shaders_available_ = shader_cache_->initialize();
 
-    spdlog::info("Text renderer initialized (shaders: {})",
-                 shaders_available_ ? "available" : "unavailable");
+    spdlog::info("Text renderer initialized (shaders: {})", shaders_available_ ? "available" : "unavailable");
     return true;
 }
 
@@ -36,8 +36,7 @@ void text_renderer::set_target(sf::RenderTarget& target)
     target_ = &target;
 }
 
-void text_renderer::draw(std::string_view text, int32_t x, int32_t y,
-                         const text_style& style, float time)
+void text_renderer::draw(std::string_view text, int32_t x, int32_t y, const text_style& style, float time)
 {
     if (!font_ || !target_)
     {
@@ -54,8 +53,7 @@ void text_renderer::draw(std::string_view text, int32_t x, int32_t y,
     }
 }
 
-void text_renderer::draw(std::string_view text, int32_t x, int32_t y,
-                         sf::Color color, uint32_t size)
+void text_renderer::draw(std::string_view text, int32_t x, int32_t y, sf::Color color, uint32_t size)
 {
     text_style style;
     style.color = color;
@@ -80,45 +78,44 @@ float text_renderer::measure_width(std::string_view text, uint32_t size) const
 // CPU effect dispatch
 // ---------------------------------------------------------------------------
 
-void text_renderer::draw_cpu_effect(std::string_view text, int32_t x, int32_t y,
-                                    const text_style& style, float time)
+void text_renderer::draw_cpu_effect(std::string_view text, int32_t x, int32_t y, const text_style& style, float time)
 {
     // Calculate effective alpha (255 unless a specific effect modifies it)
     uint8_t alpha = style.color.a;
 
     switch (style.effect)
     {
-        case text_effect::none:
-            draw_none(text, x, y, style, alpha);
-            break;
-        case text_effect::rainbow:
-            draw_rainbow(text, x, y, style, time, alpha);
-            break;
-        case text_effect::special:
-            draw_special(text, x, y, style, time, alpha);
-            break;
-        case text_effect::terror:
-            draw_terror(text, x, y, style, time, alpha);
-            break;
-        case text_effect::pulsing:
-            draw_pulsing(text, x, y, style, time, alpha);
-            break;
-        case text_effect::wave:
-            draw_wave(text, x, y, style, time, alpha);
-            break;
-        case text_effect::glitch:
-            draw_glitch(text, x, y, style, time, alpha);
-            break;
-        case text_effect::typewriter:
-            draw_typewriter(text, x, y, style, time, alpha);
-            break;
-        case text_effect::outline_pulse:
-            draw_outline_pulse(text, x, y, style, time, alpha);
-            break;
-        default:
-            // Unknown CPU effect - render as plain text
-            draw_none(text, x, y, style, alpha);
-            break;
+    case text_effect::none:
+        draw_none(text, x, y, style, alpha);
+        break;
+    case text_effect::rainbow:
+        draw_rainbow(text, x, y, style, time, alpha);
+        break;
+    case text_effect::special:
+        draw_special(text, x, y, style, time, alpha);
+        break;
+    case text_effect::terror:
+        draw_terror(text, x, y, style, time, alpha);
+        break;
+    case text_effect::pulsing:
+        draw_pulsing(text, x, y, style, time, alpha);
+        break;
+    case text_effect::wave:
+        draw_wave(text, x, y, style, time, alpha);
+        break;
+    case text_effect::glitch:
+        draw_glitch(text, x, y, style, time, alpha);
+        break;
+    case text_effect::typewriter:
+        draw_typewriter(text, x, y, style, time, alpha);
+        break;
+    case text_effect::outline_pulse:
+        draw_outline_pulse(text, x, y, style, time, alpha);
+        break;
+    default:
+        // Unknown CPU effect - render as plain text
+        draw_none(text, x, y, style, alpha);
+        break;
     }
 }
 
@@ -126,8 +123,7 @@ void text_renderer::draw_cpu_effect(std::string_view text, int32_t x, int32_t y,
 // GPU shader effect pipeline
 // ---------------------------------------------------------------------------
 
-void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t y,
-                                       const text_style& style, float time)
+void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t y, const text_style& style, float time)
 {
     // Fallback: if shaders not available, render as plain outlined text
     sf::Shader* shader = shaders_available_ ? shader_cache_->get(style.effect) : nullptr;
@@ -152,8 +148,10 @@ void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t
     auto needed_h = static_cast<uint32_t>(bounds.size.y + bounds.position.y + padding * 2);
 
     // Minimum size
-    if (needed_w < 16) needed_w = 16;
-    if (needed_h < 16) needed_h = 16;
+    if (needed_w < 16)
+        needed_w = 16;
+    if (needed_h < 16)
+        needed_h = 16;
 
     // 2. Ensure render texture is big enough (lazily resize)
     if (!shader_rt_ || shader_rt_width_ < needed_w || shader_rt_height_ < needed_h)
@@ -180,46 +178,41 @@ void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t
     shader->setUniform("u_time", time);
 
     // Per-effect uniforms (u_resolution only set for shaders that use it)
-    sf::Glsl::Vec2 resolution(
-        static_cast<float>(shader_rt_width_),
-        static_cast<float>(shader_rt_height_));
+    sf::Glsl::Vec2 resolution(static_cast<float>(shader_rt_width_), static_cast<float>(shader_rt_height_));
 
     switch (style.effect)
     {
-        case text_effect::dissolve:
-            shader->setUniform("u_burn_color", sf::Glsl::Vec4(1.0f, 0.4f, 0.1f, 1.0f));
-            break;
-        case text_effect::chromatic:
-            shader->setUniform("u_resolution", resolution);
-            shader->setUniform("u_offset", 3.0f);
-            break;
-        case text_effect::glow:
-            shader->setUniform("u_resolution", resolution);
-            shader->setUniform("u_glow_radius", 2.0f);
-            shader->setUniform("u_glow_color", sf::Glsl::Vec4(
-                style.color.r / 255.0f,
-                style.color.g / 255.0f,
-                style.color.b / 255.0f,
-                0.6f));
-            break;
-        case text_effect::distortion:
-            shader->setUniform("u_resolution", resolution);
-            shader->setUniform("u_amplitude", 2.0f);
-            shader->setUniform("u_frequency", 10.0f);
-            break;
-        case text_effect::scanlines:
-            shader->setUniform("u_resolution", resolution);
-            shader->setUniform("u_line_spacing", 3.0f);
-            shader->setUniform("u_line_alpha", 0.3f);
-            break;
-        default:
-            break;
+    case text_effect::dissolve:
+        shader->setUniform("u_burn_color", sf::Glsl::Vec4(1.0f, 0.4f, 0.1f, 1.0f));
+        break;
+    case text_effect::chromatic:
+        shader->setUniform("u_resolution", resolution);
+        shader->setUniform("u_offset", 3.0f);
+        break;
+    case text_effect::glow:
+        shader->setUniform("u_resolution", resolution);
+        shader->setUniform("u_glow_radius", 2.0f);
+        shader->setUniform(
+            "u_glow_color",
+            sf::Glsl::Vec4(style.color.r / 255.0f, style.color.g / 255.0f, style.color.b / 255.0f, 0.6f));
+        break;
+    case text_effect::distortion:
+        shader->setUniform("u_resolution", resolution);
+        shader->setUniform("u_amplitude", 2.0f);
+        shader->setUniform("u_frequency", 10.0f);
+        break;
+    case text_effect::scanlines:
+        shader->setUniform("u_resolution", resolution);
+        shader->setUniform("u_line_spacing", 3.0f);
+        shader->setUniform("u_line_alpha", 0.3f);
+        break;
+    default:
+        break;
     }
 
     // 5. Draw the textured sprite with shader applied
     sf::Sprite sprite(shader_rt_->getTexture());
-    sprite.setPosition({static_cast<float>(x) - padding,
-                        static_cast<float>(y) - padding});
+    sprite.setPosition({static_cast<float>(x) - padding, static_cast<float>(y) - padding});
 
     target_->draw(sprite, sf::RenderStates(shader));
 }
@@ -228,8 +221,7 @@ void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t
 // Individual CPU effects
 // ---------------------------------------------------------------------------
 
-void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y,
-                              const text_style& style, uint8_t alpha)
+void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y, const text_style& style, uint8_t alpha)
 {
     sf::Text sf_text(*font_, std::string(text), style.size);
     sf::Color color = style.color;
@@ -248,8 +240,8 @@ void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y,
     target_->draw(sf_text);
 }
 
-void text_renderer::draw_rainbow(std::string_view text, int32_t x, int32_t y,
-                                 const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_rainbow(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     sf::Color color = hue_to_rgb(time);
     color.a = alpha;
@@ -269,8 +261,8 @@ void text_renderer::draw_rainbow(std::string_view text, int32_t x, int32_t y,
     target_->draw(sf_text);
 }
 
-void text_renderer::draw_special(std::string_view text, int32_t x, int32_t y,
-                                 const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_special(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     float char_x = static_cast<float>(x);
     constexpr float hue_step = 0.08f;
@@ -302,8 +294,8 @@ void text_renderer::draw_special(std::string_view text, int32_t x, int32_t y,
     }
 }
 
-void text_renderer::draw_terror(std::string_view text, int32_t x, int32_t y,
-                                const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_terror(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     sf::Color color = style.color;
     color.a = alpha;
@@ -312,7 +304,8 @@ void text_renderer::draw_terror(std::string_view text, int32_t x, int32_t y,
     constexpr float min_freq = 15.0f;
     constexpr float max_freq = 25.0f;
 
-    auto pseudo_random = [](size_t index, char c, uint32_t seed) -> float {
+    auto pseudo_random = [](size_t index, char c, uint32_t seed) -> float
+    {
         uint32_t hash = static_cast<uint32_t>(index) * 2654435761u;
         hash ^= static_cast<uint32_t>(c) * 2246822519u;
         hash ^= seed * 3266489917u;
@@ -351,8 +344,8 @@ void text_renderer::draw_terror(std::string_view text, int32_t x, int32_t y,
     }
 }
 
-void text_renderer::draw_pulsing(std::string_view text, int32_t x, int32_t y,
-                                 const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_pulsing(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     constexpr float pulse_freq = 3.0f;
     float pulse = 0.5f * (1.0f + std::sin(time * pulse_freq * 6.283185f));
@@ -365,8 +358,8 @@ void text_renderer::draw_pulsing(std::string_view text, int32_t x, int32_t y,
     draw_none(text, x, y, pulsed_style, pulsed_alpha);
 }
 
-void text_renderer::draw_wave(std::string_view text, int32_t x, int32_t y,
-                              const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_wave(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     sf::Color color = style.color;
     color.a = alpha;
@@ -402,8 +395,8 @@ void text_renderer::draw_wave(std::string_view text, int32_t x, int32_t y,
     }
 }
 
-void text_renderer::draw_glitch(std::string_view text, int32_t x, int32_t y,
-                                const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_glitch(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     sf::Color color = style.color;
     color.a = alpha;
@@ -412,7 +405,8 @@ void text_renderer::draw_glitch(std::string_view text, int32_t x, int32_t y,
     static constexpr std::string_view glitch_chars = "!@#$%&*?/\\|<>~^";
     auto time_slot = static_cast<uint32_t>(time * 12.0f);
 
-    auto glitch_hash = [](size_t index, uint32_t slot) -> uint32_t {
+    auto glitch_hash = [](size_t index, uint32_t slot) -> uint32_t
+    {
         uint32_t hash = static_cast<uint32_t>(index) * 2654435761u;
         hash ^= slot * 2246822519u;
         hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
@@ -438,12 +432,10 @@ void text_renderer::draw_glitch(std::string_view text, int32_t x, int32_t y,
         if (is_glitched)
         {
             display_char = glitch_chars[hash % glitch_chars.size()];
-            char_color = sf::Color(
-                static_cast<uint8_t>(std::min(255, static_cast<int>(color.r) + 30)),
-                static_cast<uint8_t>(std::max(0, static_cast<int>(color.g) - 50)),
-                static_cast<uint8_t>(std::max(0, static_cast<int>(color.b) - 50)),
-                alpha
-            );
+            char_color = sf::Color(static_cast<uint8_t>(std::min(255, static_cast<int>(color.r) + 30)),
+                                   static_cast<uint8_t>(std::max(0, static_cast<int>(color.g) - 50)),
+                                   static_cast<uint8_t>(std::max(0, static_cast<int>(color.b) - 50)),
+                                   alpha);
         }
 
         sf::Text sf_text(*font_, std::string(1, display_char), style.size);
@@ -463,8 +455,8 @@ void text_renderer::draw_glitch(std::string_view text, int32_t x, int32_t y,
     }
 }
 
-void text_renderer::draw_typewriter(std::string_view text, int32_t x, int32_t y,
-                                    const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_typewriter(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     constexpr float chars_per_second = 20.0f;
     auto visible_count = static_cast<size_t>(time * chars_per_second);
@@ -482,17 +474,18 @@ void text_renderer::draw_typewriter(std::string_view text, int32_t x, int32_t y,
     draw_none(visible, x, y, style, alpha);
 }
 
-void text_renderer::draw_outline_pulse(std::string_view text, int32_t x, int32_t y,
-                                       const text_style& style, float time, uint8_t alpha)
+void text_renderer::draw_outline_pulse(
+    std::string_view text, int32_t x, int32_t y, const text_style& style, float time, uint8_t alpha)
 {
     // Slow pulse (~1.5s period), small shift: outline lerps between base and a
     // brighter tint derived from the text color.
-    constexpr float pulse_freq = 0.667f;  // ~1.5 second period
-    float t = 0.5f * (1.0f + std::sin(time * pulse_freq * 6.283185f));  // 0..1
-    constexpr float mix = 0.35f;  // max 35% blend toward bright tint
+    constexpr float pulse_freq = 0.667f;                               // ~1.5 second period
+    float t = 0.5f * (1.0f + std::sin(time * pulse_freq * 6.283185f)); // 0..1
+    constexpr float mix = 0.35f;                                       // max 35% blend toward bright tint
 
     // Bright tint: 40% of the text color mixed in
-    auto lerp = [](uint8_t a, uint8_t b, float f) -> uint8_t {
+    auto lerp = [](uint8_t a, uint8_t b, float f) -> uint8_t
+    {
         return static_cast<uint8_t>(a + (static_cast<int>(b) - a) * f);
     };
 
@@ -505,7 +498,7 @@ void text_renderer::draw_outline_pulse(std::string_view text, int32_t x, int32_t
 
     text_style modified = style;
     modified.outline_color = outline;
-    modified.effect = text_effect::none;  // prevent recursion
+    modified.effect = text_effect::none; // prevent recursion
     draw_none(text, x, y, modified, alpha);
 }
 
@@ -513,8 +506,7 @@ void text_renderer::draw_outline_pulse(std::string_view text, int32_t x, int32_t
 // Helpers
 // ---------------------------------------------------------------------------
 
-void text_renderer::draw_char(char c, float x, float y, sf::Color color,
-                              const text_style& style, uint8_t alpha)
+void text_renderer::draw_char(char c, float x, float y, sf::Color color, const text_style& style, uint8_t alpha)
 {
     sf::Text sf_text(*font_, std::string(1, c), style.size);
     color.a = alpha;

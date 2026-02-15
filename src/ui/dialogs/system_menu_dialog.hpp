@@ -6,30 +6,35 @@
 #include <string>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Resolution option for settings
-struct resolution_option {
+struct resolution_option
+{
     uint32_t width;
     uint32_t height;
     std::string label;
 };
 
 // Framerate option for settings
-struct framerate_option {
-    uint32_t fps;       // 0 = unlimited
+struct framerate_option
+{
+    uint32_t fps; // 0 = unlimited
     std::string label;
 };
 
 // Monitor option for settings dropdown
-struct monitor_option {
+struct monitor_option
+{
     int32_t index;
     std::string label;
     int32_t x, y, width, height;
 };
 
 // Tab categories for settings dialog
-enum class settings_tab : uint8_t {
+enum class settings_tab : uint8_t
+{
     game,
     video,
     audio,
@@ -38,12 +43,13 @@ enum class settings_tab : uint8_t {
     help,
     system,
     debug,
-    count  // sentinel
+    count // sentinel
 };
 
 // Settings dialog - tabbed dialog for all game configuration
 // Replaces both the old settings_dialog and system_menu_dialog
-class settings_dialog : public dialog {
+class settings_dialog : public dialog
+{
 public:
     settings_dialog();
     ~settings_dialog() override = default;
@@ -71,7 +77,11 @@ public:
     // Video tab
     void set_resolution(uint32_t width, uint32_t height);
     void get_resolution(uint32_t& width, uint32_t& height) const;
-    void set_fullscreen(bool fullscreen) { fullscreen_ = fullscreen; applied_fullscreen_ = fullscreen; }
+    void set_fullscreen(bool fullscreen)
+    {
+        fullscreen_ = fullscreen;
+        applied_fullscreen_ = fullscreen;
+    }
     bool get_fullscreen() const { return fullscreen_; }
     void set_display_mode(bool fullscreen, bool borderless);
     int32_t get_display_mode() const { return selected_display_mode_; }
@@ -186,10 +196,19 @@ private:
     void render_section_header(renderer& rend, int32_t y, const char* text);
     void render_toggle_option(renderer& rend, int32_t y, const char* label, bool selected, bool hovered);
     void render_slider(renderer& rend, int32_t y, const char* label, float value, bool hovered);
-    void render_dropdown(renderer& rend, int32_t y, const char* label, const std::string& value, bool hovered, float animation);
+    void render_dropdown(
+        renderer& rend, int32_t y, const char* label, const std::string& value, bool hovered, float animation);
     void render_checkbox(renderer& rend, int32_t y, const char* label, bool checked, bool hovered);
-    void render_button_widget(renderer& rend, int32_t x, int32_t y, int32_t w, int32_t h,
-                              const char* text, bool hovered, sf::Color normal, sf::Color hover, sf::Color border);
+    void render_button_widget(renderer& rend,
+                              int32_t x,
+                              int32_t y,
+                              int32_t w,
+                              int32_t h,
+                              const char* text,
+                              bool hovered,
+                              sf::Color normal,
+                              sf::Color hover,
+                              sf::Color border);
 
     // Hit testing
     int32_t get_hovered_element(int32_t mouse_x, int32_t mouse_y) const;
@@ -275,7 +294,8 @@ private:
     float ui_scale_ = 1.0f;
 
     // Revert confirmation countdown after display mode changes
-    struct revert_state {
+    struct revert_state
+    {
         uint32_t width;
         uint32_t height;
         bool fullscreen;

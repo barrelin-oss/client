@@ -4,16 +4,13 @@
 #include "core/constants.hpp"
 #include <spdlog/spdlog.h>
 
-namespace hb {
+namespace hb
+{
 
-levelup_dialog::levelup_dialog()
-    : dialog(dialog_type::none) {  // Custom dialog type
+levelup_dialog::levelup_dialog() : dialog(dialog_type::none)
+{ // Custom dialog type
     set_title("Level Up!");
-    set_bounds({
-        static_cast<int32_t>(screen_width) / 2 - 150,
-        static_cast<int32_t>(screen_height) / 2 - 150,
-        300, 300
-    });
+    set_bounds({static_cast<int32_t>(screen_width) / 2 - 150, static_cast<int32_t>(screen_height) / 2 - 150, 300, 300});
     set_closeable(false);
     set_draggable(true);
     set_modal(true);
@@ -21,7 +18,8 @@ levelup_dialog::levelup_dialog()
     create_ui();
 }
 
-void levelup_dialog::create_ui() {
+void levelup_dialog::create_ui()
+{
     int32_t y = 45;
 
     // Level display
@@ -59,7 +57,8 @@ void levelup_dialog::create_ui() {
     // Stat rows
     static const char* stat_names[] = {"STR", "VIT", "DEX", "INT", "MAG", "CHA"};
 
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 6; ++i)
+    {
         // Stat name
         auto name_label = std::make_unique<ui_label>();
         name_label->set_bounds({30, y, 40, 20});
@@ -99,49 +98,61 @@ void levelup_dialog::create_ui() {
     confirm_btn->set_id("confirm_btn");
     confirm_btn->set_bounds({100, y, 100, 32});
     confirm_btn->set_text("Confirm");
-    confirm_btn->set_on_click([this]() {
-        if (points_available_ == 0 && on_confirm_) {
-            on_confirm_();
-            close();
-        }
-    });
+    confirm_btn->set_on_click(
+        [this]()
+        {
+            if (points_available_ == 0 && on_confirm_)
+            {
+                on_confirm_();
+                close();
+            }
+        });
     add_child(std::move(confirm_btn));
 }
 
-void levelup_dialog::update(float delta_time, const input& inp) {
-    if (!visible_) return;
+void levelup_dialog::update(float delta_time, const input& inp)
+{
+    if (!visible_)
+        return;
     dialog::update(delta_time, inp);
 }
 
-void levelup_dialog::render(renderer& rend) {
-    if (!visible_) return;
+void levelup_dialog::render(renderer& rend)
+{
+    if (!visible_)
+        return;
     dialog::render(rend);
 
     // Add some visual flair for level up
     // Could add particle effects, glow, etc.
 }
 
-void levelup_dialog::set_level(uint16_t level) {
+void levelup_dialog::set_level(uint16_t level)
+{
     level_ = level;
-    if (level_label_) {
+    if (level_label_)
+    {
         level_label_->set_text("You reached Level " + std::to_string(level));
     }
 }
 
-void levelup_dialog::set_points_available(uint16_t points) {
+void levelup_dialog::set_points_available(uint16_t points)
+{
     points_available_ = points;
     points_allocated_ = 0;
 
     // Reset added points
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 6; ++i)
+    {
         added_[i] = 0;
     }
 
     update_display();
 }
 
-void levelup_dialog::set_stats(uint16_t str, uint16_t vit, uint16_t dex,
-                                uint16_t intelligence, uint16_t mag, uint16_t cha) {
+void levelup_dialog::set_stats(
+    uint16_t str, uint16_t vit, uint16_t dex, uint16_t intelligence, uint16_t mag, uint16_t cha)
+{
     stats_[0] = str;
     stats_[1] = vit;
     stats_[2] = dex;
@@ -152,36 +163,45 @@ void levelup_dialog::set_stats(uint16_t str, uint16_t vit, uint16_t dex,
     update_display();
 }
 
-void levelup_dialog::update_display() {
+void levelup_dialog::update_display()
+{
     // Update points label
-    if (points_label_) {
+    if (points_label_)
+    {
         uint16_t remaining = points_available_ - points_allocated_;
         points_label_->set_text("Points: " + std::to_string(remaining));
-        points_label_->set_text_color(
-            remaining > 0 ? sf::Color(100, 255, 100) : sf::Color(200, 200, 200)
-        );
+        points_label_->set_text_color(remaining > 0 ? sf::Color(100, 255, 100) : sf::Color(200, 200, 200));
     }
 
     // Update stat displays
-    for (int i = 0; i < 6; ++i) {
-        if (stat_labels_[i]) {
+    for (int i = 0; i < 6; ++i)
+    {
+        if (stat_labels_[i])
+        {
             stat_labels_[i]->set_text(std::to_string(stats_[i] + added_[i]));
         }
-        if (added_labels_[i]) {
-            if (added_[i] > 0) {
+        if (added_labels_[i])
+        {
+            if (added_[i] > 0)
+            {
                 added_labels_[i]->set_text("+" + std::to_string(added_[i]));
-            } else {
+            }
+            else
+            {
                 added_labels_[i]->set_text("");
             }
         }
     }
 }
 
-void levelup_dialog::add_stat(int index) {
-    if (index < 0 || index >= 6) return;
+void levelup_dialog::add_stat(int index)
+{
+    if (index < 0 || index >= 6)
+        return;
 
     uint16_t remaining = points_available_ - points_allocated_;
-    if (remaining == 0) {
+    if (remaining == 0)
+    {
         return;
     }
 
@@ -191,12 +211,12 @@ void levelup_dialog::add_stat(int index) {
     update_display();
 
     // Call callback for network sync
-    if (on_allocate_) {
+    if (on_allocate_)
+    {
         on_allocate_(index);
     }
 
-    spdlog::debug("Level up: added point to stat {}, remaining: {}",
-        index, points_available_ - points_allocated_);
+    spdlog::debug("Level up: added point to stat {}, remaining: {}", index, points_available_ - points_allocated_);
 }
 
 } // namespace hb

@@ -6,7 +6,8 @@
 #include <array>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Inventory constants
 inline constexpr size_t inventory_size = 50;
@@ -14,38 +15,42 @@ inline constexpr size_t equipment_slots = 15;
 inline constexpr size_t bank_size = 120;
 
 // Inventory slot
-struct inventory_slot {
+struct inventory_slot
+{
     std::optional<item> held_item;
-    bool locked = false;  // For trade/exchange locking
+    bool locked = false; // For trade/exchange locking
 };
 
 // Equipment set
-struct equipment {
-    std::optional<item> head;        // slot 1
-    std::optional<item> body;        // slot 2
-    std::optional<item> arms;        // slot 3
-    std::optional<item> pants;       // slot 4
-    std::optional<item> boots;       // slot 5
-    std::optional<item> neck;        // slot 6
-    std::optional<item> left_hand;   // slot 7 (shield)
-    std::optional<item> right_hand;  // slot 8 (weapon)
-    std::optional<item> left_finger; // slot 10
-    std::optional<item> right_finger;// slot 11
-    std::optional<item> back;        // slot 12 (cape)
+struct equipment
+{
+    std::optional<item> head;         // slot 1
+    std::optional<item> body;         // slot 2
+    std::optional<item> arms;         // slot 3
+    std::optional<item> pants;        // slot 4
+    std::optional<item> boots;        // slot 5
+    std::optional<item> neck;         // slot 6
+    std::optional<item> left_hand;    // slot 7 (shield)
+    std::optional<item> right_hand;   // slot 8 (weapon)
+    std::optional<item> left_finger;  // slot 10
+    std::optional<item> right_finger; // slot 11
+    std::optional<item> back;         // slot 12 (cape)
 
     std::optional<item>* get_slot(equip_slot slot);
     const std::optional<item>* get_slot(equip_slot slot) const;
 };
 
 // Inventory callbacks
-struct inventory_callbacks {
+struct inventory_callbacks
+{
     std::function<void(size_t slot)> on_item_changed;
     std::function<void(equip_slot slot)> on_equipment_changed;
     std::function<void(uint32_t gold)> on_gold_changed;
     std::function<void(uint32_t weight, uint32_t max_weight)> on_weight_changed;
 };
 
-class inventory_system {
+class inventory_system
+{
 public:
     inventory_system() = default;
     ~inventory_system() = default;
@@ -104,7 +109,8 @@ public:
     int32_t get_critical_bonus() const;
 
     // Equipment effect summary
-    struct equipment_effects {
+    struct equipment_effects
+    {
         int32_t fire_resist = 0;
         int32_t ice_resist = 0;
         int32_t poison_resist = 0;

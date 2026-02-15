@@ -6,7 +6,8 @@
 #include <mutex>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 class game_state_manager;
 
@@ -48,8 +49,7 @@ public:
     void request_magic(uint16_t spell_id, int32_t target_x, int32_t target_y, uint32_t target_id = 0);
 
     // Chat
-    void send_chat_message(std::string_view content, std::string_view channel,
-                           std::string_view recipient = "");
+    void send_chat_message(std::string_view content, std::string_view channel, std::string_view recipient = "");
 
     // Fishing
     void request_fish_skill();

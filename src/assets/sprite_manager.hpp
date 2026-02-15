@@ -8,14 +8,17 @@
 #include <string_view>
 #include <vector>
 
-namespace hb {
+namespace hb
+{
 
 // Sprite cache key
-struct sprite_key {
+struct sprite_key
+{
     std::string pak_name;
     uint32_t sprite_index;
 
-    bool operator==(const sprite_key& other) const {
+    bool operator==(const sprite_key& other) const
+    {
         return pak_name == other.pak_name && sprite_index == other.sprite_index;
     }
 };
@@ -23,18 +26,21 @@ struct sprite_key {
 } // namespace hb
 
 // Hash specialization for sprite_key
-template<>
-struct std::hash<hb::sprite_key> {
-    size_t operator()(const hb::sprite_key& key) const {
+template<> struct std::hash<hb::sprite_key>
+{
+    size_t operator()(const hb::sprite_key& key) const
+    {
         size_t h1 = std::hash<std::string>{}(key.pak_name);
         size_t h2 = std::hash<uint32_t>{}(key.sprite_index);
         return h1 ^ (h2 << 1);
     }
 };
 
-namespace hb {
+namespace hb
+{
 
-class sprite_manager {
+class sprite_manager
+{
 public:
     sprite_manager() = default;
     ~sprite_manager() = default;
@@ -106,54 +112,56 @@ private:
     std::string asset_root_;
     std::unordered_map<std::string, std::unique_ptr<pak_file>> pak_files_;
     std::unordered_map<sprite_key, std::unique_ptr<sprite>> sprite_cache_;
-    std::unordered_map<uint16_t, sprite*> id_sprites_;  // ID-based sprite references
+    std::unordered_map<uint16_t, sprite*> id_sprites_; // ID-based sprite references
 
     // LRU tracking (simplified - just track last access order)
     std::vector<sprite_key> lru_order_;
 
     // Memory management
-    float eviction_timeout_ = 30.0f;        // Seconds before unused bitmaps are evicted
-    float eviction_check_timer_ = 0.0f;     // Timer for periodic eviction checks
-    static constexpr float eviction_check_interval_ = 5.0f;  // Check every 5 seconds
+    float eviction_timeout_ = 30.0f;                        // Seconds before unused bitmaps are evicted
+    float eviction_check_timer_ = 0.0f;                     // Timer for periodic eviction checks
+    static constexpr float eviction_check_interval_ = 5.0f; // Check every 5 seconds
 };
 
 // Sprite type to PAK mapping (from original game)
-struct sprite_type_info {
+struct sprite_type_info
+{
     const char* pak_name;
     uint32_t base_index;
     uint32_t count;
 };
 
 // Common sprite type ranges
-namespace sprite_types {
-    // Tiles and terrain (tiles.pak)
-    inline constexpr uint16_t tile_grass = 100;
-    inline constexpr uint16_t tile_dirt = 200;
-    inline constexpr uint16_t tile_stone = 300;
-    inline constexpr uint16_t tile_water = 400;
+namespace sprite_types
+{
+// Tiles and terrain (tiles.pak)
+inline constexpr uint16_t tile_grass = 100;
+inline constexpr uint16_t tile_dirt = 200;
+inline constexpr uint16_t tile_stone = 300;
+inline constexpr uint16_t tile_water = 400;
 
-    // Objects (objects.pak)
-    inline constexpr uint16_t object_tree = 1000;
-    inline constexpr uint16_t object_rock = 1100;
-    inline constexpr uint16_t object_building = 1200;
+// Objects (objects.pak)
+inline constexpr uint16_t object_tree = 1000;
+inline constexpr uint16_t object_rock = 1100;
+inline constexpr uint16_t object_building = 1200;
 
-    // Effects (effects.pak)
-    inline constexpr uint16_t effect_fire = 2000;
-    inline constexpr uint16_t effect_magic = 2100;
-    inline constexpr uint16_t effect_hit = 2200;
+// Effects (effects.pak)
+inline constexpr uint16_t effect_fire = 2000;
+inline constexpr uint16_t effect_magic = 2100;
+inline constexpr uint16_t effect_hit = 2200;
 
-    // Characters (malehu.pak / femalehu.pak)
-    inline constexpr uint16_t char_body = 3000;
-    inline constexpr uint16_t char_armor = 3100;
-    inline constexpr uint16_t char_weapon = 3200;
-    inline constexpr uint16_t char_shield = 3300;
-    inline constexpr uint16_t char_helm = 3400;
-    inline constexpr uint16_t char_hair = 3500;
+// Characters (malehu.pak / femalehu.pak)
+inline constexpr uint16_t char_body = 3000;
+inline constexpr uint16_t char_armor = 3100;
+inline constexpr uint16_t char_weapon = 3200;
+inline constexpr uint16_t char_shield = 3300;
+inline constexpr uint16_t char_helm = 3400;
+inline constexpr uint16_t char_hair = 3500;
 
-    // UI (interface.pak)
-    inline constexpr uint16_t ui_dialog = 4000;
-    inline constexpr uint16_t ui_button = 4100;
-    inline constexpr uint16_t ui_icon = 4200;
-}
+// UI (interface.pak)
+inline constexpr uint16_t ui_dialog = 4000;
+inline constexpr uint16_t ui_button = 4100;
+inline constexpr uint16_t ui_icon = 4200;
+} // namespace sprite_types
 
 } // namespace hb

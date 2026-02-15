@@ -5,7 +5,8 @@
 #include <optional>
 #include <utility>
 
-namespace hb {
+namespace hb
+{
 
 // Protocol uses 0-7 for directions (0=North, 1=NE, ..., 7=NW)
 // Internal enum uses 1-8
@@ -44,8 +45,7 @@ inline int32_t direction_to_sprite_index(std::optional<direction> dir, int32_t d
 
 // Calculate 8-way direction from source to destination
 // Returns nullopt when from == to
-inline std::optional<direction> calculate_direction(int32_t from_x, int32_t from_y,
-                                                     int32_t to_x, int32_t to_y)
+inline std::optional<direction> calculate_direction(int32_t from_x, int32_t from_y, int32_t to_x, int32_t to_y)
 {
     if (from_x == to_x && from_y == to_y)
     {
@@ -94,16 +94,24 @@ inline std::pair<int32_t, int32_t> direction_offset(direction dir)
 {
     switch (dir)
     {
-        case direction::north:      return { 0, -1};
-        case direction::north_east: return { 1, -1};
-        case direction::east:       return { 1,  0};
-        case direction::south_east: return { 1,  1};
-        case direction::south:      return { 0,  1};
-        case direction::south_west: return {-1,  1};
-        case direction::west:       return {-1,  0};
-        case direction::north_west: return {-1, -1};
+    case direction::north:
+        return {0, -1};
+    case direction::north_east:
+        return {1, -1};
+    case direction::east:
+        return {1, 0};
+    case direction::south_east:
+        return {1, 1};
+    case direction::south:
+        return {0, 1};
+    case direction::south_west:
+        return {-1, 1};
+    case direction::west:
+        return {-1, 0};
+    case direction::north_west:
+        return {-1, -1};
     }
-    return { 0, 0}; // Unreachable for valid direction values
+    return {0, 0}; // Unreachable for valid direction values
 }
 
 // Rotate direction one step clockwise (e.g. north -> north_east)

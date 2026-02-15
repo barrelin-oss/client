@@ -9,13 +9,15 @@
 #include <string>
 #include <string_view>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 
 // Data-driven dialog that can be configured from dialog_definition
 // Supports both callback-based simple dialogs and subclassing for complex dialogs
-class managed_dialog : public dialog {
+class managed_dialog : public dialog
+{
 public:
     explicit managed_dialog(dialog_definition def);
     ~managed_dialog() override = default;
@@ -50,7 +52,7 @@ public:
     void set_label_text(std::string_view element_id, std::string_view text);
 
     // Progress bars
-    void set_progress(std::string_view element_id, float value);  // 0.0-1.0
+    void set_progress(std::string_view element_id, float value); // 0.0-1.0
 
     // Checkboxes
     void set_checkbox_checked(std::string_view element_id, bool checked);
@@ -125,11 +127,23 @@ protected:
     virtual bool on_custom_render([[maybe_unused]] renderer& rend) { return false; }
 
     // Custom input handling - return true if consumed
-    virtual bool on_custom_mouse_down([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn) { return false; }
-    virtual bool on_custom_mouse_up([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn) { return false; }
+    virtual bool
+    on_custom_mouse_down([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn)
+    {
+        return false;
+    }
+    virtual bool
+    on_custom_mouse_up([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] sf::Mouse::Button btn)
+    {
+        return false;
+    }
     virtual bool on_custom_mouse_move([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y) { return false; }
     virtual bool on_custom_key_press([[maybe_unused]] sf::Keyboard::Key key) { return false; }
-    virtual bool on_custom_mouse_wheel([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] int32_t delta) { return false; }
+    virtual bool
+    on_custom_mouse_wheel([[maybe_unused]] int32_t x, [[maybe_unused]] int32_t y, [[maybe_unused]] int32_t delta)
+    {
+        return false;
+    }
 
     // Access to element states for subclasses
     element_state& get_element_state(std::string_view id);
@@ -150,8 +164,7 @@ private:
 
     // Hit testing
     const element_def* element_at_point(int32_t x, int32_t y) const;
-    std::pair<int32_t, int32_t> grid_cell_at_point(const element_def& elem,
-                                                     int32_t x, int32_t y) const;
+    std::pair<int32_t, int32_t> grid_cell_at_point(const element_def& elem, int32_t x, int32_t y) const;
 
     // Internal event dispatching
     void dispatch_button_click(const element_def& elem);

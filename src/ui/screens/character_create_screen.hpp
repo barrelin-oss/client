@@ -5,24 +5,27 @@
 #include <functional>
 #include <string>
 
-namespace hb {
+namespace hb
+{
 
 class menu_character_renderer;
 
 // Sprite IDs for character create screen (from SpriteID.h)
-namespace charcreate_sprites {
-    inline constexpr uint16_t new_char = 58;      // DEF_SPRID_INTERFACE_ND_NEWCHAR (GameDialog sprite 9)
-    inline constexpr uint16_t button = 71;        // DEF_SPRID_INTERFACE_ND_BUTTON (DialogText sprite 1)
-    inline constexpr uint16_t mouse_cursor = 0;   // DEF_SPRID_MOUSECURSOR
-}
+namespace charcreate_sprites
+{
+inline constexpr uint16_t new_char = 58;    // DEF_SPRID_INTERFACE_ND_NEWCHAR (GameDialog sprite 9)
+inline constexpr uint16_t button = 71;      // DEF_SPRID_INTERFACE_ND_BUTTON (DialogText sprite 1)
+inline constexpr uint16_t mouse_cursor = 0; // DEF_SPRID_MOUSECURSOR
+} // namespace charcreate_sprites
 
 // Character creation data to send to server
-struct character_create_data {
+struct character_create_data
+{
     std::string name;
-    uint8_t gender = 1;       // 1 = male, 2 = female
-    uint8_t skin_color = 1;   // 1-3
-    uint8_t hair_style = 0;   // 0-7
-    uint8_t hair_color = 0;   // 0-15
+    uint8_t gender = 1;          // 1 = male, 2 = female
+    uint8_t skin_color = 1;      // 1-3
+    uint8_t hair_style = 0;      // 0-7
+    uint8_t hair_color = 0;      // 0-15
     uint8_t underwear_color = 0; // 0-7
     uint8_t strength = 10;
     uint8_t vitality = 10;
@@ -33,7 +36,8 @@ struct character_create_data {
 };
 
 // Character create screen - modern equivalent of UpdateScreen_OnCreateNewCharacter
-class character_create_screen : public screen_base {
+class character_create_screen : public screen_base
+{
 public:
     using create_callback = std::function<void(const character_create_data& data)>;
     using cancel_callback = std::function<void()>;

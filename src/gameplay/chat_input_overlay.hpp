@@ -7,7 +7,8 @@
 #include <vector>
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 class input;
 class renderer;
@@ -55,14 +56,14 @@ public:
 private:
     enum class chat_mode : uint8_t
     {
-        say,       // local
-        shout,     // !
-        faction,   // ~
-        guild,     // @
-        party,     // $
-        trade,     // %
-        gm,        // ^
-        whisper,   // /to
+        say,     // local
+        shout,   // !
+        faction, // ~
+        guild,   // @
+        party,   // $
+        trade,   // %
+        gm,      // ^
+        whisper, // /to
     };
 
     void send_current();

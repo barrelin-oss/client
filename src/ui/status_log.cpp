@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace hb {
+namespace hb
+{
 
 void status_log::update(float delta_time)
 {
@@ -20,13 +21,11 @@ void status_log::update(float delta_time)
         msg.elapsed += delta_time;
     }
 
-    messages_.erase(
-        std::remove_if(messages_.begin(), messages_.end(),
-            [](const status_message& msg) {
-                return msg.lifetime > 0.0f && msg.elapsed >= msg.lifetime;
-            }),
-        messages_.end()
-    );
+    messages_.erase(std::remove_if(messages_.begin(),
+                                   messages_.end(),
+                                   [](const status_message& msg)
+                                   { return msg.lifetime > 0.0f && msg.elapsed >= msg.lifetime; }),
+                    messages_.end());
 
     // Update event timers and remove expired ones
     for (auto& evt : events_)
@@ -35,14 +34,11 @@ void status_log::update(float delta_time)
     }
 
     events_.erase(
-        std::remove_if(events_.begin(), events_.end(),
-            [](const event_message& e) { return e.elapsed >= e.lifetime; }),
-        events_.end()
-    );
+        std::remove_if(events_.begin(), events_.end(), [](const event_message& e) { return e.elapsed >= e.lifetime; }),
+        events_.end());
 }
 
-void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen_height,
-                        int32_t icon_panel_height)
+void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen_height, int32_t icon_panel_height)
 {
     if (messages_.empty() && events_.empty())
     {
@@ -60,10 +56,11 @@ void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen
     int32_t x = padding_left;
 
     // Helper to calculate fade alpha
-    auto calc_fade_alpha = [](float elapsed, float lifetime) -> uint8_t {
+    auto calc_fade_alpha = [](float elapsed, float lifetime) -> uint8_t
+    {
         if (lifetime <= 0.0f)
         {
-            return 255;  // Persistent messages don't fade
+            return 255; // Persistent messages don't fade
         }
         float remaining = lifetime - elapsed;
         if (remaining < fade_duration && remaining > 0.0f)
@@ -101,23 +98,23 @@ void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen
         sf::Color color;
         switch (msg.severity)
         {
-            case status_severity::info:
-                color = sf::Color(200, 200, 200);  // Light gray
-                break;
-            case status_severity::warning:
-                color = sf::Color(255, 220, 100);  // Yellow
-                break;
-            case status_severity::critical:
-                // Flash between red and white
-                if (flash_timer_ < 0.5f)
-                {
-                    color = sf::Color(255, 80, 80);  // Red
-                }
-                else
-                {
-                    color = sf::Color(255, 200, 200);  // Light red/pink
-                }
-                break;
+        case status_severity::info:
+            color = sf::Color(200, 200, 200); // Light gray
+            break;
+        case status_severity::warning:
+            color = sf::Color(255, 220, 100); // Yellow
+            break;
+        case status_severity::critical:
+            // Flash between red and white
+            if (flash_timer_ < 0.5f)
+            {
+                color = sf::Color(255, 80, 80); // Red
+            }
+            else
+            {
+                color = sf::Color(255, 200, 200); // Light red/pink
+            }
+            break;
         }
 
         // Fade out if message is expiring
@@ -130,8 +127,7 @@ void status_log::render(renderer& rend, int32_t /*screen_width*/, int32_t screen
     }
 }
 
-void status_log::set_message(const std::string& key, const std::string& text,
-                             status_severity severity, float lifetime)
+void status_log::set_message(const std::string& key, const std::string& text, status_severity severity, float lifetime)
 {
     // Look for existing message with this key
     for (auto& msg : messages_)
@@ -142,28 +138,21 @@ void status_log::set_message(const std::string& key, const std::string& text,
             msg.text = text;
             msg.severity = severity;
             msg.lifetime = lifetime;
-            msg.elapsed = 0.0f;  // Reset timer on update
+            msg.elapsed = 0.0f; // Reset timer on update
             return;
         }
     }
 
     // Add new message
-    messages_.push_back({
-        .key = key,
-        .text = text,
-        .severity = severity,
-        .lifetime = lifetime,
-        .elapsed = 0.0f
-    });
+    messages_.push_back({.key = key, .text = text, .severity = severity, .lifetime = lifetime, .elapsed = 0.0f});
 }
 
 void status_log::remove_message(const std::string& key)
 {
-    messages_.erase(
-        std::remove_if(messages_.begin(), messages_.end(),
-            [&key](const status_message& msg) { return msg.key == key; }),
-        messages_.end()
-    );
+    messages_.erase(std::remove_if(messages_.begin(),
+                                   messages_.end(),
+                                   [&key](const status_message& msg) { return msg.key == key; }),
+                    messages_.end());
 }
 
 bool status_log::has_message(const std::string& key) const
@@ -190,12 +179,7 @@ void status_log::add_event(std::string_view text, message_color color, bool allo
     }
 
     // Add new event
-    events_.push_back({
-        .text = std::string(text),
-        .color = color,
-        .lifetime = event_lifetime,
-        .elapsed = 0.0f
-    });
+    events_.push_back({.text = std::string(text), .color = color, .lifetime = event_lifetime, .elapsed = 0.0f});
 
     // Enforce max events limit (remove oldest)
     while (events_.size() > max_events)

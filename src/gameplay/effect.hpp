@@ -3,7 +3,8 @@
 #include "gameplay/effect_definition.hpp"
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 class sprite;
 
@@ -22,7 +23,7 @@ struct effect
     // Position (world pixels)
     float pos_x = 0.0f;
     float pos_y = 0.0f;
-    float prev_x = 0.0f;       // Previous position (for trails)
+    float prev_x = 0.0f; // Previous position (for trails)
     float prev_y = 0.0f;
 
     // Source/destination (world pixels, for projectiles)
@@ -62,10 +63,7 @@ struct effect
     // Looping flag (for persistent effects like fish nodes)
     bool looping = false;
 
-    void clear()
-    {
-        *this = effect{};
-    }
+    void clear() { *this = effect{}; }
 };
 
 } // namespace hb

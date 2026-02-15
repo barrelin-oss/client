@@ -7,10 +7,12 @@
 #include <vector>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Supported languages
-enum class language : uint8_t {
+enum class language : uint8_t
+{
     english = 0,
     korean = 1,
     japanese = 2,
@@ -19,33 +21,50 @@ enum class language : uint8_t {
 };
 
 // Get language code string
-inline std::string_view get_language_code(language lang) {
-    switch (lang) {
-        case language::english:            return "en";
-        case language::korean:             return "ko";
-        case language::japanese:           return "ja";
-        case language::chinese_simplified: return "zh_cn";
-        case language::chinese_traditional: return "zh_tw";
-        default:                           return "en";
+inline std::string_view get_language_code(language lang)
+{
+    switch (lang)
+    {
+    case language::english:
+        return "en";
+    case language::korean:
+        return "ko";
+    case language::japanese:
+        return "ja";
+    case language::chinese_simplified:
+        return "zh_cn";
+    case language::chinese_traditional:
+        return "zh_tw";
+    default:
+        return "en";
     }
 }
 
 // Get language display name
-inline std::string_view get_language_name(language lang) {
-    switch (lang) {
-        case language::english:            return "English";
-        case language::korean:             return "한국어";
-        case language::japanese:           return "日本語";
-        case language::chinese_simplified: return "简体中文";
-        case language::chinese_traditional: return "繁體中文";
-        default:                           return "English";
+inline std::string_view get_language_name(language lang)
+{
+    switch (lang)
+    {
+    case language::english:
+        return "English";
+    case language::korean:
+        return "한국어";
+    case language::japanese:
+        return "日本語";
+    case language::chinese_simplified:
+        return "简体中文";
+    case language::chinese_traditional:
+        return "繁體中文";
+    default:
+        return "English";
     }
 }
 
 // Localization callback for language change
 using language_change_callback = std::function<void(language)>;
 
-class localization {
+class localization
+{
 public:
     localization() = default;
     ~localization() = default;
@@ -73,10 +92,11 @@ public:
 
     // Format string with arguments (simple positional replacement)
     // Format: "Hello {0}, you have {1} messages"
-    template<typename... Args>
-    std::string format(std::string_view key, Args&&... args) const {
+    template<typename... Args> std::string format(std::string_view key, Args&&... args) const
+    {
         std::string_view base = get(key);
-        if (base.empty()) return std::string(key);
+        if (base.empty())
+            return std::string(key);
         return format_impl(base, {to_string(std::forward<Args>(args))...});
     }
 
@@ -93,20 +113,28 @@ public:
     static localization& instance();
 
 private:
-    std::string format_impl(std::string_view format_str,
-                           std::vector<std::string> args) const;
+    std::string format_impl(std::string_view format_str, std::vector<std::string> args) const;
 
-    template<typename T>
-    static std::string to_string(T&& value) {
-        if constexpr (std::is_same_v<std::decay_t<T>, std::string>) {
+    template<typename T> static std::string to_string(T&& value)
+    {
+        if constexpr (std::is_same_v<std::decay_t<T>, std::string>)
+        {
             return std::forward<T>(value);
-        } else if constexpr (std::is_same_v<std::decay_t<T>, std::string_view>) {
+        }
+        else if constexpr (std::is_same_v<std::decay_t<T>, std::string_view>)
+        {
             return std::string(value);
-        } else if constexpr (std::is_same_v<std::decay_t<T>, const char*>) {
+        }
+        else if constexpr (std::is_same_v<std::decay_t<T>, const char*>)
+        {
             return std::string(value);
-        } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
+        }
+        else if constexpr (std::is_arithmetic_v<std::decay_t<T>>)
+        {
             return std::to_string(value);
-        } else {
+        }
+        else
+        {
             return std::string(value);
         }
     }

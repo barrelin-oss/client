@@ -8,7 +8,8 @@
 #include <cstdint>
 #include <unordered_map>
 
-namespace hb {
+namespace hb
+{
 
 class sprite_manager;
 class sound_manager;
@@ -44,14 +45,15 @@ public:
 
     // Primary API (tile coordinates, matching legacy bAddNewEffect signature)
     void add_effect(effect_type_id type_id,
-                    int32_t src_x, int32_t src_y,
-                    int32_t dest_x, int32_t dest_y,
-                    int8_t start_frame = 0, int32_t value = 1);
+                    int32_t src_x,
+                    int32_t src_y,
+                    int32_t dest_x,
+                    int32_t dest_y,
+                    int8_t start_frame = 0,
+                    int32_t value = 1);
 
     // Projectile/composite in world pixel coordinates (bypasses tile conversion + height_offset)
-    void add_effect_world(effect_type_id type_id,
-                          float src_x, float src_y,
-                          float dest_x, float dest_y);
+    void add_effect_world(effect_type_id type_id, float src_x, float src_y, float dest_x, float dest_y);
 
     // Convenience: single-position effect at tile coordinates
     void add_effect_at(effect_type_id type_id, int32_t tile_x, int32_t tile_y);
@@ -78,17 +80,21 @@ public:
     struct render_override
     {
         bool active = false;
-        bool force_additive = false;  // Use additive blending for all primary sprites
+        bool force_additive = false;   // Use additive blending for all primary sprites
         float alpha_multiplier = 1.0f; // Multiply all alpha values by this
     };
     render_override render_override_;
 
 private:
     int32_t find_free_slot() const;
-    void init_effect(effect& eff, const effect_definition& def,
-                     float src_x, float src_y,
-                     float dest_x, float dest_y,
-                     int8_t start_frame, int32_t value);
+    void init_effect(effect& eff,
+                     const effect_definition& def,
+                     float src_x,
+                     float src_y,
+                     float dest_x,
+                     float dest_y,
+                     int8_t start_frame,
+                     int32_t value);
     void init_bresenham(effect& eff);
 
     void update_static(effect& eff, float delta_time);
@@ -102,11 +108,12 @@ private:
     void play_effect_sound(const effect_definition& def, float world_x, float world_y);
     void trigger_shake(const effect_definition& def);
     const sprite* resolve_sprite(const effect_definition& def);
-    void render_thunder(renderer& rend, float sx, float sy, float dx, float dy,
-                        int8_t rx, int8_t ry);
-    void render_overlay(renderer& rend, const effect& eff,
+    void render_thunder(renderer& rend, float sx, float sy, float dx, float dy, int8_t rx, int8_t ry);
+    void render_overlay(renderer& rend,
+                        const effect& eff,
                         const effect_definition::sprite_overlay& ov,
-                        int32_t screen_x, int32_t screen_y);
+                        int32_t screen_x,
+                        int32_t screen_y);
 
     std::array<effect, max_effects> effects_{};
     std::array<const sprite*, max_effect_sprites> effect_sprites_{};

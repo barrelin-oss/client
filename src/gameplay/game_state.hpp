@@ -38,7 +38,8 @@
 #include <string>
 #include <utility>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 class input;
@@ -46,22 +47,25 @@ class audio;
 class cursor_manager;
 
 // Quest objective progress
-struct quest_objective {
+struct quest_objective
+{
     uint16_t id = 0;
-    uint8_t status = 0;          // 0=incomplete, 1=complete, 2=failed
+    uint8_t status = 0; // 0=incomplete, 1=complete, 2=failed
     int32_t current = 0;
     int32_t required = 0;
 };
 
 // Active quest state
-struct active_quest {
+struct active_quest
+{
     uint16_t quest_id = 0;
-    uint8_t status = 0;          // 0=available, 1=active, 2=complete, 3=turned_in, 4=failed, 5=abandoned
+    uint8_t status = 0; // 0=available, 1=active, 2=complete, 3=turned_in, 4=failed, 5=abandoned
     std::vector<quest_objective> objectives;
 };
 
 // Quest log holding active and completed quests
-struct quest_log {
+struct quest_log
+{
     std::vector<active_quest> active;
     std::vector<uint16_t> completed;
 
@@ -80,22 +84,24 @@ struct quest_log {
     {
         for (const auto& q : active)
         {
-            if (q.quest_id == quest_id) return &q;
+            if (q.quest_id == quest_id)
+                return &q;
         }
         return nullptr;
     }
 };
 
 // Character data for character select
-struct character_info {
-    int32_t id = 0;  // Server-assigned character ID
+struct character_info
+{
+    int32_t id = 0; // Server-assigned character ID
     std::string name;
     uint16_t level = 1;
-    uint16_t exp_level = 0;  // Experience level percentage
-    uint8_t gender = 1;         // 1 = male, 2 = female
-    uint8_t skin_color = 1;     // 1-3
-    uint8_t hair_style = 0;     // 0-7
-    uint8_t hair_color = 0;     // 0-15
+    uint16_t exp_level = 0;      // Experience level percentage
+    uint8_t gender = 1;          // 1 = male, 2 = female
+    uint8_t skin_color = 1;      // 1-3
+    uint8_t hair_style = 0;      // 0-7
+    uint8_t hair_color = 0;      // 0-15
     uint8_t underwear_color = 0; // 0-7
     uint16_t strength = 0;
     uint16_t vitality = 0;
@@ -104,7 +110,7 @@ struct character_info {
     uint16_t magic = 0;
     uint16_t charisma = 0;
     std::string map_name;
-    bool warrior = true;  // true = warrior, false = mage
+    bool warrior = true; // true = warrior, false = mage
 
     // Equipment (0 = not equipped)
     uint8_t body_armor = 0;
@@ -118,7 +124,8 @@ struct character_info {
 };
 
 // Main game state manager
-class game_state_manager {
+class game_state_manager
+{
 public:
     game_state_manager() = default;
     ~game_state_manager() = default;
@@ -208,7 +215,11 @@ public:
 
     // Combat mode (forwarded to input_handler)
     bool is_combat_mode() const { return input_handler_.is_combat_mode(); }
-    void toggle_combat_mode() { input_handler_.toggle_combat_mode(); ws_handler_.request_combat_mode_toggle(); }
+    void toggle_combat_mode()
+    {
+        input_handler_.toggle_combat_mode();
+        ws_handler_.request_combat_mode_toggle();
+    }
 
     // Camera drag lock (forwarded to input_handler)
     void set_camera_drag_locked(bool locked) { input_handler_.set_camera_drag_locked(locked); }
@@ -223,8 +234,12 @@ public:
     void cancel_transition() { transition_.cancel(); }
 
     // Resolution change API
-    bool change_resolution(uint32_t width, uint32_t height, bool fullscreen,
-                           bool borderless = false, int32_t monitor_x = 0, int32_t monitor_y = 0);
+    bool change_resolution(uint32_t width,
+                           uint32_t height,
+                           bool fullscreen,
+                           bool borderless = false,
+                           int32_t monitor_x = 0,
+                           int32_t monitor_y = 0);
 
     // Spell hotbar
     void set_spell_hotbar_slot(size_t slot, uint16_t spell_id);
@@ -294,14 +309,14 @@ private:
     bool first_launch_connect_ = true;
 
     // WebSocket connection retry state
-    bool ws_connecting_ = false;       // true while actively trying to establish connection
-    float ws_retry_timer_ = 0.0f;     // accumulates until retry_delay, then retries
+    bool ws_connecting_ = false;  // true while actively trying to establish connection
+    float ws_retry_timer_ = 0.0f; // accumulates until retry_delay, then retries
     static constexpr float ws_retry_delay_ = 2.0f;
 
     // Server-controlled view radius
-    int16_t view_radius_x_ = 40;  // Visibility radius in tiles (15-80)
+    int16_t view_radius_x_ = 40; // Visibility radius in tiles (15-80)
     int16_t view_radius_y_ = 40;
-    bool sees_all_ = false;        // Player sees all events on current map
+    bool sees_all_ = false; // Player sees all events on current map
 
     // Subsystems
     network_system network_;
@@ -347,7 +362,8 @@ private:
     std::string loading_message_;
 
     // Async initialization step queue
-    struct init_step {
+    struct init_step
+    {
         std::string message;
         std::function<void()> action;
     };

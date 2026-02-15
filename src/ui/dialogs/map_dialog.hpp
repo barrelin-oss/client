@@ -6,19 +6,22 @@
 #include <string>
 #include <optional>
 
-namespace hb {
+namespace hb
+{
 
 // Map marker structure
-struct map_marker {
+struct map_marker
+{
     int32_t x = 0;
     int32_t y = 0;
     std::string name;
     sf::Color color = sf::Color::White;
-    uint8_t type = 0;  // 0=player, 1=party, 2=enemy, 3=npc, 4=teleport
+    uint8_t type = 0; // 0=player, 1=party, 2=enemy, 3=npc, 4=teleport
 };
 
 // Map dialog - for world map / minimap display
-class map_dialog : public dialog {
+class map_dialog : public dialog
+{
 public:
     map_dialog();
     ~map_dialog() override = default;
@@ -31,10 +34,18 @@ public:
 
     // Map info
     void set_map_name(std::string_view name) { map_name_ = name; }
-    void set_map_size(int32_t width, int32_t height) { map_width_ = width; map_height_ = height; }
+    void set_map_size(int32_t width, int32_t height)
+    {
+        map_width_ = width;
+        map_height_ = height;
+    }
 
     // Player position
-    void set_player_position(int32_t x, int32_t y) { player_x_ = x; player_y_ = y; }
+    void set_player_position(int32_t x, int32_t y)
+    {
+        player_x_ = x;
+        player_y_ = y;
+    }
 
     // Markers
     void clear_markers() { markers_.clear(); }
@@ -59,8 +70,14 @@ public:
 private:
     void render_map_area(renderer& rend, int32_t x, int32_t y, int32_t width, int32_t height);
     void render_legend(renderer& rend, int32_t x, int32_t y);
-    std::pair<int32_t, int32_t> world_to_map(int32_t world_x, int32_t world_y, int32_t map_area_x, int32_t map_area_y, int32_t map_area_w, int32_t map_area_h) const;
-    std::optional<std::pair<int32_t, int32_t>> map_to_world(int32_t mx, int32_t my, int32_t map_area_x, int32_t map_area_y, int32_t map_area_w, int32_t map_area_h) const;
+    std::pair<int32_t, int32_t> world_to_map(int32_t world_x,
+                                             int32_t world_y,
+                                             int32_t map_area_x,
+                                             int32_t map_area_y,
+                                             int32_t map_area_w,
+                                             int32_t map_area_h) const;
+    std::optional<std::pair<int32_t, int32_t>> map_to_world(
+        int32_t mx, int32_t my, int32_t map_area_x, int32_t map_area_y, int32_t map_area_w, int32_t map_area_h) const;
 
     std::string map_name_;
     int32_t map_width_ = 512;

@@ -7,26 +7,27 @@
 #include <vector>
 #include <cstdint>
 
-namespace hb {
+namespace hb
+{
 
 class renderer;
 
 // Severity levels for keyed status messages (legacy API)
 enum class status_severity
 {
-    info,      // White/gray text
-    warning,   // Yellow text
-    critical   // Red text, flashing
+    info,    // White/gray text
+    warning, // Yellow text
+    critical // Red text, flashing
 };
 
 // A keyed status message (persistent, updateable)
 struct status_message
 {
-    std::string key;           // Unique identifier for updating/removing
-    std::string text;          // Display text
+    std::string key;  // Unique identifier for updating/removing
+    std::string text; // Display text
     status_severity severity = status_severity::info;
-    float lifetime = -1.0f;    // Seconds until auto-remove (-1 = persistent)
-    float elapsed = 0.0f;      // Time since message was added/updated
+    float lifetime = -1.0f; // Seconds until auto-remove (-1 = persistent)
+    float elapsed = 0.0f;   // Time since message was added/updated
 };
 
 // A fire-and-forget event message (like legacy AddEventList)
@@ -34,7 +35,7 @@ struct event_message
 {
     std::string text;
     message_color color = message_color::white;
-    float lifetime = 5.0f;     // 5 seconds like legacy
+    float lifetime = 5.0f; // 5 seconds like legacy
     float elapsed = 0.0f;
 };
 
@@ -53,16 +54,14 @@ public:
 
     // Render all active messages
     // icon_panel_height: height of the icon panel to position above
-    void render(renderer& rend, int32_t screen_width, int32_t screen_height,
-                int32_t icon_panel_height = 70);
+    void render(renderer& rend, int32_t screen_width, int32_t screen_height, int32_t icon_panel_height = 70);
 
     // --- Keyed status messages (persistent, updateable) ---
 
     // Add or update a message by key
     // If a message with this key exists, it will be updated
     // lifetime: seconds until auto-remove, -1 for persistent
-    void set_message(const std::string& key, const std::string& text,
-                     status_severity severity, float lifetime = -1.0f);
+    void set_message(const std::string& key, const std::string& text, status_severity severity, float lifetime = -1.0f);
 
     // Remove a message by key
     void remove_message(const std::string& key);
@@ -74,9 +73,7 @@ public:
 
     // Add an event message (like legacy AddEventList)
     // allow_duplicates: if false, won't add if last event has same text
-    void add_event(std::string_view text,
-                   message_color color = message_color::white,
-                   bool allow_duplicates = true);
+    void add_event(std::string_view text, message_color color = message_color::white, bool allow_duplicates = true);
 
     // --- General ---
 
@@ -94,7 +91,7 @@ private:
     std::deque<event_message> events_;
 
     // Animation state
-    float flash_timer_ = 0.0f;     // For critical message flashing
+    float flash_timer_ = 0.0f; // For critical message flashing
 
     // Constants
     static constexpr size_t max_events = 6;

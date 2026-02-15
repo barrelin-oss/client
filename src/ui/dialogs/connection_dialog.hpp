@@ -4,12 +4,14 @@
 #include <string>
 #include <functional>
 
-namespace hb {
+namespace hb
+{
 
 // Simple connection status dialog
 // Shows "Waiting for response from the server" with animated dots
 // After 7 seconds, shows "press escape to cancel"
-class connection_dialog : public dialog {
+class connection_dialog : public dialog
+{
 public:
     connection_dialog();
     ~connection_dialog() override = default;

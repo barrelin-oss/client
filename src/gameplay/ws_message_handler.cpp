@@ -14,6 +14,8 @@
 #include "ui/dialogs/spellbook_dialog.hpp"
 #include "world/tile.hpp"
 #include <spdlog/spdlog.h>
+#include <string_view>
+#include <unordered_map>
 
 namespace hb
 {
@@ -123,6 +125,113 @@ bool ws_message_handler::consume_pending_login(std::string& username, std::strin
 
 void ws_message_handler::handle_message(const json& message)
 {
+    using handler_fn = void (ws_message_handler::*)(const json&);
+
+    // clang-format off
+    static const std::unordered_map<std::string_view, handler_fn> dispatch = {
+        // Auth / lobby
+        {msg_type::login_response,              &ws_message_handler::handle_login_response_ws},
+        {msg_type::get_characters_response,     &ws_message_handler::handle_get_characters_response},
+        {msg_type::enter_game_response,         &ws_message_handler::handle_enter_game_response},
+        {msg_type::create_character_response,   &ws_message_handler::handle_create_character_response},
+        {msg_type::delete_character_response,   &ws_message_handler::handle_delete_character_response},
+
+        // Player movement / position
+        {msg_type::player_position_update,      &ws_message_handler::handle_player_position_update},
+        {msg_type::player_stop_response,        &ws_message_handler::handle_player_stop_response},
+        {msg_type::player_move_response,        &ws_message_handler::handle_player_move_response},
+        {msg_type::player_teleport,             &ws_message_handler::handle_player_teleport},
+
+        // Items / ground
+        {msg_type::player_pickup_response,      &ws_message_handler::handle_pickup_response},
+        {msg_type::ground_item_removed,         &ws_message_handler::handle_ground_item_removed},
+        {msg_type::ground_item_spawn,           &ws_message_handler::handle_ground_item_spawn},
+
+        // Entity lifecycle
+        {msg_type::entity_spawn,                &ws_message_handler::handle_entity_spawn},
+        {msg_type::entity_despawn,              &ws_message_handler::handle_entity_despawn},
+        {msg_type::entity_death,                &ws_message_handler::handle_entity_death},
+        {msg_type::entity_info_response,        &ws_message_handler::handle_entity_info_response},
+        {msg_type::entity_hp_update,            &ws_message_handler::handle_entity_hp_update},
+
+        // NPC
+        {msg_type::npc_spawn,                   &ws_message_handler::handle_npc_spawn},
+        {msg_type::npc_despawn,                 &ws_message_handler::handle_npc_despawn},
+        {msg_type::npc_move,                    &ws_message_handler::handle_npc_move},
+        {msg_type::npc_attack,                  &ws_message_handler::handle_npc_attack},
+
+        // Combat
+        {msg_type::combat_attack_broadcast,     &ws_message_handler::handle_combat_attack_broadcast},
+        {msg_type::player_attack_response,      &ws_message_handler::handle_player_attack_response},
+        {msg_type::combat_effect,               &ws_message_handler::handle_combat_effect},
+        {msg_type::combat_mode_change_response, &ws_message_handler::handle_combat_mode_change_response},
+        {msg_type::combat_mode_change_broadcast,&ws_message_handler::handle_combat_mode_change_broadcast},
+        {msg_type::player_death_info,           &ws_message_handler::handle_player_death_info},
+        {msg_type::respawn_response,            &ws_message_handler::handle_respawn_response},
+
+        // Magic
+        {msg_type::player_magic_response,       &ws_message_handler::handle_player_magic_response},
+        {msg_type::spell_list_update,           &ws_message_handler::handle_spell_list_update},
+
+        // Chat
+        {msg_type::chat_message_broadcast,      &ws_message_handler::handle_chat_message_broadcast},
+        {msg_type::chat_message,                nullptr}, // ack from server, handled via local echo
+
+        // Stats / inventory / equipment
+        {msg_type::stat_update,                 &ws_message_handler::handle_stat_update},
+        {msg_type::hunger_update,               &ws_message_handler::handle_hunger_update},
+        {msg_type::inventory_data,              &ws_message_handler::handle_inventory_data},
+        {msg_type::equipment_data,              &ws_message_handler::handle_equipment_data},
+        {msg_type::equipment_change_broadcast,  &ws_message_handler::handle_equipment_change_broadcast},
+        {msg_type::player_equip_response,       &ws_message_handler::handle_player_equip_response},
+        {msg_type::player_unequip_response,     &ws_message_handler::handle_player_unequip_response},
+
+        // Skills
+        {msg_type::skills_data,                 &ws_message_handler::handle_skills_data},
+        {msg_type::player_skill_response,       &ws_message_handler::handle_player_skill_response},
+
+        // Actions / interaction
+        {msg_type::player_action_broadcast,     &ws_message_handler::handle_player_action_broadcast},
+        {msg_type::player_interact_response,    &ws_message_handler::handle_player_interact_response},
+
+        // Fishing
+        {msg_type::fish_skill_response,         &ws_message_handler::handle_fish_skill_response},
+        {msg_type::fish_engaged,                &ws_message_handler::handle_fish_engaged},
+        {msg_type::fish_chance_update,          &ws_message_handler::handle_fish_chance_update},
+        {msg_type::fish_catch_response,         &ws_message_handler::handle_fish_catch_response},
+        {msg_type::fish_spawn_broadcast,        &ws_message_handler::handle_fish_spawn_broadcast},
+        {msg_type::fish_despawn_broadcast,      &ws_message_handler::handle_fish_despawn_broadcast},
+
+        // Guild
+        {msg_type::guild_create_response,       &ws_message_handler::handle_guild_create_response},
+        {msg_type::guild_disband_response,      &ws_message_handler::handle_guild_disband_response},
+        {msg_type::guild_leave_response,        &ws_message_handler::handle_guild_leave_response},
+        {msg_type::guild_kick_response,         &ws_message_handler::handle_guild_kick_response},
+        {msg_type::guild_invite_response,       &ws_message_handler::handle_guild_invite_response},
+        {msg_type::guild_invite_received,       &ws_message_handler::handle_guild_invite_received},
+        {msg_type::guild_invite_respond_response, &ws_message_handler::handle_guild_invite_respond_response},
+        {msg_type::guild_promote_response,      &ws_message_handler::handle_guild_promote_response},
+        {msg_type::guild_demote_response,       &ws_message_handler::handle_guild_demote_response},
+        {msg_type::guild_set_motd_response,     &ws_message_handler::handle_guild_set_motd_response},
+        {msg_type::guild_info_response,         &ws_message_handler::handle_guild_info_response},
+        {msg_type::guild_update,                &ws_message_handler::handle_guild_update},
+
+        // Environment / rendering
+        {msg_type::environment_update,          &ws_message_handler::handle_environment_update},
+        {msg_type::set_render_mode,             &ws_message_handler::handle_set_render_mode},
+        {msg_type::view_range_update,           &ws_message_handler::handle_view_range_update},
+
+        // Commands
+        {msg_type::command_response,            &ws_message_handler::handle_command_response},
+        {msg_type::available_commands,          &ws_message_handler::handle_available_commands},
+        {msg_type::command_availability_update, &ws_message_handler::handle_command_availability_update},
+
+        // Misc
+        {msg_type::pong,                        &ws_message_handler::handle_pong},
+        {msg_type::error_msg,                   &ws_message_handler::handle_error},
+    };
+    // clang-format on
+
     try
     {
         if (!message.contains("type"))
@@ -131,150 +240,18 @@ void ws_message_handler::handle_message(const json& message)
             return;
         }
 
-        std::string type = message["type"].get<std::string>();
+        const auto& type = message["type"].get_ref<const std::string&>();
         spdlog::debug("[ws recv] {}: {}", type, message.dump());
 
-        if (type == msg_type::login_response)
-            handle_login_response_ws(message);
-        else if (type == msg_type::get_characters_response)
-            handle_get_characters_response(message);
-        else if (type == msg_type::enter_game_response)
-            handle_enter_game_response(message);
-        else if (type == msg_type::create_character_response)
-            handle_create_character_response(message);
-        else if (type == msg_type::delete_character_response)
-            handle_delete_character_response(message);
-        else if (type == msg_type::player_pickup_response)
-            handle_pickup_response(message);
-        else if (type == msg_type::ground_item_removed)
-            handle_ground_item_removed(message);
-        else if (type == msg_type::player_position_update)
-            handle_player_position_update(message);
-        else if (type == msg_type::player_stop_response)
-            handle_player_stop_response(message);
-        else if (type == msg_type::player_move_response)
-            handle_player_move_response(message);
-        else if (type == msg_type::hunger_update)
-            handle_hunger_update(message);
-        else if (type == msg_type::npc_move)
-            handle_npc_move(message);
-        else if (type == msg_type::entity_info_response)
-            handle_entity_info_response(message);
-        else if (type == msg_type::set_render_mode)
-            handle_set_render_mode(message);
-        else if (type == msg_type::chat_message_broadcast)
-            handle_chat_message_broadcast(message);
-        else if (type == msg_type::combat_attack_broadcast)
-            handle_combat_attack_broadcast(message);
-        else if (type == msg_type::player_attack_response)
-            handle_player_attack_response(message);
-        else if (type == msg_type::npc_attack)
-            handle_npc_attack(message);
-        else if (type == msg_type::entity_death)
-            handle_entity_death(message);
-        else if (type == msg_type::entity_despawn)
-            handle_entity_despawn(message);
-        else if (type == msg_type::combat_effect)
-            handle_combat_effect(message);
-        else if (type == msg_type::player_death_info)
-            handle_player_death_info(message);
-        else if (type == msg_type::respawn_response)
-            handle_respawn_response(message);
-        else if (type == msg_type::player_teleport)
-            handle_player_teleport(message);
-        else if (type == msg_type::player_magic_response)
-            handle_player_magic_response(message);
-        else if (type == msg_type::spell_list_update)
-            handle_spell_list_update(message);
-        else if (type == msg_type::chat_message)
+        auto it = dispatch.find(type);
+        if (it == dispatch.end())
         {
-        } // Ack from server, already handled via local echo
-        else if (type == msg_type::environment_update)
-            handle_environment_update(message);
-        else if (type == msg_type::view_range_update)
-            handle_view_range_update(message);
-        else if (type == msg_type::command_response)
-            handle_command_response(message);
-        else if (type == msg_type::entity_spawn)
-            handle_entity_spawn(message);
-        else if (type == msg_type::npc_spawn)
-            handle_npc_spawn(message);
-        else if (type == msg_type::npc_despawn)
-            handle_npc_despawn(message);
-        else if (type == msg_type::ground_item_spawn)
-            handle_ground_item_spawn(message);
-        else if (type == msg_type::stat_update)
-            handle_stat_update(message);
-        else if (type == msg_type::entity_hp_update)
-            handle_entity_hp_update(message);
-        else if (type == msg_type::equipment_change_broadcast)
-            handle_equipment_change_broadcast(message);
-        else if (type == msg_type::combat_mode_change_response)
-            handle_combat_mode_change_response(message);
-        else if (type == msg_type::combat_mode_change_broadcast)
-            handle_combat_mode_change_broadcast(message);
-        else if (type == msg_type::player_action_broadcast)
-            handle_player_action_broadcast(message);
-        else if (type == msg_type::player_equip_response)
-            handle_player_equip_response(message);
-        else if (type == msg_type::player_unequip_response)
-            handle_player_unequip_response(message);
-        else if (type == msg_type::inventory_data)
-            handle_inventory_data(message);
-        else if (type == msg_type::equipment_data)
-            handle_equipment_data(message);
-        else if (type == msg_type::skills_data)
-            handle_skills_data(message);
-        else if (type == msg_type::player_skill_response)
-            handle_player_skill_response(message);
-        else if (type == msg_type::player_interact_response)
-            handle_player_interact_response(message);
-        else if (type == msg_type::fish_skill_response)
-            handle_fish_skill_response(message);
-        else if (type == msg_type::fish_engaged)
-            handle_fish_engaged(message);
-        else if (type == msg_type::fish_chance_update)
-            handle_fish_chance_update(message);
-        else if (type == msg_type::fish_catch_response)
-            handle_fish_catch_response(message);
-        else if (type == msg_type::fish_spawn_broadcast)
-            handle_fish_spawn_broadcast(message);
-        else if (type == msg_type::fish_despawn_broadcast)
-            handle_fish_despawn_broadcast(message);
-        else if (type == msg_type::guild_create_response)
-            handle_guild_create_response(message);
-        else if (type == msg_type::guild_disband_response)
-            handle_guild_disband_response(message);
-        else if (type == msg_type::guild_leave_response)
-            handle_guild_leave_response(message);
-        else if (type == msg_type::guild_kick_response)
-            handle_guild_kick_response(message);
-        else if (type == msg_type::guild_invite_response)
-            handle_guild_invite_response(message);
-        else if (type == msg_type::guild_invite_received)
-            handle_guild_invite_received(message);
-        else if (type == msg_type::guild_invite_respond_response)
-            handle_guild_invite_respond_response(message);
-        else if (type == msg_type::guild_promote_response)
-            handle_guild_promote_response(message);
-        else if (type == msg_type::guild_demote_response)
-            handle_guild_demote_response(message);
-        else if (type == msg_type::guild_set_motd_response)
-            handle_guild_set_motd_response(message);
-        else if (type == msg_type::guild_info_response)
-            handle_guild_info_response(message);
-        else if (type == msg_type::guild_update)
-            handle_guild_update(message);
-        else if (type == msg_type::available_commands)
-            handle_available_commands(message);
-        else if (type == msg_type::command_availability_update)
-            handle_command_availability_update(message);
-        else if (type == msg_type::pong)
-            handle_pong(message);
-        else if (type == msg_type::error_msg)
-            handle_error(message);
-        else
             spdlog::warn("Unknown message type: {}", type);
+            return;
+        }
+
+        if (it->second)
+            (this->*(it->second))(message);
     }
     catch (const nlohmann::json::exception& e)
     {

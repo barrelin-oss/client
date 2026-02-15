@@ -113,6 +113,9 @@ public:
     // Check if a screen point is over any open dialog
     bool is_point_over_dialog(int32_t x, int32_t y) const;
 
+    // Find the topmost open dialog at a screen point (z-order aware)
+    managed_dialog* find_topmost_at(int32_t x, int32_t y) const;
+
     // === Development/hot reload ===
 
     // Enable/disable automatic hot-reload (polls for file changes)

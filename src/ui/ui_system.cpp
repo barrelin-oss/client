@@ -127,21 +127,12 @@ void ui_system::update(float delta_time, const input& inp)
             // Iterate dialog order in reverse (front to back) via the internal order
             // We use find_dialog + close_dialog since dialog_manager doesn't expose order
             // Instead, check if click is over any managed dialog and close it
-            if (dialog_manager_->is_point_over_dialog(mx, my))
+            if (auto* dlg = dialog_manager_->find_topmost_at(mx, my))
             {
-                // Find which managed dialog is under the cursor and close it if allowed
-                for (auto id : dialog_manager_->list_definitions())
+                if (dlg->right_click_closeable())
                 {
-                    auto* dlg = dialog_manager_->find_dialog(id);
-                    if (dlg && dlg->is_open() && dlg->bounds().contains(mx, my))
-                    {
-                        if (dlg->right_click_closeable())
-                        {
-                            dlg->close();
-                            closed_any = true;
-                        }
-                        break; // Only close topmost
-                    }
+                    dlg->close();
+                    closed_any = true;
                 }
             }
         }

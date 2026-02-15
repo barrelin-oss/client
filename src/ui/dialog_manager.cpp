@@ -959,6 +959,19 @@ bool dialog_manager::is_point_over_dialog(int32_t x, int32_t y) const
     return false;
 }
 
+managed_dialog* dialog_manager::find_topmost_at(int32_t x, int32_t y) const
+{
+    for (auto it = dialog_order_.rbegin(); it != dialog_order_.rend(); ++it)
+    {
+        auto* dlg = *it;
+        if (dlg->is_open() && dlg->bounds().contains(x, y))
+        {
+            return dlg;
+        }
+    }
+    return nullptr;
+}
+
 void dialog_manager::reload_definitions()
 {
     // Clear only definitions, keep dialogs and their state

@@ -2028,11 +2028,14 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     auto data = entity_spawn_data::from_json(message);
     auto& entities = game_->entities();
 
-    // Skip if entity already exists
-    if (entities.get_entity(data.entity_id))
+    // Skip if entity already exists (unless it's fading out — let the respawn replace it)
+    if (auto* existing = entities.get_entity(data.entity_id))
     {
-        spdlog::debug("entity_spawn: entity {} already exists, ignoring", data.entity_id);
-        return;
+        if (!existing->is_fading_out())
+        {
+            spdlog::debug("entity_spawn: entity {} already exists, ignoring", data.entity_id);
+            return;
+        }
     }
 
     // Skip spawning ourselves
@@ -2099,14 +2102,27 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     auto data = npc_spawn_data::from_json(message);
     auto& entities = game_->entities();
 
-    // Skip if entity already exists
-    if (entities.get_entity(data.entity_id))
+    // Skip if entity already exists (unless it's fading out — let the respawn replace it)
+    if (auto* existing = entities.get_entity(data.entity_id))
     {
-        spdlog::debug("npc_spawn: entity {} already exists, ignoring", data.entity_id);
-        return;
+        if (!existing->is_fading_out())
+        {
+            spdlog::debug("npc_spawn: entity {} already exists, ignoring", data.entity_id);
+            return;
+        }
     }
 
-    auto& ent = entities.create_entity_with_id(data.entity_id, entity_type::monster);
+    // Determine entity type from category: service NPCs (merchant, quest, trainer, banker, warehouse)
+    // are non-combatant entity_type::npc; everything else (monster, boss, guard, pet, summon) is
+    // entity_type::monster with full combat/stats components
+    auto type = entity_type::monster;
+    if (data.category == "merchant" || data.category == "quest" || data.category == "trainer" ||
+        data.category == "banker" || data.category == "warehouse")
+    {
+        type = entity_type::npc;
+    }
+
+    auto& ent = entities.create_entity_with_id(data.entity_id, type);
 
     init_entity_transform(ent, data.x, data.y, data.direction);
 

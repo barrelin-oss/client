@@ -78,31 +78,42 @@ bool connection::send(const packet& pkt)
         return false;
     }
 
-    size_t sent = 0;
-    auto status = socket_.send(pkt.data(), pkt.size(), sent);
+    const uint8_t* data = pkt.data();
+    size_t remaining = pkt.size();
 
-    if (status == sf::Socket::Status::Done)
+    while (remaining > 0)
     {
-        bytes_sent_ += pkt.size();
-        packets_sent_++;
-        return true;
-    }
-    else if (status == sf::Socket::Status::Partial)
-    {
-        // Handle partial send - in practice, queue the remainder
-        bytes_sent_ += sent;
-        spdlog::warn("Partial send: {} of {} bytes", sent, pkt.size());
-        return true;
-    }
-    else if (status == sf::Socket::Status::Disconnected)
-    {
-        state_ = connection_state::disconnected;
-        last_error_ = "Connection lost during send";
-        spdlog::error("{}", last_error_);
-        return false;
+        size_t sent = 0;
+        auto status = socket_.send(data, remaining, sent);
+
+        if (status == sf::Socket::Status::Done)
+        {
+            bytes_sent_ += sent;
+            remaining = 0;
+        }
+        else if (status == sf::Socket::Status::Partial)
+        {
+            bytes_sent_ += sent;
+            data += sent;
+            remaining -= sent;
+            // Loop to send remainder
+        }
+        else if (status == sf::Socket::Status::Disconnected)
+        {
+            state_ = connection_state::disconnected;
+            last_error_ = "Connection lost during send";
+            spdlog::error("{}", last_error_);
+            return false;
+        }
+        else
+        {
+            spdlog::error("Socket send error with {} bytes remaining", remaining);
+            return false;
+        }
     }
 
-    return false;
+    packets_sent_++;
+    return true;
 }
 
 std::optional<packet> connection::receive()

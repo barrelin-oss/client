@@ -479,6 +479,16 @@ dialog* ui_system::get_dialog(dialog_type type)
     return nullptr;
 }
 
+icon_panel_interface* ui_system::get_icon_panel()
+{
+    if (yaml_icon_panel_)
+        return yaml_icon_panel_;
+    auto it = dialogs_.find(dialog_type::icon_panel);
+    if (it != dialogs_.end())
+        return dynamic_cast<icon_panel_interface*>(it->second.get());
+    return nullptr;
+}
+
 void ui_system::add_dialog(dialog_type type, std::unique_ptr<dialog> dlg)
 {
     // Remove existing dialog of this type if present

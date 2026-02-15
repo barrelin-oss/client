@@ -3,7 +3,6 @@
 #include "ui/dialog_manager.hpp"
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
-#include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
 #include "core/config.hpp"
 #include "network/messages.hpp"
@@ -296,56 +295,27 @@ void dialog_callbacks::setup_callbacks()
     };
 
     // Icon panel - bottom HUD buttons
-    // First try YAML-based icon panel
-    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui.get_dialog(dialog_type::icon_panel)))
+    if (auto* panel = ui.get_icon_panel())
     {
-        yaml_dlg->set_on_character([this]() { game_->ui().toggle_dialog(dialog_type::character_info); });
-
-        yaml_dlg->set_on_inventory([this]() { game_->ui().toggle_dialog(dialog_type::inventory); });
-
-        yaml_dlg->set_on_spellbook([this]() { game_->ui().toggle_dialog(dialog_type::spellbook); });
-
-        yaml_dlg->set_on_skills([this]() { game_->ui().toggle_dialog(dialog_type::skills); });
-
-        yaml_dlg->set_on_chat_history([this]() { game_->ui().toggle_dialog(dialog_type::chat); });
-
-        yaml_dlg->set_on_system_menu(open_settings);
-
-        yaml_dlg->set_on_combat_indicator(
+        panel->set_on_character([this]() { game_->ui().toggle_dialog(dialog_type::character_info); });
+        panel->set_on_inventory([this]() { game_->ui().toggle_dialog(dialog_type::inventory); });
+        panel->set_on_spellbook([this]() { game_->ui().toggle_dialog(dialog_type::spellbook); });
+        panel->set_on_skills([this]() { game_->ui().toggle_dialog(dialog_type::skills); });
+        panel->set_on_chat_history([this]() { game_->ui().toggle_dialog(dialog_type::chat); });
+        panel->set_on_system_menu(open_settings);
+        panel->set_on_combat_indicator(
             [this]()
             {
                 game_->toggle_combat_mode();
                 spdlog::debug("Combat mode toggled via click: {}", game_->is_combat_mode() ? "attack" : "peace");
             });
-
-        yaml_dlg->set_on_button_sound([&sounds]() { sounds.play_ui_sound(14); });
+        panel->set_on_button_sound([&sounds]() { sounds.play_ui_sound(14); });
     }
-    // Fallback to code-based icon panel
-    else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui.get_dialog(dialog_type::icon_panel)))
+    // Extra initialization for code-based icon panel
+    if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui.get_dialog(dialog_type::icon_panel)))
     {
         icon_dlg->set_ui_style(ui.style());
         icon_dlg->set_sprite_manager(&game_->sprites());
-
-        icon_dlg->set_on_character([this]() { game_->ui().toggle_dialog(dialog_type::character_info); });
-
-        icon_dlg->set_on_inventory([this]() { game_->ui().toggle_dialog(dialog_type::inventory); });
-
-        icon_dlg->set_on_spellbook([this]() { game_->ui().toggle_dialog(dialog_type::spellbook); });
-
-        icon_dlg->set_on_skills([this]() { game_->ui().toggle_dialog(dialog_type::skills); });
-
-        icon_dlg->set_on_chat_history([this]() { game_->ui().toggle_dialog(dialog_type::chat); });
-
-        icon_dlg->set_on_system_menu(open_settings);
-
-        icon_dlg->set_on_combat_indicator(
-            [this]()
-            {
-                game_->toggle_combat_mode();
-                spdlog::debug("Combat mode toggled via click: {}", game_->is_combat_mode() ? "attack" : "peace");
-            });
-
-        icon_dlg->set_on_button_sound([&sounds]() { sounds.play_ui_sound(14); });
     }
 
     // Settings dialog - tabbed game configuration

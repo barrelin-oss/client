@@ -351,18 +351,31 @@ std::optional<pak_sprite_data> pak_file::read_sprite_internal(uint32_t offset)
                   info_header.bit_count,
                   info_header.compression);
 
+    // Reject unsupported bit depths (1-bit and 4-bit have no decode path)
+    if (info_header.bit_count != 8 && info_header.bit_count != 16 &&
+        info_header.bit_count != 24 && info_header.bit_count != 32)
+    {
+        spdlog::error("Unsupported BMP bit depth: {}", info_header.bit_count);
+        return std::nullopt;
+    }
+
     // Calculate row stride (BMP rows are padded to 4-byte boundary)
     uint32_t bytes_per_pixel = info_header.bit_count / 8;
     uint32_t row_size = (result.bitmap_width * bytes_per_pixel + 3) & ~3;
 
-    // Read color table if needed (for 8-bit or less)
+    // Read color table if needed (for 8-bit)
     std::vector<uint32_t> color_table;
-    if (info_header.bit_count <= 8)
+    if (info_header.bit_count == 8)
     {
         uint32_t num_colors = info_header.clr_used;
         if (num_colors == 0)
         {
-            num_colors = 1u << info_header.bit_count;
+            num_colors = 256;
+        }
+        if (num_colors > 256)
+        {
+            spdlog::error("Invalid BMP color table size: {}", num_colors);
+            return std::nullopt;
         }
         color_table.resize(num_colors);
         file_.read(reinterpret_cast<char*>(color_table.data()), num_colors * 4);
@@ -376,8 +389,8 @@ std::optional<pak_sprite_data> pak_file::read_sprite_internal(uint32_t offset)
     std::vector<uint8_t> raw_pixels(pixel_data_size);
     if (!file_.read(reinterpret_cast<char*>(raw_pixels.data()), pixel_data_size))
     {
-        // Partial read may be acceptable
-        spdlog::warn("Partial BMP pixel data read: {} of {} bytes", file_.gcount(), pixel_data_size);
+        spdlog::error("Incomplete BMP pixel data: {} of {} bytes", file_.gcount(), pixel_data_size);
+        return std::nullopt;
     }
 
     // Convert to RGBA format for SFML
@@ -401,18 +414,14 @@ std::optional<pak_sprite_data> pak_file::read_sprite_internal(uint32_t offset)
             {
             case 16:
             {
-                // 16-bit color (RGB555 or RGB565)
-                uint16_t pixel = *reinterpret_cast<const uint16_t*>(src_row + x * 2);
-                // Helbreath typically uses RGB565 (16-bit high color)
+                uint16_t pixel;
+                std::memcpy(&pixel, src_row + x * 2, sizeof(pixel));
                 if (info_header.compression == 3)
                 {
-                    // BI_BITFIELDS - check actual format
-                    // For now assume RGB565
                     rgb565_to_rgba(pixel, r, g, b);
                 }
                 else
                 {
-                    // Default to RGB555 for uncompressed 16-bit
                     rgb555_to_rgba(pixel, r, g, b);
                 }
                 break;
@@ -589,18 +598,31 @@ std::optional<std::vector<uint8_t>> pak_file::read_bitmap_internal(uint32_t offs
     uint32_t height = static_cast<uint32_t>(std::abs(info_header.height));
     bool top_down = info_header.height < 0;
 
+    // Reject unsupported bit depths (1-bit and 4-bit have no decode path)
+    if (info_header.bit_count != 8 && info_header.bit_count != 16 &&
+        info_header.bit_count != 24 && info_header.bit_count != 32)
+    {
+        spdlog::error("Unsupported BMP bit depth: {}", info_header.bit_count);
+        return std::nullopt;
+    }
+
     // Calculate row stride
     uint32_t bytes_per_pixel = info_header.bit_count / 8;
     uint32_t row_size = (width * bytes_per_pixel + 3) & ~3;
 
-    // Read color table if needed
+    // Read color table if needed (for 8-bit)
     std::vector<uint32_t> color_table;
-    if (info_header.bit_count <= 8)
+    if (info_header.bit_count == 8)
     {
         uint32_t num_colors = info_header.clr_used;
         if (num_colors == 0)
         {
-            num_colors = 1u << info_header.bit_count;
+            num_colors = 256;
+        }
+        if (num_colors > 256)
+        {
+            spdlog::error("Invalid BMP color table size: {}", num_colors);
+            return std::nullopt;
         }
         color_table.resize(num_colors);
         file_.read(reinterpret_cast<char*>(color_table.data()), num_colors * 4);
@@ -615,7 +637,8 @@ std::optional<std::vector<uint8_t>> pak_file::read_bitmap_internal(uint32_t offs
     std::vector<uint8_t> raw_pixels(pixel_data_size);
     if (!file_.read(reinterpret_cast<char*>(raw_pixels.data()), pixel_data_size))
     {
-        spdlog::warn("Partial BMP pixel data read");
+        spdlog::error("Incomplete BMP pixel data: {} of {} bytes", file_.gcount(), pixel_data_size);
+        return std::nullopt;
     }
 
     // Convert to RGBA
@@ -635,7 +658,8 @@ std::optional<std::vector<uint8_t>> pak_file::read_bitmap_internal(uint32_t offs
             {
             case 16:
             {
-                uint16_t pixel = *reinterpret_cast<const uint16_t*>(src_row + x * 2);
+                uint16_t pixel;
+                std::memcpy(&pixel, src_row + x * 2, sizeof(pixel));
                 if (info_header.compression == 3)
                 {
                     rgb565_to_rgba(pixel, r, g, b);

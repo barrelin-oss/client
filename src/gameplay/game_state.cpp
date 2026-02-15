@@ -600,14 +600,8 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
          [this]()
          {
              ui_.create_icon_panel_dialog();
-             if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-             {
-                 yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
-             }
-             else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-             {
-                 icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
-             }
+             if (auto* panel = ui_.get_icon_panel())
+                 panel->set_screen_size(renderer_->width(), renderer_->height());
          }});
     init_steps_.push_back({"Creating dialogs...",
                            [this]()
@@ -1061,14 +1055,8 @@ void game_state_manager::enter_state(game_state state)
         transition_.randomize_type();
         transition_.start_reveal(renderer_->width(), renderer_->height());
         ui_.open_dialog(dialog_type::icon_panel);
-        if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-        {
-            yaml_dlg->set_screen_size(renderer_->width(), renderer_->height());
-        }
-        else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-        {
-            icon_dlg->set_screen_size(renderer_->width(), renderer_->height());
-        }
+        if (auto* panel = ui_.get_icon_panel())
+            panel->set_screen_size(renderer_->width(), renderer_->height());
         update_icon_panel();
         sounds_.start_bgm(world_.current_map_name(), static_cast<int>(world_.weather()));
         break;
@@ -1210,14 +1198,8 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
 
     // Track alt key state for super attack indicator
     bool alt_held = inp.is_key_down(sf::Keyboard::Key::LAlt) || inp.is_key_down(sf::Keyboard::Key::RAlt);
-    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-    {
-        yaml_dlg->set_alt_held(alt_held);
-    }
-    else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-    {
-        icon_dlg->set_alt_held(alt_held);
-    }
+    if (auto* panel = ui_.get_icon_panel())
+        panel->set_alt_held(alt_held);
 
     // Mouse wheel zoom (use scene-space coordinates for anchor)
     if (world_.is_zoom_mode_enabled())
@@ -1926,56 +1908,25 @@ void game_state_manager::update_icon_panel()
     bool combat_mode = input_handler_.is_combat_mode();
     bool safe_attack_mode = input_handler_.is_safe_attack_mode();
 
-    auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel));
-    if (yaml_dlg)
-    {
-        if (player->has_stats())
-        {
-            const auto& stats = player->stats();
-            yaml_dlg->set_hp(stats.hp, stats.max_hp);
-            yaml_dlg->set_mp(stats.mp, stats.max_mp);
-            yaml_dlg->set_sp(stats.sp, stats.max_sp);
-            int64_t exp_for_next_level = static_cast<int64_t>(stats.level) * 1000;
-            yaml_dlg->set_experience(stats.experience, exp_for_next_level, stats.level);
-        }
-        const auto& transform = player->transform();
-        yaml_dlg->set_position(transform.tile_x, transform.tile_y);
-        yaml_dlg->set_map_name(world_.current_map_name());
-        if (player->has_combat())
-        {
-            yaml_dlg->set_poisoned(player->combat().poisoned);
-        }
-        bool weapon_mastered = false;
-        if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand))
-        {
-            weapon_skill ws = combat_.get_weapon_skill(weapon->type_id);
-            weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
-        }
-        yaml_dlg->set_super_attack_available(weapon_mastered);
-        yaml_dlg->set_combat_mode(combat_mode);
-        yaml_dlg->set_safe_attack_mode(safe_attack_mode);
-        return;
-    }
-
-    auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel));
-    if (!icon_dlg)
+    auto* panel = ui_.get_icon_panel();
+    if (!panel)
         return;
 
     if (player->has_stats())
     {
         const auto& stats = player->stats();
-        icon_dlg->set_hp(stats.hp, stats.max_hp);
-        icon_dlg->set_mp(stats.mp, stats.max_mp);
-        icon_dlg->set_sp(stats.sp, stats.max_sp);
+        panel->set_hp(stats.hp, stats.max_hp);
+        panel->set_mp(stats.mp, stats.max_mp);
+        panel->set_sp(stats.sp, stats.max_sp);
         int64_t exp_for_next_level = static_cast<int64_t>(stats.level) * 1000;
-        icon_dlg->set_experience(stats.experience, exp_for_next_level, stats.level);
+        panel->set_experience(stats.experience, exp_for_next_level, stats.level);
     }
     const auto& transform = player->transform();
-    icon_dlg->set_position(transform.tile_x, transform.tile_y);
-    icon_dlg->set_map_name(world_.current_map_name());
+    panel->set_position(transform.tile_x, transform.tile_y);
+    panel->set_map_name(world_.current_map_name());
     if (player->has_combat())
     {
-        icon_dlg->set_poisoned(player->combat().poisoned);
+        panel->set_poisoned(player->combat().poisoned);
     }
     bool weapon_mastered = false;
     if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand))
@@ -1983,9 +1934,9 @@ void game_state_manager::update_icon_panel()
         weapon_skill ws = combat_.get_weapon_skill(weapon->type_id);
         weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
     }
-    icon_dlg->set_super_attack_available(weapon_mastered);
-    icon_dlg->set_combat_mode(combat_mode);
-    icon_dlg->set_safe_attack_mode(safe_attack_mode);
+    panel->set_super_attack_available(weapon_mastered);
+    panel->set_combat_mode(combat_mode);
+    panel->set_safe_attack_mode(safe_attack_mode);
 }
 
 void game_state_manager::set_ui_style(ui_style style)
@@ -2192,14 +2143,8 @@ bool game_state_manager::change_resolution(
         }
     }
 
-    if (auto* yaml_dlg = dynamic_cast<yaml_icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-    {
-        yaml_dlg->set_screen_size(width, height);
-    }
-    else if (auto* icon_dlg = dynamic_cast<icon_panel_dialog*>(ui_.get_dialog(dialog_type::icon_panel)))
-    {
-        icon_dlg->set_screen_size(width, height);
-    }
+    if (auto* panel = ui_.get_icon_panel())
+        panel->set_screen_size(width, height);
 
     return true;
 }

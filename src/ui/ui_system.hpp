@@ -19,6 +19,7 @@ class sprite_manager;
 class dialog_manager;
 class managed_dialog;
 class yaml_icon_panel_dialog;
+class icon_panel_interface;
 enum class render_mode;
 
 // UI visual style
@@ -63,6 +64,7 @@ public:
 
     // Dialog management
     dialog* get_dialog(dialog_type type);
+    icon_panel_interface* get_icon_panel();
     void add_dialog(dialog_type type, std::unique_ptr<dialog> dlg);
     void open_dialog(dialog_type type);
     void close_dialog(dialog_type type);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui/dialogs/icon_panel_interface.hpp"
 #include "ui/ui_system.hpp"
 #include <functional>
 #include <array>
@@ -13,7 +14,7 @@ class sprite_manager;
 // Bottom HUD panel - combines gauges, map info, and action buttons
 // This is the main in-game HUD displayed at the bottom of the screen
 // Supports both modern (programmatic) and classic (sprite-based) rendering
-class icon_panel_dialog : public dialog
+class icon_panel_dialog : public dialog, public icon_panel_interface
 {
 public:
     icon_panel_dialog();
@@ -30,47 +31,29 @@ public:
     // Sprite manager for classic rendering
     void set_sprite_manager(sprite_manager* sprites) { sprites_ = sprites; }
 
-    // Button click callbacks
-    using button_callback = std::function<void()>;
-    using sound_callback = std::function<void()>;
+    // icon_panel_interface overrides
+    void set_on_character(button_callback cb) override { on_character_ = std::move(cb); }
+    void set_on_inventory(button_callback cb) override { on_inventory_ = std::move(cb); }
+    void set_on_spellbook(button_callback cb) override { on_spellbook_ = std::move(cb); }
+    void set_on_skills(button_callback cb) override { on_skills_ = std::move(cb); }
+    void set_on_chat_history(button_callback cb) override { on_chat_history_ = std::move(cb); }
+    void set_on_system_menu(button_callback cb) override { on_system_menu_ = std::move(cb); }
+    void set_on_combat_indicator(button_callback cb) override { on_combat_indicator_ = std::move(cb); }
+    void set_on_button_sound(sound_callback cb) override { on_button_sound_ = std::move(cb); }
 
-    void set_on_character(button_callback cb) { on_character_ = std::move(cb); }
-    void set_on_inventory(button_callback cb) { on_inventory_ = std::move(cb); }
-    void set_on_spellbook(button_callback cb) { on_spellbook_ = std::move(cb); }
-    void set_on_skills(button_callback cb) { on_skills_ = std::move(cb); }
-    void set_on_chat_history(button_callback cb) { on_chat_history_ = std::move(cb); }
-    void set_on_system_menu(button_callback cb) { on_system_menu_ = std::move(cb); }
-    void set_on_combat_indicator(button_callback cb) { on_combat_indicator_ = std::move(cb); }
-
-    // Sound callback for button clicks
-    void set_on_button_sound(sound_callback cb) { on_button_sound_ = std::move(cb); }
-
-    // Stats (HP/MP/SP)
-    void set_hp(int32_t current, int32_t max);
-    void set_mp(int32_t current, int32_t max);
-    void set_sp(int32_t current, int32_t max);
-
-    // Experience
-    void set_experience(int64_t current_exp, int64_t exp_to_level, int32_t level);
-
-    // Map info
-    void set_map_name(std::string_view name);
-    void set_position(int32_t x, int32_t y);
-
-    // Combat mode
-    void set_combat_mode(bool combat);
-    void set_safe_attack_mode(bool safe);
-
-    // Super attack (displayed when weapon skill is at 100%)
-    void set_super_attack_count(int32_t count);
-    void set_super_attack_available(bool available);
-    void set_alt_held(bool held);
-
-    // Poisoned status (affects HP bar display)
-    void set_poisoned(bool poisoned);
-
-    // Screen size (for dynamic positioning)
-    void set_screen_size(uint32_t width, uint32_t height);
+    void set_hp(int32_t current, int32_t max) override;
+    void set_mp(int32_t current, int32_t max) override;
+    void set_sp(int32_t current, int32_t max) override;
+    void set_experience(int64_t current_exp, int64_t exp_to_level, int32_t level) override;
+    void set_map_name(std::string_view name) override;
+    void set_position(int32_t x, int32_t y) override;
+    void set_combat_mode(bool combat) override;
+    void set_safe_attack_mode(bool safe) override;
+    void set_super_attack_count(int32_t count) override;
+    void set_super_attack_available(bool available) override;
+    void set_alt_held(bool held) override;
+    void set_poisoned(bool poisoned) override;
+    void set_screen_size(uint32_t width, uint32_t height) override;
 
 private:
     // === Modern style rendering ===

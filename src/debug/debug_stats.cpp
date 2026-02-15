@@ -676,15 +676,9 @@ void debug_stats::set_player_movement(const std::string& direction, bool moving,
     player_running_ = running;
 }
 
-void debug_stats::render_entity_info(renderer& rend, int32_t screen_width, int32_t screen_height)
+void debug_stats::render_entity_info(renderer& rend, const entity* ent, int32_t screen_width, int32_t screen_height)
 {
-    if (!entity_info_visible_)
-    {
-        return;
-    }
-
-    const entity* ent = pinned_entity_ ? pinned_entity_ : hovered_entity_ptr_;
-    if (!ent)
+    if (!entity_info_visible_ || !ent)
     {
         return;
     }
@@ -783,7 +777,7 @@ void debug_stats::render_entity_info(renderer& rend, int32_t screen_width, int32
     char buf[256];
 
     // Title
-    if (pinned_entity_)
+    if (pinned_entity_id_ != 0)
     {
         rend.draw_text("Entity Info (pinned)", x, y, sf::Color(200, 200, 220), 11);
     }
@@ -918,7 +912,7 @@ void debug_stats::render_entity_info(renderer& rend, int32_t screen_width, int32
         rend.draw_text("Stats", x, y, header_color, 10);
         y += line_height_;
 
-        snprintf(buf, sizeof(buf), "Lv: %u  Exp: %u", st.level, st.exp);
+        snprintf(buf, sizeof(buf), "Lv: %u  Exp: %lld", st.level, static_cast<long long>(st.exp));
         rend.draw_text(buf, x + 8, y, data_color, 10);
         y += line_height_;
 

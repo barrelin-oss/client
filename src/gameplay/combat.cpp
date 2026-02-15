@@ -643,7 +643,7 @@ bool combat_system::check_level_up(entity_id entity)
     auto& stats = ent->stats();
 
     // Simple level up formula: need level * 100 exp
-    uint32_t exp_needed = stats.level * 100;
+    int64_t exp_needed = static_cast<int64_t>(stats.level) * 100;
     if (stats.experience >= exp_needed)
     {
         stats.experience -= exp_needed;

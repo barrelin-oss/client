@@ -156,11 +156,12 @@ public:
     // === Entity Info Overlay ===
     void set_entity_info_visible(bool visible) { entity_info_visible_ = visible; }
     bool entity_info_visible() const { return entity_info_visible_; }
-    void set_hovered_entity_ptr(const entity* ent) { hovered_entity_ptr_ = ent; }
-    void set_pinned_entity(const entity* ent) { pinned_entity_ = ent; }
-    const entity* pinned_entity() const { return pinned_entity_; }
-    void clear_pinned_entity() { pinned_entity_ = nullptr; }
-    void render_entity_info(renderer& rend, int32_t screen_width, int32_t screen_height);
+    void set_hovered_entity_id(uint32_t id) { hovered_entity_id_ = id; }
+    uint32_t hovered_entity_id() const { return hovered_entity_id_; }
+    void set_pinned_entity_id(uint32_t id) { pinned_entity_id_ = id; }
+    uint32_t pinned_entity_id() const { return pinned_entity_id_; }
+    void clear_pinned_entity() { pinned_entity_id_ = 0; }
+    void render_entity_info(renderer& rend, const entity* ent, int32_t screen_width, int32_t screen_height);
 
     // === Game State ===
     void set_game_state(const std::string& state) { game_state_ = state; }
@@ -276,10 +277,10 @@ private:
     int32_t active_sounds_ = 0;
     std::string bgm_track_;
 
-    // Entity info overlay
+    // Entity info overlay (store IDs, not raw pointers — entities can be removed at any time)
     bool entity_info_visible_ = false;
-    const entity* hovered_entity_ptr_ = nullptr;
-    const entity* pinned_entity_ = nullptr;
+    uint32_t hovered_entity_id_ = 0;
+    uint32_t pinned_entity_id_ = 0;
     static constexpr int32_t entity_info_width_ = 300;
     static constexpr int32_t icon_panel_height_ = 46;
 

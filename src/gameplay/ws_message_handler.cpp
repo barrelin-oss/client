@@ -42,6 +42,46 @@ time_of_day hour_to_time_of_day(uint8_t hour)
 
 } // anonymous namespace
 
+void ws_message_handler::init_entity_transform(entity& ent, int16_t x, int16_t y, int direction)
+{
+    auto& t = ent.transform();
+    t.tile_x = x;
+    t.tile_y = y;
+    t.move_start_x = x;
+    t.move_start_y = y;
+    t.x = x * hb::tile_width + 16;
+    t.y = y * hb::tile_height + 16;
+    t.facing = direction_from_protocol(direction).value_or(direction::south);
+}
+
+void ws_message_handler::init_entity_visual_type(entity& ent, int16_t sprite_id, uint32_t template_id,
+                                                  const std::string& hostility)
+{
+    uint16_t visual_type =
+        sprite_id > 0 ? static_cast<uint16_t>(sprite_id) : static_cast<uint16_t>(template_id);
+
+    if (visual_type > 0)
+    {
+        ent.set_type(visual_type);
+        if (ent.has_npc())
+            ent.npc().npc_type = visual_type;
+        if (ent.has_monster())
+        {
+            ent.monster().monster_type = visual_type;
+            ent.monster().hostile = hostility_from_string(hostility);
+        }
+    }
+}
+
+void ws_message_handler::init_entity_dead_state(entity& ent, entity_manager& entities)
+{
+    ent.set_action(object_action::dying);
+    auto& anim = ent.animation();
+    anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
+    anim.finished = true;
+    entities.transition_to_dead(ent.id());
+}
+
 void ws_message_handler::initialize(game_state_manager& game)
 {
     game_ = &game;
@@ -392,7 +432,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     stats.max_mp = ch.mp_max;
     stats.sp = ch.sp;
     stats.max_sp = ch.sp_max;
-    stats.experience = static_cast<uint32_t>(ch.experience);
+    stats.experience = ch.experience;
     stats.hunger = static_cast<uint8_t>(ch.hunger_level);
 
     auto& combat = player.combat();
@@ -454,49 +494,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         itm.durability = static_cast<uint16_t>(eq_item.durability);
         itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
 
-        equip_slot slot = equip_slot::none;
-        switch (eq_item.slot)
-        {
-        case 0:
-            slot = equip_slot::head;
-            break;
-        case 1:
-            slot = equip_slot::body;
-            break;
-        case 2:
-            slot = equip_slot::arms;
-            break;
-        case 3:
-            slot = equip_slot::pants;
-            break;
-        case 4:
-            slot = equip_slot::boots;
-            break;
-        case 5:
-            slot = equip_slot::right_hand;
-            break;
-        case 6:
-            slot = equip_slot::left_hand;
-            break;
-        case 7:
-            slot = equip_slot::right_finger;
-            break;
-        case 8:
-            slot = equip_slot::left_finger;
-            break;
-        case 9:
-            slot = equip_slot::neck;
-            break;
-        case 10:
-            slot = equip_slot::back;
-            break;
-        case 11:
-            slot = equip_slot::none;
-            break;
-        default:
-            slot = equip_slot::none;
-            break;
-        }
+        auto slot = equip_slot_from_server(eq_item.slot);
         if (slot != equip_slot::none)
         {
             inventory.set_equipped(slot, itm);
@@ -1017,14 +1015,7 @@ void ws_message_handler::handle_entity_info_response(const json& message)
 
     auto& ent = entities.create_entity_with_id(data.entity_id, type);
 
-    auto& t = ent.transform();
-    t.tile_x = data.x;
-    t.tile_y = data.y;
-    t.move_start_x = data.x;
-    t.move_start_y = data.y;
-    t.x = data.x * hb::tile_width + 16;
-    t.y = data.y * hb::tile_height + 16;
-    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
+    init_entity_transform(ent, data.x, data.y, data.direction);
 
     if (ent.has_name())
     {
@@ -1033,22 +1024,7 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent.name().hostile = hostility_from_string(data.hostility);
     }
 
-    // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
-    // Falls back to template_id if sprite_id not provided
-    uint16_t visual_type =
-        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
-
-    if (visual_type > 0)
-    {
-        ent.set_type(visual_type);
-        if (ent.has_npc())
-            ent.npc().npc_type = visual_type;
-        if (ent.has_monster())
-        {
-            ent.monster().monster_type = visual_type;
-            ent.monster().hostile = hostility_from_string(data.hostility);
-        }
-    }
+    init_entity_visual_type(ent, data.sprite_id, data.template_id, data.hostility);
 
     if (ent.has_stats())
     {
@@ -1058,6 +1034,8 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent_stats.level = static_cast<uint16_t>(data.level);
     }
 
+    uint16_t visual_type =
+        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
     spdlog::info("Created entity {} ({}) '{}' at ({},{}) sprite={} hostility={} from info response",
                  data.entity_id,
                  data.entity_type,
@@ -1366,6 +1344,8 @@ void ws_message_handler::handle_set_render_mode(const json& message)
 
 void ws_message_handler::handle_view_range_update(const json& message)
 {
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
 
     int16_t radius_x = d.value("radius_x", static_cast<int16_t>(40));
@@ -1381,6 +1361,8 @@ void ws_message_handler::handle_view_range_update(const json& message)
 
 void ws_message_handler::handle_command_response(const json& message)
 {
+    if (!message.contains("data"))
+        return;
     const auto& d = message["data"];
     std::string msg_text = d.value("message", "");
     bool success = d.value("success", false);
@@ -2088,14 +2070,7 @@ void ws_message_handler::handle_entity_spawn(const json& message)
 
     auto& ent = entities.create_entity_with_id(data.entity_id, type);
 
-    auto& t = ent.transform();
-    t.tile_x = data.x;
-    t.tile_y = data.y;
-    t.move_start_x = data.x;
-    t.move_start_y = data.y;
-    t.x = data.x * hb::tile_width + 16;
-    t.y = data.y * hb::tile_height + 16;
-    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
+    init_entity_transform(ent, data.x, data.y, data.direction);
 
     if (ent.has_name())
     {
@@ -2120,11 +2095,7 @@ void ws_message_handler::handle_entity_spawn(const json& message)
 
     if (data.is_dead)
     {
-        ent.set_action(object_action::dying);
-        auto& anim = ent.animation();
-        anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
-        anim.finished = true;
-        entities.transition_to_dead(data.entity_id);
+        init_entity_dead_state(ent, entities);
     }
     else
     {
@@ -2160,14 +2131,7 @@ void ws_message_handler::handle_npc_spawn(const json& message)
 
     auto& ent = entities.create_entity_with_id(data.entity_id, entity_type::monster);
 
-    auto& t = ent.transform();
-    t.tile_x = data.x;
-    t.tile_y = data.y;
-    t.move_start_x = data.x;
-    t.move_start_y = data.y;
-    t.x = data.x * hb::tile_width + 16;
-    t.y = data.y * hb::tile_height + 16;
-    t.facing = direction_from_protocol(data.direction).value_or(direction::south);
+    init_entity_transform(ent, data.x, data.y, data.direction);
 
     if (ent.has_name())
     {
@@ -2175,23 +2139,13 @@ void ws_message_handler::handle_npc_spawn(const json& message)
         ent.name().hostile = hostility_from_string(data.hostility);
     }
 
-    // Use sprite_id for visual type (legacy sprite type: 10=Slime, etc.)
-    // Falls back to template_id if sprite_id not provided
-    uint16_t visual_type =
-        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
+    init_entity_visual_type(ent, data.sprite_id, data.template_id, data.hostility);
 
-    if (visual_type > 0)
+    // NPC-specific monster attributes (not in entity_info_response)
+    if (ent.has_monster())
     {
-        ent.set_type(visual_type);
-        if (ent.has_npc())
-            ent.npc().npc_type = visual_type;
-        if (ent.has_monster())
-        {
-            ent.monster().monster_type = visual_type;
-            ent.monster().attributes = data.attributes;
-            ent.monster().category = data.category;
-            ent.monster().hostile = hostility_from_string(data.hostility);
-        }
+        ent.monster().attributes = data.attributes;
+        ent.monster().category = data.category;
     }
 
     if (ent.has_stats())
@@ -2203,18 +2157,15 @@ void ws_message_handler::handle_npc_spawn(const json& message)
 
     if (data.is_dead)
     {
-        // Spawn as corpse: dying animation on last frame, marked dead
-        ent.set_action(object_action::dying);
-        auto& anim = ent.animation();
-        anim.current_frame = anim.frame_count > 0 ? anim.frame_count - 1 : 0;
-        anim.finished = true;
-        entities.transition_to_dead(data.entity_id);
+        init_entity_dead_state(ent, entities);
     }
     else
     {
         ent.animation().set_state(entity_anim_state::stop);
     }
 
+    uint16_t visual_type =
+        data.sprite_id > 0 ? static_cast<uint16_t>(data.sprite_id) : static_cast<uint16_t>(data.template_id);
     spdlog::info("NPC spawned: '{}' id={} sprite={} at ({},{}) hp={}/{} dead={}",
                  data.name,
                  data.entity_id,
@@ -2293,7 +2244,7 @@ void ws_message_handler::handle_stat_update(const json& message)
     if (data.sp)
         stats.sp = *data.sp;
     if (data.experience)
-        stats.experience = static_cast<uint32_t>(*data.experience);
+        stats.experience = *data.experience;
     if (data.level)
         stats.level = *data.level;
     if (data.hunger_level)
@@ -2521,45 +2472,7 @@ void ws_message_handler::handle_equipment_data(const json& message)
         itm.durability = static_cast<uint16_t>(eq_item.durability);
         itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
 
-        equip_slot slot = equip_slot::none;
-        switch (eq_item.slot)
-        {
-        case 0:
-            slot = equip_slot::head;
-            break;
-        case 1:
-            slot = equip_slot::body;
-            break;
-        case 2:
-            slot = equip_slot::arms;
-            break;
-        case 3:
-            slot = equip_slot::pants;
-            break;
-        case 4:
-            slot = equip_slot::boots;
-            break;
-        case 5:
-            slot = equip_slot::right_hand;
-            break;
-        case 6:
-            slot = equip_slot::left_hand;
-            break;
-        case 7:
-            slot = equip_slot::right_finger;
-            break;
-        case 8:
-            slot = equip_slot::left_finger;
-            break;
-        case 9:
-            slot = equip_slot::neck;
-            break;
-        case 10:
-            slot = equip_slot::back;
-            break;
-        default:
-            break;
-        }
+        auto slot = equip_slot_from_server(eq_item.slot);
         if (slot != equip_slot::none)
             inventory.set_equipped(slot, itm);
     }
@@ -2569,10 +2482,7 @@ void ws_message_handler::handle_equipment_data(const json& message)
 
 void ws_message_handler::handle_skills_data(const json& message)
 {
-    spdlog::info("Received skills_data message: {}", message.dump());
-
     auto data = skills_data_msg::from_json(message);
-    spdlog::info("Parsed {} skill entries", data.skills.size());
 
     auto& skills = game_->skills();
     for (const auto& sk : data.skills)

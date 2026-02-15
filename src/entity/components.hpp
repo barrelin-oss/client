@@ -239,9 +239,9 @@ struct stats_component
 
     // Level/XP
     uint16_t level = 1;
-    uint32_t experience = 0;
-    uint32_t exp = 0; // Alias for experience
-    uint32_t experience_to_next = 100;
+    int64_t experience = 0;
+    int64_t exp = 0; // Alias for experience
+    int64_t experience_to_next = 100;
 
     // Combat stats
     int32_t attack_power = 10;

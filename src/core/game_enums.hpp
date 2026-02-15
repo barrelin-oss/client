@@ -105,6 +105,27 @@ enum class equip_slot : uint8_t
     full_body = 13
 };
 
+// Convert a server equipment slot index to equip_slot.
+// Server protocol uses 0=head,1=body,...,10=back; returns equip_slot::none for unknown values.
+inline constexpr equip_slot equip_slot_from_server(int server_slot)
+{
+    switch (server_slot)
+    {
+    case 0: return equip_slot::head;
+    case 1: return equip_slot::body;
+    case 2: return equip_slot::arms;
+    case 3: return equip_slot::pants;
+    case 4: return equip_slot::boots;
+    case 5: return equip_slot::right_hand;
+    case 6: return equip_slot::left_hand;
+    case 7: return equip_slot::right_finger;
+    case 8: return equip_slot::left_finger;
+    case 9: return equip_slot::neck;
+    case 10: return equip_slot::back;
+    default: return equip_slot::none;
+    }
+}
+
 // Item types
 enum class item_type : uint8_t
 {

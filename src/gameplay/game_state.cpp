@@ -1427,6 +1427,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
     }
 
     // Entity info overlay - works independently of the debug stats panel
+    // Uses entity IDs (not raw pointers) to avoid dangling references on entity removal
     if (debug_stats.entity_info_visible())
     {
         int32_t cam_x = world_.camera_x();
@@ -1434,20 +1435,24 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
 
         entity* hovered =
             entities_.get_entity_at_screen_pos(input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
-        debug_stats.set_hovered_entity_ptr(hovered);
+        debug_stats.set_hovered_entity_id(hovered ? hovered->id() : 0);
 
-        // Auto-clear pinned entity if it was removed
-        if (debug_stats.pinned_entity() && debug_stats.pinned_entity()->should_remove())
+        // Auto-clear pinned entity if it no longer exists or was marked for removal
+        if (auto pinned_id = debug_stats.pinned_entity_id(); pinned_id != 0)
         {
-            debug_stats.clear_pinned_entity();
+            auto* pinned = entities_.get_entity(pinned_id);
+            if (!pinned || pinned->should_remove())
+            {
+                debug_stats.clear_pinned_entity();
+            }
         }
 
         // Middle-click to pin/unpin entity for debug info
         if (inp.is_mouse_pressed(sf::Mouse::Button::Middle))
         {
-            if (hovered && hovered != debug_stats.pinned_entity())
+            if (hovered && hovered->id() != debug_stats.pinned_entity_id())
             {
-                debug_stats.set_pinned_entity(hovered);
+                debug_stats.set_pinned_entity_id(hovered->id());
                 spdlog::debug("Pinned entity {} for debug info", hovered->id());
             }
             else
@@ -1459,7 +1464,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
     }
     else
     {
-        debug_stats.set_hovered_entity_ptr(nullptr);
+        debug_stats.set_hovered_entity_id(0);
     }
 
     // Update status log and floating text
@@ -1635,7 +1640,19 @@ void game_state_manager::render_playing(renderer& rend)
     ds.set_objects_rendered(world_.objects_rendered());
 
     ds.render(rend);
-    ds.render_entity_info(rend, static_cast<int32_t>(renderer_->width()), static_cast<int32_t>(renderer_->height()));
+    // Resolve entity info overlay target by ID (safe against entity removal)
+    {
+        const entity* info_ent = nullptr;
+        if (auto pid = ds.pinned_entity_id(); pid != 0)
+            info_ent = entities_.get_entity(pid);
+        if (!info_ent)
+        {
+            if (auto hid = ds.hovered_entity_id(); hid != 0)
+                info_ent = entities_.get_entity(hid);
+        }
+        ds.render_entity_info(
+            rend, info_ent, static_cast<int32_t>(renderer_->width()), static_cast<int32_t>(renderer_->height()));
+    }
 
     // Server time & weather status bar (top-right corner)
     {

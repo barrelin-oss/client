@@ -48,8 +48,8 @@ private:
     int32_t max_sp_ = 0;
 
     uint16_t level_ = 1;
-    uint32_t exp_ = 0;
-    uint32_t exp_next_ = 100;
+    int64_t exp_ = 0;
+    int64_t exp_next_ = 100;
 
     int32_t attack_power_ = 0;
     int32_t magic_power_ = 0;

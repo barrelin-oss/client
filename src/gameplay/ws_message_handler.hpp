@@ -9,6 +9,8 @@
 namespace hb
 {
 
+class entity;
+class entity_manager;
 class game_state_manager;
 
 // Handles all WebSocket JSON messages received from the server.
@@ -137,6 +139,12 @@ private:
     void handle_command_availability_update(const json& message);
     void handle_pong(const json& message);
     void handle_error(const json& message);
+
+    // Shared spawn helpers
+    static void init_entity_transform(entity& ent, int16_t x, int16_t y, int direction);
+    static void init_entity_visual_type(entity& ent, int16_t sprite_id, uint32_t template_id,
+                                        const std::string& hostility);
+    static void init_entity_dead_state(entity& ent, entity_manager& entities);
 
     game_state_manager* game_ = nullptr;
 

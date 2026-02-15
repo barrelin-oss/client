@@ -216,6 +216,8 @@ bool config::load(std::string_view path)
                 game_.camera_speed = g["camera_speed"].get<float>();
             if (g.contains("type_to_chat"))
                 game_.type_to_chat = g["type_to_chat"].get<bool>();
+            if (g.contains("use_large_ground_items"))
+                game_.use_large_ground_items = g["use_large_ground_items"].get<bool>();
         }
 
         // Control settings
@@ -348,7 +350,8 @@ bool config::save(std::string_view path) const
                     {"show_weather", game_.show_weather},
                     {"show_tint", game_.show_tint},
                     {"camera_speed", game_.camera_speed},
-                    {"type_to_chat", game_.type_to_chat}};
+                    {"type_to_chat", game_.type_to_chat},
+                    {"use_large_ground_items", game_.use_large_ground_items}};
 
     // Control settings
     json["controls"] = {{"move_up_key", controls_.move_up_key},

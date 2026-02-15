@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 
 namespace hb
@@ -8,13 +9,18 @@ namespace hb
 class renderer;
 class sprite_manager;
 
-// Cursor types - game code sets this during update to control which cursor sprite is shown.
+// Cursor types matching legacy interface.pak sprite 0 frames.
 // Each frame resets to normal, so contextual cursors must be set every frame.
 enum class cursor_type : uint8_t
 {
-    normal = 0,
-    magic_target = 1, // Magic targeting crosshair (frame 4)
-    magic_arrow = 2,  // Magic targeting on enemy (frame 5)
+    normal = 0,            // Default arrow (frame 0)
+    ground_item_grab = 1,  // Animated grab hand over ground items (frames 1/2, 200ms toggle)
+    attack = 2,            // Attack sword over hostile entity (frame 3)
+    magic_target = 3,      // Magic targeting crosshair on friendly/ground (frame 4)
+    magic_attack = 4,      // Magic targeting on hostile entity (frame 5)
+    friendly = 5,          // Hovering over a friendly entity (frame 6)
+    magic_unavailable = 6, // Spell not available / out of range (frame 8)
+    item_use_target = 7,   // Item use targeting mode (frame 10)
 };
 
 // Centralized cursor manager. Renders the software cursor as the very last draw call
@@ -45,7 +51,11 @@ private:
     sprite_manager* sprites_ = nullptr;
     cursor_type current_ = cursor_type::normal;
 
-    uint32_t frame_for(cursor_type type) const;
+    // Animated grab cursor state (toggles between frames 1 and 2 every 200ms)
+    std::chrono::steady_clock::time_point grab_anim_time_{};
+    uint8_t grab_anim_frame_ = 1;
+
+    uint32_t frame_for(cursor_type type);
 };
 
 } // namespace hb

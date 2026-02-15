@@ -655,16 +655,20 @@ void input_handler::handle_spell_targeting(const input& inp)
     auto& world = game_->game_world();
     auto& entities = game_->entities();
 
-    // Set magic targeting cursor
+    // Set magic targeting cursor based on hostility of entity under mouse
     if (auto* cursor = game_->get_cursor())
     {
-        // Check if hovering over an enemy entity for the arrow cursor variant
         entity* hover = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
-        if (hover && hover->id() != entities.local_player_id() &&
-            (hover->type() == entity_type::monster || hover->type() == entity_type::character))
-            cursor->set_cursor(cursor_type::magic_arrow);
+        if (hover && hover->id() != entities.local_player_id() && hover->is_alive())
+        {
+            bool hostile = hover->type() == entity_type::monster ||
+                           (hover->has_name() && hover->name().hostile == hostility::enemy);
+            cursor->set_cursor(hostile ? cursor_type::magic_attack : cursor_type::magic_target);
+        }
         else
+        {
             cursor->set_cursor(cursor_type::magic_target);
+        }
     }
 
     uint16_t pending_id = magic.pending_spell();

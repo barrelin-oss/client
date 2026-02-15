@@ -73,6 +73,7 @@ public:
     void set_show_weather(bool v) { show_weather_ = v; }
     void set_show_tint(bool v) { show_tint_ = v; }
     void set_type_to_chat(bool v) { type_to_chat_ = v; }
+    void set_use_large_ground_items(bool v) { use_large_ground_items_ = v; }
 
     // Video tab
     void set_resolution(uint32_t width, uint32_t height);
@@ -141,6 +142,10 @@ public:
     void set_on_show_weather_change(bool_callback cb) { on_show_weather_change_ = std::move(cb); }
     void set_on_show_tint_change(bool_callback cb) { on_show_tint_change_ = std::move(cb); }
     void set_on_type_to_chat_change(bool_callback cb) { on_type_to_chat_change_ = std::move(cb); }
+    void set_on_use_large_ground_items_change(bool_callback cb)
+    {
+        on_use_large_ground_items_change_ = std::move(cb);
+    }
 
     // Video tab callbacks
     void set_on_resolution_change(resolution_callback cb) { on_resolution_change_ = std::move(cb); }
@@ -250,6 +255,7 @@ private:
     bool show_weather_ = true;
     bool show_tint_ = true;
     bool type_to_chat_ = false;
+    bool use_large_ground_items_ = false;
 
     // === Video tab state ===
     std::vector<monitor_info> monitors_;
@@ -339,6 +345,7 @@ private:
     bool_callback on_show_weather_change_;
     bool_callback on_show_tint_change_;
     bool_callback on_type_to_chat_change_;
+    bool_callback on_use_large_ground_items_change_;
     // Video
     resolution_callback on_resolution_change_;
     framerate_callback on_framerate_change_;
@@ -400,6 +407,7 @@ private:
     static constexpr int32_t elem_show_weather = 7;
     static constexpr int32_t elem_show_tint = 8;
     static constexpr int32_t elem_type_to_chat = 9;
+    static constexpr int32_t elem_large_ground_items = 10;
 
     // Video tab elements
     static constexpr int32_t elem_display_mode_dropdown = 20;

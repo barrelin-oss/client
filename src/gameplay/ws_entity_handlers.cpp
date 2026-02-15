@@ -597,6 +597,9 @@ void ws_message_handler::handle_ground_item_spawn(const json& message)
     item.count = data.count;
     item.tile_x = data.x;
     item.tile_y = data.y;
+    item.ground_sprite = data.ground_sprite;
+    item.ground_sprite_frame = data.ground_sprite_frame;
+    item.item_color = data.item_color;
     item.freshly_dropped = (data.reason == "drop");
 
     items.add(std::move(item));

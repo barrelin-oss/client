@@ -88,7 +88,8 @@ struct game_config
     bool show_weather = true;
     bool show_tint = true;
     float camera_speed = 1.0f;
-    bool type_to_chat = false; // Any key press opens chat (legacy behavior, disables WASD movement)
+    bool type_to_chat = false;            // Any key press opens chat (legacy behavior, disables WASD movement)
+    bool use_large_ground_items = false;   // Use item-pack.pak (inventory sprites) instead of item-ground.pak
 };
 
 // Control settings

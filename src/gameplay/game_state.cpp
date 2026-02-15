@@ -14,6 +14,7 @@
 #include "ui/dialogs/yaml_icon_panel_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
 #include "chat/chat_message.hpp"
+#include "ui/cursor.hpp"
 #include <sodium/crypto_hash_sha256.h>
 #include <spdlog/spdlog.h>
 #include <array>
@@ -322,6 +323,56 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                            {
                                effects_.initialize(sprites_, sounds_, world_);
                                magic_.set_effect_system(&effects_);
+                           }});
+
+    // Load ground item sprites (item-ground.pak)
+    init_steps_.push_back({"Loading item sprites...",
+                           [this]()
+                           {
+                               if (!sprites_.load_pak("item-ground", "sprites/item-ground.pak"))
+                               {
+                                   spdlog::warn("Failed to load item-ground.pak");
+                                   return;
+                               }
+                               sprites_.preload_pak_metadata("item-ground");
+                               // Legacy layout: categories 1-17 at PAK indices 0-16, categories 20-22 at PAK 17-19
+                               // Global ID = item_ground_sprite_base (100) + category
+                               for (uint32_t i = 0; i < 17; ++i)
+                               {
+                                   sprites_.store_sprite_at_id(
+                                       static_cast<uint16_t>(item_ground_sprite_base + 1 + i), "item-ground", i);
+                               }
+                               // Categories 20-22 are at PAK indices 17-19
+                               for (uint32_t i = 0; i < 3; ++i)
+                               {
+                                   sprites_.store_sprite_at_id(
+                                       static_cast<uint16_t>(item_ground_sprite_base + 20 + i), "item-ground", 17 + i);
+                               }
+                               spdlog::info("Loaded item-ground.pak (20 sprites)");
+                           }});
+
+    // Load inventory-style item sprites (item-pack.pak) - optional large ground item rendering
+    init_steps_.push_back({"Loading item pack sprites...",
+                           [this]()
+                           {
+                               if (!sprites_.load_pak("item-pack", "sprites/item-pack.pak"))
+                               {
+                                   spdlog::warn("Failed to load item-pack.pak");
+                                   return;
+                               }
+                               sprites_.preload_pak_metadata("item-pack");
+                               // Same category layout as item-ground: PAK 0-16 → IDs 301-317, PAK 17-19 → IDs 320-322
+                               for (uint32_t i = 0; i < 17; ++i)
+                               {
+                                   sprites_.store_sprite_at_id(
+                                       static_cast<uint16_t>(item_pack_sprite_base + 1 + i), "item-pack", i);
+                               }
+                               for (uint32_t i = 0; i < 3; ++i)
+                               {
+                                   sprites_.store_sprite_at_id(
+                                       static_cast<uint16_t>(item_pack_sprite_base + 20 + i), "item-pack", 17 + i);
+                               }
+                               spdlog::info("Loaded item-pack.pak (20 sprites)");
                            }});
 
     init_steps_.push_back({"Setting up network...",
@@ -1249,6 +1300,40 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
     // Update HUD
     update_icon_panel();
 
+    // Update cursor based on what's under the mouse.
+    // Spell targeting cursors are handled in input_handler::handle_spell_targeting().
+    // Priority: entity hover (attack/friendly) > ground item grab > normal
+    if (cursor_ && !input_handler_.is_spell_targeting())
+    {
+        int32_t cam_x = world_.camera_x();
+        int32_t cam_y = world_.camera_y();
+        int32_t mx = input_handler_.mouse_x();
+        int32_t my = input_handler_.mouse_y();
+
+        entity* hover = entities_.get_entity_at_screen_pos(mx, my, cam_x, cam_y);
+        if (hover && hover->id() != entities_.local_player_id() && hover->is_alive() &&
+            hover->type() != entity_type::effect)
+        {
+            if (hover->type() == entity_type::monster)
+            {
+                cursor_->set_cursor(cursor_type::attack);
+            }
+            else if (hover->type() == entity_type::npc)
+            {
+                cursor_->set_cursor(cursor_type::friendly);
+            }
+            else if (hover->type() == entity_type::character)
+            {
+                auto h = hover->has_name() ? hover->name().hostile : hostility::neutral;
+                cursor_->set_cursor(h == hostility::enemy ? cursor_type::attack : cursor_type::friendly);
+            }
+        }
+        else if (ground_items_.hit_test(mx, my, cam_x, cam_y))
+        {
+            cursor_->set_cursor(cursor_type::ground_item_grab);
+        }
+    }
+
     // Populate debug stats data (update already called earlier for input consumption)
     if (debug_stats.visible())
     {
@@ -1545,6 +1630,11 @@ void game_state_manager::render_playing(renderer& rend)
     int32_t cam_y = world_.camera_y();
     int32_t mouse_x = input_handler_.mouse_x();
     int32_t mouse_y = input_handler_.mouse_y();
+
+    // Draw ground item sprites (flat on ground, beneath entities and objects)
+    uint16_t ground_sprite_base =
+        config::instance().game().use_large_ground_items ? item_pack_sprite_base : item_ground_sprite_base;
+    ground_items_.render_sprites(*renderer_, sprites_, cam_x, cam_y, ground_sprite_base);
 
     auto sorted = entities_.get_visible_entities_sorted(rend, cam_x, cam_y);
 

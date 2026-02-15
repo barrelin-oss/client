@@ -354,6 +354,7 @@ void dialog_callbacks::setup_callbacks()
         game_->weather().set_visible(game_cfg.show_weather);
         settings_dlg->set_show_tint(game_cfg.show_tint);
         game_->game_world().set_tint_visible(game_cfg.show_tint);
+        settings_dlg->set_use_large_ground_items(game_cfg.use_large_ground_items);
 
         const auto& chat_cfg = config::instance().chat();
         settings_dlg->set_show_timestamps(chat_cfg.show_timestamps);
@@ -432,6 +433,14 @@ void dialog_callbacks::setup_callbacks()
                 spdlog::info("Type to chat: {}", enabled ? "ON" : "OFF");
                 config::instance().game().type_to_chat = enabled;
                 game_->chat_input().set_type_to_chat(enabled);
+                config::instance().save();
+            });
+
+        settings_dlg->set_on_use_large_ground_items_change(
+            [](bool enabled)
+            {
+                spdlog::info("Large ground items: {}", enabled ? "ON" : "OFF");
+                config::instance().game().use_large_ground_items = enabled;
                 config::instance().save();
             });
 

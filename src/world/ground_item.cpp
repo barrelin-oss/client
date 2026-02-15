@@ -1,6 +1,7 @@
 #include "world/ground_item.hpp"
 #include "world/tile.hpp"
 #include "graphics/renderer.hpp"
+#include "assets/sprite_manager.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb
@@ -46,6 +47,31 @@ ground_item* ground_item_manager::get_at_tile(int16_t tile_x, int16_t tile_y)
             return &item;
     }
     return nullptr;
+}
+
+void ground_item_manager::render_sprites(
+    renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, uint16_t sprite_base)
+{
+    for (auto& [id, item] : items_)
+    {
+        if (item.ground_sprite <= 0)
+            continue;
+
+        uint16_t sprite_id = sprite_base + static_cast<uint16_t>(item.ground_sprite);
+        auto* spr = sprites.get_sprite_by_id(sprite_id);
+        if (!spr)
+            continue;
+
+        // Position at center of tile
+        int32_t screen_x = item.tile_x * tile_width + tile_width / 2 - camera_x;
+        int32_t screen_y = item.tile_y * tile_height + tile_height / 2 - camera_y;
+
+        uint32_t frame = static_cast<uint32_t>(item.ground_sprite_frame);
+        if (spr->frame_count() > 0 && frame >= spr->frame_count())
+            frame = 0;
+
+        rend.draw_sprite(*spr, screen_x, screen_y, frame);
+    }
 }
 
 void ground_item_manager::render_labels(

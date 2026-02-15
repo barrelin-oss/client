@@ -649,6 +649,15 @@ void settings_dialog::render_game_tab(renderer& rend, int32_t content_y)
     render_checkbox(rend, y, "Type to Chat (Legacy)", type_to_chat_, hovered_element_ == elem_type_to_chat);
     rend.draw_text(
         "Disables WASD movement when enabled", bounds_.x + content_padding + 41, y + 18, sf::Color(120, 120, 150), 9);
+    y += checkbox_row_height;
+
+    render_checkbox(
+        rend, y, "Large Ground Items", use_large_ground_items_, hovered_element_ == elem_large_ground_items);
+    rend.draw_text("Use inventory sprites for items on the ground",
+                   bounds_.x + content_padding + 41,
+                   y + 18,
+                   sf::Color(120, 120, 150),
+                   9);
 }
 
 void settings_dialog::render_video_tab(renderer& rend, int32_t content_y)
@@ -1262,6 +1271,11 @@ int32_t settings_dialog::get_hovered_element_game(int32_t mx, int32_t my, int32_
     // Type to chat
     if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
         return elem_type_to_chat;
+    y += checkbox_row_height;
+
+    // Large ground items
+    if (mx >= x && mx < x + w && my >= y && my < y + checkbox_row_height)
+        return elem_large_ground_items;
 
     return -1;
 }
@@ -1661,6 +1675,11 @@ bool settings_dialog::handle_game_tab_click(int32_t elem)
         type_to_chat_ = !type_to_chat_;
         if (on_type_to_chat_change_)
             on_type_to_chat_change_(type_to_chat_);
+        return true;
+    case elem_large_ground_items:
+        use_large_ground_items_ = !use_large_ground_items_;
+        if (on_use_large_ground_items_change_)
+            on_use_large_ground_items_change_(use_large_ground_items_);
         return true;
     default:
         return false;

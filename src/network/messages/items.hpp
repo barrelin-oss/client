@@ -86,7 +86,10 @@ struct ground_item_spawn_data
     int16_t count = 1;
     int16_t x = 0;
     int16_t y = 0;
-    std::string reason; // "drop", "existing", etc.
+    int16_t ground_sprite = 0;       // Sprite category (1=swords, 6=misc, etc.)
+    int16_t ground_sprite_frame = 0; // Frame within sprite category
+    int8_t item_color = 0;           // Color tint index (0 = no tint)
+    std::string reason;              // "drop", "existing", etc.
 
     static ground_item_spawn_data from_json(const json& j)
     {
@@ -106,6 +109,12 @@ struct ground_item_spawn_data
                 data.x = d["x"].get<int16_t>();
             if (d.contains("y"))
                 data.y = d["y"].get<int16_t>();
+            if (d.contains("ground_sprite"))
+                data.ground_sprite = d["ground_sprite"].get<int16_t>();
+            if (d.contains("ground_sprite_frame"))
+                data.ground_sprite_frame = d["ground_sprite_frame"].get<int16_t>();
+            if (d.contains("item_color"))
+                data.item_color = d["item_color"].get<int8_t>();
             if (d.contains("reason"))
                 data.reason = d["reason"].get<std::string>();
         }

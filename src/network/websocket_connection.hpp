@@ -85,8 +85,8 @@ public:
     void update(float delta_time);
 
     // Statistics
-    uint64_t messages_sent() const { return messages_sent_; }
-    uint64_t messages_received() const { return messages_received_; }
+    uint64_t messages_sent() const { return messages_sent_.load(std::memory_order_relaxed); }
+    uint64_t messages_received() const { return messages_received_.load(std::memory_order_relaxed); }
     int32_t ping_ms() const { return ping_ms_.load(std::memory_order_relaxed); }
 
 private:
@@ -115,8 +115,8 @@ private:
     mutable std::mutex disconnect_reason_mutex_;
 
     // Statistics
-    uint64_t messages_sent_ = 0;
-    uint64_t messages_received_ = 0;
+    std::atomic<uint64_t> messages_sent_{0};
+    std::atomic<uint64_t> messages_received_{0};
 
     // Ping measurement
     std::atomic<int32_t> ping_ms_{0};

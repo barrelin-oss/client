@@ -34,6 +34,9 @@ bool websocket_connection::connect(std::string_view url)
         last_error_.clear();
     }
 
+    // Reset ping state (main thread only)
+    ping_timer_ = 0.0f;
+
     // Clear any pending events from previous connections
     pending_connect_.store(false);
     pending_disconnect_.store(false);
@@ -87,10 +90,10 @@ void websocket_connection::update(float delta_time)
     }
 
     ping_timer_ += delta_time;
-    if (ping_timer_ >= ping_interval_ && !ping_pending_.load(std::memory_order_relaxed))
+    if (ping_timer_ >= ping_interval_ && !ping_pending_.load(std::memory_order_acquire))
     {
         ping_sent_time_ = std::chrono::steady_clock::now();
-        ping_pending_.store(true, std::memory_order_relaxed);
+        ping_pending_.store(true, std::memory_order_release);
         websocket_.ping("");
         ping_timer_ = 0.0f;
     }
@@ -111,7 +114,7 @@ bool websocket_connection::send(const json& message)
     auto result = websocket_.send(msg_str);
     if (result.success)
     {
-        messages_sent_++;
+        messages_sent_.fetch_add(1, std::memory_order_relaxed);
         return true;
     }
 
@@ -162,8 +165,8 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg)
         spdlog::info("WebSocket connected");
         state_.store(ws_connection_state::connected);
         ping_ms_.store(0, std::memory_order_relaxed);
-        ping_pending_.store(false, std::memory_order_relaxed);
-        ping_timer_ = 0.0f;
+        ping_pending_.store(false, std::memory_order_release);
+        // ping_timer_ is reset by the main thread in update()
         // Set flag for thread-safe polling (preferred)
         pending_connect_.store(true);
         // Also call callback for backward compatibility (WARNING: runs on background thread!)
@@ -203,7 +206,7 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg)
         try
         {
             json parsed = json::parse(msg->str);
-            messages_received_++;
+            messages_received_.fetch_add(1, std::memory_order_relaxed);
 
             // If callback is set, use it; otherwise queue the message
             if (message_callback_)
@@ -227,12 +230,12 @@ void websocket_connection::on_message(const ix::WebSocketMessagePtr& msg)
         break;
 
     case ix::WebSocketMessageType::Pong:
-        if (ping_pending_.load(std::memory_order_relaxed))
+        if (ping_pending_.load(std::memory_order_acquire))
         {
             auto rtt = std::chrono::steady_clock::now() - ping_sent_time_;
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(rtt).count();
             ping_ms_.store(static_cast<int32_t>(ms), std::memory_order_relaxed);
-            ping_pending_.store(false, std::memory_order_relaxed);
+            ping_pending_.store(false, std::memory_order_release);
             spdlog::trace("WebSocket pong: {} ms", ms);
         }
         break;

@@ -160,7 +160,7 @@ void connection::process_incoming()
             if (reading_header_ && recv_pos_ >= packet_header_size)
             {
                 // Got the header, extract size
-                expected_size_ = static_cast<uint16_t>(recv_buffer_[0]) | (static_cast<uint16_t>(recv_buffer_[1]) << 8);
+                expected_size_ = static_cast<uint16_t>(recv_buffer_[1]) | (static_cast<uint16_t>(recv_buffer_[2]) << 8);
 
                 if (expected_size_ > max_packet_size)
                 {

@@ -56,6 +56,11 @@ bool sound_manager::initialize(audio& audio_system)
 
 void sound_manager::shutdown()
 {
+    if (!audio_)
+    {
+        return;
+    }
+
     stop_bgm();
 
     // Unload all sounds

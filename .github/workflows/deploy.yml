@@ -18,7 +18,8 @@ on:
         type: string
 
 env:
-  DEPLOY_TARGET: helbreath@s1.xandium.io:/home/helbreath/patch.helbreath.dev/
+  DEPLOY_HOST: helbreath@s1.xandium.io
+  DEPLOY_ROOT: /home/helbreath/patch.helbreath.dev
 
 jobs:
   deploy-linux:
@@ -34,15 +35,16 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build -j$(nproc)
 
+      - name: Clean previous output
+        run: rm -rf patch-output/ deploy/
+
       - name: Stage shared assets
         run: |
-          rm -rf deploy/shared/*
           mkdir -p deploy/shared/assets
           cp -r /data/hbx/assets/* deploy/shared/assets/
 
       - name: Stage linux binaries
         run: |
-          rm -rf deploy/linux/*
           mkdir -p deploy/linux
           cp bin/helbreath_client deploy/linux/
           cp bin/helbreath deploy/linux/
@@ -67,19 +69,21 @@ jobs:
             --game-version ${{ inputs.game_version }} \
             --key ~/keys/helbreath-client-assets.priv
 
+      # Push shared and linux separately so --delete only affects each scope
       - name: Push shared files
         run: |
-          ./bin/hb-patch push \
-            --source ./patch-output/ \
-            --target ${{ env.DEPLOY_TARGET }} \
-            --ssh-key ~/keys/do-default
+          rsync -avz --delete \
+            -e 'ssh -i ~/keys/do-default' \
+            ./patch-output/${{ inputs.channel }}/manifest.json \
+            ./patch-output/${{ inputs.channel }}/files \
+            ${{ env.DEPLOY_HOST }}:${{ env.DEPLOY_ROOT }}/${{ inputs.channel }}/
 
       - name: Push linux files
         run: |
-          ./bin/hb-patch push \
-            --source ./patch-output/ \
-            --target ${{ env.DEPLOY_TARGET }} \
-            --ssh-key ~/keys/do-default
+          rsync -avz --delete \
+            -e 'ssh -i ~/keys/do-default' \
+            ./patch-output/${{ inputs.channel }}/linux/ \
+            ${{ env.DEPLOY_HOST }}:${{ env.DEPLOY_ROOT }}/${{ inputs.channel }}/linux/
 
   deploy-windows:
     runs-on: [self-hosted, Windows]
@@ -94,6 +98,10 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
           -DCMAKE_BUILD_TYPE=Release
           && cmake --build build --config Release
+
+      - name: Clean previous output
+        shell: cmd
+        run: if exist patch-output rmdir /s /q patch-output
 
       - name: Stage windows binaries
         shell: cmd
@@ -119,6 +127,8 @@ jobs:
         shell: cmd
         run: >
           bin\hb-patch.exe push
-          --source patch-output\
-          --target ${{ env.DEPLOY_TARGET }}
+          --source patch-output\%CHANNEL%\windows\
+          --target %DEPLOY_HOST%:%DEPLOY_ROOT%/%CHANNEL%/windows/
           --ssh-key C:\keys\do-default
+        env:
+          CHANNEL: ${{ inputs.channel }}

@@ -177,7 +177,7 @@ auto build(const build_options& opts) -> std::expected<void, std::string>
     m.channel = opts.channel;
     m.game_version = opts.game_version;
     m.timestamp = make_timestamp();
-    m.base_url = "/files/";
+    m.base_url = opts.platform.empty() ? "/files/" : "/" + opts.platform + "/files/";
 
     uint64_t total_bytes = 0;
 

@@ -51,6 +51,34 @@ auto get_client_name(const hb::patcher::patcher_config& config) -> std::string
     return config.client_binary;
 }
 
+auto get_platform_name() -> std::string
+{
+#ifdef _WIN32
+    return "windows";
+#else
+    return "linux";
+#endif
+}
+
+/// Build the full download base URL from config + manifest's base_url field.
+auto build_base_url(const hb::patcher::patcher_config& config,
+                    const hb::patcher::manifest& m) -> std::string
+{
+    if (!m.base_url.empty() && m.base_url.starts_with("http"))
+        return m.base_url;
+
+    auto base = config.server_url + "/" + config.channel;
+    if (!m.base_url.empty())
+        base += m.base_url;
+    else
+        base += "/files/";
+
+    if (base.back() != '/')
+        base += '/';
+
+    return base;
+}
+
 /// Check for .new binary from a previous self-update and swap it in
 auto handle_self_update() -> bool
 {
@@ -359,71 +387,71 @@ struct ui_bridge
     }
 };
 
+/// Fetch a manifest with retries.  Returns the parsed manifest or an error string.
+auto fetch_manifest(const std::string& url,
+                    const hb::patcher::patcher_config& config,
+                    ui_bridge& bridge,
+                    hb::patcher::downloader& dl) -> std::expected<hb::patcher::manifest, std::string>
+{
+    int retries = 0;
+    while (true)
+    {
+        if (bridge.should_abort())
+            return std::unexpected("aborted");
+
+        auto result = dl.fetch(url);
+        if (result)
+        {
+            std::string text(result->data.begin(), result->data.end());
+            auto manifest = hb::patcher::parse_manifest(text);
+            if (!manifest)
+                return std::unexpected("failed to parse manifest: " + manifest.error());
+            return *manifest;
+        }
+
+        retries++;
+        if (retries > config.max_retries)
+            return std::unexpected(result.error());
+
+        spdlog::warn("manifest fetch attempt {} for {} failed: {}, retrying...", retries, url, result.error());
+        bridge.post_detail("Retrying... (" + std::to_string(retries) + "/" +
+                           std::to_string(config.max_retries) + ")");
+
+        for (int s = 0; s < retries * 20 && !bridge.should_abort(); ++s)
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
 /// Run the update check and download flow (called on background thread).
 auto run_update(hb::patcher::patcher_config& config,
                 ui_bridge& bridge,
                 hb::patcher::downloader& dl) -> update_result
 {
-    // Build manifest URL
-    auto manifest_url = config.server_url + "/" + config.channel + "/manifest.json";
+    auto platform = get_platform_name();
+    auto shared_url = config.server_url + "/" + config.channel + "/manifest.json";
+    auto platform_url = config.server_url + "/" + config.channel + "/" + platform + "/manifest.json";
 
     bridge.post_status("Checking for updates...");
-    bridge.post_detail(manifest_url);
+    bridge.post_detail(shared_url);
     bridge.post_progress(0.0);
     bridge.post_channel_enabled(false);
 
-    // Download remote manifest
-    std::string remote_manifest_text;
+    // --- Fetch and verify shared manifest ---
 
+    auto shared_result = fetch_manifest(shared_url, config, bridge, dl);
+    if (!shared_result)
     {
-        int retries = 0;
-        while (true)
-        {
-            if (bridge.should_abort())
-                return update_result::aborted;
+        if (bridge.should_abort())
+            return update_result::aborted;
 
-            auto result = dl.fetch(manifest_url);
-            if (result)
-            {
-                remote_manifest_text.assign(result->data.begin(), result->data.end());
-                break;
-            }
-
-            retries++;
-            if (retries > config.max_retries)
-            {
-                spdlog::error("failed to fetch manifest after {} retries: {}", retries, result.error());
-                bridge.post_error("Update Check Failed",
-                                  "Could not reach the update server.\n\n" + result.error() +
-                                  "\n\nThe game will launch with existing files.");
-                bridge.post_channel_enabled(true);
-                return update_result::failed;
-            }
-
-            spdlog::warn("manifest fetch attempt {} failed: {}, retrying...", retries, result.error());
-            bridge.post_detail("Retrying... (" + std::to_string(retries) + "/" +
-                               std::to_string(config.max_retries) + ")");
-
-            // Interruptible sleep
-            for (int s = 0; s < retries * 20 && !bridge.should_abort(); ++s)
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
-
-    if (bridge.should_abort())
-        return update_result::aborted;
-
-    // Parse remote manifest
-    auto remote_manifest = hb::patcher::parse_manifest(remote_manifest_text);
-    if (!remote_manifest)
-    {
-        spdlog::error("failed to parse remote manifest: {}", remote_manifest.error());
-        bridge.post_error("Update Error", "Failed to parse update manifest.\n\n" + remote_manifest.error());
+        spdlog::error("failed to fetch shared manifest: {}", shared_result.error());
+        bridge.post_error("Update Check Failed",
+                          "Could not reach the update server.\n\n" + shared_result.error() +
+                          "\n\nThe game will launch with existing files.");
         bridge.post_channel_enabled(true);
         return update_result::failed;
     }
 
-    // Verify signature
     if (config.verify_signatures)
     {
         if (config.public_key_hex.empty())
@@ -436,10 +464,10 @@ auto run_update(hb::patcher::patcher_config& config,
             return update_result::failed;
         }
 
-        auto verify = hb::patcher::verify_manifest(*remote_manifest, config.public_key_hex);
+        auto verify = hb::patcher::verify_manifest(*shared_result, config.public_key_hex);
         if (!verify)
         {
-            spdlog::error("manifest signature verification FAILED: {}", verify.error());
+            spdlog::error("shared manifest signature FAILED: {}", verify.error());
             bridge.post_error("Security Error",
                               "The update manifest signature is invalid.\n\n"
                               "This could indicate a compromised update server.\n"
@@ -448,21 +476,81 @@ auto run_update(hb::patcher::patcher_config& config,
             bridge.post_channel_enabled(true);
             return update_result::failed;
         }
-        spdlog::info("manifest signature verified OK");
+        spdlog::info("shared manifest signature verified OK");
     }
 
-    // Load local manifest and diff
+    if (bridge.should_abort())
+        return update_result::aborted;
+
+    // --- Fetch and verify platform manifest (optional — 404 is fine) ---
+
+    bridge.post_detail(platform_url);
+    std::optional<hb::patcher::manifest> platform_manifest;
+
+    auto platform_result = fetch_manifest(platform_url, config, bridge, dl);
+    if (platform_result)
+    {
+        if (config.verify_signatures)
+        {
+            auto verify = hb::patcher::verify_manifest(*platform_result, config.public_key_hex);
+            if (!verify)
+            {
+                spdlog::error("{} manifest signature FAILED: {}", platform, verify.error());
+                bridge.post_error("Security Error",
+                                  "The " + platform + " manifest signature is invalid.\n\n" +
+                                  verify.error());
+                bridge.post_channel_enabled(true);
+                return update_result::failed;
+            }
+            spdlog::info("{} manifest signature verified OK", platform);
+        }
+        platform_manifest = std::move(*platform_result);
+    }
+    else
+    {
+        spdlog::info("no {} manifest ({}), shared-only update", platform, platform_result.error());
+    }
+
+    if (bridge.should_abort())
+        return update_result::aborted;
+
+    // --- Merge manifests and build download URL map ---
+
+    // Combined manifest: start with shared, overlay platform files
+    hb::patcher::manifest combined = *shared_result;
+    auto shared_base = build_base_url(config, *shared_result);
+
+    // Map each file to its download base URL
+    std::unordered_map<std::string, std::string> download_base;
+    for (auto& [path, _] : combined.files)
+        download_base[path] = shared_base;
+
+    if (platform_manifest)
+    {
+        auto platform_base = build_base_url(config, *platform_manifest);
+        for (auto& [path, entry] : platform_manifest->files)
+        {
+            combined.files[path] = entry; // platform overrides shared
+            download_base[path] = platform_base;
+        }
+
+        // Use platform's game_version if present (binaries define the version)
+        if (!platform_manifest->game_version.empty())
+            combined.game_version = platform_manifest->game_version;
+    }
+
+    // --- Diff against local manifest ---
+
     auto local_manifest = load_local_manifest();
     hb::patcher::diff_result diff;
 
     if (local_manifest)
     {
-        diff = hb::patcher::diff_manifests(*remote_manifest, *local_manifest);
+        diff = hb::patcher::diff_manifests(combined, *local_manifest);
     }
     else
     {
-        // No local manifest — download everything
-        for (auto& [path, entry] : remote_manifest->files)
+        for (auto& [path, entry] : combined.files)
         {
             diff.to_download.push_back(path);
             diff.total_download_bytes += entry.size;
@@ -470,40 +558,22 @@ auto run_update(hb::patcher::patcher_config& config,
         std::sort(diff.to_download.begin(), diff.to_download.end());
     }
 
-    // Check if up to date
     if (diff.to_download.empty() && diff.to_delete.empty())
     {
-        spdlog::info("game is up to date (version {})", remote_manifest->game_version);
+        spdlog::info("game is up to date (version {})", combined.game_version);
         bridge.post_status("Game is up to date!");
         bridge.post_progress(1.0);
-        bridge.post_detail("Version " + remote_manifest->game_version);
+        bridge.post_detail("Version " + combined.game_version);
         bridge.post_channel_enabled(true);
         return update_result::up_to_date;
     }
 
-    // Download updates
+    // --- Download changed files ---
+
     spdlog::info("need to download {} files ({} total)", diff.to_download.size(),
                  format_bytes(diff.total_download_bytes));
 
     bridge.post_status("Downloading updates...");
-
-    auto base_url = config.server_url + "/" + config.channel;
-    if (!remote_manifest->base_url.empty())
-    {
-        if (remote_manifest->base_url.starts_with("http"))
-        {
-            base_url = remote_manifest->base_url;
-        }
-        else
-        {
-            base_url = config.server_url + "/" + config.channel + remote_manifest->base_url;
-        }
-    }
-    // Ensure trailing slash
-    if (!base_url.empty() && base_url.back() != '/')
-    {
-        base_url += '/';
-    }
 
     uint64_t total_downloaded = 0;
     bool patcher_updated = false;
@@ -518,8 +588,8 @@ auto run_update(hb::patcher::patcher_config& config,
         }
 
         auto& file_path = diff.to_download[i];
-        auto& entry = remote_manifest->files.at(file_path);
-        auto file_url = base_url + file_path;
+        auto& entry = combined.files.at(file_path);
+        auto file_url = download_base.at(file_path) + file_path;
 
         bridge.post_detail("Downloading " + file_path +
                            " (" + std::to_string(i + 1) + "/" + std::to_string(diff.to_download.size()) + ")");
@@ -623,12 +693,12 @@ auto run_update(hb::patcher::patcher_config& config,
         hb::patcher::remove_file(file_path);
     }
 
-    // Save local manifest
+    // Save combined local manifest (includes both shared + platform files)
     bridge.post_status("Finalizing...");
     bridge.post_progress(1.0);
     bridge.post_detail("");
 
-    save_local_manifest(*remote_manifest);
+    save_local_manifest(combined);
 
     if (patcher_updated)
     {

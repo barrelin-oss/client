@@ -27,15 +27,6 @@ auto hex_to_bytes(const std::string& hex) -> std::expected<std::vector<uint8_t>,
     return bytes;
 }
 
-auto current_platform() -> std::string
-{
-#ifdef _WIN32
-    return "windows";
-#else
-    return "linux";
-#endif
-}
-
 void parse_files_object(const nlohmann::json& files_json, std::unordered_map<std::string, file_entry>& out)
 {
     for (auto& [path, entry_json] : files_json.items())
@@ -86,16 +77,7 @@ auto parse_manifest(const std::string& json_text) -> std::expected<manifest, std
         return std::unexpected("manifest missing 'files' object");
     }
 
-    // Shared files
     parse_files_object(j["files"], m.files);
-
-    // Platform-specific files (merged into the same map, overriding shared if duplicated)
-    auto platform = current_platform();
-    if (j.contains(platform) && j[platform].is_object())
-    {
-        parse_files_object(j[platform], m.files);
-        spdlog::info("merged {} platform-specific file entries", j[platform].size());
-    }
 
     return m;
 }

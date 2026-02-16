@@ -10,7 +10,7 @@ struct patcher_config
 {
     std::string server_url = "https://patch.helbreath.dev";
     std::string channel = "stable";
-    std::string public_key_hex = "7031632a8c73786756cd7aa0704a2e40b88d5ff1a29cc843e3d44491213552a5";
+    std::string public_key_hex = "6d4da125cb89ba438d2111789fa6907258699850bc2e4d07a4dbeaf13d1a244c";
     bool verify_signatures = true;
     int timeout_seconds = 30;
     int max_retries = 3;

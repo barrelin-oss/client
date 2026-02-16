@@ -222,12 +222,15 @@ int cmd_push(const std::vector<std::string_view>& args)
 
 #ifdef _WIN32
     // Windows: use scp (MSYS2 rsync is incompatible with Windows OpenSSH)
+    // Glob contents of source directory so scp uploads files, not the directory itself
+    if (source_str.back() != '\\' && source_str.back() != '/')
+        source_str += '\\';
     auto cmd = std::string("scp -r");
     if (!ssh_key.empty())
     {
         cmd += " -i " + std::string(ssh_key);
     }
-    cmd += " " + source_str + " " + target_str;
+    cmd += " " + source_str + "* " + target_str;
 #else
     if (source_str.back() != '/')
         source_str += '/';

@@ -145,6 +145,11 @@ public:
     // game world actions after closing a dialog with a click.
     bool is_mouse_consumed(sf::Mouse::Button btn) const;
     void update_mouse_consumed(const input& inp);
+    void clear_mouse_consumed()
+    {
+        mouse_consumed_left_ = false;
+        mouse_consumed_right_ = false;
+    }
 
     // === Data-driven dialog manager ===
     // Provides access to the new YAML/JSON-based dialog system

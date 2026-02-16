@@ -1101,6 +1101,7 @@ void game_state_manager::enter_state(game_state state)
     case game_state::playing:
         screens_.change_screen(screen_type::none);
         ui_.close_all_dialogs();
+        ui_.clear_mouse_consumed();
         input_handler_.suppress_for(0.5f);
         transition_.set_show_label(false);
         transition_.randomize_type();

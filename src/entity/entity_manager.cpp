@@ -1001,6 +1001,39 @@ entity* entity_manager::get_entity_at_screen_pos(int32_t screen_x, int32_t scree
     return closest;
 }
 
+entity* entity_manager::get_entity_at_screen_pos(sprite_manager& sprites, int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y)
+{
+    // Sprite-bounds-based hit testing: finds the entity whose rendered sprite
+    // contains the mouse point. Among overlapping sprites, prefers alive over dead
+    // and higher Y (rendered on top due to depth sorting).
+    entity* best = nullptr;
+
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        bool want_alive = (pass == 0);
+        for (auto& [id, e] : entities_)
+        {
+            if (e->should_remove() || e->is_fading_out())
+                continue;
+            if (e->type() == entity_type::effect)
+                continue;
+            if (e->is_alive() != want_alive)
+                continue;
+
+            if (!is_point_in_entity_sprite(*e, sprites, camera_x, camera_y, screen_x, screen_y))
+                continue;
+
+            // Prefer entity with highest Y (rendered on top)
+            if (!best || e->transform().y > best->transform().y)
+                best = e.get();
+        }
+        if (best)
+            break;
+    }
+
+    return best;
+}
+
 bool entity_manager::is_point_in_entity_sprite(const entity& e,
                                                sprite_manager& sprites,
                                                int32_t camera_x,

@@ -62,6 +62,7 @@ public:
     std::vector<entity*> get_entities_in_range(int32_t x, int32_t y, int32_t range);
     std::vector<entity*> get_entities_on_tile(int32_t tile_x, int32_t tile_y);
     entity* get_entity_at_screen_pos(int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y);
+    entity* get_entity_at_screen_pos(sprite_manager& sprites, int32_t screen_x, int32_t screen_y, int32_t camera_x, int32_t camera_y);
     entity* find_at_tile(int32_t tile_x, int32_t tile_y); // Returns first non-local-player entity at tile
 
     // Sprite collision detection

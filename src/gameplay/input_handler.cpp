@@ -669,7 +669,7 @@ void input_handler::handle_spell_targeting(const input& inp)
     // Set magic targeting cursor based on hostility of entity under mouse
     if (auto* cursor = game_->get_cursor())
     {
-        entity* hover = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
+        entity* hover = entities.get_entity_at_screen_pos(game_->sprites(), mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
         if (hover && hover->id() != entities.local_player_id() && hover->is_alive())
         {
             bool hostile = hover->type() == entity_type::monster ||
@@ -718,7 +718,7 @@ void input_handler::handle_spell_targeting(const input& inp)
 
         // Target the clicked tile; if an entity is under cursor, use their tile position
         {
-            entity* target = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
+            entity* target = entities.get_entity_at_screen_pos(game_->sprites(), mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
             if (target && target->id() != entities.local_player_id())
             {
                 target_id = target->id();
@@ -793,14 +793,7 @@ void input_handler::handle_combat_input(const input& inp)
             }
         }
 
-        entity* target = entities.get_entity_at_screen_pos(mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
-
-        // Only attack if the click landed on the entity's actual sprite, not just its tile
-        if (target && !entities.is_point_in_entity_sprite(
-                          *target, game_->sprites(), world.camera_x(), world.camera_y(), mouse_x_, mouse_y_))
-        {
-            target = nullptr;
-        }
+        entity* target = entities.get_entity_at_screen_pos(game_->sprites(), mouse_x_, mouse_y_, world.camera_x(), world.camera_y());
 
         if (target && target->id() != entities.local_player_id())
         {

@@ -1311,7 +1311,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
         int32_t mx = input_handler_.mouse_x();
         int32_t my = input_handler_.mouse_y();
 
-        entity* hover = entities_.get_entity_at_screen_pos(mx, my, cam_x, cam_y);
+        entity* hover = entities_.get_entity_at_screen_pos(sprites_, mx, my, cam_x, cam_y);
         if (hover && hover->id() != entities_.local_player_id() && hover->is_alive() &&
             hover->type() != entity_type::effect)
         {
@@ -1319,12 +1319,9 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
             {
                 cursor_->set_cursor(cursor_type::attack);
             }
-            else if (hover->type() == entity_type::npc)
+            else
             {
-                cursor_->set_cursor(cursor_type::friendly);
-            }
-            else if (hover->type() == entity_type::character)
-            {
+                // NPCs and characters: check hostility (hostile NPCs/enemy players get attack cursor)
                 auto h = hover->has_name() ? hover->name().hostile : hostility::neutral;
                 cursor_->set_cursor(h == hostility::enemy ? cursor_type::attack : cursor_type::friendly);
             }
@@ -1470,7 +1467,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
         }
 
         entity* hovered =
-            entities_.get_entity_at_screen_pos(input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
+            entities_.get_entity_at_screen_pos(sprites_, input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
         if (hovered && hovered->has_name())
         {
             debug_stats.set_hovered_entity(hovered->name().name + " (ID:" + std::to_string(hovered->id()) + ")");
@@ -1502,7 +1499,7 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
         int32_t cam_y = world_.camera_y();
 
         entity* hovered =
-            entities_.get_entity_at_screen_pos(input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
+            entities_.get_entity_at_screen_pos(sprites_, input_handler_.mouse_x(), input_handler_.mouse_y(), cam_x, cam_y);
         debug_stats.set_hovered_entity_id(hovered ? hovered->id() : 0);
 
         // Auto-clear pinned entity if it no longer exists or was marked for removal

@@ -364,13 +364,13 @@ auto run_update(hb::patcher::patcher_config& config,
                 ui_bridge& bridge,
                 hb::patcher::downloader& dl) -> update_result
 {
-    bridge.post_status("Checking for updates...");
-    bridge.post_detail("");
-    bridge.post_progress(0.0);
-    bridge.post_channel_enabled(false);
-
     // Build manifest URL
     auto manifest_url = config.server_url + "/" + config.channel + "/manifest.json";
+
+    bridge.post_status("Checking for updates...");
+    bridge.post_detail(manifest_url);
+    bridge.post_progress(0.0);
+    bridge.post_channel_enabled(false);
 
     // Download remote manifest
     std::string remote_manifest_text;
@@ -739,148 +739,127 @@ int main(int /*argc*/, char** /*argv*/)
     bridge.reset();
     auto worker = start_update_thread(config, bridge, dl);
 
-    // Main event loop — runs on the UI thread
-    while (!ui->is_closed())
-    {
-        ui->pump_events();
+    // For deferred launch after update completes
+    int launch_countdown = -1; // -1 = not launching, >= 0 = ticks until launch
+    update_result pending_result = update_result::failed;
 
-        // Apply pending UI updates from background thread
-        bridge.apply(*ui);
-
-        // Pump again so GTK/Win32 processes the redraws from state changes above
-        ui->pump_events();
-
-        // Show error dialogs on the main thread (bg thread blocks until dismissed)
-        if (auto err = bridge.take_error())
+    // Hand control to the platform event loop. The tick callback runs ~60x/sec
+    // within the native event loop (g_timeout_add on GTK, WM_TIMER on Win32),
+    // so the WM always sees us as responsive.
+    ui->run_loop(
+        [&]() -> bool
         {
-            ui->show_error(err->title, err->message);
-            bridge.dismiss_error();
-        }
+            // Apply pending UI updates from background thread
+            bridge.apply(*ui);
 
-        // Handle channel switch: abort current work and restart
-        if (channel_changed)
-        {
-            channel_changed = false;
-
-            // Signal abort and wait for bg thread to finish
-            bridge.abort_requested.store(true);
-            if (worker.joinable())
-                worker.join();
-
-            // Also dismiss any pending error the bg thread might be waiting on
-            bridge.dismiss_error();
-
-            // Restart
-            bridge.reset();
-            worker = start_update_thread(config, bridge, dl);
-            continue;
-        }
-
-        // Check if background work is done
-        if (bridge.finished.load())
-        {
-            auto result = bridge.result;
-            bridge.finished.store(false);
-
-            if (worker.joinable())
-                worker.join();
-
-            switch (result)
+            // Show error dialogs (bg thread blocks until dismissed)
+            if (auto err = bridge.take_error())
             {
-            case update_result::up_to_date:
-            case update_result::updated:
+                ui->show_error(err->title, err->message);
+                bridge.dismiss_error();
+            }
+
+            // Handle channel switch: abort current work and restart
+            if (channel_changed)
             {
-                // Brief delay before launch — user can still switch channels
-                auto wait_start = std::chrono::steady_clock::now();
-                bool launching = true;
+                channel_changed = false;
+                launch_countdown = -1;
 
-                while (std::chrono::steady_clock::now() - wait_start < std::chrono::milliseconds(500))
-                {
-                    ui->pump_events();
-                    if (ui->is_closed())
-                    {
-                        launching = false;
-                        break;
-                    }
-                    if (channel_changed)
-                    {
-                        launching = false;
-                        break;
-                    }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(16));
-                }
+                bridge.abort_requested.store(true);
+                bridge.dismiss_error();
+                if (worker.joinable())
+                    worker.join();
 
-                if (channel_changed)
-                {
-                    channel_changed = false;
-                    bridge.reset();
-                    worker = start_update_thread(config, bridge, dl);
-                    continue;
-                }
+                bridge.reset();
+                worker = start_update_thread(config, bridge, dl);
+                return true;
+            }
 
-                if (launching)
+            // Deferred launch countdown (gives user ~500ms to switch channels)
+            if (launch_countdown > 0)
+            {
+                launch_countdown--;
+                return true;
+            }
+            if (launch_countdown == 0)
+            {
+                launch_countdown = -1;
+
+                if (pending_result == update_result::patcher_updated)
                 {
-                    spdlog::info("launching client");
-                    ui->set_status("Launching game...");
-                    ui->pump_events();
-                    auto client = get_client_name(config);
-                    launch_client(client);
+                    spdlog::info("patcher binary updated — restarting");
+                    ui->set_status("Patcher updated! Restarting...");
+                    // Close will exit run_loop; we re-exec below
                     ui->close();
-                    curl_global_cleanup();
-                    return 0;
+                    return false;
                 }
-                break;
+
+                spdlog::info("launching client");
+                ui->set_status("Launching game...");
+                auto client = get_client_name(config);
+                launch_client(client);
+                ui->close();
+                return false;
             }
 
-            case update_result::patcher_updated:
+            // Check if background work finished
+            if (bridge.finished.load())
             {
-                spdlog::info("patcher binary updated — restart patcher to apply");
-                ui->set_status("Patcher updated! Restarting...");
-                ui->pump_events();
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                ui->close();
-                curl_global_cleanup();
+                auto result = bridge.result;
+                bridge.finished.store(false);
 
-                auto patcher_name = get_patcher_name();
-#ifdef _WIN32
-                STARTUPINFOW si = {};
-                si.cb = sizeof(si);
-                PROCESS_INFORMATION pi = {};
-                auto wide_path = fs::path(patcher_name).wstring();
-                if (CreateProcessW(wide_path.c_str(), nullptr, nullptr, nullptr,
-                                   FALSE, 0, nullptr, nullptr, &si, &pi))
+                if (worker.joinable())
+                    worker.join();
+
+                switch (result)
                 {
-                    CloseHandle(pi.hProcess);
-                    CloseHandle(pi.hThread);
+                case update_result::up_to_date:
+                case update_result::updated:
+                case update_result::patcher_updated:
+                    pending_result = result;
+                    launch_countdown = 30; // ~500ms at 60fps
+                    return true;
+
+                case update_result::failed:
+                    // Stay open — user can switch channels or close
+                    return true;
+
+                case update_result::aborted:
+                    ui->close();
+                    return false;
                 }
-#else
-                execl(patcher_name.c_str(), patcher_name.c_str(), nullptr);
-#endif
-                return 0;
             }
 
-            case update_result::failed:
-            {
-                // Stay open — user can switch channels or close
-                // Just keep looping the event loop
-                break;
-            }
+            return true;
+        });
 
-            case update_result::aborted:
-                ui->close();
-                curl_global_cleanup();
-                return 0;
-            }
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));
-    }
-
-    // Window closed — clean up background thread
+    // Clean up background thread
     bridge.abort_requested.store(true);
-    bridge.dismiss_error(); // unblock bg thread if it's waiting on an error dialog
+    bridge.dismiss_error();
     if (worker.joinable())
         worker.join();
+
+    // Handle patcher self-update re-exec
+    if (pending_result == update_result::patcher_updated)
+    {
+        curl_global_cleanup();
+        auto patcher_name = get_patcher_name();
+#ifdef _WIN32
+        STARTUPINFOW si = {};
+        si.cb = sizeof(si);
+        PROCESS_INFORMATION pi = {};
+        auto wide_path = fs::path(patcher_name).wstring();
+        if (CreateProcessW(wide_path.c_str(), nullptr, nullptr, nullptr,
+                           FALSE, 0, nullptr, nullptr, &si, &pi))
+        {
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+        }
+#else
+        execl(patcher_name.c_str(), patcher_name.c_str(), nullptr);
+#endif
+        return 0;
+    }
 
     curl_global_cleanup();
     return 0;

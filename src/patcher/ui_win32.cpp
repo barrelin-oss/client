@@ -127,14 +127,20 @@ public:
         MessageBoxA(window_, message.c_str(), title.c_str(), MB_OK | MB_ICONERROR);
     }
 
-    void pump_events() override
+    void run_loop(std::function<bool()> tick_callback) override
     {
+        constexpr UINT_PTR timer_id = 1;
+        tick_callback_ = std::move(tick_callback);
+        SetTimer(window_, timer_id, 16, nullptr);
+
         MSG msg;
-        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
+        while (GetMessageW(&msg, nullptr, 0, 0) > 0)
         {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
+
+        KillTimer(window_, timer_id);
     }
 
     void close() override
@@ -224,6 +230,19 @@ private:
             }
         }
 
+        if (msg == WM_TIMER)
+        {
+            if (self && self->tick_callback_)
+            {
+                if (!self->tick_callback_())
+                {
+                    PostQuitMessage(0);
+                    return 0;
+                }
+            }
+            return 0;
+        }
+
         if (msg == WM_CLOSE)
         {
             if (self)
@@ -240,6 +259,7 @@ private:
             {
                 self->window_ = nullptr;
             }
+            PostQuitMessage(0);
             return 0;
         }
 
@@ -252,6 +272,7 @@ private:
     HWND progress_bar_ = nullptr;
     HWND channel_label_ = nullptr;
     HWND channel_button_ = nullptr;
+    std::function<bool()> tick_callback_;
     std::vector<std::string> channels_;
     int active_index_ = 0;
     bool closed_ = false;

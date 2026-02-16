@@ -107,12 +107,11 @@ public:
         gtk_widget_destroy(dialog);
     }
 
-    void pump_events() override
+    void run_loop(std::function<bool()> tick_callback) override
     {
-        while (gtk_events_pending())
-        {
-            gtk_main_iteration();
-        }
+        tick_callback_ = std::move(tick_callback);
+        g_timeout_add(16, on_tick, this);
+        gtk_main();
     }
 
     void close() override
@@ -121,6 +120,10 @@ public:
         {
             gtk_widget_destroy(window_);
             window_ = nullptr;
+        }
+        if (gtk_main_level() > 0)
+        {
+            gtk_main_quit();
         }
     }
 
@@ -170,6 +173,24 @@ private:
         auto* self = static_cast<gtk_patcher_ui*>(data);
         self->window_ = nullptr;
         self->closed_ = true;
+        if (gtk_main_level() > 0)
+        {
+            gtk_main_quit();
+        }
+    }
+
+    static auto on_tick(gpointer data) -> gboolean
+    {
+        auto* self = static_cast<gtk_patcher_ui*>(data);
+        if (self->closed_ || !self->tick_callback_ || !self->tick_callback_())
+        {
+            if (gtk_main_level() > 0)
+            {
+                gtk_main_quit();
+            }
+            return G_SOURCE_REMOVE;
+        }
+        return G_SOURCE_CONTINUE;
     }
 
     static void on_channel_clicked(GtkButton* /*button*/, gpointer data)
@@ -192,6 +213,7 @@ private:
     GtkWidget* detail_label_ = nullptr;
     GtkWidget* progress_bar_ = nullptr;
     GtkWidget* channel_button_ = nullptr;
+    std::function<bool()> tick_callback_;
     std::vector<std::string> channels_;
     int active_index_ = 0;
     bool closed_ = false;

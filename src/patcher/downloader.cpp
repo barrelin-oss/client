@@ -79,7 +79,7 @@ auto downloader::fetch(const std::string& url, progress_callback on_progress)
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curl_write_callback);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &write_ctx);
     curl_easy_setopt(handle, CURLOPT_TIMEOUT, static_cast<long>(timeout_seconds_));
-    curl_easy_setopt(handle, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(handle, CURLOPT_CONNECTTIMEOUT, 5L);
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(handle, CURLOPT_MAXREDIRS, 5L);
     curl_easy_setopt(handle, CURLOPT_FAILONERROR, 0L);
@@ -95,9 +95,12 @@ auto downloader::fetch(const std::string& url, progress_callback on_progress)
         curl_easy_setopt(handle, CURLOPT_XFERINFODATA, &progress_ctx);
     }
 
+    spdlog::info("fetching: {}", url);
+
     auto res = curl_easy_perform(handle);
     if (res != CURLE_OK)
     {
+        spdlog::warn("fetch failed: {} - {}", url, curl_easy_strerror(res));
         return std::unexpected(std::string("download failed: ") + curl_easy_strerror(res));
     }
 

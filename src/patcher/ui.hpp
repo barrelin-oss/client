@@ -29,8 +29,9 @@ public:
     /// Show an error dialog. Returns when user dismisses it.
     virtual void show_error(const std::string& title, const std::string& message) = 0;
 
-    /// Pump the event loop (call regularly to keep UI responsive)
-    virtual void pump_events() = 0;
+    /// Run the platform event loop. Calls tick_callback ~60 times/sec.
+    /// Returns when the window is closed or tick_callback returns false.
+    virtual void run_loop(std::function<bool()> tick_callback) = 0;
 
     /// Close and destroy the window
     virtual void close() = 0;

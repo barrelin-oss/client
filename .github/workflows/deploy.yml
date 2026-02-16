@@ -107,10 +107,8 @@ jobs:
         shell: cmd
         run: |
           if exist deploy\windows rmdir /s /q deploy\windows
-          mkdir deploy\windows
+          xcopy bin\launcher deploy\windows\ /E /I /Y
           copy bin\helbreath_client.exe deploy\windows\
-          copy bin\helbreath.exe deploy\windows\
-          if exist bin\*.dll copy bin\*.dll deploy\windows\
 
       - name: Build windows manifest
         shell: cmd

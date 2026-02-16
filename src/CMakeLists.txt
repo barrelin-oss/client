@@ -283,5 +283,18 @@ if(WIN32)
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
         )
     endforeach()
+
+    # Stage launcher exe + only its DLLs into bin/launcher/
+    set(LAUNCHER_STAGING_DIR "${CMAKE_SOURCE_DIR}/bin/launcher")
+    add_custom_command(TARGET helbreath_patcher POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${LAUNCHER_STAGING_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:helbreath_patcher>
+            "${LAUNCHER_STAGING_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:helbreath_patcher>
+            "${LAUNCHER_STAGING_DIR}"
+        COMMAND_EXPAND_LISTS
+    )
 endif()
 

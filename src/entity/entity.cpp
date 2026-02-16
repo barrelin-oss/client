@@ -8,6 +8,10 @@ entity::entity(entity_id id, entity_type type) : id_(id), type_(type) {}
 
 void entity::set_action(object_action action)
 {
+    // Dead entities can only be set to dying (any other action is a race condition)
+    if (!alive_ && action != object_action::dying)
+        return;
+
     current_action_ = action;
 
     // Map action to entity_anim_state for animation system

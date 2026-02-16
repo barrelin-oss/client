@@ -242,6 +242,9 @@ void ws_message_handler::handle_npc_move(const json& message)
         return;
     }
 
+    if (!ent->is_alive())
+        return;
+
     auto& t = ent->transform();
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 

@@ -385,6 +385,11 @@ void ws_message_handler::handle_entity_death(const json& message)
     // Transition to dead immediately (handles per-tile corpse cleanup),
     // then play the dying animation once
     game_->entities().transition_to_dead(data.victim_id);
+
+    // Stop any in-progress movement so corpse doesn't slide
+    auto& t = victim->transform();
+    t.moving = false;
+
     victim->set_action(object_action::dying);
 
     if (is_npc)

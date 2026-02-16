@@ -37,9 +37,8 @@ jobs:
       - name: Stage shared assets
         run: |
           rm -rf deploy/shared/*
-          mkdir -p deploy/shared/assets deploy/shared/config
+          mkdir -p deploy/shared/assets
           cp -r /data/hbx/assets/* deploy/shared/assets/
-          cp -r /data/hbx/config/* deploy/shared/config/
 
       - name: Stage linux binaries
         run: |

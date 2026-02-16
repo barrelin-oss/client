@@ -30,4 +30,7 @@ auto decompress_zstd(const void* data, size_t len) -> std::expected<std::vector<
 /// Remove a file, ignoring "not found" errors
 auto remove_file(const std::filesystem::path& path) -> std::expected<void, std::string>;
 
+/// Clean up .old files left from in-use DLL replacement (Windows)
+void cleanup_old_files(const std::filesystem::path& dir);
+
 } // namespace hb::patcher

@@ -753,7 +753,7 @@ int main(int /*argc*/, char** /*argv*/)
     }
 
     // Init libraries
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
 
     if (sodium_init() < 0)
     {
@@ -762,6 +762,9 @@ int main(int /*argc*/, char** /*argv*/)
     }
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    // Clean up .old files from previous in-use DLL replacements
+    hb::patcher::cleanup_old_files(fs::current_path());
 
     // Self-update swap
     handle_self_update();

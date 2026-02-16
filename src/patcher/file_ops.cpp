@@ -121,6 +121,25 @@ auto atomic_write_verified(const std::filesystem::path& path,
     std::filesystem::rename(tmp_path, path, ec);
     if (ec)
     {
+#ifdef _WIN32
+        // On Windows, the target may be a DLL locked by the running process.
+        // Windows allows renaming locked files, so move it aside and retry.
+        auto old_path = path;
+        old_path += ".old";
+        std::error_code ec2;
+        std::filesystem::remove(old_path, ec2); // clean up any previous .old
+        std::filesystem::rename(path, old_path, ec2);
+        if (!ec2)
+        {
+            std::filesystem::rename(tmp_path, path, ec2);
+            if (!ec2)
+            {
+                return {}; // success — .old will be cleaned up on next launch
+            }
+            // Restore original if we couldn't put the new one in place
+            std::filesystem::rename(old_path, path, ec);
+        }
+#endif
         std::filesystem::remove(tmp_path);
         return std::unexpected("failed to rename temp file: " + ec.message());
     }
@@ -199,6 +218,21 @@ auto remove_file(const std::filesystem::path& path) -> std::expected<void, std::
         return std::unexpected("failed to remove " + path.string() + ": " + ec.message());
     }
     return {};
+}
+
+void cleanup_old_files(const std::filesystem::path& dir)
+{
+    std::error_code ec;
+    for (auto& entry : std::filesystem::recursive_directory_iterator(dir, ec))
+    {
+        if (!entry.is_regular_file())
+            continue;
+
+        if (entry.path().extension() == ".old")
+        {
+            std::filesystem::remove(entry.path(), ec);
+        }
+    }
 }
 
 } // namespace hb::patcher

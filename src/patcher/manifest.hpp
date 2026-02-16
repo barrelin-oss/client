@@ -40,9 +40,8 @@ struct diff_result
 auto parse_manifest(const std::string& json_text) -> std::expected<manifest, std::string>;
 
 /// Verify Ed25519 signature of manifest's files object.
-/// The signature covers json::dump() of the "files" object with sorted keys, no indent.
+/// Rebuilds canonical JSON from the parsed files map (matching hb-patch's files_to_json).
 auto verify_manifest(const manifest& m,
-                     const std::string& json_text,
                      const std::string& public_key_hex) -> std::expected<void, std::string>;
 
 /// Diff remote manifest against local manifest to determine what needs updating

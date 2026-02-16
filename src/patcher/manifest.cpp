@@ -101,7 +101,6 @@ auto parse_manifest(const std::string& json_text) -> std::expected<manifest, std
 }
 
 auto verify_manifest(const manifest& m,
-                     const std::string& json_text,
                      const std::string& public_key_hex) -> std::expected<void, std::string>
 {
     if (public_key_hex.empty())
@@ -138,19 +137,24 @@ auto verify_manifest(const manifest& m,
         return std::unexpected("signature wrong size");
     }
 
-    // Re-parse the JSON to extract and canonicalize the "files" object
-    nlohmann::json j;
-    try
+    // Build canonical form from the parsed manifest struct.
+    // This must exactly match hb-patch's files_to_json(m.files).dump():
+    //   - nlohmann::json::object() uses std::map → sorted keys
+    //   - dump() with no args → compact, no indent
+    //   - only include "permissions" if non-empty
+    nlohmann::json files_json = nlohmann::json::object();
+    for (const auto& [path, entry] : m.files)
     {
-        j = nlohmann::json::parse(json_text);
+        auto file_obj = nlohmann::json::object();
+        file_obj["sha256"] = entry.sha256;
+        file_obj["size"] = entry.size;
+        if (!entry.permissions.empty())
+        {
+            file_obj["permissions"] = entry.permissions;
+        }
+        files_json[path] = file_obj;
     }
-    catch (const nlohmann::json::exception& e)
-    {
-        return std::unexpected(std::string("failed to re-parse manifest for verification: ") + e.what());
-    }
-
-    // Canonical form: sorted keys, no indent, no whitespace
-    auto canonical = j["files"].dump(-1, ' ', false, nlohmann::json::error_handler_t::strict);
+    auto canonical = files_json.dump();
 
     // Verify Ed25519 signature
     if (crypto_sign_verify_detached(sig_bytes->data(),

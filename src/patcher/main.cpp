@@ -436,7 +436,7 @@ auto run_update(hb::patcher::patcher_config& config,
             return update_result::failed;
         }
 
-        auto verify = hb::patcher::verify_manifest(*remote_manifest, remote_manifest_text, config.public_key_hex);
+        auto verify = hb::patcher::verify_manifest(*remote_manifest, config.public_key_hex);
         if (!verify)
         {
             spdlog::error("manifest signature verification FAILED: {}", verify.error());
@@ -683,7 +683,7 @@ int main(int /*argc*/, char** /*argv*/)
     }
 
     // Init libraries
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
 
     if (sodium_init() < 0)
     {

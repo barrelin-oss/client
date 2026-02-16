@@ -34,13 +34,6 @@ jobs:
           name: helbreath-client-linux-${{ inputs.build_type }}
           path: bin/helbreath_client
 
-      - name: Install Flatpak
-        if: inputs.build_type == 'Release'
-        run: |
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
-
       - name: Stage Flatpak files
         if: inputs.build_type == 'Release'
         run: |

@@ -181,7 +181,11 @@ auto run_command(const std::string& cmd) -> std::pair<int, std::string>
     std::string output;
     std::array<char, 4096> buf{};
 
+#ifdef _WIN32
+    auto* pipe = _popen(cmd.c_str(), "r");
+#else
     auto* pipe = popen(cmd.c_str(), "r");
+#endif
     if (!pipe)
     {
         return {-1, "failed to run command"};
@@ -192,8 +196,12 @@ auto run_command(const std::string& cmd) -> std::pair<int, std::string>
         output += buf.data();
     }
 
+#ifdef _WIN32
+    int exit_code = _pclose(pipe);
+#else
     int status = pclose(pipe);
     int exit_code = WEXITSTATUS(status);
+#endif
     return {exit_code, std::move(output)};
 }
 
@@ -230,7 +238,12 @@ int cmd_push(const std::vector<std::string_view>& args)
     int rc = std::system(cmd.c_str());
     if (rc != 0)
     {
-        std::fprintf(stderr, "Error: rsync failed with exit code %d\n", WEXITSTATUS(rc));
+#ifdef _WIN32
+        int exit_code = rc;
+#else
+        int exit_code = WEXITSTATUS(rc);
+#endif
+        std::fprintf(stderr, "Error: rsync failed with exit code %d\n", exit_code);
         return 1;
     }
 

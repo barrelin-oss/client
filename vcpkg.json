@@ -12,6 +12,8 @@
     "yaml-cpp",
     "libsodium",
     "lz4",
-    "ixwebsocket"
+    "ixwebsocket",
+    "curl",
+    "zstd"
   ]
 }

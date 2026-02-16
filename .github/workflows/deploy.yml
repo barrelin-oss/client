@@ -1,0 +1,125 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Deploy channel'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - stable
+          - test
+      game_version:
+        description: 'Game version'
+        required: true
+        default: '0.1.0'
+        type: string
+
+env:
+  DEPLOY_TARGET: helbreath@s1.xandium.io:/home/helbreath/patch.helbreath.dev/
+
+jobs:
+  deploy-linux:
+    runs-on: [self-hosted, Linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build (Release)
+        run: |
+          cmake -B build \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j$(nproc)
+
+      - name: Stage shared assets
+        run: |
+          rm -rf deploy/shared/*
+          mkdir -p deploy/shared/assets deploy/shared/config
+          cp -r /data/hbx/assets/* deploy/shared/assets/
+          cp -r /data/hbx/config/* deploy/shared/config/
+
+      - name: Stage linux binaries
+        run: |
+          rm -rf deploy/linux/*
+          mkdir -p deploy/linux
+          cp bin/helbreath_client deploy/linux/
+          cp bin/helbreath deploy/linux/
+          chmod 755 deploy/linux/helbreath_client deploy/linux/helbreath
+
+      - name: Build shared manifest
+        run: |
+          ./bin/hb-patch build \
+            --source ./deploy/shared/ \
+            --output ./patch-output/ \
+            --channel ${{ inputs.channel }} \
+            --game-version ${{ inputs.game_version }} \
+            --key ~/keys/helbreath-client-assets.priv
+
+      - name: Build linux manifest
+        run: |
+          ./bin/hb-patch build \
+            --source ./deploy/linux/ \
+            --platform linux \
+            --output ./patch-output/ \
+            --channel ${{ inputs.channel }} \
+            --game-version ${{ inputs.game_version }} \
+            --key ~/keys/helbreath-client-assets.priv
+
+      - name: Push shared files
+        run: |
+          ./bin/hb-patch push \
+            --source ./patch-output/ \
+            --target ${{ env.DEPLOY_TARGET }} \
+            --ssh-key ~/keys/do-default
+
+      - name: Push linux files
+        run: |
+          ./bin/hb-patch push \
+            --source ./patch-output/ \
+            --target ${{ env.DEPLOY_TARGET }} \
+            --ssh-key ~/keys/do-default
+
+  deploy-windows:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build (Release)
+        shell: cmd
+        run: >
+          cmake -B build
+          -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake
+          -DCMAKE_BUILD_TYPE=Release
+          && cmake --build build --config Release
+
+      - name: Stage windows binaries
+        shell: cmd
+        run: |
+          if exist deploy\windows rmdir /s /q deploy\windows
+          mkdir deploy\windows
+          copy bin\helbreath_client.exe deploy\windows\
+          copy bin\helbreath.exe deploy\windows\
+          if exist bin\*.dll copy bin\*.dll deploy\windows\
+
+      - name: Build windows manifest
+        shell: cmd
+        run: >
+          bin\hb-patch.exe build
+          --source deploy\windows\
+          --platform windows
+          --output patch-output\
+          --channel ${{ inputs.channel }}
+          --game-version ${{ inputs.game_version }}
+          --key %USERPROFILE%\keys\helbreath-client-assets.priv
+
+      - name: Push windows files
+        shell: cmd
+        run: >
+          bin\hb-patch.exe push
+          --source patch-output\
+          --target ${{ env.DEPLOY_TARGET }}
+          --ssh-key %USERPROFILE%\keys\do-default

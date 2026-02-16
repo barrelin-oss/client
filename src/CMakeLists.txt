@@ -211,9 +211,68 @@ else()
     message(STATUS "Debug overlay: AUTO (Debug builds only)")
 endif()
 
+# hb-patch - asset packager for CI/CD deployment
+add_library(hb_patch_lib STATIC
+    hb-patch/hasher.cpp
+    hb-patch/compressor.cpp
+    hb-patch/keygen.cpp
+    hb-patch/manifest.cpp
+    hb-patch/builder.cpp
+)
+
+target_include_directories(hb_patch_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/hb-patch)
+
+target_link_libraries(hb_patch_lib PUBLIC
+    unofficial-sodium::sodium
+    nlohmann_json::nlohmann_json
+    $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+)
+
+target_compile_features(hb_patch_lib PUBLIC cxx_std_23)
+
+add_executable(hb-patch hb-patch/main.cpp)
+target_link_libraries(hb-patch PRIVATE hb_patch_lib)
+
+# Patcher executable
+add_executable(helbreath_patcher
+    patcher/main.cpp
+    patcher/patcher_config.cpp
+    patcher/manifest.cpp
+    patcher/downloader.cpp
+    patcher/file_ops.cpp
+)
+
+if(WIN32)
+    target_sources(helbreath_patcher PRIVATE patcher/ui_win32.cpp)
+    target_compile_definitions(helbreath_patcher PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    target_sources(helbreath_patcher PRIVATE patcher/ui_gtk.cpp)
+    target_include_directories(helbreath_patcher PRIVATE ${GTK3_INCLUDE_DIRS})
+    target_link_libraries(helbreath_patcher PRIVATE ${GTK3_LIBRARIES})
+endif()
+
+target_include_directories(helbreath_patcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(helbreath_patcher PRIVATE
+    CURL::libcurl
+    $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+    unofficial-sodium::sodium
+    nlohmann_json::nlohmann_json
+    spdlog::spdlog
+)
+set_target_properties(helbreath_patcher PROPERTIES OUTPUT_NAME "helbreath")
+target_compile_features(helbreath_patcher PRIVATE cxx_std_23)
+
+if(MSVC)
+    target_compile_options(helbreath_patcher PRIVATE /W4 /MP)
+else()
+    target_compile_options(helbreath_patcher PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 # Copy DLLs and set debugger working directory
 if(WIN32)
-    foreach(target helbreath_client effect_test_tool)
+    foreach(target helbreath_client effect_test_tool helbreath_patcher hb-patch)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_RUNTIME_DLLS:${target}>

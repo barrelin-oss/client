@@ -32,6 +32,7 @@ void input_handler::clear()
     spell_targeting_active_ = false;
     attack_consumed_ = false;
     blocked_movement_cooldown_ = 0.0f;
+    input_suppress_timer_ = 0.0f;
 }
 
 void input_handler::update(float /*delta_time*/) {}
@@ -66,6 +67,13 @@ void input_handler::update_cooldown(float delta_time)
         if (blocked_movement_cooldown_ < 0.0f)
             blocked_movement_cooldown_ = 0.0f;
     }
+
+    if (input_suppress_timer_ > 0.0f)
+    {
+        input_suppress_timer_ -= delta_time;
+        if (input_suppress_timer_ < 0.0f)
+            input_suppress_timer_ = 0.0f;
+    }
 }
 
 void input_handler::set_move_dest(int32_t x, int32_t y)
@@ -94,6 +102,9 @@ void input_handler::handle_input(const input& inp)
         }
         return;
     }
+
+    if (input_suppress_timer_ > 0.0f)
+        return;
 
     attack_consumed_ = false;
     handle_playing_input(inp);

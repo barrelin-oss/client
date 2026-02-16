@@ -52,6 +52,9 @@ public:
     // Suppress input until all mouse buttons are released
     void suppress_until_release() { suppress_until_release_ = true; }
 
+    // Suppress input for a duration (seconds) - does not consume clicks
+    void suppress_for(float seconds) { input_suppress_timer_ = seconds; }
+
     // Spell targeting mode
     bool is_spell_targeting() const { return spell_targeting_active_; }
 
@@ -112,6 +115,9 @@ private:
 
     // Blocked movement cooldown (prevents wall-spam after server rejection)
     float blocked_movement_cooldown_ = 0.0f;
+
+    // Timed input suppression (prevents accidental movement on game enter)
+    float input_suppress_timer_ = 0.0f;
 };
 
 } // namespace hb

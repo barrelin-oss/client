@@ -33,6 +33,8 @@ find_package(lz4 CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(ixwebsocket CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
+find_package(zstd CONFIG REQUIRED)
 
 add_subdirectory(src)
 

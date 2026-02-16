@@ -5,7 +5,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -222,11 +221,14 @@ int cmd_push(const std::vector<std::string_view>& args)
     auto target_str = std::string(target);
 
 #ifdef _WIN32
-    // MSYS2 rsync needs forward slashes
-    std::replace(source_str.begin(), source_str.end(), '\\', '/');
-    std::replace(target_str.begin(), target_str.end(), '\\', '/');
-#endif
-
+    // Windows: use scp (MSYS2 rsync is incompatible with Windows OpenSSH)
+    auto cmd = std::string("scp -r");
+    if (!ssh_key.empty())
+    {
+        cmd += " -i " + std::string(ssh_key);
+    }
+    cmd += " " + source_str + " " + target_str;
+#else
     if (source_str.back() != '/')
         source_str += '/';
     if (target_str.back() != '/')
@@ -235,15 +237,10 @@ int cmd_push(const std::vector<std::string_view>& args)
     auto cmd = std::string("rsync -avz --delete");
     if (!ssh_key.empty())
     {
-        auto key_str = std::string(ssh_key);
-#ifdef _WIN32
-        std::replace(key_str.begin(), key_str.end(), '\\', '/');
-        cmd += " -e \"ssh -i " + key_str + "\"";
-#else
-        cmd += " -e 'ssh -i " + key_str + "'";
-#endif
+        cmd += " -e 'ssh -i " + std::string(ssh_key) + "'";
     }
     cmd += " " + source_str + " " + target_str;
+#endif
 
     std::fprintf(stderr, "Pushing: %s -> %s\n", source_str.c_str(), target_str.c_str());
     std::fprintf(stderr, "Running: %s\n", cmd.c_str());

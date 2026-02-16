@@ -113,7 +113,7 @@ jobs:
           --output patch-output\
           --channel ${{ inputs.channel }}
           --game-version ${{ inputs.game_version }}
-          --key %USERPROFILE%\keys\helbreath-client-assets.priv
+          --key C:\keys\helbreath-client-assets.priv
 
       - name: Push windows files
         shell: cmd
@@ -121,4 +121,4 @@ jobs:
           bin\hb-patch.exe push
           --source patch-output\
           --target ${{ env.DEPLOY_TARGET }}
-          --ssh-key %USERPROFILE%\keys\do-default
+          --ssh-key C:\keys\do-default

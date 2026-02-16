@@ -225,7 +225,11 @@ int cmd_push(const std::vector<std::string_view>& args)
     if (target_str.back() != '/')
         target_str += '/';
 
+#ifdef _WIN32
+    auto cmd = std::string(R"(C:\ProgramData\chocolatey\bin\rsync.exe -avz --delete)");
+#else
     auto cmd = std::string("rsync -avz --delete");
+#endif
     if (!ssh_key.empty())
     {
         cmd += " -e 'ssh -i " + std::string(ssh_key) + "'";

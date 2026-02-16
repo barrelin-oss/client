@@ -262,34 +262,31 @@ void input_handler::handle_movement_input(const input& inp)
 
         if (clicked_on_self)
         {
-            bool ctrl_held =
-                inp.is_key_down(sf::Keyboard::Key::LControl) || inp.is_key_down(sf::Keyboard::Key::RControl);
+            // Legacy behavior: clicking on self checks for an enemy directly north.
+            // If one exists, treat as a click on that enemy (attack). Otherwise, pickup.
+            int32_t north_x = t.tile_x;
+            int32_t north_y = t.tile_y - 1;
+            entity* north_entity = entities.find_at_tile(north_x, north_y);
 
-            if (ctrl_held)
+            if (north_entity && north_entity->type() == entity_type::monster)
             {
-                int32_t north_x = t.tile_x;
-                int32_t north_y = t.tile_y - 1;
-                entity* target = entities.find_at_tile(north_x, north_y);
-
-                if (target && target->type() == entity_type::monster)
+                uint8_t atk_type = 0;
+                if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
                 {
-                    uint8_t atk_type = 0;
-                    if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
-                    {
-                        if (is_bow_weapon(weapon->type_id))
-                            atk_type = static_cast<uint8_t>(attack_type::ranged);
-                    }
-
-                    if (can_perform_action())
-                    {
-                        spdlog::debug("Ctrl+click on self: attacking north at ({},{})", north_x, north_y);
-                        game_->ws_handler().request_attack(target->id(), atk_type);
-                        player->transform().facing = direction::north;
-                    }
+                    if (is_bow_weapon(weapon->type_id))
+                        atk_type = static_cast<uint8_t>(attack_type::ranged);
                 }
-                else
+
+                if (can_perform_action())
                 {
-                    spdlog::debug("Ctrl+click on self: no enemy to north");
+                    spdlog::debug("Click on self: attacking enemy north at ({},{})", north_x, north_y);
+                    game_->ws_handler().request_attack(north_entity->id(), atk_type);
+                    player->transform().facing = direction::north;
+
+                    if (atk_type == static_cast<uint8_t>(attack_type::ranged))
+                        player->set_action(object_action::attack_combat_bow);
+                    else
+                        player->set_action_with_combat_mode(object_action::attack_peace, combat_mode_);
                 }
             }
             else

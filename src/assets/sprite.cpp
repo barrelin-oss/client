@@ -505,6 +505,30 @@ sf::IntRect sprite::get_bounds(int32_t x, int32_t y, uint32_t frame) const
     return sf::IntRect({x + f.pivot_x, y + f.pivot_y}, {f.source_rect.size.x, f.source_rect.size.y});
 }
 
+bool sprite::hit_test(int32_t local_x, int32_t local_y, uint32_t frame) const
+{
+    if (!ensure_loaded() || frame >= frames_.size())
+        return false;
+
+    const auto& f = frames_[frame];
+
+    // Convert from draw-position-relative coords to texture coords
+    int32_t tex_x = local_x - f.pivot_x;
+    int32_t tex_y = local_y - f.pivot_y;
+
+    // Bounds check against the frame's source rect
+    if (tex_x < 0 || tex_y < 0 ||
+        tex_x >= f.source_rect.size.x || tex_y >= f.source_rect.size.y)
+        return false;
+
+    // Sample the pixel from the texture
+    sf::Image img = texture_.copyToImage();
+    auto px = img.getPixel(
+        {static_cast<unsigned>(f.source_rect.position.x + tex_x),
+         static_cast<unsigned>(f.source_rect.position.y + tex_y)});
+    return px.a > 0;
+}
+
 const sf::Texture& sprite::texture() const
 {
     ensure_loaded();

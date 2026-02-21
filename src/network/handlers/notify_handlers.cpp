@@ -796,7 +796,7 @@ void notify_handler::handle_item_attribute_change(packet_reader& reader)
     if (!slot || !attribute || !game_)
         return;
 
-    game_->inventory().set_item_attribute(*slot, *attribute);
+    game_->inventory().set_item_attribute(*slot, item_attribute_data::from_legacy(*attribute));
 }
 
 void notify_handler::handle_cannot_carry_more_item(packet_reader& reader)

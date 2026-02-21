@@ -2,6 +2,7 @@
 
 #include "ui/ui_element.hpp"
 #include "ui/dialog_base.hpp"
+#include "core/game_enums.hpp"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -20,6 +21,7 @@ class dialog_manager;
 class managed_dialog;
 class yaml_icon_panel_dialog;
 class icon_panel_interface;
+struct item;
 enum class render_mode;
 
 // UI visual style
@@ -27,6 +29,20 @@ enum class ui_style
 {
     modern, // Programmatic rendering with modern look
     classic // Sprite-based rendering matching original Helbreath
+};
+
+// Cross-dialog item drag state
+struct ui_drag_state
+{
+    bool active = false;
+    const item* held_item = nullptr;
+    int32_t source_slot = -1;
+    equip_slot source_equip = equip_slot::none;
+    dialog_type source_dialog = dialog_type::none;
+    int32_t cursor_x = 0;
+    int32_t cursor_y = 0;
+    int32_t offset_x = 0; // Click-to-item-origin offset (drag from click point)
+    int32_t offset_y = 0;
 };
 
 // UI system manager
@@ -97,6 +113,11 @@ public:
     void
     create_input_box(std::string_view title, std::string_view prompt, std::function<void(std::string_view)> on_submit);
 
+    // Drop confirmation dialog — shows item info, yes/no buttons, and a "don't ask again" toggle.
+    // Callback receives (confirmed, skip_next_for_this_type).
+    void create_drop_confirm_box(const item& itm,
+                                 std::function<void(bool confirmed, bool skip_next)> on_result);
+
     // Connection/waiting dialog
     // Shows "Waiting for response from the server" with animated dots
     // After 7 seconds, shows "press escape to cancel" hint
@@ -140,6 +161,24 @@ public:
     // Check if a screen point is over any open dialog
     bool is_point_over_dialog(int32_t x, int32_t y) const;
 
+    // Item drag system
+    const ui_drag_state& drag_state() const { return drag_state_; }
+    void begin_item_drag(const item* itm, int32_t slot, equip_slot equip, dialog_type source,
+                         int32_t offset_x = 0, int32_t offset_y = 0);
+    void update_drag_position(int32_t x, int32_t y);
+    void end_item_drag(int32_t x, int32_t y);
+    void cancel_item_drag();
+    bool is_dragging_item() const { return drag_state_.active; }
+
+    using drop_in_world_callback = std::function<void(int32_t slot)>;
+    using equip_from_drag_callback = std::function<void(int32_t slot)>;
+    using unequip_from_drag_callback = std::function<void(equip_slot slot)>;
+    using reposition_callback = std::function<void(int32_t slot, int32_t x, int32_t y)>;
+    void set_on_drop_in_world(drop_in_world_callback cb) { on_drop_in_world_ = std::move(cb); }
+    void set_on_equip_from_drag(equip_from_drag_callback cb) { on_equip_from_drag_ = std::move(cb); }
+    void set_on_unequip_from_drag(unequip_from_drag_callback cb) { on_unequip_from_drag_ = std::move(cb); }
+    void set_on_reposition_item(reposition_callback cb) { on_reposition_item_ = std::move(cb); }
+
     // Track whether a mouse button press was consumed by the UI.
     // Returns true from press until release, preventing held-button
     // game world actions after closing a dialog with a click.
@@ -164,6 +203,7 @@ public:
 private:
     void bring_to_front(dialog* dlg);
     void clear_focus_if_owned_by(ui_element* root);
+    void render_held_item_info(renderer& rend, const item& itm, int32_t x, int32_t y);
 
     std::unordered_map<dialog_type, std::unique_ptr<dialog>> dialogs_;
     std::vector<dialog*> dialog_order_; // For z-ordering
@@ -191,6 +231,13 @@ private:
     // Track which mouse buttons had their press consumed by the UI
     bool mouse_consumed_left_ = false;
     bool mouse_consumed_right_ = false;
+
+    // Item drag system
+    ui_drag_state drag_state_;
+    drop_in_world_callback on_drop_in_world_;
+    equip_from_drag_callback on_equip_from_drag_;
+    unequip_from_drag_callback on_unequip_from_drag_;
+    reposition_callback on_reposition_item_;
 };
 
 } // namespace hb

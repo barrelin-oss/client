@@ -5,6 +5,7 @@
 #include "audio/sound_types.hpp"
 #include "core/direction_utils.hpp"
 #include "graphics/color_utils.hpp"
+#include "world/tile.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb
@@ -242,9 +243,21 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     entity* target = entities.find(data.target_id);
     if (target && data.hit && data.damage > 0)
     {
-        // Flinch animation — only if target is still alive (death animation takes priority)
+        // Damage interrupts everything — snap to destination if mid-movement, then flinch
         if (target->is_alive())
+        {
+            auto& tt = target->transform();
+            if (tt.moving)
+            {
+                tt.move_start_x = tt.tile_x;
+                tt.move_start_y = tt.tile_y;
+                tt.x = tt.tile_x * tile_width + 16;
+                tt.y = tt.tile_y * tile_height + 16;
+                tt.move_progress = 0.0f;
+                tt.moving = false;
+            }
             target->set_action(object_action::damage);
+        }
 
         const auto& t = target->transform();
         if (data.critical)
@@ -272,7 +285,7 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
         if (data.attacker_id == entities.local_player_id())
         {
             if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
-                weapon_type = weapon->type_id;
+                weapon_type = weapon->template_id;
         }
         character_sound sound = get_weapon_swing_sound(weapon_type);
         const auto& at = attacker->transform();
@@ -339,9 +352,21 @@ void ws_message_handler::handle_npc_attack(const json& message)
     entity* target = entities.find(data.target_id);
     if (target && data.hit() && data.damage > 0)
     {
-        // Flinch animation — only if target is still alive (death animation takes priority)
+        // Damage interrupts everything — snap to destination if mid-movement, then flinch
         if (target->is_alive())
+        {
+            auto& tt = target->transform();
+            if (tt.moving)
+            {
+                tt.move_start_x = tt.tile_x;
+                tt.move_start_y = tt.tile_y;
+                tt.x = tt.tile_x * tile_width + 16;
+                tt.y = tt.tile_y * tile_height + 16;
+                tt.move_progress = 0.0f;
+                tt.moving = false;
+            }
             target->set_action(object_action::damage);
+        }
 
         const auto& t = target->transform();
         if (data.critical)
@@ -382,14 +407,22 @@ void ws_message_handler::handle_entity_death(const json& message)
     if (victim->has_stats())
         victim->stats().hp = 0;
 
-    // Transition to dead immediately (handles per-tile corpse cleanup),
-    // then play the dying animation once
-    game_->entities().transition_to_dead(data.victim_id);
-
-    // Stop any in-progress movement so corpse doesn't slide
+    // Snap to destination if mid-movement
     auto& t = victim->transform();
-    t.moving = false;
+    if (t.moving)
+    {
+        t.move_start_x = t.tile_x;
+        t.move_start_y = t.tile_y;
+        t.x = t.tile_x * tile_width + 16;
+        t.y = t.tile_y * tile_height + 16;
+        t.move_progress = 0.0f;
+        t.moving = false;
+    }
 
+    // Transition to dead immediately, then play the dying animation.
+    // The dying animation renders idle sprite for frames 0-3, then the actual
+    // death animation for frames 4+, matching legacy DrawObject_OnDamage behavior.
+    game_->entities().transition_to_dead(data.victim_id);
     victim->set_action(object_action::dying);
 
     if (is_npc)

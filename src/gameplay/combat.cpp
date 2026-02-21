@@ -159,7 +159,7 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
     {
         if (const auto* weapon = inventory_->get_equipped(equip_slot::right_hand))
         {
-            weapon_type = weapon->type_id;
+            weapon_type = weapon->template_id;
         }
     }
 
@@ -386,7 +386,7 @@ bool combat_system::can_dash_attack(entity_id attacker) const
 
     // Get equipped weapon type
     const auto* weapon = inventory_->get_equipped(equip_slot::right_hand);
-    uint16_t weapon_type = weapon ? weapon->type_id : 0;
+    uint16_t weapon_type = weapon ? static_cast<uint16_t>(weapon->template_id) : 0;
 
     // Bows cannot dash
     if (is_bow_weapon(weapon_type))

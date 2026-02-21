@@ -57,6 +57,11 @@ struct effect_definition
     bool randomize_direction_frame = false; // Randomize within direction frame range
     bool no_additive = false;               // Skip additive blending (earth effects etc.)
 
+    // Random render frame: when max > min, renderer picks a random frame from [min,max]
+    // each render call instead of using current_frame (legacy blood splatter etc.)
+    uint8_t random_frame_min = 0;
+    uint8_t random_frame_max = 0;
+
     // Per-channel color offset for PutTransSpriteRGB effects (fire=red, ice=blue, etc.)
     // Values in 0-255 range, converted to 0.0-1.0 in shader
     int16_t rgb_tint_r = 0;

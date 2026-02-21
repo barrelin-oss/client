@@ -201,6 +201,7 @@ struct stat_update_data
     std::optional<uint8_t> level;
     std::optional<int32_t> pk_count;
     std::optional<uint8_t> hunger_level;
+    std::optional<uint32_t> max_weight;
 
     static stat_update_data from_json(const json& j)
     {
@@ -244,6 +245,8 @@ struct stat_update_data
                 data.pk_count = d["pk_count"].get<int32_t>();
             if (d.contains("hunger_level"))
                 data.hunger_level = d["hunger_level"].get<uint8_t>();
+            if (d.contains("max_weight"))
+                data.max_weight = d["max_weight"].get<uint32_t>();
         }
         return data;
     }

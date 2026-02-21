@@ -7,6 +7,8 @@
 #include "world/tile.hpp"
 #include "core/constants.hpp"
 #include "core/direction_utils.hpp"
+#include "gameplay/effect_types.hpp"
+#include "gameplay/effect_system.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <array>
@@ -1406,6 +1408,19 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             }
         }
 
+        // Spawn hit effect at frame 4 of damage/dying animations (legacy frame split transition)
+        if (anim.current_frame == 4 &&
+            (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move ||
+             anim.state == entity_anim_state::dying))
+        {
+            if (effects_)
+            {
+                const auto& t = e.transform();
+                effects_->add_effect_at_pixel(
+                    effect_type_id::sword_slash, static_cast<float>(t.x), static_cast<float>(t.y));
+            }
+        }
+
         // Play monster attack sound on frame 1
         if (anim.current_frame == 1 && (e.type() == entity_type::npc || e.type() == entity_type::monster) &&
             (anim.state == entity_anim_state::attack || anim.state == entity_anim_state::attack_move))
@@ -1414,6 +1429,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
         }
 
         // Play monster damage sound (frame varies by monster type)
+        // Legacy frame numbers are absolute (already include the 4-frame idle prefix).
         if ((e.type() == entity_type::npc || e.type() == entity_type::monster) &&
             (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move))
         {
@@ -1425,7 +1441,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             }
         }
 
-        // Play player/character hurt sound on frame 5 of damage animation
+        // Play player/character hurt sound on frame 5 of damage animation (legacy absolute frame)
         if (anim.current_frame == 5 && (e.type() == entity_type::player || e.type() == entity_type::character) &&
             (anim.state == entity_anim_state::damage || anim.state == entity_anim_state::damage_move))
         {
@@ -1438,7 +1454,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
             }
         }
 
-        // Play player/character death sound on frame 7 of dying animation
+        // Play player/character death sound on frame 7 of dying animation (legacy absolute frame)
         if (anim.current_frame == 7 && (e.type() == entity_type::player || e.type() == entity_type::character) &&
             anim.state == entity_anim_state::dying)
         {
@@ -1452,6 +1468,7 @@ void entity_manager::update_animation(entity& e, float delta_time, bool local_pl
         }
 
         // Play monster/NPC death sound at per-type frame during dying animation
+        // Legacy frame numbers are absolute (already include idle prefix)
         if ((e.type() == entity_type::npc || e.type() == entity_type::monster) &&
             anim.state == entity_anim_state::dying)
         {
@@ -1946,13 +1963,30 @@ void entity_manager::render_npc_or_monster(renderer& rend,
         return;
     }
 
+    // Legacy split rendering: damage/dying animations draw idle sprite for frames 0-3,
+    // then the actual damage/dying sprite for frames 4+ (with frame offset -4).
+    // See Game.cpp DrawObject_OnDamage lines 10720-10735.
+    uint32_t frame = a.current_frame;
+    bool is_damage_or_dying = (a.state == entity_anim_state::damage ||
+                               a.state == entity_anim_state::damage_move ||
+                               a.state == entity_anim_state::dying);
+    if (is_damage_or_dying && frame < 4)
+    {
+        // Frames 0-3: draw idle sprite instead
+        npc_action = 0; // idle action
+    }
+    else if (is_damage_or_dying && frame >= 4)
+    {
+        // Frames 4+: draw actual damage/dying sprite, re-indexed from 0
+        frame -= 4;
+    }
+
     uint16_t sprite_id = calculate_npc_sprite_id(visual_type, npc_action, dir);
     const sprite* npc_spr = sprites.get_sprite_by_id(sprite_id);
 
     if (npc_spr)
     {
         // Clamp frame to actual sprite frame count to avoid invisible frames
-        uint32_t frame = a.current_frame;
         if (npc_spr->frame_count() > 0 && frame >= npc_spr->frame_count())
         {
             frame = frame % npc_spr->frame_count();

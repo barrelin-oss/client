@@ -98,7 +98,6 @@ struct animation_component
     float frame_duration = 0.115f; // Default to idle: 115ms per frame
     bool looping = true;
     bool finished = false;
-
     // Animation callbacks
     uint8_t attack_frame = 0; // Frame when attack damage is dealt
     bool attack_triggered = false;

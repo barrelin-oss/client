@@ -19,6 +19,8 @@ struct inventory_slot
 {
     std::optional<item> held_item;
     bool locked = false; // For trade/exchange locking
+    int16_t pos_x = 0;  // Free-form: pixel x in bag area
+    int16_t pos_y = 0;  // Free-form: pixel y in bag area
 };
 
 // Equipment set
@@ -89,11 +91,11 @@ public:
     bool is_overweight() const { return current_weight_ > max_weight_; }
 
     // Query
-    size_t find_item_by_type(uint16_t type_id) const;
+    size_t find_item_by_type(uint32_t template_id) const;
     size_t find_empty_slot() const;
     size_t count_items() const;
-    size_t count_item_type(uint16_t type_id) const;
-    bool has_item(uint16_t type_id, uint32_t amount = 1) const;
+    size_t count_item_type(uint32_t template_id) const;
+    bool has_item(uint32_t template_id, uint32_t amount = 1) const;
 
     // Equipment bonuses
     int32_t get_total_bonus(item_attribute attr) const;
@@ -134,7 +136,14 @@ public:
     void clear_equipped(equip_slot slot);
     void set_item_count(size_t slot, uint32_t count);
     void set_item_color(size_t slot, uint8_t color);
-    void set_item_attribute(size_t slot, uint32_t attribute);
+    void set_item_attribute(size_t slot, const item_attribute_data& attribute);
+
+    // Free-form z-ordering: move item to end of occupied slots (highest z-index)
+    // Returns new slot index, or SIZE_MAX on failure
+    size_t promote_to_top(size_t slot);
+
+    // Update position of a slot (free-form mode)
+    void set_slot_position(size_t slot, int16_t x, int16_t y);
 
 private:
     void recalculate_weight();

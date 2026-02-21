@@ -114,7 +114,10 @@ private:
     void handle_player_unequip_response(const json& message);
     void handle_inventory_data(const json& message);
     void handle_equipment_data(const json& message);
+    void handle_drop_item_response(const json& message);
+    void handle_inventory_slot_update(const json& message);
     void handle_skills_data(const json& message);
+    void handle_skill_progress(const json& message);
     void handle_player_skill_response(const json& message);
     void handle_player_interact_response(const json& message);
     void handle_fish_skill_response(const json& message);

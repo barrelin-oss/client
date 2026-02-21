@@ -1,25 +1,32 @@
 #pragma once
 
-#include "ui/ui_system.hpp"
+#include "ui/dialog_base.hpp"
 #include "gameplay/item.hpp"
 #include <functional>
 #include <optional>
-#include <array>
 
 namespace hb
 {
 
 class sprite_manager;
+class inventory_system;
 
-// Inventory dialog - displays player items in a grid
+// Inventory dialog - displays player items with real sprites in free-form layout
+// Items render at pixel positions within the bag area, with array index as z-order.
+// Dragging moves the original item's position (legacy behavior) — no separate copy.
 class inventory_dialog : public dialog
 {
 public:
     static constexpr int32_t grid_cols = 10;
     static constexpr int32_t grid_rows = 5;
-    static constexpr int32_t slot_size = 34;
-    static constexpr int32_t slot_padding = 2;
+    static constexpr int32_t cell_size = 34;
     static constexpr int32_t max_slots = 50;
+    static constexpr int32_t chrome_top = 32;
+    static constexpr int32_t chrome_bottom = 24;
+    static constexpr int32_t chrome_sides = 8;
+    static constexpr int32_t min_width = grid_cols * cell_size + chrome_sides * 2;
+    static constexpr int32_t min_height = grid_rows * cell_size + chrome_top + chrome_bottom;
+    static constexpr int32_t resize_handle_size = 12;
 
     inventory_dialog();
     ~inventory_dialog() override = default;
@@ -30,74 +37,54 @@ public:
     bool handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button btn) override;
     bool handle_mouse_move(int32_t x, int32_t y) override;
 
-    // Set item in slot
-    void set_item(int32_t slot, const item* itm);
-    void clear_slot(int32_t slot);
-    void clear_all();
-
-    // Set gold and weight
-    void set_gold(uint32_t gold) { gold_ = gold; }
-    void set_weight(int32_t current, int32_t max)
-    {
-        weight_ = current;
-        max_weight_ = max;
-    }
-
-    // Set sprite manager for item rendering
+    // Data binding
+    void set_inventory(inventory_system* inv) { inventory_ = inv; }
     void set_sprite_manager(sprite_manager* mgr) { sprite_mgr_ = mgr; }
 
-    // Callbacks
-    using item_callback = std::function<void(int32_t slot)>;
-    using item_drag_callback = std::function<void(int32_t from_slot, int32_t to_slot)>;
+    // Drag start callback (notifies ui_system to begin cross-dialog drag tracking)
+    // offset_x/y = click position relative to item's draw position
+    using drag_start_callback = std::function<void(int32_t slot, int32_t offset_x, int32_t offset_y)>;
+    void set_on_drag_start(drag_start_callback cb) { on_drag_start_ = std::move(cb); }
 
-    void set_on_item_click(item_callback callback) { on_item_click_ = std::move(callback); }
-    void set_on_item_right_click(item_callback callback) { on_item_right_click_ = std::move(callback); }
-    void set_on_item_double_click(item_callback callback) { on_item_double_click_ = std::move(callback); }
-    void set_on_item_drag(item_drag_callback callback) { on_item_drag_ = std::move(callback); }
+    // Called by ui_system when drag ends
+    void clear_dragging_slot() { dragging_slot_ = -1; }
+    bool is_dragging() const { return dragging_slot_ >= 0; }
 
-    // Get slot at screen position
-    std::optional<int32_t> slot_at(int32_t x, int32_t y) const;
+    // Restore item to its position before the current drag started
+    void restore_drag_position();
 
-    // Get hovered slot
-    std::optional<int32_t> hovered_slot() const { return hovered_slot_; }
+    // Bag area rectangle (screen coords)
+    ui_rect bag_area() const;
 
 private:
-    void render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y);
-    ui_rect get_slot_rect(int32_t slot) const;
+    void render_item(renderer& rend, int32_t slot, int32_t x, int32_t y);
+    std::optional<int32_t> item_at(int32_t screen_x, int32_t screen_y) const;
 
-    struct slot_data
-    {
-        const item* item_ptr = nullptr;
-        bool occupied = false;
-    };
+    // Get the screen-space bounding rect of an item's sprite (accounts for pivot offset).
+    // Returns a cell_size fallback if sprite is unavailable.
+    ui_rect item_sprite_rect(int32_t slot) const;
 
-    std::array<slot_data, max_slots> slots_;
-    uint32_t gold_ = 0;
-    int32_t weight_ = 0;
-    int32_t max_weight_ = 100;
-
+    inventory_system* inventory_ = nullptr;
     sprite_manager* sprite_mgr_ = nullptr;
 
-    // Interaction state
-    std::optional<int32_t> hovered_slot_;
-    std::optional<int32_t> dragging_slot_;
-    int32_t drag_start_x_ = 0;
-    int32_t drag_start_y_ = 0;
-    bool is_dragging_ = false;
+    // Resize
+    bool resizing_ = false;
+    int32_t resize_start_w_ = 0;
+    int32_t resize_start_h_ = 0;
+    int32_t resize_start_mx_ = 0;
+    int32_t resize_start_my_ = 0;
 
-    // Double-click detection
-    int32_t last_click_slot_ = -1;
-    float last_click_time_ = 0.0f;
-    static constexpr float double_click_time = 0.3f;
+    // Item drag (moves original item position — legacy behavior)
+    int32_t dragging_slot_ = -1;
+    int32_t item_drag_off_x_ = 0; // Click offset relative to item draw position
+    int32_t item_drag_off_y_ = 0;
+    int16_t pre_drag_x_ = 0; // Position before drag started (for restore on drop-to-world)
+    int16_t pre_drag_y_ = 0;
 
-    // Callbacks
-    item_callback on_item_click_;
-    item_callback on_item_right_click_;
-    item_callback on_item_double_click_;
-    item_drag_callback on_item_drag_;
+    // Click detection
+    std::optional<int32_t> pressed_slot_;
 
-    // Timer for double-click
-    float click_timer_ = 0.0f;
+    drag_start_callback on_drag_start_;
 };
 
 } // namespace hb

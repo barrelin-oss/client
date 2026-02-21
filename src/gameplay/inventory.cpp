@@ -53,6 +53,8 @@ void inventory_system::clear()
     {
         slot.held_item.reset();
         slot.locked = false;
+        slot.pos_x = 0;
+        slot.pos_y = 0;
     }
     equipped_ = {};
     gold_ = 0;
@@ -66,7 +68,7 @@ bool inventory_system::add_item(const item& itm, size_t preferred_slot)
     {
         for (size_t i = 0; i < inventory_size; ++i)
         {
-            if (slots_[i].held_item && slots_[i].held_item->type_id == itm.type_id)
+            if (slots_[i].held_item && slots_[i].held_item->template_id == itm.template_id)
             {
                 uint32_t can_add = slots_[i].held_item->max_stack - slots_[i].held_item->amount;
                 if (can_add > 0)
@@ -143,7 +145,7 @@ bool inventory_system::move_item(size_t from_slot, size_t to_slot)
     }
 
     // Try to stack if possible
-    if (slots_[to_slot].held_item && slots_[from_slot].held_item->type_id == slots_[to_slot].held_item->type_id &&
+    if (slots_[to_slot].held_item && slots_[from_slot].held_item->template_id == slots_[to_slot].held_item->template_id &&
         slots_[from_slot].held_item->is_stackable())
     {
         auto& from = *slots_[from_slot].held_item;
@@ -346,11 +348,11 @@ void inventory_system::add_gold(uint32_t amount)
     }
 }
 
-size_t inventory_system::find_item_by_type(uint16_t type_id) const
+size_t inventory_system::find_item_by_type(uint32_t template_id) const
 {
     for (size_t i = 0; i < inventory_size; ++i)
     {
-        if (slots_[i].held_item && slots_[i].held_item->type_id == type_id)
+        if (slots_[i].held_item && slots_[i].held_item->template_id == template_id)
         {
             return i;
         }
@@ -383,12 +385,12 @@ size_t inventory_system::count_items() const
     return count;
 }
 
-size_t inventory_system::count_item_type(uint16_t type_id) const
+size_t inventory_system::count_item_type(uint32_t template_id) const
 {
     size_t count = 0;
     for (const auto& slot : slots_)
     {
-        if (slot.held_item && slot.held_item->type_id == type_id)
+        if (slot.held_item && slot.held_item->template_id == template_id)
         {
             count += slot.held_item->amount;
         }
@@ -396,9 +398,9 @@ size_t inventory_system::count_item_type(uint16_t type_id) const
     return count;
 }
 
-bool inventory_system::has_item(uint16_t type_id, uint32_t amount) const
+bool inventory_system::has_item(uint32_t template_id, uint32_t amount) const
 {
-    return count_item_type(type_id) >= amount;
+    return count_item_type(template_id) >= amount;
 }
 
 int32_t inventory_system::get_total_bonus(item_attribute attr) const
@@ -473,160 +475,120 @@ int32_t inventory_system::get_total_magic_defense() const
 
 int32_t inventory_system::get_fire_resistance() const
 {
+    // Fire resistance comes from main enchantment type "fire"
     int32_t total = 0;
-
-    auto add_resist = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
-        if (itm)
-        {
-            auto effect = itm->get_effect_data();
-            if (effect.effect_type == item_effect_type::fire_resistance)
-            {
-                total += effect.get_resistance_bonus();
-            }
-        }
+        if (itm && itm->attribute.main_type == enchantment_type::fire)
+            total += itm->attribute.main_value;
     };
-
-    add_resist(equipped_.head);
-    add_resist(equipped_.body);
-    add_resist(equipped_.arms);
-    add_resist(equipped_.pants);
-    add_resist(equipped_.boots);
-    add_resist(equipped_.neck);
-    add_resist(equipped_.left_finger);
-    add_resist(equipped_.right_finger);
-    add_resist(equipped_.back);
-
-    return std::min(100, total); // Cap at 100%
+    add(equipped_.head);
+    add(equipped_.body);
+    add(equipped_.arms);
+    add(equipped_.pants);
+    add(equipped_.boots);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
+    add(equipped_.back);
+    return std::min(100, total);
 }
 
 int32_t inventory_system::get_ice_resistance() const
 {
+    // No direct ice enchantment in the new model; use physical_resist sub-enchantment as proxy
     int32_t total = 0;
-
-    auto add_resist = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
-        if (itm)
-        {
-            auto effect = itm->get_effect_data();
-            if (effect.effect_type == item_effect_type::ice_resistance)
-            {
-                total += effect.get_resistance_bonus();
-            }
-        }
+        if (itm && itm->attribute.sub_type == sub_enchantment_type::physical_resist)
+            total += itm->attribute.sub_value;
     };
-
-    add_resist(equipped_.head);
-    add_resist(equipped_.body);
-    add_resist(equipped_.arms);
-    add_resist(equipped_.pants);
-    add_resist(equipped_.boots);
-    add_resist(equipped_.neck);
-    add_resist(equipped_.left_finger);
-    add_resist(equipped_.right_finger);
-    add_resist(equipped_.back);
-
+    add(equipped_.head);
+    add(equipped_.body);
+    add(equipped_.arms);
+    add(equipped_.pants);
+    add(equipped_.boots);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
+    add(equipped_.back);
     return std::min(100, total);
 }
 
 int32_t inventory_system::get_poison_resistance() const
 {
     int32_t total = 0;
-
-    auto add_resist = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
-        if (itm)
-        {
-            auto effect = itm->get_effect_data();
-            if (effect.effect_type == item_effect_type::poison_resistance)
-            {
-                total += effect.get_resistance_bonus();
-            }
-        }
+        if (itm && itm->attribute.main_type == enchantment_type::poison)
+            total += itm->attribute.main_value;
     };
-
-    add_resist(equipped_.head);
-    add_resist(equipped_.body);
-    add_resist(equipped_.arms);
-    add_resist(equipped_.pants);
-    add_resist(equipped_.boots);
-    add_resist(equipped_.neck);
-    add_resist(equipped_.left_finger);
-    add_resist(equipped_.right_finger);
-    add_resist(equipped_.back);
-
+    add(equipped_.head);
+    add(equipped_.body);
+    add(equipped_.arms);
+    add(equipped_.pants);
+    add(equipped_.boots);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
+    add(equipped_.back);
     return std::min(100, total);
 }
 
 int32_t inventory_system::get_spell_accuracy_bonus() const
 {
+    // Spell accuracy maps to attack_rating sub-enchantment
     int32_t total = 0;
-
-    auto add_bonus = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
-        if (itm)
-        {
-            auto effect = itm->get_effect_data();
-            total += effect.get_spell_bonus();
-        }
+        if (itm && itm->attribute.sub_type == sub_enchantment_type::attack_rating)
+            total += itm->attribute.sub_value;
     };
-
-    add_bonus(equipped_.head);
-    add_bonus(equipped_.body);
-    add_bonus(equipped_.right_hand);
-    add_bonus(equipped_.left_hand);
-    add_bonus(equipped_.neck);
-    add_bonus(equipped_.left_finger);
-    add_bonus(equipped_.right_finger);
-
+    add(equipped_.head);
+    add(equipped_.body);
+    add(equipped_.right_hand);
+    add(equipped_.left_hand);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
     return total;
 }
 
 int32_t inventory_system::get_super_attack_bonus() const
 {
+    // Maps to main enchantment sharp or magic_damage
     int32_t total = 0;
-
-    auto add_bonus = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
-        if (itm)
-        {
-            auto effect = itm->get_effect_data();
-            if (effect.effect_type == item_effect_type::super_attack_bonus)
-            {
-                total += effect.get_damage_bonus();
-            }
-        }
+        if (itm && (itm->attribute.main_type == enchantment_type::sharp ||
+                    itm->attribute.main_type == enchantment_type::magic_damage))
+            total += itm->attribute.main_value;
     };
-
-    add_bonus(equipped_.right_hand); // Weapon
-    add_bonus(equipped_.neck);
-    add_bonus(equipped_.left_finger);
-    add_bonus(equipped_.right_finger);
-
+    add(equipped_.right_hand);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
     return total;
 }
 
 int32_t inventory_system::get_critical_bonus() const
 {
     int32_t total = 0;
-
-    auto add_bonus = [&](const std::optional<item>& itm)
+    auto add = [&](const std::optional<item>& itm)
     {
         if (itm)
         {
-            auto effect = itm->get_effect_data();
-            if (effect.effect_type == item_effect_type::critical_bonus)
-            {
-                total += effect.get_damage_bonus();
-            }
+            if (itm->attribute.main_type == enchantment_type::critical_bonus ||
+                itm->attribute.main_type == enchantment_type::charge_critical)
+                total += itm->attribute.main_value;
+            if (itm->attribute.sub_type == sub_enchantment_type::critical_damage)
+                total += itm->attribute.sub_value;
         }
     };
-
-    add_bonus(equipped_.right_hand);
-    add_bonus(equipped_.neck);
-    add_bonus(equipped_.left_finger);
-    add_bonus(equipped_.right_finger);
-
+    add(equipped_.right_hand);
+    add(equipped_.neck);
+    add(equipped_.left_finger);
+    add(equipped_.right_finger);
     return total;
 }
 
@@ -636,44 +598,52 @@ inventory_system::equipment_effects inventory_system::get_equipment_effects() co
 
     auto process_item = [&](const std::optional<item>& itm)
     {
-        if (!itm)
+        if (!itm || itm->attribute.is_empty())
             return;
 
-        auto effect = itm->get_effect_data();
-        if (!effect.has_effect)
-            return;
+        const auto& attr = itm->attribute;
 
-        switch (effect.effect_type)
+        // Main enchantment contributions
+        switch (attr.main_type)
         {
-        case item_effect_type::fire_resistance:
-            effects.fire_resist += effect.get_resistance_bonus();
+        case enchantment_type::fire:
+            effects.fire_resist += attr.main_value;
             break;
-        case item_effect_type::ice_resistance:
-            effects.ice_resist += effect.get_resistance_bonus();
+        case enchantment_type::critical_bonus:
+        case enchantment_type::charge_critical:
+            effects.critical += attr.main_value;
             break;
-        case item_effect_type::poison_resistance:
-            effects.poison_resist += effect.get_resistance_bonus();
+        case enchantment_type::sharp:
+        case enchantment_type::magic_damage:
+            effects.super_attack += attr.main_value;
             break;
-        case item_effect_type::spell_accuracy:
-            effects.spell_accuracy += effect.get_spell_bonus();
+        default:
             break;
-        case item_effect_type::super_attack_bonus:
-            effects.super_attack += effect.get_damage_bonus();
+        }
+
+        // Sub enchantment contributions
+        switch (attr.sub_type)
+        {
+        case sub_enchantment_type::physical_resist:
+            effects.ice_resist += attr.sub_value;
             break;
-        case item_effect_type::critical_bonus:
-            effects.critical += effect.get_damage_bonus();
+        case sub_enchantment_type::magic_resist:
+            effects.spell_accuracy += attr.sub_value;
             break;
-        case item_effect_type::hp_recovery:
-            effects.hp_recovery += effect.effect_value;
+        case sub_enchantment_type::hp_recovery:
+            effects.hp_recovery += attr.sub_value;
             break;
-        case item_effect_type::mp_recovery:
-            effects.mp_recovery += effect.effect_value;
+        case sub_enchantment_type::mp_recovery:
+            effects.mp_recovery += attr.sub_value;
             break;
-        case item_effect_type::experience_bonus:
-            effects.exp_bonus += effect.effect_value;
+        case sub_enchantment_type::critical_damage:
+            effects.critical += attr.sub_value;
             break;
-        case item_effect_type::gold_bonus:
-            effects.gold_bonus += effect.effect_value;
+        case sub_enchantment_type::exp_bonus:
+            effects.exp_bonus += attr.sub_value;
+            break;
+        case sub_enchantment_type::gold_bonus:
+            effects.gold_bonus += attr.sub_value;
             break;
         default:
             break;
@@ -705,6 +675,11 @@ void inventory_system::set_item_at(size_t slot, const item& itm)
     if (slot >= inventory_size)
         return;
     slots_[slot].held_item = itm;
+    // Default free-form position based on slot index
+    auto col = static_cast<int32_t>(slot % 10);
+    auto row = static_cast<int32_t>(slot / 10);
+    slots_[slot].pos_x = static_cast<int16_t>(col * 34);
+    slots_[slot].pos_y = static_cast<int16_t>(row * 34);
     notify_item_changed(slot);
     recalculate_weight();
 }
@@ -756,7 +731,7 @@ void inventory_system::set_item_color(size_t slot, uint8_t color)
     notify_item_changed(slot);
 }
 
-void inventory_system::set_item_attribute(size_t slot, uint32_t attribute)
+void inventory_system::set_item_attribute(size_t slot, const item_attribute_data& attribute)
 {
     if (slot >= inventory_size || !slots_[slot].held_item)
         return;
@@ -816,6 +791,63 @@ void inventory_system::notify_equipment_changed(equip_slot slot)
     {
         callbacks_.on_equipment_changed(slot);
     }
+}
+
+size_t inventory_system::promote_to_top(size_t slot)
+{
+    if (slot >= inventory_size || !slots_[slot].held_item)
+        return SIZE_MAX;
+
+    // Find the last occupied slot
+    size_t last_occupied = 0;
+    for (size_t i = 0; i < inventory_size; ++i)
+    {
+        if (slots_[i].held_item)
+            last_occupied = i;
+    }
+
+    // Already at or past the last occupied slot
+    if (slot >= last_occupied)
+        return slot;
+
+    // Find the first empty slot at or after last_occupied
+    size_t dest = SIZE_MAX;
+    for (size_t i = last_occupied + 1; i < inventory_size; ++i)
+    {
+        if (!slots_[i].held_item)
+        {
+            dest = i;
+            break;
+        }
+    }
+
+    // If no empty slot after the last item, swap with last_occupied + shift
+    // Simpler approach: just swap to the end of occupied range
+    if (dest == SIZE_MAX)
+    {
+        // All slots from slot+1..49 are occupied; just swap with last_occupied
+        if (slot == last_occupied)
+            return slot;
+        dest = last_occupied;
+    }
+
+    // Move the item
+    slots_[dest] = std::move(slots_[slot]);
+    slots_[slot].held_item.reset();
+    slots_[slot].pos_x = 0;
+    slots_[slot].pos_y = 0;
+
+    notify_item_changed(slot);
+    notify_item_changed(dest);
+    return dest;
+}
+
+void inventory_system::set_slot_position(size_t slot, int16_t x, int16_t y)
+{
+    if (slot >= inventory_size)
+        return;
+    slots_[slot].pos_x = x;
+    slots_[slot].pos_y = y;
 }
 
 } // namespace hb

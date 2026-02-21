@@ -106,6 +106,7 @@ add_library(helbreath_core STATIC
     gameplay/floating_text.cpp
     gameplay/input_handler.cpp
     gameplay/inventory.cpp
+    gameplay/item_format.cpp
     gameplay/magic.cpp
     gameplay/guild_system.cpp
     gameplay/skills.cpp

@@ -14,8 +14,7 @@ void ws_message_handler::handle_pickup_response(const json& message)
 
     if (response.success)
     {
-        spdlog::info(
-            "Picked up item: {} x{} (slot {})", response.item_name, response.quantity, response.inventory_slot);
+        spdlog::info("Picked up item (slot update will follow)");
     }
     else
     {
@@ -100,6 +99,8 @@ void ws_message_handler::handle_stat_update(const json& message)
         stats.hunger = *data.hunger_level;
     if (data.pk_count && player->has_combat())
         player->combat().pk_count = *data.pk_count;
+    if (data.max_weight)
+        game_->inventory().set_max_weight(*data.max_weight);
 
     game_->update_icon_panel();
 
@@ -192,16 +193,39 @@ void ws_message_handler::handle_inventory_data(const json& message)
     inventory.clear();
     inventory.set_gold(static_cast<uint32_t>(data.gold));
 
+    // Clear all equipped slots first (equipment is unified with inventory)
+    for (int i = 1; i <= 12; ++i)
+        inventory.clear_equipped(static_cast<equip_slot>(i));
+
     for (const auto& inv_item : data.items)
     {
         item itm;
         itm.id = inv_item.item_id;
-        itm.type_id = static_cast<uint16_t>(inv_item.item_id);
+        itm.template_id = inv_item.template_id;
         itm.name = inv_item.name;
         itm.amount = static_cast<uint32_t>(inv_item.count);
         itm.durability = static_cast<uint16_t>(inv_item.durability);
         itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
+        itm.type = static_cast<item_type>(inv_item.item_type);
+        itm.slot = equip_slot_from_server(inv_item.equip_pos);
+        itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
+        itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
+        itm.color = static_cast<uint8_t>(inv_item.color);
+        itm.weight = static_cast<uint32_t>(inv_item.weight);
+        itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
+        itm.attribute = inv_item.attribute;
         inventory.set_item_at(inv_item.slot, itm);
+
+        if (inv_item.pos_x != 0 || inv_item.pos_y != 0)
+            inventory.set_slot_position(inv_item.slot, inv_item.pos_x, inv_item.pos_y);
+
+        // Equipped items: inventory items with equipped_slot set
+        if (inv_item.equipped_slot >= 0)
+        {
+            auto eq_slot = equip_slot_from_server(inv_item.equipped_slot);
+            if (eq_slot != equip_slot::none)
+                inventory.set_equipped(eq_slot, itm);
+        }
     }
 
     spdlog::debug("Inventory refreshed: {} items, {} gold", data.items.size(), data.gold);
@@ -209,26 +233,37 @@ void ws_message_handler::handle_inventory_data(const json& message)
 
 void ws_message_handler::handle_equipment_data(const json& message)
 {
+    // DEPRECATED: equipment is unified with inventory. This handler kept for backward compat.
     auto data = equipment_data_msg::from_json(message);
 
     auto& inventory = game_->inventory();
 
-    // Clear all equipped slots first
-    for (int i = 1; i <= 11; ++i)
+    for (int i = 1; i <= 12; ++i)
         inventory.clear_equipped(static_cast<equip_slot>(i));
 
     for (const auto& eq_item : data.equipment)
     {
         item itm;
         itm.id = eq_item.item_id;
-        itm.type_id = static_cast<uint16_t>(eq_item.item_id);
+        itm.template_id = eq_item.template_id;
         itm.name = eq_item.name;
         itm.durability = static_cast<uint16_t>(eq_item.durability);
         itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
+        itm.type = static_cast<item_type>(eq_item.item_type);
+        itm.slot = equip_slot_from_server(eq_item.equip_pos);
+        itm.sprite_id = static_cast<uint16_t>(eq_item.sprite);
+        itm.equipped_sprite_id = static_cast<uint16_t>(eq_item.sprite_frame);
+        itm.color = static_cast<uint8_t>(eq_item.color);
+        itm.weight = static_cast<uint32_t>(eq_item.weight);
+        itm.level_req = static_cast<uint16_t>(eq_item.level_limit);
+        itm.attribute = eq_item.attribute;
 
-        auto slot = equip_slot_from_server(eq_item.slot);
-        if (slot != equip_slot::none)
-            inventory.set_equipped(slot, itm);
+        if (eq_item.equipped_slot >= 0)
+        {
+            auto mapped_slot = equip_slot_from_server(eq_item.equipped_slot);
+            if (mapped_slot != equip_slot::none)
+                inventory.set_equipped(mapped_slot, itm);
+        }
     }
 
     spdlog::debug("Equipment refreshed: {} items", data.equipment.size());
@@ -275,6 +310,32 @@ void ws_message_handler::handle_skills_data(const json& message)
     }
 }
 
+void ws_message_handler::handle_skill_progress(const json& message)
+{
+    auto data = skill_progress_msg::from_json(message);
+
+    auto& skills = game_->skills();
+
+    float progress = 0.0f;
+    if (data.uses_to_next_level > 0)
+        progress = static_cast<float>(data.uses_this_level) / static_cast<float>(data.uses_to_next_level);
+    skills.set_sub_progress(data.skill_id, progress);
+
+    spdlog::debug("skill_progress: skill_id={} {}% ({}/{})",
+                  data.skill_id, data.percent, data.uses_this_level, data.uses_to_next_level);
+
+    // Update skills dialog if open
+    if (auto* dlg = dynamic_cast<skills_dialog*>(game_->ui().get_dialog(dialog_type::skills)))
+    {
+        auto all = skills.get_all_skills();
+        std::vector<skill> skill_list;
+        skill_list.reserve(all.size());
+        for (const auto* s : all)
+            skill_list.push_back(*s);
+        dlg->set_skills(skill_list);
+    }
+}
+
 void ws_message_handler::handle_player_skill_response(const json& message)
 {
     if (message.contains("data"))
@@ -295,6 +356,88 @@ void ws_message_handler::handle_player_skill_response(const json& message)
             int32_t effect = r.value("effect_value", 0);
             spdlog::debug("Skill {} used, effect={}", skill_id, effect);
         }
+    }
+}
+
+void ws_message_handler::handle_drop_item_response(const json& message)
+{
+    if (!message.contains("data"))
+        return;
+    const auto& d = message["data"];
+
+    // Determine which slot was pending
+    int32_t slot = d.value("slot", -1);
+    if (slot < 0)
+        slot = game_->pending_drop_slot();
+
+    bool success = d.value("success", false);
+    if (success)
+    {
+        spdlog::info("Item dropped successfully (slot {})", slot);
+        // Server will send inventory_data refresh which clears the slot
+    }
+    else
+    {
+        spdlog::debug("Drop failed: {}", d.value("error", std::string("unknown")));
+        // Unlock the slot so the player can interact with it again
+        if (slot >= 0 && slot < static_cast<int32_t>(inventory_size))
+            game_->inventory().get_slot_mut(static_cast<size_t>(slot)).locked = false;
+    }
+
+    game_->clear_pending_drop_slot();
+}
+
+void ws_message_handler::handle_inventory_slot_update(const json& message)
+{
+    auto data = inventory_slot_update_msg::from_json(message);
+    if (data.slot < 0 || data.slot >= static_cast<int16_t>(inventory_size))
+    {
+        spdlog::warn("inventory_slot_update: invalid slot {}", data.slot);
+        return;
+    }
+
+    auto& inventory = game_->inventory();
+    auto slot = static_cast<size_t>(data.slot);
+
+    if (!data.has_item)
+    {
+        // Slot cleared (item dropped, consumed, etc.)
+        spdlog::debug("Inventory slot {} cleared", data.slot);
+        inventory.clear_slot(slot);
+    }
+    else
+    {
+        // Slot updated with new/modified item
+        item itm;
+        itm.id = data.item.item_id;
+        itm.template_id = data.item.template_id;
+        itm.name = data.item.name;
+        itm.amount = static_cast<uint32_t>(data.item.count);
+        itm.durability = static_cast<uint16_t>(data.item.durability);
+        itm.max_durability = static_cast<uint16_t>(data.item.max_durability);
+        itm.type = static_cast<item_type>(data.item.item_type);
+        itm.slot = equip_slot_from_server(data.item.equip_pos);
+        itm.sprite_id = static_cast<uint16_t>(data.item.sprite);
+        itm.equipped_sprite_id = static_cast<uint16_t>(data.item.sprite_frame);
+        itm.color = static_cast<uint8_t>(data.item.color);
+        itm.weight = static_cast<uint32_t>(data.item.weight);
+        itm.level_req = static_cast<uint16_t>(data.item.level_limit);
+        itm.attribute = data.item.attribute;
+        inventory.set_item_at(slot, itm);
+
+        // Apply position if server provided it
+        if (data.item.pos_x != 0 || data.item.pos_y != 0)
+            inventory.set_slot_position(slot, data.item.pos_x, data.item.pos_y);
+
+        // Handle equipped_slot flag
+        if (data.item.equipped_slot >= 0)
+        {
+            auto eq_slot = equip_slot_from_server(data.item.equipped_slot);
+            if (eq_slot != equip_slot::none)
+                inventory.set_equipped(eq_slot, itm);
+        }
+
+        spdlog::debug("Inventory slot {} updated: {} x{}", data.slot, itm.name, itm.amount);
     }
 }
 

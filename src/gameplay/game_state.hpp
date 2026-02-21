@@ -36,6 +36,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 namespace hb
@@ -264,6 +265,10 @@ public:
         ws_handler_.request_enter_game(character_id, force_disconnect);
     }
 
+    // Drop confirmation state
+    int32_t pending_drop_slot() const { return pending_drop_slot_; }
+    void clear_pending_drop_slot() { pending_drop_slot_ = -1; }
+
     // HUD updates
     void update_icon_panel();
 
@@ -396,6 +401,10 @@ private:
 
     // Spell hotbar (9 slots, indexed 0-8 for keys 1-9)
     std::array<uint16_t, 9> spell_hotbar_{};
+
+    // Drop confirmation: skip dialog for these item type IDs
+    std::unordered_set<uint32_t> skip_drop_confirm_;
+    int32_t pending_drop_slot_ = -1;
 };
 
 } // namespace hb

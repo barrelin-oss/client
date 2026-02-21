@@ -351,7 +351,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                spdlog::info("Loaded item-ground.pak (20 sprites)");
                            }});
 
-    // Load inventory-style item sprites (item-pack.pak) - optional large ground item rendering
+    // Load inventory item sprites (item-pack.pak) - used for inventory dialog and large ground items
     init_steps_.push_back({"Loading item pack sprites...",
                            [this]()
                            {
@@ -361,18 +361,18 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                    return;
                                }
                                sprites_.preload_pak_metadata("item-pack");
-                               // Same category layout as item-ground: PAK 0-16 → IDs 301-317, PAK 17-19 → IDs 320-322
-                               for (uint32_t i = 0; i < 17; ++i)
+
+                               auto* pak = sprites_.get_pak("item-pack");
+                               if (!pak)
+                                   return;
+
+                               uint32_t count = pak->sprite_count();
+                               for (uint32_t i = 0; i < count; ++i)
                                {
                                    sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_pack_sprite_base + 1 + i), "item-pack", i);
+                                       static_cast<uint16_t>(item_pack_sprite_base + i), "item-pack", i);
                                }
-                               for (uint32_t i = 0; i < 3; ++i)
-                               {
-                                   sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_pack_sprite_base + 20 + i), "item-pack", 17 + i);
-                               }
-                               spdlog::info("Loaded item-pack.pak (20 sprites)");
+                               spdlog::info("Loaded item-pack.pak ({} sprites)", count);
                            }});
 
     init_steps_.push_back({"Setting up network...",
@@ -679,6 +679,111 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                dialog_callbacks_.setup_callbacks();
                            }});
 
+    // Wire inventory dialog to inventory system and drag system
+    init_steps_.push_back({"Wiring inventory...",
+                           [this]()
+                           {
+                               if (auto* inv_dlg =
+                                       dynamic_cast<inventory_dialog*>(ui_.get_dialog(dialog_type::inventory)))
+                               {
+                                   inv_dlg->set_inventory(&inventory_);
+
+                                   // When user starts dragging an item from inventory
+                                   inv_dlg->set_on_drag_start(
+                                       [this](int32_t slot, int32_t off_x, int32_t off_y)
+                                       {
+                                           const auto* itm = inventory_.get_item(static_cast<size_t>(slot));
+                                           if (itm)
+                                               ui_.begin_item_drag(itm, slot, equip_slot::none,
+                                                                   dialog_type::inventory, off_x, off_y);
+                                       });
+                               }
+
+                               // Drop item to world — snap back, lock, confirm, then send
+                               ui_.set_on_drop_in_world(
+                                   [this](int32_t slot)
+                                   {
+                                       auto* inv_dlg = dynamic_cast<inventory_dialog*>(
+                                           ui_.get_dialog(dialog_type::inventory));
+                                       if (inv_dlg)
+                                           inv_dlg->restore_drag_position();
+
+                                       auto& inv_slot =
+                                           inventory_.get_slot_mut(static_cast<size_t>(slot));
+                                       inv_slot.locked = true;
+
+                                       const auto* itm = inventory_.get_item(static_cast<size_t>(slot));
+                                       if (!itm)
+                                       {
+                                           inv_slot.locked = false;
+                                           return;
+                                       }
+
+                                       uint32_t type_id = itm->template_id;
+
+                                       // Send drop request (shared lambda)
+                                       auto do_drop = [this, slot]()
+                                       {
+                                           pending_drop_slot_ = slot;
+                                           spdlog::info("Dropping item from slot {}", slot);
+                                           json msg = make_player_drop_item_request(slot);
+                                           ws_connection_.send(msg);
+                                       };
+
+                                       // Skip confirm if user previously toggled "don't ask" for this type
+                                       if (skip_drop_confirm_.contains(type_id))
+                                       {
+                                           do_drop();
+                                           return;
+                                       }
+
+                                       // Show drop confirmation dialog
+                                       item itm_copy = *itm; // Copy for dialog lifetime
+                                       ui_.create_drop_confirm_box(
+                                           itm_copy,
+                                           [this, slot, type_id, do_drop](bool confirmed, bool skip_next)
+                                           {
+                                               if (confirmed)
+                                               {
+                                                   if (skip_next)
+                                                       skip_drop_confirm_.insert(type_id);
+                                                   do_drop();
+                                               }
+                                               else
+                                               {
+                                                   // Cancelled — unlock the slot
+                                                   inventory_.get_slot_mut(static_cast<size_t>(slot))
+                                                       .locked = false;
+                                               }
+                                           });
+                                   });
+
+                               // Reposition item within bag (free-form mode)
+                               // Promotes item to top of z-order and updates position
+                               ui_.set_on_reposition_item(
+                                   [this](int32_t slot, int32_t x, int32_t y)
+                                   {
+                                       if (slot < 0 || slot >= static_cast<int32_t>(inventory_size))
+                                           return;
+
+                                       // Move to end of array (highest z-index)
+                                       size_t new_slot = inventory_.promote_to_top(static_cast<size_t>(slot));
+                                       if (new_slot == SIZE_MAX)
+                                           new_slot = static_cast<size_t>(slot);
+
+                                       // Update free-form position
+                                       inventory_.set_slot_position(new_slot,
+                                                                    static_cast<int16_t>(x),
+                                                                    static_cast<int16_t>(y));
+
+                                       // Tell server about the reposition
+                                       json msg = make_inventory_reposition_request(
+                                           slot, static_cast<int32_t>(new_slot),
+                                           static_cast<int16_t>(x), static_cast<int16_t>(y));
+                                       ws_connection_.send(msg);
+                                   });
+                           }});
+
     // Wire chat input overlay
     init_steps_.push_back(
         {"Setting up chat...",
@@ -778,6 +883,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                                 sounds_.is_sfx_enabled(),
                                                 sounds_.is_music_enabled());
                                    entities_.set_sound_manager(&sounds_);
+                                   entities_.set_effect_system(&effects_);
                                }
                                else
                                {
@@ -1164,6 +1270,8 @@ void game_state_manager::clear_game_data()
     guild_.clear();
     quests_.clear();
     spell_hotbar_.fill(0);
+    skip_drop_confirm_.clear();
+    pending_drop_slot_ = -1;
 }
 
 void game_state_manager::start_map_transition(std::function<void()> on_midpoint)
@@ -2019,7 +2127,7 @@ void game_state_manager::update_icon_panel()
     bool weapon_mastered = false;
     if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand))
     {
-        weapon_skill ws = combat_.get_weapon_skill(weapon->type_id);
+        weapon_skill ws = combat_.get_weapon_skill(static_cast<uint16_t>(weapon->template_id));
         weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
     }
     panel->set_super_attack_available(weapon_mastered);

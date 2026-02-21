@@ -90,6 +90,10 @@ public:
     // Get bounds for collision detection
     sf::IntRect get_bounds(int32_t x, int32_t y, uint32_t frame) const;
 
+    // Pixel-level hit test: returns true if the pixel at (local_x, local_y) relative
+    // to the draw position (before pivot) is opaque (alpha > 0) for the given frame.
+    bool hit_test(int32_t local_x, int32_t local_y, uint32_t frame) const;
+
     // Get texture/bitmap dimensions (from metadata, no bitmap load needed)
     uint32_t bitmap_width() const { return bitmap_width_; }
     uint32_t bitmap_height() const { return bitmap_height_; }

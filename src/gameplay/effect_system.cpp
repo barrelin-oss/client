@@ -220,6 +220,13 @@ void effect_system::render(renderer& rend, int32_t camera_x, int32_t camera_y)
         // Calculate the frame to render
         uint32_t frame = static_cast<uint32_t>(eff.current_frame) + eff.def->frame_offset;
 
+        // Random render frame: pick a random frame each render call (legacy blood splatter)
+        if (eff.def->random_frame_max > eff.def->random_frame_min)
+        {
+            frame = eff.def->random_frame_min +
+                    static_cast<uint32_t>(random_mod(eff.def->random_frame_max - eff.def->random_frame_min + 1));
+        }
+
         // For directional effects, offset frame by direction
         if (eff.def->directional)
         {

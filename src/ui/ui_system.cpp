@@ -3,6 +3,10 @@
 #include "ui/dialogs/dialogs.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
+#include "assets/sprite_manager.hpp"
+#include "gameplay/item.hpp"
+#include "gameplay/item_format.hpp"
+#include "world/ground_item.hpp"
 #include "core/constants.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
@@ -57,6 +61,12 @@ void ui_system::update(float delta_time, const input& inp)
 
     int32_t mx = inp.mouse_x();
     int32_t my = inp.mouse_y();
+
+    // Update drag position every frame
+    if (drag_state_.active)
+    {
+        update_drag_position(mx, my);
+    }
 
     // Route mouse move to data-driven dialogs (for hover states)
     if (dialog_manager_)
@@ -164,21 +174,29 @@ void ui_system::update(float delta_time, const input& inp)
     // Route mouse release to dialogs
     if (inp.is_mouse_released(sf::Mouse::Button::Left))
     {
-        // First try data-driven dialogs
-        if (dialog_manager_)
+        // Resolve item drag first
+        if (drag_state_.active)
         {
-            dialog_manager_->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+            end_item_drag(mx, my);
         }
-        // Then legacy dialogs - copy list since callbacks may modify it
-        auto dialogs_copy = dialog_order_;
-        for (auto it = dialogs_copy.rbegin(); it != dialogs_copy.rend(); ++it)
+        else
         {
-            if ((*it)->is_open())
+            // First try data-driven dialogs
+            if (dialog_manager_)
             {
-                (*it)->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
-                if ((*it)->modal())
+                dialog_manager_->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+            }
+            // Then legacy dialogs - copy list since callbacks may modify it
+            auto dialogs_copy = dialog_order_;
+            for (auto it = dialogs_copy.rbegin(); it != dialogs_copy.rend(); ++it)
+            {
+                if ((*it)->is_open())
                 {
-                    break; // Modal consumes the event
+                    (*it)->handle_mouse_up(mx, my, sf::Mouse::Button::Left);
+                    if ((*it)->modal())
+                    {
+                        break; // Modal consumes the event
+                    }
                 }
             }
         }
@@ -311,6 +329,13 @@ void ui_system::render(renderer& rend)
         rend.draw_rect(tooltip_x_, tooltip_y_, tooltip_width, tooltip_height, sf::Color(40, 40, 50, 240), true);
         rend.draw_rect(tooltip_x_, tooltip_y_, tooltip_width, tooltip_height, sf::Color(100, 100, 120), false);
         rend.draw_text(tooltip_text_, tooltip_x_ + 4, tooltip_y_ + 3, sf::Color::White);
+    }
+
+    // Render dragged item info tooltip (inventory items move in-place, no separate sprite)
+    if (drag_state_.active && drag_state_.held_item)
+    {
+        render_held_item_info(rend, *drag_state_.held_item,
+                              drag_state_.cursor_x + 16, drag_state_.cursor_y + 16);
     }
 }
 
@@ -597,7 +622,9 @@ void ui_system::create_character_dialog()
 
 void ui_system::create_inventory_dialog()
 {
-    add_dialog(dialog_type::inventory, std::make_unique<inventory_dialog>());
+    auto dlg = std::make_unique<inventory_dialog>();
+    dlg->set_sprite_manager(sprites_);
+    add_dialog(dialog_type::inventory, std::move(dlg));
 }
 
 void ui_system::create_equipment_dialog()
@@ -752,6 +779,104 @@ void ui_system::create_confirm_box(std::string_view title,
             close_dialog(dialog_type::confirm);
             if (on_result)
                 on_result(false);
+        });
+    dlg->add_child(std::move(no_btn));
+
+    add_dialog(dialog_type::confirm, std::move(dlg));
+    get_dialog(dialog_type::confirm)->open();
+}
+
+void ui_system::create_drop_confirm_box(const item& itm,
+                                        std::function<void(bool confirmed, bool skip_next)> on_result)
+{
+    auto info_lines = build_item_info(itm);
+
+    // Calculate dialog height based on content:
+    // title bar ~24px + item info lines + question label + toggle label + buttons + padding
+    int32_t line_height = 16;
+    int32_t content_y = 32; // Start below title bar
+    int32_t info_height = static_cast<int32_t>(info_lines.size()) * line_height;
+    int32_t total_height = content_y + info_height + 10 + line_height + 10 + 22 + 10 + 28 + 10;
+
+    auto dlg = std::make_unique<dialog>(dialog_type::confirm);
+    dlg->set_title("Drop Item");
+    dlg->set_bounds({static_cast<int32_t>(screen_width) / 2 - 140,
+                     static_cast<int32_t>(screen_height) / 2 - total_height / 2, 280, total_height});
+    dlg->set_modal(true);
+
+    // Item info lines
+    int32_t y_pos = content_y;
+    for (const auto& line : info_lines)
+    {
+        auto lbl = std::make_unique<ui_label>();
+        lbl->set_bounds({20, y_pos, 240, line_height});
+        lbl->set_text(line.text);
+        lbl->set_text_color(line.color);
+        dlg->add_child(std::move(lbl));
+        y_pos += line_height;
+    }
+
+    y_pos += 10;
+
+    // Question label
+    auto question = std::make_unique<ui_label>();
+    question->set_bounds({20, y_pos, 240, line_height});
+    question->set_text("Drop this item?");
+    question->set_alignment(ui_label::alignment::center);
+    dlg->add_child(std::move(question));
+    y_pos += line_height + 10;
+
+    // "Don't ask again" toggle (button styled as text toggle)
+    auto skip_toggle = std::make_shared<bool>(false);
+    auto toggle_btn = std::make_unique<ui_button>();
+    toggle_btn->set_bounds({20, y_pos, 240, 22});
+    toggle_btn->set_text("Don't ask for same item: OFF");
+    toggle_btn->set_normal_color(sf::Color(40, 40, 50, 180));
+    toggle_btn->set_hover_color(sf::Color(50, 50, 65, 200));
+    auto* toggle_ptr = toggle_btn.get();
+    toggle_btn->set_on_click(
+        [toggle_ptr, skip_toggle]()
+        {
+            *skip_toggle = !*skip_toggle;
+            if (*skip_toggle)
+            {
+                toggle_ptr->set_text("Don't ask for same item: ON");
+                toggle_ptr->set_normal_color(sf::Color(30, 60, 30, 200));
+                toggle_ptr->set_hover_color(sf::Color(40, 70, 40, 220));
+            }
+            else
+            {
+                toggle_ptr->set_text("Don't ask for same item: OFF");
+                toggle_ptr->set_normal_color(sf::Color(40, 40, 50, 180));
+                toggle_ptr->set_hover_color(sf::Color(50, 50, 65, 200));
+            }
+        });
+    dlg->add_child(std::move(toggle_btn));
+    y_pos += 22 + 10;
+
+    // Yes button
+    auto yes_btn = std::make_unique<ui_button>();
+    yes_btn->set_bounds({50, y_pos, 80, 28});
+    yes_btn->set_text("Yes");
+    yes_btn->set_on_click(
+        [this, on_result, skip_toggle]()
+        {
+            close_dialog(dialog_type::confirm);
+            if (on_result)
+                on_result(true, *skip_toggle);
+        });
+    dlg->add_child(std::move(yes_btn));
+
+    // No button
+    auto no_btn = std::make_unique<ui_button>();
+    no_btn->set_bounds({150, y_pos, 80, 28});
+    no_btn->set_text("No");
+    no_btn->set_on_click(
+        [this, on_result]()
+        {
+            close_dialog(dialog_type::confirm);
+            if (on_result)
+                on_result(false, false);
         });
     dlg->add_child(std::move(no_btn));
 
@@ -1126,6 +1251,108 @@ dialog_manager& ui_system::dialogs()
 const dialog_manager& ui_system::dialogs() const
 {
     return *dialog_manager_;
+}
+
+// === Item drag system ===
+
+void ui_system::begin_item_drag(const item* itm, int32_t slot, equip_slot equip, dialog_type source,
+                                int32_t offset_x, int32_t offset_y)
+{
+    drag_state_.active = true;
+    drag_state_.held_item = itm;
+    drag_state_.source_slot = slot;
+    drag_state_.source_equip = equip;
+    drag_state_.source_dialog = source;
+    drag_state_.offset_x = offset_x;
+    drag_state_.offset_y = offset_y;
+}
+
+void ui_system::update_drag_position(int32_t x, int32_t y)
+{
+    drag_state_.cursor_x = x;
+    drag_state_.cursor_y = y;
+}
+
+void ui_system::cancel_item_drag()
+{
+    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
+        inv_dlg->clear_dragging_slot();
+    drag_state_ = {};
+}
+
+void ui_system::end_item_drag(int32_t x, int32_t y)
+{
+    if (!drag_state_.active)
+        return;
+
+    // Check if dropped on inventory dialog
+    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory));
+        inv_dlg && inv_dlg->is_open() && inv_dlg->bounds().contains(x, y))
+    {
+        if (drag_state_.source_dialog == dialog_type::inventory)
+        {
+            // Item position was already updated by inventory_dialog::handle_mouse_move.
+            // Just notify the reposition callback with the item's current bag-relative coords.
+            if (on_reposition_item_)
+            {
+                auto bag = inv_dlg->bag_area();
+                int32_t item_x = x - drag_state_.offset_x - bag.x;
+                int32_t item_y = y - drag_state_.offset_y - bag.y;
+                on_reposition_item_(drag_state_.source_slot, item_x, item_y);
+            }
+        }
+        else if (drag_state_.source_dialog == dialog_type::character_info)
+        {
+            // Unequip
+            if (on_unequip_from_drag_ && drag_state_.source_equip != equip_slot::none)
+                on_unequip_from_drag_(drag_state_.source_equip);
+        }
+    }
+    // Check if dropped on character info dialog (equip)
+    else if (auto* chr = get_dialog(dialog_type::character_info);
+             chr && chr->is_open() && chr->bounds().contains(x, y))
+    {
+        if (drag_state_.source_dialog == dialog_type::inventory && on_equip_from_drag_)
+            on_equip_from_drag_(drag_state_.source_slot);
+    }
+    // Dropped in game world
+    else if (!is_point_over_dialog(x, y))
+    {
+        if (drag_state_.source_slot >= 0 && on_drop_in_world_)
+            on_drop_in_world_(drag_state_.source_slot);
+    }
+
+    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
+        inv_dlg->clear_dragging_slot();
+    drag_state_ = {};
+}
+
+void ui_system::render_held_item_info(renderer& rend, const item& itm, int32_t x, int32_t y)
+{
+    auto lines = build_item_info(itm);
+    if (lines.empty())
+        return;
+
+    int32_t line_height = 16;
+    int32_t padding = 6;
+    int32_t max_width = 0;
+    for (const auto& line : lines)
+        max_width = std::max(max_width, static_cast<int32_t>(line.text.length()) * 7);
+
+    int32_t panel_w = max_width + padding * 2;
+    int32_t panel_h = static_cast<int32_t>(lines.size()) * line_height + padding * 2;
+
+    // Draw panel background
+    rend.draw_rect(x, y, panel_w, panel_h, sf::Color(0, 0, 0, 180), true);
+    rend.draw_rect(x, y, panel_w, panel_h, sf::Color(80, 80, 100), false);
+
+    // Draw lines
+    int32_t text_y = y + padding;
+    for (const auto& line : lines)
+    {
+        rend.draw_text(line.text, x + padding, text_y, line.color);
+        text_y += line_height;
+    }
 }
 
 } // namespace hb

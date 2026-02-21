@@ -153,7 +153,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
 
     auto& name = player.name();
     name.name = ch.name;
-    name.faction = ch.faction;
+    name.faction = ch.nation == 1 ? "aresden" : ch.nation == 2 ? "elvine" : "neutral";
     name.guild_name = ch.guild_name;
     name.guild_tag = ch.guild_tag;
     name.guild_rank_id = ch.guild_rank;
@@ -212,41 +212,46 @@ void ws_message_handler::handle_enter_game_response(const json& message)
                   stats.sp,
                   stats.max_sp);
 
-    // Populate inventory
+    // Populate inventory (equipment is unified — equipped items have equipped_slot set)
     auto& inventory = game_->inventory();
     inventory.clear();
     inventory.set_gold(static_cast<uint32_t>(ch.gold));
+
+    // Clear all equipped slots first
+    for (int i = 1; i <= 12; ++i)
+        inventory.clear_equipped(static_cast<equip_slot>(i));
 
     for (const auto& inv_item : response.inventory.items)
     {
         item itm;
         itm.id = inv_item.item_id;
-        itm.type_id = static_cast<uint16_t>(inv_item.item_id);
+        itm.template_id = inv_item.template_id;
         itm.name = inv_item.name;
         itm.amount = static_cast<uint32_t>(inv_item.count);
         itm.durability = static_cast<uint16_t>(inv_item.durability);
         itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
+        itm.type = static_cast<item_type>(inv_item.item_type);
+        itm.slot = equip_slot_from_server(inv_item.equip_pos);
+        itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
+        itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
+        itm.color = static_cast<uint8_t>(inv_item.color);
+        itm.weight = static_cast<uint32_t>(inv_item.weight);
+        itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
+        itm.attribute = inv_item.attribute;
         inventory.set_item_at(inv_item.slot, itm);
-    }
-    spdlog::debug("Loaded {} inventory items, {} gold", response.inventory.items.size(), ch.gold);
 
-    // Set equipped items
-    for (const auto& eq_item : response.equipment)
-    {
-        item itm;
-        itm.id = eq_item.item_id;
-        itm.type_id = static_cast<uint16_t>(eq_item.item_id);
-        itm.name = eq_item.name;
-        itm.durability = static_cast<uint16_t>(eq_item.durability);
-        itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
+        if (inv_item.pos_x != 0 || inv_item.pos_y != 0)
+            inventory.set_slot_position(inv_item.slot, inv_item.pos_x, inv_item.pos_y);
 
-        auto slot = equip_slot_from_server(eq_item.slot);
-        if (slot != equip_slot::none)
+        // Equipped items: inventory items with equipped_slot set
+        if (inv_item.equipped_slot >= 0)
         {
-            inventory.set_equipped(slot, itm);
+            auto eq_slot = equip_slot_from_server(inv_item.equipped_slot);
+            if (eq_slot != equip_slot::none)
+                inventory.set_equipped(eq_slot, itm);
         }
     }
-    spdlog::debug("Loaded {} equipped items", response.equipment.size());
+    spdlog::debug("Loaded {} inventory items, {} gold", response.inventory.items.size(), ch.gold);
 
     // Set skill levels
     auto& skills = game_->skills();

@@ -51,8 +51,19 @@ inline constexpr const char* equipment_change_broadcast = "equipment_change_broa
 inline constexpr const char* inventory_data = "inventory_data";
 inline constexpr const char* equipment_data = "equipment_data";
 
+// Item drop
+inline constexpr const char* player_drop_item_request = "player_drop_item_request";
+inline constexpr const char* player_drop_item_response = "player_drop_item_response";
+
+// Single-slot inventory update (server pushes after drop, consume, etc.)
+inline constexpr const char* inventory_slot_update = "inventory_slot_update";
+
+// Inventory layout management
+inline constexpr const char* inventory_reposition_request = "inventory_reposition_request";
+
 // Skills
 inline constexpr const char* skills_data = "skills_data";
+inline constexpr const char* skill_progress = "skill_progress";
 inline constexpr const char* player_skill_response = "player_skill_response";
 
 // NPC messages

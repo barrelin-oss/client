@@ -21,7 +21,7 @@ void dialog_callbacks::setup_callbacks()
 {
     auto& ui = game_->ui();
     auto& network = game_->network();
-    auto& inventory = game_->inventory();
+    // inventory interactions are handled by ui_system's cross-dialog drag system
     auto& magic = game_->magic();
     auto& sounds = game_->sounds();
 
@@ -80,24 +80,7 @@ void dialog_callbacks::setup_callbacks()
         char_dlg->set_on_add_stat([&network](int stat_index) { network.request_add_stat(stat_index); });
     }
 
-    // Inventory dialog - item interactions
-    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(ui.get_dialog(dialog_type::inventory)))
-    {
-        inv_dlg->set_on_item_click([](int32_t slot) { spdlog::debug("Inventory slot {} clicked", slot); });
-
-        inv_dlg->set_on_item_right_click([&network](int32_t slot)
-                                         { network.request_use_item(static_cast<uint8_t>(slot)); });
-
-        inv_dlg->set_on_item_double_click([&network](int32_t slot)
-                                          { network.request_use_item(static_cast<uint8_t>(slot)); });
-
-        inv_dlg->set_on_item_drag(
-            [&network, &inventory](int32_t from_slot, int32_t to_slot)
-            {
-                inventory.move_item(from_slot, to_slot);
-                network.request_move_item(from_slot, to_slot);
-            });
-    }
+    // Inventory dialog drag handled by ui_system cross-dialog drag system (wired in game_state)
 
     // Equipment dialog - equip/unequip
     if (auto* equip_dlg = dynamic_cast<equipment_dialog*>(ui.get_dialog(dialog_type::equipment)))

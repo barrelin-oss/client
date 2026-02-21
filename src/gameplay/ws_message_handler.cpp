@@ -151,9 +151,12 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::equipment_change_broadcast,  &ws_message_handler::handle_equipment_change_broadcast},
         {msg_type::player_equip_response,       &ws_message_handler::handle_player_equip_response},
         {msg_type::player_unequip_response,     &ws_message_handler::handle_player_unequip_response},
+        {msg_type::player_drop_item_response,   &ws_message_handler::handle_drop_item_response},
+        {msg_type::inventory_slot_update,       &ws_message_handler::handle_inventory_slot_update},
 
         // Skills
         {msg_type::skills_data,                 &ws_message_handler::handle_skills_data},
+        {msg_type::skill_progress,              &ws_message_handler::handle_skill_progress},
         {msg_type::player_skill_response,       &ws_message_handler::handle_player_skill_response},
 
         // Actions / interaction

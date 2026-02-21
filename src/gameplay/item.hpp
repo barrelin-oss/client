@@ -2,6 +2,7 @@
 
 #include "core/game_enums.hpp"
 #include <cstdint>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <string_view>
 
@@ -19,7 +20,7 @@ enum class item_rarity : uint8_t
     unique = 5,
 };
 
-// Item attribute types
+// Item attribute types (stat bonuses on items)
 enum class item_attribute : uint8_t
 {
     none = 0,
@@ -42,97 +43,56 @@ enum class item_attribute : uint8_t
     move_speed = 17,
 };
 
-// Special item effect types (from m_dwAttribute encoding)
-enum class item_effect_type : uint8_t
+// Main enchantment types (from server item_attribute.main_type)
+enum class enchantment_type : uint8_t
 {
     none = 0,
-    super_attack_bonus = 1,   // +N to super attack damage
-    experience_bonus = 2,     // +N% experience gain
-    gold_bonus = 3,           // +N% gold drops
-    hp_recovery = 4,          // +N HP per tick
-    mp_recovery = 5,          // +N MP per tick
-    fire_resistance = 6,      // +N×4% fire resistance
-    water_resistance = 7,     // +N×5% water resistance
-    ice_resistance = 8,       // +N×7% ice resistance
-    earth_resistance = 9,     // +N×3% earth resistance
-    spell_accuracy = 10,      // +N×3% spell hit chance
-    poison_resistance = 11,   // +N% poison resistance
-    critical_bonus = 12,      // +N% critical damage
-    physical_absorption = 13, // Absorb N% physical damage
-    magic_absorption = 14,    // Absorb N% magic damage
-    skill_bonus = 15,         // +N to specific skill
+    critical_bonus = 1,
+    poison = 2,
+    righteous = 3,
+    spell_on_hit = 4,
+    damage_reduction = 5,
+    light = 6,
+    sharp = 7,
+    fire = 8,
+    ancient = 9,
+    magic_damage = 10,
+    mana_conversion = 11,
+    charge_critical = 12,
 };
 
-// Unpacked item attribute data
-struct item_effect_data
+// Sub-enchantment types (from server item_attribute.sub_type)
+enum class sub_enchantment_type : uint8_t
 {
-    item_effect_type effect_type = item_effect_type::none;
-    uint8_t effect_value = 0; // Effect magnitude
-    uint8_t bonus_stat = 0;   // Bonus stat type (bits 28-31)
-    uint8_t bonus_value = 0;  // Bonus stat value (bits 20-23)
-    bool has_effect = false;
+    none = 0,
+    physical_resist = 1,
+    attack_rating = 2,
+    defense_rating = 3,
+    hp_recovery = 4,
+    sp_recovery = 5,
+    mp_recovery = 6,
+    magic_resist = 7,
+    physical_absorption = 8,
+    magic_absorption = 9,
+    critical_damage = 10,
+    exp_bonus = 11,
+    gold_bonus = 12,
+};
 
-    // Unpack from 32-bit attribute value
-    static item_effect_data from_attribute(uint32_t attr)
-    {
-        item_effect_data data;
-        if (attr == 0)
-            return data;
+// Unpacked item attribute data (matches server item_attribute struct)
+struct item_attribute_data
+{
+    uint8_t upgrade_level = 0;
+    enchantment_type main_type = enchantment_type::none;
+    uint8_t main_value = 0;
+    sub_enchantment_type sub_type = sub_enchantment_type::none;
+    uint8_t sub_value = 0;
+    bool custom_made = false;
+    int8_t custom_quality = 0;
 
-        data.has_effect = true;
-        // Effect type: bits 16-19
-        data.effect_type = static_cast<item_effect_type>((attr >> 16) & 0x0F);
-        // Effect value: bits 8-15
-        data.effect_value = static_cast<uint8_t>((attr >> 8) & 0xFF);
-        // Bonus stat: bits 28-31
-        data.bonus_stat = static_cast<uint8_t>((attr >> 28) & 0x0F);
-        // Bonus value: bits 20-23
-        data.bonus_value = static_cast<uint8_t>((attr >> 20) & 0x0F);
-
-        return data;
-    }
-
-    // Calculate effect bonus based on type
-    int32_t get_resistance_bonus() const
-    {
-        switch (effect_type)
-        {
-        case item_effect_type::fire_resistance:
-            return effect_value * 4;
-        case item_effect_type::water_resistance:
-            return effect_value * 5;
-        case item_effect_type::ice_resistance:
-            return effect_value * 7;
-        case item_effect_type::earth_resistance:
-            return effect_value * 3;
-        case item_effect_type::poison_resistance:
-            return effect_value;
-        default:
-            return 0;
-        }
-    }
-
-    int32_t get_damage_bonus() const
-    {
-        switch (effect_type)
-        {
-        case item_effect_type::super_attack_bonus:
-            return effect_value;
-        case item_effect_type::critical_bonus:
-            return effect_value;
-        default:
-            return 0;
-        }
-    }
-
-    int32_t get_spell_bonus() const
-    {
-        if (effect_type == item_effect_type::spell_accuracy)
-        {
-            return effect_value * 3;
-        }
-        return 0;
-    }
+    bool is_empty() const;
+    static item_attribute_data from_json(const nlohmann::json& j);
+    static item_attribute_data from_legacy(uint32_t dw);
 };
 
 // Item attribute bonus
@@ -146,8 +106,8 @@ struct item_bonus
 struct item
 {
     // Identification
-    uint32_t id = 0;      // Unique instance ID
-    uint16_t type_id = 0; // Item template type
+    uint32_t id = 0;          // Unique instance ID
+    uint32_t template_id = 0; // Item template for sprite/stat lookup
     std::string name;
 
     // Classification
@@ -187,8 +147,8 @@ struct item
     uint16_t equipped_sprite_id = 0;
 
     // Visual/Network properties
-    uint8_t color = 0;      // Item color variation
-    uint32_t attribute = 0; // Encoded attribute flags
+    uint8_t color = 0;              // Item color variation
+    item_attribute_data attribute{}; // Enchantment/upgrade data
 
     // Flags
     bool tradeable = true;
@@ -224,11 +184,8 @@ struct item
         return total;
     }
 
-    // Get unpacked effect data from attribute
-    item_effect_data get_effect_data() const { return item_effect_data::from_attribute(attribute); }
-
-    // Check if item has a special effect
-    bool has_special_effect() const { return attribute != 0; }
+    // Check if item has a special effect (enchantment, upgrade, custom-made)
+    bool has_special_effect() const { return !attribute.is_empty(); }
 
     // Add a bonus to the item
     bool add_bonus(item_attribute attr, int16_t value)
@@ -254,7 +211,7 @@ struct item
 // Item template (static data)
 struct item_template
 {
-    uint16_t type_id;
+    uint32_t template_id;
     std::string name;
     item_type type;
     equip_slot slot;

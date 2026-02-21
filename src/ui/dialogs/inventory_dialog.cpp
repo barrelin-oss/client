@@ -1,7 +1,10 @@
 #include "ui/dialogs/inventory_dialog.hpp"
 #include "assets/sprite_manager.hpp"
+#include "assets/sprite.hpp"
+#include "gameplay/inventory.hpp"
 #include "graphics/renderer.hpp"
 #include "input/input.hpp"
+#include "world/ground_item.hpp"
 #include "core/constants.hpp"
 #include <format>
 
@@ -12,11 +15,8 @@ inventory_dialog::inventory_dialog() : dialog(dialog_type::inventory)
 {
     set_title("Inventory");
 
-    // Calculate dialog size based on grid
-    int32_t grid_width = grid_cols * (slot_size + slot_padding) + slot_padding;
-    int32_t grid_height = grid_rows * (slot_size + slot_padding) + slot_padding;
-    int32_t dialog_width = grid_width + 20;
-    int32_t dialog_height = grid_height + 80; // Extra space for gold/weight
+    int32_t dialog_width = min_width;
+    int32_t dialog_height = min_height;
 
     set_bounds({static_cast<int32_t>(screen_width) - dialog_width - 10, 100, dialog_width, dialog_height});
     set_draggable(true);
@@ -25,10 +25,15 @@ inventory_dialog::inventory_dialog() : dialog(dialog_type::inventory)
     set_drag_clamp(drag_clamp::partial);
 }
 
-void inventory_dialog::update(float delta_time, const input& inp)
+ui_rect inventory_dialog::bag_area() const
 {
-    dialog::update(delta_time, inp);
-    click_timer_ += delta_time;
+    return {bounds_.x + chrome_sides, bounds_.y + chrome_top,
+            bounds_.width - chrome_sides * 2, bounds_.height - chrome_top - chrome_bottom};
+}
+
+void inventory_dialog::update(float delta_time, const input& /*inp*/)
+{
+    (void)delta_time;
 }
 
 void inventory_dialog::render(renderer& rend)
@@ -38,154 +43,195 @@ void inventory_dialog::render(renderer& rend)
 
     dialog::render(rend);
 
-    int32_t base_x = bounds_.x + 10;
-    int32_t base_y = bounds_.y + 32;
+    auto bag = bag_area();
 
-    // Gold display
-    rend.draw_text(std::format("Gold: {}", gold_), base_x, base_y, sf::Color::Yellow);
+    // Bag background
+    rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(20, 20, 30), true);
+    rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(50, 50, 70), false);
 
-    // Weight display
-    sf::Color weight_color = (weight_ > max_weight_) ? sf::Color::Red : sf::Color::White;
-    rend.draw_text(std::format("Weight: {}/{}", weight_, max_weight_), base_x + 120, base_y, weight_color);
-
-    base_y += 24;
-
-    // Draw grid background
-    int32_t grid_width = grid_cols * (slot_size + slot_padding) + slot_padding;
-    int32_t grid_height = grid_rows * (slot_size + slot_padding) + slot_padding;
-    rend.draw_rect(base_x, base_y, grid_width, grid_height, sf::Color(30, 30, 40), true);
-    rend.draw_rect(base_x, base_y, grid_width, grid_height, sf::Color(60, 60, 80), false);
-
-    // Draw item slots
-    for (int32_t row = 0; row < grid_rows; ++row)
+    // Render items in array order (index = z-order, higher = on top).
+    // Dragged item renders at its current (moving) position — no separate copy.
+    if (inventory_)
     {
-        for (int32_t col = 0; col < grid_cols; ++col)
+        for (int32_t i = 0; i < max_slots; ++i)
         {
-            int32_t slot = row * grid_cols + col;
-            int32_t slot_x = base_x + slot_padding + col * (slot_size + slot_padding);
-            int32_t slot_y = base_y + slot_padding + row * (slot_size + slot_padding);
+            const auto& inv_slot = inventory_->get_slot(static_cast<size_t>(i));
+            if (!inv_slot.held_item)
+                continue;
 
-            render_slot(rend, slot, slot_x, slot_y);
+            render_item(rend, i, bag.x + inv_slot.pos_x, bag.y + inv_slot.pos_y);
         }
     }
 
-    // Draw dragged item
-    if (is_dragging_ && dragging_slot_.has_value())
+    // Footer: gold and weight
+    int32_t footer_y = bounds_.y + bounds_.height - chrome_bottom + 4;
+    if (inventory_)
     {
-        int32_t slot = dragging_slot_.value();
-        if (slots_[slot].occupied && slots_[slot].item_ptr)
+        rend.draw_text(std::format("Gold: {}", inventory_->gold()),
+                       bounds_.x + chrome_sides, footer_y, sf::Color::Yellow);
+        auto wt_color = inventory_->is_overweight() ? sf::Color::Red : sf::Color(180, 180, 180);
+        rend.draw_text(std::format("{}/{}", inventory_->current_weight(), inventory_->max_weight()),
+                       bounds_.x + bounds_.width - 80, footer_y, wt_color);
+    }
+
+    // Resize handle — diagonal grip lines at bottom-right corner
+    {
+        int32_t bx = bounds_.x + bounds_.width;
+        int32_t by = bounds_.y + bounds_.height;
+        sf::Color light(160, 160, 190);
+        sf::Color dark(50, 50, 70);
+        for (int32_t i = 0; i < 3; ++i)
         {
-            // Draw item sprite at mouse position (would need mouse coords)
-            // For now, just draw a placeholder
-            // TODO: Pass mouse coords to render
+            int32_t off = 3 + i * 3;
+            rend.draw_line(bx - off, by - 1, bx - 1, by - off, dark);
+            rend.draw_line(bx - off - 1, by - 1, bx - 1, by - off - 1, light);
         }
     }
 }
 
-void inventory_dialog::render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y)
+void inventory_dialog::render_item(renderer& rend, int32_t slot, int32_t x, int32_t y)
 {
-    // Slot background
-    sf::Color bg_color = sf::Color(40, 40, 50);
-    if (hovered_slot_.has_value() && hovered_slot_.value() == slot)
+    if (!inventory_)
+        return;
+
+    const auto& inv_slot = inventory_->get_slot(static_cast<size_t>(slot));
+    if (!inv_slot.held_item)
+        return;
+    const auto& itm = *inv_slot.held_item;
+
+    // Locked items render washed-out (pending drop confirmation)
+    bool is_locked = inv_slot.locked;
+
+    // Get sprite from item-pack.pak
+    bool drew_sprite = false;
+    if (sprite_mgr_)
     {
-        bg_color = sf::Color(60, 60, 80);
-    }
-
-    // Highlight dragging source
-    if (is_dragging_ && dragging_slot_.has_value() && dragging_slot_.value() == slot)
-    {
-        bg_color = sf::Color(80, 80, 60);
-    }
-
-    rend.draw_rect(x, y, slot_size, slot_size, bg_color, true);
-    rend.draw_rect(x, y, slot_size, slot_size, sf::Color(60, 60, 80), false);
-
-    // Draw item if present
-    if (slots_[slot].occupied && slots_[slot].item_ptr)
-    {
-        const item* itm = slots_[slot].item_ptr;
-
-        // Draw item sprite (would use sprite_mgr_ to get sprite)
-        // For now, just draw a colored rectangle based on item type
-        sf::Color item_color;
-        switch (itm->type)
+        auto* spr = sprite_mgr_->get_sprite_by_id(
+            static_cast<uint16_t>(item_pack_sprite_base + itm.sprite_id));
+        if (spr)
         {
-        case item_type::equip:
-            // Color by slot for equipment
-            if (itm->is_weapon())
+            uint32_t frame = static_cast<uint32_t>(itm.equipped_sprite_id);
+            if (is_locked)
             {
-                item_color = sf::Color(200, 100, 100);
+                rend.draw_sprite_alpha(*spr, x, y, frame, 0.35f);
             }
-            else if (itm->is_armor())
+            else if (itm.color == 0)
             {
-                item_color = sf::Color(100, 100, 200);
+                rend.draw_sprite(*spr, x, y, frame);
             }
             else
             {
-                item_color = sf::Color(200, 180, 100);
+                float r = 0.0f, g = 0.0f, b = 0.0f;
+                rend.draw_sprite_tinted(*spr, x, y, frame, r, g, b);
             }
-            break;
-        case item_type::consume:
-        case item_type::eat:
-            item_color = sf::Color(100, 200, 100);
-            break;
-        case item_type::apply:
-        case item_type::use_deplete:
-            item_color = sf::Color(200, 200, 100);
-            break;
-        default:
-            item_color = sf::Color(150, 150, 150);
-            break;
-        }
-
-        rend.draw_rect(x + 4, y + 4, slot_size - 8, slot_size - 8, item_color, true);
-
-        // Draw quantity if stackable
-        if (itm->amount > 1)
-        {
-            std::string count_str = std::to_string(itm->amount);
-            rend.draw_text(count_str, x + 2, y + slot_size - 14, sf::Color::White, 10);
-        }
-
-        // Draw durability indicator if applicable
-        if (itm->max_durability > 0 && itm->durability < itm->max_durability)
-        {
-            float dur_pct = static_cast<float>(itm->durability) / itm->max_durability;
-            int32_t dur_width = static_cast<int32_t>((slot_size - 4) * dur_pct);
-
-            sf::Color dur_color = dur_pct > 0.5f   ? sf::Color(100, 200, 100)
-                                  : dur_pct > 0.2f ? sf::Color(200, 200, 100)
-                                                   : sf::Color(200, 100, 100);
-
-            rend.draw_rect(x + 2, y + slot_size - 4, dur_width, 2, dur_color, true);
+            drew_sprite = true;
         }
     }
-}
 
-ui_rect inventory_dialog::get_slot_rect(int32_t slot) const
-{
-    int32_t row = slot / grid_cols;
-    int32_t col = slot % grid_cols;
-
-    int32_t base_x = bounds_.x + 10;
-    int32_t base_y = bounds_.y + 56;
-
-    return {base_x + slot_padding + col * (slot_size + slot_padding),
-            base_y + slot_padding + row * (slot_size + slot_padding),
-            slot_size,
-            slot_size};
-}
-
-std::optional<int32_t> inventory_dialog::slot_at(int32_t x, int32_t y) const
-{
-    for (int32_t i = 0; i < max_slots; ++i)
+    // Fallback: colored rectangle if no sprite
+    if (!drew_sprite)
     {
-        ui_rect rect = get_slot_rect(i);
-        if (rect.contains(x, y))
+        sf::Color fallback(100, 100, 150);
+        if (itm.is_weapon())
+            fallback = sf::Color(200, 100, 100);
+        else if (itm.is_armor())
+            fallback = sf::Color(100, 100, 200);
+        else if (itm.type == item_type::consume || itm.type == item_type::eat)
+            fallback = sf::Color(100, 200, 100);
+        if (is_locked)
+            fallback.a = 90;
+        rend.draw_rect(x + 2, y + 2, 30, 30, fallback, true);
+    }
+
+    // Stack count (bottom-right)
+    if (itm.amount > 1)
+    {
+        rend.draw_text(std::to_string(itm.amount), x + 20, y + 22, sf::Color::White, 10);
+    }
+
+    // Durability bar (bottom of item)
+    if (itm.max_durability > 0 && itm.durability < itm.max_durability)
+    {
+        float pct = static_cast<float>(itm.durability) / static_cast<float>(itm.max_durability);
+        int32_t bar_w = static_cast<int32_t>(30.0f * pct);
+        auto bar_color = pct > 0.5f  ? sf::Color(80, 200, 80)
+                         : pct > 0.2f ? sf::Color(200, 200, 80)
+                                      : sf::Color(200, 80, 80);
+        rend.draw_rect(x + 2, y + 30, bar_w, 2, bar_color, true);
+    }
+}
+
+ui_rect inventory_dialog::item_sprite_rect(int32_t slot) const
+{
+    auto bag = bag_area();
+    const auto& s = inventory_->get_slot(static_cast<size_t>(slot));
+
+    // Try to get actual sprite bounds (position + pivot + frame size)
+    if (sprite_mgr_ && s.held_item)
+    {
+        auto* spr = sprite_mgr_->get_sprite_by_id(
+            static_cast<uint16_t>(item_pack_sprite_base + s.held_item->sprite_id));
+        if (spr)
         {
-            return i;
+            uint32_t frame = static_cast<uint32_t>(s.held_item->equipped_sprite_id);
+            const auto& f = spr->get_frame(frame);
+            return {bag.x + s.pos_x + f.pivot_x,
+                    bag.y + s.pos_y + f.pivot_y,
+                    f.source_rect.size.x,
+                    f.source_rect.size.y};
         }
     }
+
+    // Fallback: cell_size box at item position
+    return {bag.x + s.pos_x, bag.y + s.pos_y, cell_size, cell_size};
+}
+
+std::optional<int32_t> inventory_dialog::item_at(int32_t screen_x, int32_t screen_y) const
+{
+    if (!inventory_)
+        return std::nullopt;
+
+    auto bag = bag_area();
+    if (!bag.contains(screen_x, screen_y))
+        return std::nullopt;
+
+    // Check each item using pixel-level sprite collision (reverse order = higher z on top).
+    // Transparent pixels pass through, allowing clicks on items underneath.
+    for (int32_t i = max_slots - 1; i >= 0; --i)
+    {
+        const auto& s = inventory_->get_slot(static_cast<size_t>(i));
+        if (!s.held_item)
+            continue;
+        if (s.locked)
+            continue; // Locked items are not interactable
+
+        // Quick bounding box reject first
+        auto rect = item_sprite_rect(i);
+        if (screen_x < rect.x || screen_x >= rect.x + rect.width ||
+            screen_y < rect.y || screen_y >= rect.y + rect.height)
+            continue;
+
+        // Pixel-level hit test against actual sprite data
+        if (sprite_mgr_)
+        {
+            auto* spr = sprite_mgr_->get_sprite_by_id(
+                static_cast<uint16_t>(item_pack_sprite_base + s.held_item->sprite_id));
+            if (spr)
+            {
+                uint32_t frame = static_cast<uint32_t>(s.held_item->equipped_sprite_id);
+                // local coords relative to the item's draw position (before pivot)
+                int32_t local_x = screen_x - (bag.x + s.pos_x);
+                int32_t local_y = screen_y - (bag.y + s.pos_y);
+                if (spr->hit_test(local_x, local_y, frame))
+                    return i;
+                continue; // Transparent pixel — fall through to items below
+            }
+        }
+
+        // No sprite available — bounding box hit is enough
+        return i;
+    }
+
     return std::nullopt;
 }
 
@@ -194,40 +240,50 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
     if (!visible_)
         return false;
 
-    if (auto slot = slot_at(x, y))
+    if (btn == sf::Mouse::Button::Left)
     {
-        if (btn == sf::Mouse::Button::Left)
+        // Check resize handle
+        int32_t rx = bounds_.x + bounds_.width - resize_handle_size;
+        int32_t ry = bounds_.y + bounds_.height - resize_handle_size;
+        if (x >= rx && y >= ry && x < bounds_.x + bounds_.width && y < bounds_.y + bounds_.height)
         {
-            // Check for double-click
-            if (last_click_slot_ == slot.value() && click_timer_ < double_click_time)
-            {
-                if (on_item_double_click_ && slots_[slot.value()].occupied)
-                {
-                    on_item_double_click_(slot.value());
-                }
-                last_click_slot_ = -1;
-            }
-            else
-            {
-                last_click_slot_ = slot.value();
-                click_timer_ = 0.0f;
-
-                // Start drag if slot has item
-                if (slots_[slot.value()].occupied)
-                {
-                    dragging_slot_ = slot;
-                    drag_start_x_ = x;
-                    drag_start_y_ = y;
-                }
-            }
+            resizing_ = true;
+            resize_start_w_ = bounds_.width;
+            resize_start_h_ = bounds_.height;
+            resize_start_mx_ = x;
+            resize_start_my_ = y;
             return true;
         }
-        else if (btn == sf::Mouse::Button::Right)
+
+        // Check if clicking on an item — begin dragging it within the bag
+        auto slot = item_at(x, y);
+        if (slot.has_value() && inventory_)
         {
-            if (on_item_right_click_ && slots_[slot.value()].occupied)
-            {
-                on_item_right_click_(slot.value());
-            }
+            pressed_slot_ = slot;
+            dragging_slot_ = slot.value();
+
+            // Save position before drag for restore on drop-to-world
+            const auto& s = inventory_->get_slot(static_cast<size_t>(slot.value()));
+            pre_drag_x_ = s.pos_x;
+            pre_drag_y_ = s.pos_y;
+
+            // Offset = click position relative to item's draw position
+            auto bag = bag_area();
+            item_drag_off_x_ = x - (bag.x + s.pos_x);
+            item_drag_off_y_ = y - (bag.y + s.pos_y);
+
+            // Notify ui_system for cross-dialog drop resolution
+            if (on_drag_start_)
+                on_drag_start_(slot.value(), item_drag_off_x_, item_drag_off_y_);
+            return true;
+        }
+
+        // Empty bag area — allow dialog dragging
+        if (bag_area().contains(x, y))
+        {
+            dragging_ = true;
+            drag_offset_x_ = x - bounds_.x;
+            drag_offset_y_ = y - bounds_.y;
             return true;
         }
     }
@@ -240,31 +296,14 @@ bool inventory_dialog::handle_mouse_up(int32_t x, int32_t y, sf::Mouse::Button b
     if (!visible_)
         return false;
 
-    if (btn == sf::Mouse::Button::Left && dragging_slot_.has_value())
+    if (btn == sf::Mouse::Button::Left)
     {
-        if (is_dragging_)
+        if (resizing_)
         {
-            auto target_slot = slot_at(x, y);
-            if (target_slot.has_value() && target_slot.value() != dragging_slot_.value())
-            {
-                if (on_item_drag_)
-                {
-                    on_item_drag_(dragging_slot_.value(), target_slot.value());
-                }
-            }
+            resizing_ = false;
+            return true;
         }
-        else
-        {
-            // Was a click, not a drag
-            if (on_item_click_ && slots_[dragging_slot_.value()].occupied)
-            {
-                on_item_click_(dragging_slot_.value());
-            }
-        }
-
-        dragging_slot_.reset();
-        is_dragging_ = false;
-        return true;
+        pressed_slot_.reset();
     }
 
     return dialog::handle_mouse_up(x, y, btn);
@@ -275,47 +314,37 @@ bool inventory_dialog::handle_mouse_move(int32_t x, int32_t y)
     if (!visible_)
         return false;
 
-    hovered_slot_ = slot_at(x, y);
-
-    // Check if dragging
-    if (dragging_slot_.has_value() && !is_dragging_)
+    if (resizing_)
     {
-        int32_t dx = x - drag_start_x_;
-        int32_t dy = y - drag_start_y_;
-        if (dx * dx + dy * dy > 25)
-        { // 5 pixel threshold
-            is_dragging_ = true;
-        }
+        int32_t dx = x - resize_start_mx_;
+        int32_t dy = y - resize_start_my_;
+        int32_t new_w = std::max(min_width, resize_start_w_ + dx);
+        int32_t new_h = std::max(min_height, resize_start_h_ + dy);
+        bounds_.width = new_w;
+        bounds_.height = new_h;
+        return true;
+    }
+
+    // Move dragged item's position to follow mouse (legacy behavior)
+    if (dragging_slot_ >= 0 && inventory_)
+    {
+        auto bag = bag_area();
+        auto& s = inventory_->get_slot_mut(static_cast<size_t>(dragging_slot_));
+        s.pos_x = static_cast<int16_t>(x - bag.x - item_drag_off_x_);
+        s.pos_y = static_cast<int16_t>(y - bag.y - item_drag_off_y_);
+        return true;
     }
 
     return dialog::handle_mouse_move(x, y);
 }
 
-void inventory_dialog::set_item(int32_t slot, const item* itm)
+void inventory_dialog::restore_drag_position()
 {
-    if (slot >= 0 && slot < max_slots)
-    {
-        slots_[slot].item_ptr = itm;
-        slots_[slot].occupied = (itm != nullptr);
-    }
-}
-
-void inventory_dialog::clear_slot(int32_t slot)
-{
-    if (slot >= 0 && slot < max_slots)
-    {
-        slots_[slot].item_ptr = nullptr;
-        slots_[slot].occupied = false;
-    }
-}
-
-void inventory_dialog::clear_all()
-{
-    for (auto& slot : slots_)
-    {
-        slot.item_ptr = nullptr;
-        slot.occupied = false;
-    }
+    if (dragging_slot_ < 0 || !inventory_)
+        return;
+    auto& s = inventory_->get_slot_mut(static_cast<size_t>(dragging_slot_));
+    s.pos_x = pre_drag_x_;
+    s.pos_y = pre_drag_y_;
 }
 
 } // namespace hb

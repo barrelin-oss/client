@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gameplay/item.hpp"
 #include "network/messages/common.hpp"
 #include "network/messages/world.hpp"
 
@@ -155,8 +156,8 @@ struct enter_game_character
     std::string name;
     int16_t level = 1;
     int16_t class_type = 0; // 0=Warrior, 1=Mage
-    std::string faction;    // "neutral", "aresden", "elvine"
-    int16_t gender = 0;     // 0=Male, 1=Female
+    int16_t nation = 0;    // 0=neutral, 1=aresden, 2=elvine
+    int16_t gender = 0;    // 0=Male, 1=Female
     std::string map_name;
     int16_t pos_x = 0;
     int16_t pos_y = 0;
@@ -195,8 +196,8 @@ struct enter_game_character
             c.level = j["level"].get<int16_t>();
         if (j.contains("class_type"))
             c.class_type = j["class_type"].get<int16_t>();
-        if (j.contains("faction"))
-            c.faction = j["faction"].get<std::string>();
+        if (j.contains("nation"))
+            c.nation = j["nation"].get<int16_t>();
         if (j.contains("gender"))
             c.gender = j["gender"].get<int16_t>();
         if (j.contains("map_name"))
@@ -255,31 +256,72 @@ struct enter_game_character
     }
 };
 
-// Inventory item from enter_game_response
+// Inventory item from enter_game_response (matches inventory_item_msg protocol)
 struct enter_game_inventory_item
 {
-    uint8_t slot = 0;
+    int16_t slot = 0;
     uint32_t item_id = 0;
     std::string name;
+    uint32_t template_id = 0;
     int16_t count = 1;
     int16_t durability = 0;
     int16_t max_durability = 0;
+    int16_t item_type = 0;
+    int16_t equip_pos = -1;
+    int16_t sprite = 0;
+    int16_t sprite_frame = 0;
+    int16_t color = 0;
+    int16_t weight = 0;
+    int16_t level_limit = 0;
+    int16_t pos_x = 0;
+    int16_t pos_y = 0;
+    int8_t equipped_slot = -1; // -1 = not equipped
+    item_attribute_data attribute;
 
     static enter_game_inventory_item from_json(const json& j)
     {
         enter_game_inventory_item item;
         if (j.contains("slot"))
-            item.slot = j["slot"].get<uint8_t>();
+            item.slot = j["slot"].get<int16_t>();
         if (j.contains("item_id"))
             item.item_id = j["item_id"].get<uint32_t>();
         if (j.contains("name"))
             item.name = j["name"].get<std::string>();
+        if (j.contains("template_id"))
+            item.template_id = j["template_id"].get<uint32_t>();
         if (j.contains("count"))
             item.count = j["count"].get<int16_t>();
         if (j.contains("durability"))
             item.durability = j["durability"].get<int16_t>();
         if (j.contains("max_durability"))
             item.max_durability = j["max_durability"].get<int16_t>();
+        if (j.contains("item_type"))
+            item.item_type = j["item_type"].get<int16_t>();
+        if (j.contains("equip_pos"))
+            item.equip_pos = j["equip_pos"].get<int16_t>();
+        if (j.contains("sprite"))
+            item.sprite = j["sprite"].get<int16_t>();
+        if (j.contains("sprite_frame"))
+            item.sprite_frame = j["sprite_frame"].get<int16_t>();
+        if (j.contains("color"))
+            item.color = j["color"].get<int16_t>();
+        if (j.contains("weight"))
+            item.weight = j["weight"].get<int16_t>();
+        if (j.contains("level_limit"))
+            item.level_limit = j["level_limit"].get<int16_t>();
+        if (j.contains("pos_x"))
+            item.pos_x = j["pos_x"].get<int16_t>();
+        if (j.contains("pos_y"))
+            item.pos_y = j["pos_y"].get<int16_t>();
+        if (j.contains("equipped_slot"))
+            item.equipped_slot = j["equipped_slot"].get<int8_t>();
+        if (j.contains("attribute"))
+        {
+            if (j["attribute"].is_object())
+                item.attribute = item_attribute_data::from_json(j["attribute"]);
+            else if (j["attribute"].is_number())
+                item.attribute = item_attribute_data::from_legacy(j["attribute"].get<uint32_t>());
+        }
         return item;
     }
 };
@@ -306,31 +348,8 @@ struct enter_game_inventory
     }
 };
 
-// Equipment item from enter_game_response
-struct enter_game_equipment_item
-{
-    uint8_t slot = 0; // Equipment slot (0-11)
-    uint32_t item_id = 0;
-    std::string name;
-    int16_t durability = 0;
-    int16_t max_durability = 0;
-
-    static enter_game_equipment_item from_json(const json& j)
-    {
-        enter_game_equipment_item item;
-        if (j.contains("slot"))
-            item.slot = j["slot"].get<uint8_t>();
-        if (j.contains("item_id"))
-            item.item_id = j["item_id"].get<uint32_t>();
-        if (j.contains("name"))
-            item.name = j["name"].get<std::string>();
-        if (j.contains("durability"))
-            item.durability = j["durability"].get<int16_t>();
-        if (j.contains("max_durability"))
-            item.max_durability = j["max_durability"].get<int16_t>();
-        return item;
-    }
-};
+// Equipment is unified with inventory — no separate enter_game_equipment_item.
+// Equipped items are inventory items with equipped_slot set.
 
 // Skill entry from enter_game_response
 struct enter_game_skill
@@ -493,10 +512,9 @@ struct enter_game_response_data
     bool success = false;
     std::string error_message;
 
-    // Success data
+    // Success data (equipment is unified with inventory — equipped items have equipped_slot set)
     enter_game_character character;
     enter_game_inventory inventory;
-    std::vector<enter_game_equipment_item> equipment;
     std::vector<enter_game_skill> skills;
     std::vector<enter_game_spell> spells;
     enter_game_quests quests;
@@ -517,55 +535,52 @@ struct enter_game_response_data
 
             if (data.success)
             {
+                // Server nests game data under "game_state"
+                const auto& gs = d.contains("game_state") ? d["game_state"] : d;
+
                 // Parse character data
-                if (d.contains("character"))
+                if (gs.contains("character"))
                 {
-                    data.character = enter_game_character::from_json(d["character"]);
+                    data.character = enter_game_character::from_json(gs["character"]);
                 }
 
                 // Parse inventory data
-                if (d.contains("inventory"))
+                if (gs.contains("inventory"))
                 {
-                    data.inventory = enter_game_inventory::from_json(d["inventory"]);
+                    data.inventory = enter_game_inventory::from_json(gs["inventory"]);
                 }
 
-                // Parse equipment array
-                if (d.contains("equipment") && d["equipment"].is_array())
-                {
-                    for (const auto& eq : d["equipment"])
-                    {
-                        data.equipment.push_back(enter_game_equipment_item::from_json(eq));
-                    }
-                }
+                // Equipment is unified with inventory — no separate array.
+                // Equipped items are inventory items with equipped_slot set.
 
                 // Parse skills array
-                if (d.contains("skills") && d["skills"].is_array())
+                if (gs.contains("skills") && gs["skills"].is_array())
                 {
-                    for (const auto& sk : d["skills"])
+                    for (const auto& sk : gs["skills"])
                     {
                         data.skills.push_back(enter_game_skill::from_json(sk));
                     }
                 }
 
                 // Parse spells array
-                if (d.contains("spells") && d["spells"].is_array())
+                if (gs.contains("spells") && gs["spells"].is_array())
                 {
-                    for (const auto& sp : d["spells"])
+                    for (const auto& sp : gs["spells"])
                     {
                         data.spells.push_back(enter_game_spell::from_json(sp));
                     }
                 }
 
                 // Parse quest data
-                if (d.contains("quests"))
+                if (gs.contains("quests"))
                 {
-                    data.quests = enter_game_quests::from_json(d["quests"]);
+                    data.quests = enter_game_quests::from_json(gs["quests"]);
                 }
 
                 // Parse world data
-                if (d.contains("world"))
+                if (gs.contains("world"))
                 {
-                    data.world = enter_game_world::from_json(d["world"]);
+                    data.world = enter_game_world::from_json(gs["world"]);
                 }
             }
         }

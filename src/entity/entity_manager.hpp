@@ -16,6 +16,7 @@ class renderer;
 class world;
 class sprite_manager;
 class sound_manager;
+class effect_system;
 
 // Entity creation callbacks
 using entity_created_callback = std::function<void(entity&)>;
@@ -33,6 +34,7 @@ public:
     // Initialization
     void initialize(sound_manager* sounds = nullptr);
     void set_sound_manager(sound_manager* sounds) { sounds_ = sounds; }
+    void set_effect_system(effect_system* effects) { effects_ = effects; }
     void shutdown();
 
     // Entity creation
@@ -182,6 +184,9 @@ private:
 
     // Sound manager for footstep sounds
     sound_manager* sounds_ = nullptr;
+
+    // Effect system for hit effects during animation callbacks
+    effect_system* effects_ = nullptr;
 
     // Global render mode - skip distance culling when true
     bool global_render_mode_ = false;

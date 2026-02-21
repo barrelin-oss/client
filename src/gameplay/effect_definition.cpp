@@ -9,15 +9,27 @@ namespace hb
 static const std::array<effect_definition, 150> s_definitions = {{
     // === Basic Effects (1-18) ===
 
-    // Type 1: Sword Slash - melee weapon trail
+    // Type 1: Sword Slash - melee hit effect (composite: spawns blood bursts at frame 1)
+    // Legacy: bAddNewEffect(1, ...) at tile coords with iV1=height. At frame 1, spawns
+    // iV1 blood_burst(11) particles with ±15 pixel random offsets around impact point.
     {
         .type_id = effect_type_id::sword_slash,
-        .behavior = effect_behavior::static_anim,
+        .behavior = effect_behavior::composite,
         .render_mode = effect_render_mode::transparent,
         .sprite_pak_index = 8,
         .max_frames = 2,
         .frame_time_ms = 10,
         .uses_tile_coords = false,
+        .children = {{
+            {
+                .type = effect_type_id::blood_burst,
+                .trigger_frame = 1,
+                .count = 4,
+                .random_offset = true,
+                .random_range = 15,
+            },
+        }},
+        .child_count = 1,
     },
 
     // Type 2: Arrow - flying arrow projectile
@@ -144,16 +156,21 @@ static const std::array<effect_definition, 150> s_definitions = {{
     },
 
     // Type 11: Blood Burst (skipped at low detail)
+    // Legacy: m_pEffectSpr[11] (effect2.pak sprite 1), renders random frame 5-9 each call
+    // with PutTransSprite2 (50% alpha). Physics: random velocity, gravity 1, 8 frames at 30ms.
     {
         .type_id = effect_type_id::blood_burst,
         .behavior = effect_behavior::physics,
-        .render_mode = effect_render_mode::transparent,
+        .render_mode = effect_render_mode::alpha_50,
         .detail_level = effect_detail::high_only,
         .sprite_pak_index = 11,
         .max_frames = 8,
         .frame_time_ms = 30,
         .gravity = 1,
         .uses_tile_coords = false,
+        .no_additive = true,
+        .random_frame_min = 5,
+        .random_frame_max = 9,
     },
 
     // Type 12: Fire Burst (skipped at low detail)

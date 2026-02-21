@@ -1,18 +1,15 @@
 #pragma once
 
+#include "gameplay/item.hpp"
 #include "network/messages/common.hpp"
 
 namespace hb
 {
 
-// Pickup response data
+// Pickup response data (bare success/fail — item details come via inventory_slot_update)
 struct player_pickup_response_data
 {
     bool success = false;
-    uint32_t item_id = 0;
-    std::string item_name;
-    int16_t quantity = 0;
-    uint8_t inventory_slot = 0;
     std::string error_message;
 
     static player_pickup_response_data from_json(const json& j)
@@ -25,20 +22,6 @@ struct player_pickup_response_data
                 data.success = d["success"].get<bool>();
             if (d.contains("error"))
                 data.error_message = d["error"].get<std::string>();
-
-            // Success data is nested in "result" object per protocol
-            if (data.success && d.contains("result"))
-            {
-                const auto& r = d["result"];
-                if (r.contains("item_id"))
-                    data.item_id = r["item_id"].get<uint32_t>();
-                if (r.contains("item_name"))
-                    data.item_name = r["item_name"].get<std::string>();
-                if (r.contains("quantity"))
-                    data.quantity = r["quantity"].get<int16_t>();
-                if (r.contains("inventory_slot"))
-                    data.inventory_slot = r["inventory_slot"].get<uint8_t>();
-            }
         }
         return data;
     }
@@ -229,12 +212,24 @@ struct inventory_data_msg
 {
     struct inv_item
     {
-        uint8_t slot = 0;
+        int16_t slot = 0;
         uint32_t item_id = 0;
         std::string name;
+        uint32_t template_id = 0;
         int16_t count = 1;
-        int16_t durability = 100;
-        int16_t max_durability = 100;
+        int16_t durability = 0;
+        int16_t max_durability = 0;
+        int16_t item_type = 0;      // item_type enum from server
+        int16_t equip_pos = -1;     // equipment slot position (-1 = not equippable)
+        int16_t sprite = 0;         // sprite category ID
+        int16_t sprite_frame = 0;   // frame within sprite category
+        int16_t color = 0;
+        int16_t weight = 0;
+        int16_t level_limit = 0;
+        int16_t pos_x = 0;
+        int16_t pos_y = 0;
+        int8_t equipped_slot = -1; // -1 = not equipped; >= 0 = equipment slot index
+        item_attribute_data attribute;
     };
     std::vector<inv_item> items;
     int32_t gold = 0;
@@ -253,17 +248,46 @@ struct inventory_data_msg
                 {
                     inv_item itm;
                     if (item_j.contains("slot"))
-                        itm.slot = item_j["slot"].get<uint8_t>();
+                        itm.slot = item_j["slot"].get<int16_t>();
                     if (item_j.contains("item_id"))
                         itm.item_id = item_j["item_id"].get<uint32_t>();
                     if (item_j.contains("name"))
                         itm.name = item_j["name"].get<std::string>();
+                    if (item_j.contains("template_id"))
+                        itm.template_id = item_j["template_id"].get<uint32_t>();
                     if (item_j.contains("count"))
                         itm.count = item_j["count"].get<int16_t>();
                     if (item_j.contains("durability"))
                         itm.durability = item_j["durability"].get<int16_t>();
                     if (item_j.contains("max_durability"))
                         itm.max_durability = item_j["max_durability"].get<int16_t>();
+                    if (item_j.contains("item_type"))
+                        itm.item_type = item_j["item_type"].get<int16_t>();
+                    if (item_j.contains("equip_pos"))
+                        itm.equip_pos = item_j["equip_pos"].get<int16_t>();
+                    if (item_j.contains("sprite"))
+                        itm.sprite = item_j["sprite"].get<int16_t>();
+                    if (item_j.contains("sprite_frame"))
+                        itm.sprite_frame = item_j["sprite_frame"].get<int16_t>();
+                    if (item_j.contains("color"))
+                        itm.color = item_j["color"].get<int16_t>();
+                    if (item_j.contains("weight"))
+                        itm.weight = item_j["weight"].get<int16_t>();
+                    if (item_j.contains("level_limit"))
+                        itm.level_limit = item_j["level_limit"].get<int16_t>();
+                    if (item_j.contains("pos_x"))
+                        itm.pos_x = item_j["pos_x"].get<int16_t>();
+                    if (item_j.contains("pos_y"))
+                        itm.pos_y = item_j["pos_y"].get<int16_t>();
+                    if (item_j.contains("equipped_slot"))
+                        itm.equipped_slot = item_j["equipped_slot"].get<int8_t>();
+                    if (item_j.contains("attribute"))
+                    {
+                        if (item_j["attribute"].is_object())
+                            itm.attribute = item_attribute_data::from_json(item_j["attribute"]);
+                        else if (item_j["attribute"].is_number())
+                            itm.attribute = item_attribute_data::from_legacy(item_j["attribute"].get<uint32_t>());
+                    }
                     data.items.push_back(std::move(itm));
                 }
             }
@@ -272,21 +296,16 @@ struct inventory_data_msg
     }
 };
 
-// Equipment data (full refresh)
+// Equipment data — DEPRECATED: equipment is now unified with inventory.
+// Equipped items are inventory items with equipped_slot set.
+// Kept for backward compatibility; server no longer sends this message type.
 struct equipment_data_msg
 {
-    struct equip_item
-    {
-        uint8_t slot = 0;
-        uint32_t item_id = 0;
-        std::string name;
-        int16_t durability = 100;
-        int16_t max_durability = 100;
-    };
-    std::vector<equip_item> equipment;
+    std::vector<inventory_data_msg::inv_item> equipment;
 
     static equipment_data_msg from_json(const json& j)
     {
+        // Reuse inventory item parser
         equipment_data_msg data;
         if (j.contains("data"))
         {
@@ -295,17 +314,42 @@ struct equipment_data_msg
             {
                 for (const auto& eq_j : d["equipment"])
                 {
-                    equip_item itm;
+                    inventory_data_msg::inv_item itm;
                     if (eq_j.contains("slot"))
-                        itm.slot = eq_j["slot"].get<uint8_t>();
+                        itm.slot = eq_j["slot"].get<int16_t>();
                     if (eq_j.contains("item_id"))
                         itm.item_id = eq_j["item_id"].get<uint32_t>();
                     if (eq_j.contains("name"))
                         itm.name = eq_j["name"].get<std::string>();
+                    if (eq_j.contains("template_id"))
+                        itm.template_id = eq_j["template_id"].get<uint32_t>();
                     if (eq_j.contains("durability"))
                         itm.durability = eq_j["durability"].get<int16_t>();
                     if (eq_j.contains("max_durability"))
                         itm.max_durability = eq_j["max_durability"].get<int16_t>();
+                    if (eq_j.contains("item_type"))
+                        itm.item_type = eq_j["item_type"].get<int16_t>();
+                    if (eq_j.contains("equip_pos"))
+                        itm.equip_pos = eq_j["equip_pos"].get<int16_t>();
+                    if (eq_j.contains("sprite"))
+                        itm.sprite = eq_j["sprite"].get<int16_t>();
+                    if (eq_j.contains("sprite_frame"))
+                        itm.sprite_frame = eq_j["sprite_frame"].get<int16_t>();
+                    if (eq_j.contains("color"))
+                        itm.color = eq_j["color"].get<int16_t>();
+                    if (eq_j.contains("weight"))
+                        itm.weight = eq_j["weight"].get<int16_t>();
+                    if (eq_j.contains("level_limit"))
+                        itm.level_limit = eq_j["level_limit"].get<int16_t>();
+                    if (eq_j.contains("equipped_slot"))
+                        itm.equipped_slot = eq_j["equipped_slot"].get<int8_t>();
+                    if (eq_j.contains("attribute"))
+                    {
+                        if (eq_j["attribute"].is_object())
+                            itm.attribute = item_attribute_data::from_json(eq_j["attribute"]);
+                        else if (eq_j["attribute"].is_number())
+                            itm.attribute = item_attribute_data::from_legacy(eq_j["attribute"].get<uint32_t>());
+                    }
                     data.equipment.push_back(std::move(itm));
                 }
             }
@@ -356,6 +400,101 @@ struct skills_data_msg
     }
 };
 
+// Incremental skill progress update (server → client, every 5% threshold)
+struct skill_progress_msg
+{
+    uint8_t skill_id = 0;
+    int32_t uses_this_level = 0;
+    int32_t uses_to_next_level = 0;
+    uint8_t percent = 0;
+
+    static skill_progress_msg from_json(const json& j)
+    {
+        skill_progress_msg data;
+        if (j.contains("data"))
+        {
+            const auto& d = j["data"];
+            if (d.contains("skill_id"))
+                data.skill_id = d["skill_id"].get<uint8_t>();
+            if (d.contains("uses_this_level"))
+                data.uses_this_level = d["uses_this_level"].get<int32_t>();
+            if (d.contains("uses_to_next_level"))
+                data.uses_to_next_level = d["uses_to_next_level"].get<int32_t>();
+            if (d.contains("percent"))
+                data.percent = d["percent"].get<uint8_t>();
+        }
+        return data;
+    }
+};
+
+// Single-slot inventory update (server pushes after drop, consume, modification, etc.)
+// data.item is null when the slot is cleared; populated with full item data otherwise.
+struct inventory_slot_update_msg
+{
+    int16_t slot = -1;
+    bool has_item = false;
+    inventory_data_msg::inv_item item; // Only valid when has_item == true
+
+    static inventory_slot_update_msg from_json(const json& j)
+    {
+        inventory_slot_update_msg data;
+        if (j.contains("data"))
+        {
+            const auto& d = j["data"];
+            if (d.contains("slot"))
+                data.slot = d["slot"].get<int16_t>();
+            if (d.contains("item") && !d["item"].is_null())
+            {
+                data.has_item = true;
+                const auto& item_j = d["item"];
+                auto& itm = data.item;
+                if (item_j.contains("slot"))
+                    itm.slot = item_j["slot"].get<int16_t>();
+                if (item_j.contains("item_id"))
+                    itm.item_id = item_j["item_id"].get<uint32_t>();
+                if (item_j.contains("name"))
+                    itm.name = item_j["name"].get<std::string>();
+                if (item_j.contains("template_id"))
+                    itm.template_id = item_j["template_id"].get<uint32_t>();
+                if (item_j.contains("count"))
+                    itm.count = item_j["count"].get<int16_t>();
+                if (item_j.contains("durability"))
+                    itm.durability = item_j["durability"].get<int16_t>();
+                if (item_j.contains("max_durability"))
+                    itm.max_durability = item_j["max_durability"].get<int16_t>();
+                if (item_j.contains("item_type"))
+                    itm.item_type = item_j["item_type"].get<int16_t>();
+                if (item_j.contains("equip_pos"))
+                    itm.equip_pos = item_j["equip_pos"].get<int16_t>();
+                if (item_j.contains("sprite"))
+                    itm.sprite = item_j["sprite"].get<int16_t>();
+                if (item_j.contains("sprite_frame"))
+                    itm.sprite_frame = item_j["sprite_frame"].get<int16_t>();
+                if (item_j.contains("color"))
+                    itm.color = item_j["color"].get<int16_t>();
+                if (item_j.contains("weight"))
+                    itm.weight = item_j["weight"].get<int16_t>();
+                if (item_j.contains("level_limit"))
+                    itm.level_limit = item_j["level_limit"].get<int16_t>();
+                if (item_j.contains("pos_x"))
+                    itm.pos_x = item_j["pos_x"].get<int16_t>();
+                if (item_j.contains("pos_y"))
+                    itm.pos_y = item_j["pos_y"].get<int16_t>();
+                if (item_j.contains("equipped_slot"))
+                    itm.equipped_slot = item_j["equipped_slot"].get<int8_t>();
+                if (item_j.contains("attribute"))
+                {
+                    if (item_j["attribute"].is_object())
+                        itm.attribute = item_attribute_data::from_json(item_j["attribute"]);
+                    else if (item_j["attribute"].is_number())
+                        itm.attribute = item_attribute_data::from_legacy(item_j["attribute"].get<uint32_t>());
+                }
+            }
+        }
+        return data;
+    }
+};
+
 // Convenience functions
 inline json make_player_pickup_request(int32_t x, int32_t y, uint32_t item_id = 0)
 {
@@ -367,6 +506,28 @@ inline json make_player_pickup_request(int32_t x, int32_t y, uint32_t item_id = 
              static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::system_clock::now().time_since_epoch())
                                       .count()))
+        .build();
+}
+
+inline json make_player_drop_item_request(int32_t slot)
+{
+    return message_builder(msg_type::player_drop_item_request)
+        .set("slot", slot)
+        .build();
+}
+
+// Free-form reposition: move item to new array position (z-order) and pixel coords
+// old_slot: current array index of the item
+// new_slot: desired array index (typically end of occupied range for "bring to top")
+// pos_x/pos_y: new free-form pixel position within bag area
+inline json make_inventory_reposition_request(int32_t old_slot, int32_t new_slot,
+                                              int16_t pos_x, int16_t pos_y)
+{
+    return message_builder(msg_type::inventory_reposition_request)
+        .set("old_slot", old_slot)
+        .set("new_slot", new_slot)
+        .set("pos_x", pos_x)
+        .set("pos_y", pos_y)
         .build();
 }
 

@@ -118,8 +118,8 @@ inline constexpr equip_slot equip_slot_from_server(int server_slot)
     case 4: return equip_slot::boots;
     case 5: return equip_slot::right_hand;
     case 6: return equip_slot::left_hand;
-    case 7: return equip_slot::right_finger;
-    case 8: return equip_slot::left_finger;
+    case 7: return equip_slot::left_finger;
+    case 8: return equip_slot::right_finger;
     case 9: return equip_slot::neck;
     case 10: return equip_slot::back;
     default: return equip_slot::none;

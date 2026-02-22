@@ -138,23 +138,25 @@ bool dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
     if (!visible_)
         return false;
 
-    // Check title bar for dragging
     if (draggable_ && btn == sf::Mouse::Button::Left)
     {
+        // Check title bar close button
         ui_rect title_rect{bounds_.x, bounds_.y, bounds_.width, title_bar_height};
-        if (title_rect.contains(x, y))
+        if (title_rect.contains(x, y) && closeable_)
         {
-            // Check close button
-            if (closeable_)
+            ui_rect close_rect{bounds_.x + bounds_.width - 20, bounds_.y + 4, 16, 16};
+            if (close_rect.contains(x, y))
             {
-                ui_rect close_rect{bounds_.x + bounds_.width - 20, bounds_.y + 4, 16, 16};
-                if (close_rect.contains(x, y))
-                {
-                    close();
-                    return true;
-                }
+                close();
+                return true;
             }
+        }
 
+        // Start drag from title bar, or anywhere on the dialog body if drag_anywhere_ is set
+        bool in_drag_area = title_rect.contains(x, y)
+                            || (drag_anywhere_ && bounds_.contains(x, y));
+        if (in_drag_area)
+        {
             dragging_ = true;
             drag_offset_x_ = x - bounds_.x;
             drag_offset_y_ = y - bounds_.y;

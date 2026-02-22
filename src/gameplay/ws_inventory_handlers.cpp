@@ -8,13 +8,49 @@
 namespace hb
 {
 
+namespace
+{
+
+// Convert a network inv_item to a game item + bag_item
+item item_from_inv(const inventory_data_msg::inv_item& inv_item)
+{
+    item itm;
+    itm.id = inv_item.item_id;
+    itm.template_id = inv_item.template_id;
+    itm.name = inv_item.name;
+    itm.amount = static_cast<uint32_t>(inv_item.count);
+    itm.durability = static_cast<uint16_t>(inv_item.durability);
+    itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
+    itm.type = static_cast<item_type>(inv_item.item_type);
+    itm.slot = equip_slot_from_server(inv_item.equip_pos);
+    itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
+    itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
+    itm.color = static_cast<uint8_t>(inv_item.color);
+    itm.weight = static_cast<uint32_t>(inv_item.weight);
+    itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
+    itm.attribute = inv_item.attribute;
+    return itm;
+}
+
+bag_item bag_item_from_inv(const inventory_data_msg::inv_item& inv_item)
+{
+    bag_item entry;
+    entry.data = item_from_inv(inv_item);
+    entry.pos_x = inv_item.pos_x;
+    entry.pos_y = inv_item.pos_y;
+    entry.z_order = inv_item.z_order;
+    return entry;
+}
+
+} // anonymous namespace
+
 void ws_message_handler::handle_pickup_response(const json& message)
 {
     auto response = player_pickup_response_data::from_json(message);
 
     if (response.success)
     {
-        spdlog::info("Picked up item (slot update will follow)");
+        spdlog::info("Picked up item (item update will follow)");
     }
     else
     {
@@ -181,7 +217,7 @@ void ws_message_handler::handle_player_unequip_response(const json& message)
         return;
     }
 
-    spdlog::info("Unequipped '{}' from slot {} -> inventory slot {}", data.item_name, data.slot, data.inventory_slot);
+    spdlog::info("Unequipped '{}' from slot {}", data.item_name, data.slot);
 }
 
 
@@ -199,34 +235,21 @@ void ws_message_handler::handle_inventory_data(const json& message)
 
     for (const auto& inv_item : data.items)
     {
-        item itm;
-        itm.id = inv_item.item_id;
-        itm.template_id = inv_item.template_id;
-        itm.name = inv_item.name;
-        itm.amount = static_cast<uint32_t>(inv_item.count);
-        itm.durability = static_cast<uint16_t>(inv_item.durability);
-        itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
-        itm.type = static_cast<item_type>(inv_item.item_type);
-        itm.slot = equip_slot_from_server(inv_item.equip_pos);
-        itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
-        itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
-        itm.color = static_cast<uint8_t>(inv_item.color);
-        itm.weight = static_cast<uint32_t>(inv_item.weight);
-        itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
-        itm.attribute = inv_item.attribute;
-        inventory.set_item_at(inv_item.slot, itm);
-
-        if (inv_item.pos_x != 0 || inv_item.pos_y != 0)
-            inventory.set_slot_position(inv_item.slot, inv_item.pos_x, inv_item.pos_y);
-
         // Equipped items: inventory items with equipped_slot set
         if (inv_item.equipped_slot >= 0)
         {
             auto eq_slot = equip_slot_from_server(inv_item.equipped_slot);
             if (eq_slot != equip_slot::none)
-                inventory.set_equipped(eq_slot, itm);
+                inventory.set_equipped(eq_slot, item_from_inv(inv_item));
+        }
+        else
+        {
+            // Bag item
+            inventory.add_or_update_item(bag_item_from_inv(inv_item));
         }
     }
+
+    inventory.rebuild_render_order();
 
     spdlog::debug("Inventory refreshed: {} items, {} gold", data.items.size(), data.gold);
 }
@@ -243,26 +266,11 @@ void ws_message_handler::handle_equipment_data(const json& message)
 
     for (const auto& eq_item : data.equipment)
     {
-        item itm;
-        itm.id = eq_item.item_id;
-        itm.template_id = eq_item.template_id;
-        itm.name = eq_item.name;
-        itm.durability = static_cast<uint16_t>(eq_item.durability);
-        itm.max_durability = static_cast<uint16_t>(eq_item.max_durability);
-        itm.type = static_cast<item_type>(eq_item.item_type);
-        itm.slot = equip_slot_from_server(eq_item.equip_pos);
-        itm.sprite_id = static_cast<uint16_t>(eq_item.sprite);
-        itm.equipped_sprite_id = static_cast<uint16_t>(eq_item.sprite_frame);
-        itm.color = static_cast<uint8_t>(eq_item.color);
-        itm.weight = static_cast<uint32_t>(eq_item.weight);
-        itm.level_req = static_cast<uint16_t>(eq_item.level_limit);
-        itm.attribute = eq_item.attribute;
-
         if (eq_item.equipped_slot >= 0)
         {
             auto mapped_slot = equip_slot_from_server(eq_item.equipped_slot);
             if (mapped_slot != equip_slot::none)
-                inventory.set_equipped(mapped_slot, itm);
+                inventory.set_equipped(mapped_slot, item_from_inv(eq_item));
         }
     }
 
@@ -365,80 +373,85 @@ void ws_message_handler::handle_drop_item_response(const json& message)
         return;
     const auto& d = message["data"];
 
-    // Determine which slot was pending
-    int32_t slot = d.value("slot", -1);
-    if (slot < 0)
-        slot = game_->pending_drop_slot();
+    uint32_t item_id = d.value("item_id", 0u);
+    if (item_id == 0)
+        item_id = game_->pending_drop_item_id();
 
     bool success = d.value("success", false);
     if (success)
     {
-        spdlog::info("Item dropped successfully (slot {})", slot);
-        // Server will send inventory_data refresh which clears the slot
+        spdlog::info("Item dropped successfully (item_id {})", item_id);
+        // Server will send inventory_item_removed or inventory_data refresh
     }
     else
     {
         spdlog::debug("Drop failed: {}", d.value("error", std::string("unknown")));
-        // Unlock the slot so the player can interact with it again
-        if (slot >= 0 && slot < static_cast<int32_t>(inventory_size))
-            game_->inventory().get_slot_mut(static_cast<size_t>(slot)).locked = false;
+        // Unlock the item so the player can interact with it again
+        if (item_id != 0)
+        {
+            auto* entry = game_->inventory().get_bag_item(item_id);
+            if (entry)
+                entry->locked = false;
+        }
     }
 
-    game_->clear_pending_drop_slot();
+    game_->clear_pending_drop_item();
 }
 
-void ws_message_handler::handle_inventory_slot_update(const json& message)
+void ws_message_handler::handle_inventory_item_update(const json& message)
 {
-    auto data = inventory_slot_update_msg::from_json(message);
-    if (data.slot < 0 || data.slot >= static_cast<int16_t>(inventory_size))
+    auto data = inventory_item_update_msg::from_json(message);
+    if (data.item_id == 0)
     {
-        spdlog::warn("inventory_slot_update: invalid slot {}", data.slot);
+        spdlog::warn("inventory_item_update: missing item_id");
         return;
     }
 
     auto& inventory = game_->inventory();
-    auto slot = static_cast<size_t>(data.slot);
 
     if (!data.has_item)
     {
-        // Slot cleared (item dropped, consumed, etc.)
-        spdlog::debug("Inventory slot {} cleared", data.slot);
-        inventory.clear_slot(slot);
+        // Item removed
+        spdlog::debug("Inventory item {} removed", data.item_id);
+        inventory.remove_item(data.item_id);
     }
     else
     {
-        // Slot updated with new/modified item
-        item itm;
-        itm.id = data.item.item_id;
-        itm.template_id = data.item.template_id;
-        itm.name = data.item.name;
-        itm.amount = static_cast<uint32_t>(data.item.count);
-        itm.durability = static_cast<uint16_t>(data.item.durability);
-        itm.max_durability = static_cast<uint16_t>(data.item.max_durability);
-        itm.type = static_cast<item_type>(data.item.item_type);
-        itm.slot = equip_slot_from_server(data.item.equip_pos);
-        itm.sprite_id = static_cast<uint16_t>(data.item.sprite);
-        itm.equipped_sprite_id = static_cast<uint16_t>(data.item.sprite_frame);
-        itm.color = static_cast<uint8_t>(data.item.color);
-        itm.weight = static_cast<uint32_t>(data.item.weight);
-        itm.level_req = static_cast<uint16_t>(data.item.level_limit);
-        itm.attribute = data.item.attribute;
-        inventory.set_item_at(slot, itm);
-
-        // Apply position if server provided it
-        if (data.item.pos_x != 0 || data.item.pos_y != 0)
-            inventory.set_slot_position(slot, data.item.pos_x, data.item.pos_y);
-
-        // Handle equipped_slot flag
+        // Item added or updated — branch equipped vs bag like handle_inventory_data does
         if (data.item.equipped_slot >= 0)
         {
             auto eq_slot = equip_slot_from_server(data.item.equipped_slot);
             if (eq_slot != equip_slot::none)
-                inventory.set_equipped(eq_slot, itm);
+                inventory.set_equipped(eq_slot, item_from_inv(data.item));
+            spdlog::debug("Equipment item {} updated: slot {}", data.item_id, data.item.equipped_slot);
         }
-
-        spdlog::debug("Inventory slot {} updated: {} x{}", data.slot, itm.name, itm.amount);
+        else
+        {
+            auto entry = bag_item_from_inv(data.item);
+            inventory.add_or_update_item(entry);
+            spdlog::debug("Inventory item {} updated: {} x{}", data.item_id, entry.data.name, entry.data.amount);
+        }
     }
+}
+
+void ws_message_handler::handle_inventory_item_removed(const json& message)
+{
+    auto data = inventory_item_removed_msg::from_json(message);
+    if (data.item_id == 0)
+    {
+        spdlog::warn("inventory_item_removed: missing item_id");
+        return;
+    }
+
+    spdlog::debug("Inventory item {} removed", data.item_id);
+    game_->inventory().remove_item(data.item_id);
+}
+
+void ws_message_handler::handle_inventory_weight_update(const json& message)
+{
+    auto data = inventory_weight_update_msg::from_json(message);
+    game_->inventory().set_weight_info(data.current_weight, data.max_weight);
+    spdlog::debug("Weight updated: {}/{}", data.current_weight, data.max_weight);
 }
 
 void ws_message_handler::handle_player_interact_response(const json& message)

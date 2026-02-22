@@ -3,8 +3,10 @@
 #include "ui/ui_element.hpp"
 #include "ui/dialog_base.hpp"
 #include "core/game_enums.hpp"
+#include "gameplay/item.hpp"
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <string>
 #include <string_view>
@@ -21,7 +23,6 @@ class dialog_manager;
 class managed_dialog;
 class yaml_icon_panel_dialog;
 class icon_panel_interface;
-struct item;
 enum class render_mode;
 
 // UI visual style
@@ -35,8 +36,8 @@ enum class ui_style
 struct ui_drag_state
 {
     bool active = false;
-    const item* held_item = nullptr;
-    int32_t source_slot = -1;
+    std::optional<item> held_item;
+    uint32_t source_item_id = 0;
     equip_slot source_equip = equip_slot::none;
     dialog_type source_dialog = dialog_type::none;
     int32_t cursor_x = 0;
@@ -131,6 +132,8 @@ public:
     void create_gauge_panel_dialog();
     void create_levelup_dialog();
     void create_fishing_dialog();
+    void create_quest_dialog();
+    void create_level_up_settings_dialog();
 
     // Tooltip
     void show_tooltip(std::string_view text, int32_t x, int32_t y);
@@ -163,17 +166,17 @@ public:
 
     // Item drag system
     const ui_drag_state& drag_state() const { return drag_state_; }
-    void begin_item_drag(const item* itm, int32_t slot, equip_slot equip, dialog_type source,
+    void begin_item_drag(const item& itm, uint32_t item_id, equip_slot equip, dialog_type source,
                          int32_t offset_x = 0, int32_t offset_y = 0);
     void update_drag_position(int32_t x, int32_t y);
     void end_item_drag(int32_t x, int32_t y);
     void cancel_item_drag();
     bool is_dragging_item() const { return drag_state_.active; }
 
-    using drop_in_world_callback = std::function<void(int32_t slot)>;
-    using equip_from_drag_callback = std::function<void(int32_t slot)>;
+    using drop_in_world_callback = std::function<void(uint32_t item_id)>;
+    using equip_from_drag_callback = std::function<void(uint32_t item_id)>;
     using unequip_from_drag_callback = std::function<void(equip_slot slot)>;
-    using reposition_callback = std::function<void(int32_t slot, int32_t x, int32_t y)>;
+    using reposition_callback = std::function<void(uint32_t item_id, int32_t x, int32_t y)>;
     void set_on_drop_in_world(drop_in_world_callback cb) { on_drop_in_world_ = std::move(cb); }
     void set_on_equip_from_drag(equip_from_drag_callback cb) { on_equip_from_drag_ = std::move(cb); }
     void set_on_unequip_from_drag(unequip_from_drag_callback cb) { on_unequip_from_drag_ = std::move(cb); }

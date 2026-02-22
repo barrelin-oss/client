@@ -2,6 +2,7 @@
 
 #include "core/game_enums.hpp"
 #include "graphics/text_style.hpp"
+#include "audio/sound_types.hpp"
 #include "assets/sprite.hpp"
 #include <cstdint>
 #include <string>
@@ -101,6 +102,11 @@ struct animation_component
     // Animation callbacks
     uint8_t attack_frame = 0; // Frame when attack damage is dealt
     bool attack_triggered = false;
+
+    // Pending weapon impact sound — stored when damage starts, played at frame 4
+    // (the composite split point where idle prefix ends and damage sprite begins).
+    // Legacy: MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDAMAGE/DEF_OBJECTDYING.
+    std::optional<character_sound> pending_impact_sound;
 
     // Frame data per state (matching legacy Helbreath - maxFrame=N means N+1 frames: 0 to N)
     static constexpr uint8_t frames_idle = 8;         // Legacy DEF_OBJECTSTOP maxFrame=7 → 8 frames
@@ -252,6 +258,9 @@ struct stats_component
 
     // Status
     uint8_t hunger = 100;
+
+    // Contribution score (server-provided)
+    int32_t contribution = 0;
 };
 
 // Combat component - combat state

@@ -259,7 +259,6 @@ struct enter_game_character
 // Inventory item from enter_game_response (matches inventory_item_msg protocol)
 struct enter_game_inventory_item
 {
-    int16_t slot = 0;
     uint32_t item_id = 0;
     std::string name;
     uint32_t template_id = 0;
@@ -275,14 +274,13 @@ struct enter_game_inventory_item
     int16_t level_limit = 0;
     int16_t pos_x = 0;
     int16_t pos_y = 0;
+    int32_t z_order = 0;
     int8_t equipped_slot = -1; // -1 = not equipped
     item_attribute_data attribute;
 
     static enter_game_inventory_item from_json(const json& j)
     {
         enter_game_inventory_item item;
-        if (j.contains("slot"))
-            item.slot = j["slot"].get<int16_t>();
         if (j.contains("item_id"))
             item.item_id = j["item_id"].get<uint32_t>();
         if (j.contains("name"))
@@ -313,6 +311,8 @@ struct enter_game_inventory_item
             item.pos_x = j["pos_x"].get<int16_t>();
         if (j.contains("pos_y"))
             item.pos_y = j["pos_y"].get<int16_t>();
+        if (j.contains("z_order"))
+            item.z_order = j["z_order"].get<int32_t>();
         if (j.contains("equipped_slot"))
             item.equipped_slot = j["equipped_slot"].get<int8_t>();
         if (j.contains("attribute"))

@@ -71,3 +71,4 @@ node_modules/
 /refs
 /.profile
 /docs/plans
+/.cache

@@ -25,6 +25,7 @@
 #include "assets/sprite_manager.hpp"
 #include "assets/tile_sprite_registry.hpp"
 #include "graphics/menu_character_renderer.hpp"
+#include "graphics/paperdoll_renderer.hpp"
 #include "audio/sound_manager.hpp"
 #include "gameplay/floating_text.hpp"
 #include "gameplay/effect_system.hpp"
@@ -190,6 +191,8 @@ public:
     hb::input_handler& input_handler() { return input_handler_; }
     ws_message_handler& ws_handler() { return ws_handler_; }
     chat_input_overlay& chat_input() { return chat_input_; }
+    menu_character_renderer& character_renderer() { return menu_char_renderer_; }
+    paperdoll_renderer& paperdoll() { return paperdoll_renderer_; }
 
     // Local player
     void set_local_player_id(entity_id id);
@@ -266,8 +269,8 @@ public:
     }
 
     // Drop confirmation state
-    int32_t pending_drop_slot() const { return pending_drop_slot_; }
-    void clear_pending_drop_slot() { pending_drop_slot_ = -1; }
+    uint32_t pending_drop_item_id() const { return pending_drop_item_id_; }
+    void clear_pending_drop_item() { pending_drop_item_id_ = 0; }
 
     // HUD updates
     void update_icon_panel();
@@ -353,6 +356,9 @@ private:
     // Character rendering for menus
     menu_character_renderer menu_char_renderer_;
 
+    // Paperdoll rendering for character dialog
+    paperdoll_renderer paperdoll_renderer_;
+
     // Screens (sprite-based UI for login, main menu, etc.)
     screen_manager screens_;
     renderer* renderer_ = nullptr;
@@ -404,7 +410,7 @@ private:
 
     // Drop confirmation: skip dialog for these item type IDs
     std::unordered_set<uint32_t> skip_drop_confirm_;
-    int32_t pending_drop_slot_ = -1;
+    uint32_t pending_drop_item_id_ = 0;
 };
 
 } // namespace hb

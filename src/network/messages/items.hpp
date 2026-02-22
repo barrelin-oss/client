@@ -212,7 +212,6 @@ struct inventory_data_msg
 {
     struct inv_item
     {
-        int16_t slot = 0;
         uint32_t item_id = 0;
         std::string name;
         uint32_t template_id = 0;
@@ -228,11 +227,59 @@ struct inventory_data_msg
         int16_t level_limit = 0;
         int16_t pos_x = 0;
         int16_t pos_y = 0;
+        int32_t z_order = 0;
         int8_t equipped_slot = -1; // -1 = not equipped; >= 0 = equipment slot index
         item_attribute_data attribute;
     };
     std::vector<inv_item> items;
     int32_t gold = 0;
+
+    static inv_item parse_inv_item(const json& item_j)
+    {
+        inv_item itm;
+        if (item_j.contains("item_id"))
+            itm.item_id = item_j["item_id"].get<uint32_t>();
+        if (item_j.contains("name"))
+            itm.name = item_j["name"].get<std::string>();
+        if (item_j.contains("template_id"))
+            itm.template_id = item_j["template_id"].get<uint32_t>();
+        if (item_j.contains("count"))
+            itm.count = item_j["count"].get<int16_t>();
+        if (item_j.contains("durability"))
+            itm.durability = item_j["durability"].get<int16_t>();
+        if (item_j.contains("max_durability"))
+            itm.max_durability = item_j["max_durability"].get<int16_t>();
+        if (item_j.contains("item_type"))
+            itm.item_type = item_j["item_type"].get<int16_t>();
+        if (item_j.contains("equip_pos"))
+            itm.equip_pos = item_j["equip_pos"].get<int16_t>();
+        if (item_j.contains("sprite"))
+            itm.sprite = item_j["sprite"].get<int16_t>();
+        if (item_j.contains("sprite_frame"))
+            itm.sprite_frame = item_j["sprite_frame"].get<int16_t>();
+        if (item_j.contains("color"))
+            itm.color = item_j["color"].get<int16_t>();
+        if (item_j.contains("weight"))
+            itm.weight = item_j["weight"].get<int16_t>();
+        if (item_j.contains("level_limit"))
+            itm.level_limit = item_j["level_limit"].get<int16_t>();
+        if (item_j.contains("pos_x"))
+            itm.pos_x = item_j["pos_x"].get<int16_t>();
+        if (item_j.contains("pos_y"))
+            itm.pos_y = item_j["pos_y"].get<int16_t>();
+        if (item_j.contains("z_order"))
+            itm.z_order = item_j["z_order"].get<int32_t>();
+        if (item_j.contains("equipped_slot"))
+            itm.equipped_slot = item_j["equipped_slot"].get<int8_t>();
+        if (item_j.contains("attribute"))
+        {
+            if (item_j["attribute"].is_object())
+                itm.attribute = item_attribute_data::from_json(item_j["attribute"]);
+            else if (item_j["attribute"].is_number())
+                itm.attribute = item_attribute_data::from_legacy(item_j["attribute"].get<uint32_t>());
+        }
+        return itm;
+    }
 
     static inventory_data_msg from_json(const json& j)
     {
@@ -246,49 +293,7 @@ struct inventory_data_msg
             {
                 for (const auto& item_j : d["items"])
                 {
-                    inv_item itm;
-                    if (item_j.contains("slot"))
-                        itm.slot = item_j["slot"].get<int16_t>();
-                    if (item_j.contains("item_id"))
-                        itm.item_id = item_j["item_id"].get<uint32_t>();
-                    if (item_j.contains("name"))
-                        itm.name = item_j["name"].get<std::string>();
-                    if (item_j.contains("template_id"))
-                        itm.template_id = item_j["template_id"].get<uint32_t>();
-                    if (item_j.contains("count"))
-                        itm.count = item_j["count"].get<int16_t>();
-                    if (item_j.contains("durability"))
-                        itm.durability = item_j["durability"].get<int16_t>();
-                    if (item_j.contains("max_durability"))
-                        itm.max_durability = item_j["max_durability"].get<int16_t>();
-                    if (item_j.contains("item_type"))
-                        itm.item_type = item_j["item_type"].get<int16_t>();
-                    if (item_j.contains("equip_pos"))
-                        itm.equip_pos = item_j["equip_pos"].get<int16_t>();
-                    if (item_j.contains("sprite"))
-                        itm.sprite = item_j["sprite"].get<int16_t>();
-                    if (item_j.contains("sprite_frame"))
-                        itm.sprite_frame = item_j["sprite_frame"].get<int16_t>();
-                    if (item_j.contains("color"))
-                        itm.color = item_j["color"].get<int16_t>();
-                    if (item_j.contains("weight"))
-                        itm.weight = item_j["weight"].get<int16_t>();
-                    if (item_j.contains("level_limit"))
-                        itm.level_limit = item_j["level_limit"].get<int16_t>();
-                    if (item_j.contains("pos_x"))
-                        itm.pos_x = item_j["pos_x"].get<int16_t>();
-                    if (item_j.contains("pos_y"))
-                        itm.pos_y = item_j["pos_y"].get<int16_t>();
-                    if (item_j.contains("equipped_slot"))
-                        itm.equipped_slot = item_j["equipped_slot"].get<int8_t>();
-                    if (item_j.contains("attribute"))
-                    {
-                        if (item_j["attribute"].is_object())
-                            itm.attribute = item_attribute_data::from_json(item_j["attribute"]);
-                        else if (item_j["attribute"].is_number())
-                            itm.attribute = item_attribute_data::from_legacy(item_j["attribute"].get<uint32_t>());
-                    }
-                    data.items.push_back(std::move(itm));
+                    data.items.push_back(parse_inv_item(item_j));
                 }
             }
         }
@@ -305,7 +310,6 @@ struct equipment_data_msg
 
     static equipment_data_msg from_json(const json& j)
     {
-        // Reuse inventory item parser
         equipment_data_msg data;
         if (j.contains("data"))
         {
@@ -314,43 +318,7 @@ struct equipment_data_msg
             {
                 for (const auto& eq_j : d["equipment"])
                 {
-                    inventory_data_msg::inv_item itm;
-                    if (eq_j.contains("slot"))
-                        itm.slot = eq_j["slot"].get<int16_t>();
-                    if (eq_j.contains("item_id"))
-                        itm.item_id = eq_j["item_id"].get<uint32_t>();
-                    if (eq_j.contains("name"))
-                        itm.name = eq_j["name"].get<std::string>();
-                    if (eq_j.contains("template_id"))
-                        itm.template_id = eq_j["template_id"].get<uint32_t>();
-                    if (eq_j.contains("durability"))
-                        itm.durability = eq_j["durability"].get<int16_t>();
-                    if (eq_j.contains("max_durability"))
-                        itm.max_durability = eq_j["max_durability"].get<int16_t>();
-                    if (eq_j.contains("item_type"))
-                        itm.item_type = eq_j["item_type"].get<int16_t>();
-                    if (eq_j.contains("equip_pos"))
-                        itm.equip_pos = eq_j["equip_pos"].get<int16_t>();
-                    if (eq_j.contains("sprite"))
-                        itm.sprite = eq_j["sprite"].get<int16_t>();
-                    if (eq_j.contains("sprite_frame"))
-                        itm.sprite_frame = eq_j["sprite_frame"].get<int16_t>();
-                    if (eq_j.contains("color"))
-                        itm.color = eq_j["color"].get<int16_t>();
-                    if (eq_j.contains("weight"))
-                        itm.weight = eq_j["weight"].get<int16_t>();
-                    if (eq_j.contains("level_limit"))
-                        itm.level_limit = eq_j["level_limit"].get<int16_t>();
-                    if (eq_j.contains("equipped_slot"))
-                        itm.equipped_slot = eq_j["equipped_slot"].get<int8_t>();
-                    if (eq_j.contains("attribute"))
-                    {
-                        if (eq_j["attribute"].is_object())
-                            itm.attribute = item_attribute_data::from_json(eq_j["attribute"]);
-                        else if (eq_j["attribute"].is_number())
-                            itm.attribute = item_attribute_data::from_legacy(eq_j["attribute"].get<uint32_t>());
-                    }
-                    data.equipment.push_back(std::move(itm));
+                    data.equipment.push_back(inventory_data_msg::parse_inv_item(eq_j));
                 }
             }
         }
@@ -427,69 +395,66 @@ struct skill_progress_msg
     }
 };
 
-// Single-slot inventory update (server pushes after drop, consume, modification, etc.)
-// data.item is null when the slot is cleared; populated with full item data otherwise.
-struct inventory_slot_update_msg
+// Item-keyed inventory update (server pushes after drop, consume, modification, etc.)
+// Keyed by item_id. has_item == false means item removed.
+struct inventory_item_update_msg
 {
-    int16_t slot = -1;
+    uint32_t item_id = 0;
     bool has_item = false;
     inventory_data_msg::inv_item item; // Only valid when has_item == true
 
-    static inventory_slot_update_msg from_json(const json& j)
+    static inventory_item_update_msg from_json(const json& j)
     {
-        inventory_slot_update_msg data;
+        inventory_item_update_msg data;
         if (j.contains("data"))
         {
             const auto& d = j["data"];
-            if (d.contains("slot"))
-                data.slot = d["slot"].get<int16_t>();
+            if (d.contains("item_id"))
+                data.item_id = d["item_id"].get<uint32_t>();
             if (d.contains("item") && !d["item"].is_null())
             {
                 data.has_item = true;
-                const auto& item_j = d["item"];
-                auto& itm = data.item;
-                if (item_j.contains("slot"))
-                    itm.slot = item_j["slot"].get<int16_t>();
-                if (item_j.contains("item_id"))
-                    itm.item_id = item_j["item_id"].get<uint32_t>();
-                if (item_j.contains("name"))
-                    itm.name = item_j["name"].get<std::string>();
-                if (item_j.contains("template_id"))
-                    itm.template_id = item_j["template_id"].get<uint32_t>();
-                if (item_j.contains("count"))
-                    itm.count = item_j["count"].get<int16_t>();
-                if (item_j.contains("durability"))
-                    itm.durability = item_j["durability"].get<int16_t>();
-                if (item_j.contains("max_durability"))
-                    itm.max_durability = item_j["max_durability"].get<int16_t>();
-                if (item_j.contains("item_type"))
-                    itm.item_type = item_j["item_type"].get<int16_t>();
-                if (item_j.contains("equip_pos"))
-                    itm.equip_pos = item_j["equip_pos"].get<int16_t>();
-                if (item_j.contains("sprite"))
-                    itm.sprite = item_j["sprite"].get<int16_t>();
-                if (item_j.contains("sprite_frame"))
-                    itm.sprite_frame = item_j["sprite_frame"].get<int16_t>();
-                if (item_j.contains("color"))
-                    itm.color = item_j["color"].get<int16_t>();
-                if (item_j.contains("weight"))
-                    itm.weight = item_j["weight"].get<int16_t>();
-                if (item_j.contains("level_limit"))
-                    itm.level_limit = item_j["level_limit"].get<int16_t>();
-                if (item_j.contains("pos_x"))
-                    itm.pos_x = item_j["pos_x"].get<int16_t>();
-                if (item_j.contains("pos_y"))
-                    itm.pos_y = item_j["pos_y"].get<int16_t>();
-                if (item_j.contains("equipped_slot"))
-                    itm.equipped_slot = item_j["equipped_slot"].get<int8_t>();
-                if (item_j.contains("attribute"))
-                {
-                    if (item_j["attribute"].is_object())
-                        itm.attribute = item_attribute_data::from_json(item_j["attribute"]);
-                    else if (item_j["attribute"].is_number())
-                        itm.attribute = item_attribute_data::from_legacy(item_j["attribute"].get<uint32_t>());
-                }
+                data.item = inventory_data_msg::parse_inv_item(d["item"]);
             }
+        }
+        return data;
+    }
+};
+
+// Item removed from inventory (server pushes after confirmed drop, etc.)
+struct inventory_item_removed_msg
+{
+    uint32_t item_id = 0;
+
+    static inventory_item_removed_msg from_json(const json& j)
+    {
+        inventory_item_removed_msg data;
+        if (j.contains("data"))
+        {
+            const auto& d = j["data"];
+            if (d.contains("item_id"))
+                data.item_id = d["item_id"].get<uint32_t>();
+        }
+        return data;
+    }
+};
+
+// Weight update (server pushes after item changes)
+struct inventory_weight_update_msg
+{
+    uint32_t current_weight = 0;
+    uint32_t max_weight = 0;
+
+    static inventory_weight_update_msg from_json(const json& j)
+    {
+        inventory_weight_update_msg data;
+        if (j.contains("data"))
+        {
+            const auto& d = j["data"];
+            if (d.contains("current_weight"))
+                data.current_weight = d["current_weight"].get<uint32_t>();
+            if (d.contains("max_weight"))
+                data.max_weight = d["max_weight"].get<uint32_t>();
         }
         return data;
     }
@@ -509,23 +474,18 @@ inline json make_player_pickup_request(int32_t x, int32_t y, uint32_t item_id = 
         .build();
 }
 
-inline json make_player_drop_item_request(int32_t slot)
+inline json make_player_drop_item_request(uint32_t item_id)
 {
     return message_builder(msg_type::player_drop_item_request)
-        .set("slot", slot)
+        .set("item_id", item_id)
         .build();
 }
 
-// Free-form reposition: move item to new array position (z-order) and pixel coords
-// old_slot: current array index of the item
-// new_slot: desired array index (typically end of occupied range for "bring to top")
-// pos_x/pos_y: new free-form pixel position within bag area
-inline json make_inventory_reposition_request(int32_t old_slot, int32_t new_slot,
-                                              int16_t pos_x, int16_t pos_y)
+// Free-form reposition: update item position within bag area
+inline json make_inventory_reposition_request(uint32_t item_id, int16_t pos_x, int16_t pos_y)
 {
     return message_builder(msg_type::inventory_reposition_request)
-        .set("old_slot", old_slot)
-        .set("new_slot", new_slot)
+        .set("item_id", item_id)
         .set("pos_x", pos_x)
         .set("pos_y", pos_y)
         .build();

@@ -13,6 +13,7 @@ skills_dialog::skills_dialog() : dialog(dialog_type::skills)
     set_title("Skills");
     set_bounds({100, 80, 280, 370});
     set_draggable(true);
+    set_drag_anywhere(true);
     set_closeable(true);
     set_visible(false);
     set_drag_clamp(drag_clamp::partial);

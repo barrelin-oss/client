@@ -278,8 +278,10 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
             "MISS", static_cast<float>(t.x), static_cast<float>(t.y), sf::Color(180, 180, 180));
     }
 
-    // Play weapon hit sound on successful hits
-    if (data.hit && attacker)
+    // Store weapon impact sound on target for frame-triggered playback.
+    // Legacy MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDAMAGE/DEF_OBJECTDYING
+    // (the composite split point). process_damage_effects() plays it at the right frame.
+    if (data.hit && data.damage > 0 && target)
     {
         uint16_t weapon_type = 0;
         if (data.attacker_id == entities.local_player_id())
@@ -287,9 +289,11 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
             if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
                 weapon_type = weapon->template_id;
         }
-        character_sound sound = get_weapon_swing_sound(weapon_type);
-        const auto& at = attacker->transform();
-        game_->sounds().play_character_sound_at(sound, at.x, at.y);
+        else if (data.is_ranged())
+        {
+            weapon_type = 40; // Arrow range → C7 (arrow_impact)
+        }
+        target->animation().pending_impact_sound = get_weapon_impact_sound(weapon_type);
     }
 
     spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
@@ -419,9 +423,21 @@ void ws_message_handler::handle_entity_death(const json& message)
         t.moving = false;
     }
 
+    // Store weapon impact sound for the killing blow (played at frame 4 of dying).
+    // Legacy MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDYING.
+    {
+        uint16_t weapon_type = 0;
+        if (data.killer_id == entities.local_player_id())
+        {
+            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+                weapon_type = weapon->template_id;
+        }
+        victim->animation().pending_impact_sound = get_weapon_impact_sound(weapon_type);
+    }
+
     // Transition to dead immediately, then play the dying animation.
     // The dying animation renders idle sprite for frames 0-3, then the actual
-    // death animation for frames 4+, matching legacy DrawObject_OnDamage behavior.
+    // death animation for frames 4+, matching legacy DrawObject_OnDying behavior.
     game_->entities().transition_to_dead(data.victim_id);
     victim->set_action(object_action::dying);
 

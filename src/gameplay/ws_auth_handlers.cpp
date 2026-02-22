@@ -1,5 +1,6 @@
 #include "gameplay/ws_message_handler.hpp"
 #include "gameplay/game_state.hpp"
+#include "ui/dialogs/character_dialog.hpp"
 #include "ui/dialogs/skills_dialog.hpp"
 #include "ui/dialogs/spellbook_dialog.hpp"
 #include "world/tile.hpp"
@@ -238,10 +239,6 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         itm.weight = static_cast<uint32_t>(inv_item.weight);
         itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
         itm.attribute = inv_item.attribute;
-        inventory.set_item_at(inv_item.slot, itm);
-
-        if (inv_item.pos_x != 0 || inv_item.pos_y != 0)
-            inventory.set_slot_position(inv_item.slot, inv_item.pos_x, inv_item.pos_y);
 
         // Equipped items: inventory items with equipped_slot set
         if (inv_item.equipped_slot >= 0)
@@ -250,7 +247,18 @@ void ws_message_handler::handle_enter_game_response(const json& message)
             if (eq_slot != equip_slot::none)
                 inventory.set_equipped(eq_slot, itm);
         }
+        else
+        {
+            // Bag item
+            bag_item entry;
+            entry.data = itm;
+            entry.pos_x = inv_item.pos_x;
+            entry.pos_y = inv_item.pos_y;
+            entry.z_order = inv_item.z_order;
+            inventory.add_or_update_item(entry);
+        }
     }
+    inventory.rebuild_render_order();
     spdlog::debug("Loaded {} inventory items, {} gold", response.inventory.items.size(), ch.gold);
 
     // Set skill levels
@@ -372,6 +380,13 @@ void ws_message_handler::handle_enter_game_response(const json& message)
         "Player position set at tile ({},{}) -> world ({},{})", ch.pos_x, ch.pos_y, player_world_x, player_world_y);
 
     spdlog::info("Entering game world: {}", ch.map_name);
+
+    // Wire character dialog with player entity now that it exists
+    if (auto* char_dlg = dynamic_cast<character_dialog*>(game_->ui().get_dialog(dialog_type::character_info)))
+    {
+        char_dlg->set_player(&player);
+        char_dlg->set_paperdoll_renderer(&game_->paperdoll());
+    }
 
     send_view_range();
     send_chat_preferences();

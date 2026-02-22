@@ -110,6 +110,21 @@ inline character_sound get_weapon_swing_sound(int weapon_type)
     return character_sound::punch;
 }
 
+// Get weapon IMPACT sound based on weapon type
+// Legacy: MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDAMAGE/DEF_OBJECTDYING.
+// Distinct from swing sounds — impact plays on the TARGET when hit lands.
+//   0      - unarmed → C5 (punch)
+//   1-39   - melee weapons → C6 (sword_impact)
+//   40-59  - bows/crossbows → C7 (arrow_impact)
+inline character_sound get_weapon_impact_sound(int weapon_type)
+{
+    if (weapon_type >= 40 && weapon_type <= 59)
+        return character_sound::arrow_impact;
+    if (weapon_type >= 1 && weapon_type <= 39)
+        return character_sound::sword_impact;
+    return character_sound::punch;
+}
+
 // Check if weapon type is ranged (bow/crossbow)
 inline bool is_ranged_weapon(int weapon_type)
 {

@@ -1174,6 +1174,16 @@ void ui_system::create_fishing_dialog()
     dialog_order_.push_back(ptr);
 }
 
+void ui_system::create_quest_dialog()
+{
+    add_dialog(dialog_type::quest, std::make_unique<quest_dialog>());
+}
+
+void ui_system::create_level_up_settings_dialog()
+{
+    add_dialog(dialog_type::level_up_settings, std::make_unique<level_up_settings_dialog>());
+}
+
 void ui_system::show_connection_dialog(std::function<void()> on_cancel)
 {
     // Remove existing connection dialog if any
@@ -1255,12 +1265,12 @@ const dialog_manager& ui_system::dialogs() const
 
 // === Item drag system ===
 
-void ui_system::begin_item_drag(const item* itm, int32_t slot, equip_slot equip, dialog_type source,
+void ui_system::begin_item_drag(const item& itm, uint32_t item_id, equip_slot equip, dialog_type source,
                                 int32_t offset_x, int32_t offset_y)
 {
     drag_state_.active = true;
     drag_state_.held_item = itm;
-    drag_state_.source_slot = slot;
+    drag_state_.source_item_id = item_id;
     drag_state_.source_equip = equip;
     drag_state_.source_dialog = source;
     drag_state_.offset_x = offset_x;
@@ -1276,7 +1286,7 @@ void ui_system::update_drag_position(int32_t x, int32_t y)
 void ui_system::cancel_item_drag()
 {
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
-        inv_dlg->clear_dragging_slot();
+        inv_dlg->clear_dragging_item();
     drag_state_ = {};
 }
 
@@ -1298,7 +1308,7 @@ void ui_system::end_item_drag(int32_t x, int32_t y)
                 auto bag = inv_dlg->bag_area();
                 int32_t item_x = x - drag_state_.offset_x - bag.x;
                 int32_t item_y = y - drag_state_.offset_y - bag.y;
-                on_reposition_item_(drag_state_.source_slot, item_x, item_y);
+                on_reposition_item_(drag_state_.source_item_id, item_x, item_y);
             }
         }
         else if (drag_state_.source_dialog == dialog_type::character_info)
@@ -1313,17 +1323,17 @@ void ui_system::end_item_drag(int32_t x, int32_t y)
              chr && chr->is_open() && chr->bounds().contains(x, y))
     {
         if (drag_state_.source_dialog == dialog_type::inventory && on_equip_from_drag_)
-            on_equip_from_drag_(drag_state_.source_slot);
+            on_equip_from_drag_(drag_state_.source_item_id);
     }
     // Dropped in game world
     else if (!is_point_over_dialog(x, y))
     {
-        if (drag_state_.source_slot >= 0 && on_drop_in_world_)
-            on_drop_in_world_(drag_state_.source_slot);
+        if (drag_state_.source_item_id != 0 && on_drop_in_world_)
+            on_drop_in_world_(drag_state_.source_item_id);
     }
 
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
-        inv_dlg->clear_dragging_slot();
+        inv_dlg->clear_dragging_item();
     drag_state_ = {};
 }
 

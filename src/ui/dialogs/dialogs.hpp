@@ -28,6 +28,7 @@
 #include "ui/dialogs/levelup_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
 #include "ui/dialogs/fishing_dialog.hpp"
+#include "ui/dialogs/level_up_settings_dialog.hpp"
 
 // This header provides convenient access to all game dialogs.
 // Individual dialogs can also be included separately for reduced compile times.

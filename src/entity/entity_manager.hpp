@@ -175,6 +175,13 @@ private:
     };
     void play_monster_sound(const entity& e, monster_sound_type sound_type);
 
+    // Animation trigger helpers (called from update_animation on frame advance)
+    void process_footstep_sounds(entity& e);
+    void process_attack_triggers(entity& e);
+    void process_damage_effects(entity& e);
+    void process_hurt_sounds(entity& e);
+    void process_magic_sounds(entity& e);
+
     std::unordered_map<entity_id, std::unique_ptr<entity>> entities_;
     entity_id next_entity_id_ = 1;
     entity_id local_player_id_ = invalid_entity_id;

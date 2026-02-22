@@ -55,8 +55,14 @@ inline constexpr const char* equipment_data = "equipment_data";
 inline constexpr const char* player_drop_item_request = "player_drop_item_request";
 inline constexpr const char* player_drop_item_response = "player_drop_item_response";
 
-// Single-slot inventory update (server pushes after drop, consume, etc.)
-inline constexpr const char* inventory_slot_update = "inventory_slot_update";
+// Item-keyed inventory update (server pushes after drop, consume, etc.)
+inline constexpr const char* inventory_item_update = "inventory_item_update";
+
+// Item removed from inventory (server pushes after drop confirm, etc.)
+inline constexpr const char* inventory_item_removed = "inventory_item_removed";
+
+// Weight update (server pushes after item changes)
+inline constexpr const char* inventory_weight_update = "inventory_weight_update";
 
 // Inventory layout management
 inline constexpr const char* inventory_reposition_request = "inventory_reposition_request";

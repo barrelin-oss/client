@@ -12,6 +12,7 @@ add_library(helbreath_core STATIC
     graphics/text_renderer.cpp
     graphics/text_shader_cache.cpp
     graphics/menu_character_renderer.cpp
+    graphics/paperdoll_renderer.cpp
     graphics/screen_transition.cpp
     graphics/color_utils.hpp
 
@@ -46,6 +47,7 @@ add_library(helbreath_core STATIC
     # Entity
     entity/entity.cpp
     entity/entity_manager.cpp
+    entity/npc_animation_data.cpp
 
     # UI
     ui/ui_element.cpp
@@ -97,6 +99,7 @@ add_library(helbreath_core STATIC
     ui/dialogs/levelup_dialog.cpp
     ui/dialogs/system_menu_dialog.cpp
     ui/dialogs/fishing_dialog.cpp
+    ui/dialogs/level_up_settings_dialog.cpp
 
     # Gameplay
     gameplay/combat.cpp

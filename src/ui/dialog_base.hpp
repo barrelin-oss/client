@@ -62,6 +62,7 @@ enum class dialog_type
     levelup,
     fishing,
     death,
+    level_up_settings,
 };
 
 // Controls how a dialog is clamped to the screen during dragging
@@ -103,6 +104,9 @@ public:
     void set_draggable(bool draggable) { draggable_ = draggable; }
     bool draggable() const { return draggable_; }
 
+    void set_drag_anywhere(bool anywhere) { drag_anywhere_ = anywhere; }
+    bool drag_anywhere() const { return drag_anywhere_; }
+
     void set_closeable(bool closeable) { closeable_ = closeable; }
     bool closeable() const { return closeable_; }
 
@@ -140,6 +144,7 @@ protected:
     std::string title_;
     std::string position_id_; // Custom ID for debug overlay
     bool draggable_ = true;
+    bool drag_anywhere_ = false;
     bool closeable_ = true;
     bool modal_ = false;
     bool always_on_top_ = false;

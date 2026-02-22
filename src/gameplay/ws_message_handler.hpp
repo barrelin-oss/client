@@ -115,7 +115,9 @@ private:
     void handle_inventory_data(const json& message);
     void handle_equipment_data(const json& message);
     void handle_drop_item_response(const json& message);
-    void handle_inventory_slot_update(const json& message);
+    void handle_inventory_item_update(const json& message);
+    void handle_inventory_item_removed(const json& message);
+    void handle_inventory_weight_update(const json& message);
     void handle_skills_data(const json& message);
     void handle_skill_progress(const json& message);
     void handle_player_skill_response(const json& message);

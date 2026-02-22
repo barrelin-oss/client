@@ -1,4 +1,5 @@
 #include "entity/entity.hpp"
+#include "entity/npc_animation_data.hpp"
 #include <spdlog/spdlog.h>
 
 namespace hb
@@ -58,6 +59,16 @@ void entity::set_action(object_action action)
     }
 
     animation_.set_state(new_state);
+
+    // Apply NPC-specific frame overrides at state-change time.
+    // This replaces the per-frame apply_npc_frame_data() call.
+    if (auto entry = get_npc_frame_data(visual_type_, new_state))
+    {
+        if (entry->max_frame >= 0)
+            animation_.frame_count = static_cast<uint8_t>(entry->max_frame + 1);
+        if (entry->frame_time_ms > 0)
+            animation_.frame_duration = static_cast<float>(entry->frame_time_ms) / 1000.0f;
+    }
 }
 
 // Add helper to apply combat mode to actions

@@ -725,8 +725,9 @@ void notify_handler::handle_item_drop(packet_reader& reader)
     if (!slot || !game_)
         return;
 
-    game_->inventory().clear_slot(*slot);
-    spdlog::debug("Item dropped from slot {}", *slot);
+    // Legacy binary protocol uses slot indices; modern WS protocol uses item_ids.
+    // Inventory refresh will follow via WS, so just log here.
+    spdlog::debug("Legacy item drop notification for slot {}", *slot);
 }
 
 void notify_handler::handle_item_to_bank(packet_reader& reader)
@@ -755,7 +756,8 @@ void notify_handler::handle_set_item_count(packet_reader& reader)
     if (!slot || !count || !game_)
         return;
 
-    game_->inventory().set_item_count(*slot, *count);
+    // Legacy binary protocol uses slot indices; inventory refresh will follow via WS.
+    spdlog::debug("Legacy set_item_count: slot={} count={}", *slot, *count);
 }
 
 void notify_handler::handle_item_lifespan_end(packet_reader& reader)
@@ -764,7 +766,8 @@ void notify_handler::handle_item_lifespan_end(packet_reader& reader)
     if (!slot || !game_)
         return;
 
-    game_->inventory().clear_slot(*slot);
+    // Legacy binary protocol uses slot indices; inventory refresh will follow via WS.
+    spdlog::debug("Legacy item lifespan end: slot={}", *slot);
     game_->show_message("Item has expired");
 }
 
@@ -785,7 +788,8 @@ void notify_handler::handle_item_color_change(packet_reader& reader)
     if (!slot || !color || !game_)
         return;
 
-    game_->inventory().set_item_color(*slot, *color);
+    // Legacy binary protocol uses slot indices; inventory refresh will follow via WS.
+    spdlog::debug("Legacy item color change: slot={} color={}", *slot, *color);
 }
 
 void notify_handler::handle_item_attribute_change(packet_reader& reader)
@@ -796,7 +800,8 @@ void notify_handler::handle_item_attribute_change(packet_reader& reader)
     if (!slot || !attribute || !game_)
         return;
 
-    game_->inventory().set_item_attribute(*slot, item_attribute_data::from_legacy(*attribute));
+    // Legacy binary protocol uses slot indices; inventory refresh will follow via WS.
+    spdlog::debug("Legacy item attribute change: slot={}", *slot);
 }
 
 void notify_handler::handle_cannot_carry_more_item(packet_reader& reader)
@@ -856,8 +861,8 @@ void notify_handler::handle_item_sold(packet_reader& reader)
     if (!slot || !game_)
         return;
 
-    game_->inventory().clear_slot(*slot);
-    spdlog::info("Item sold for {} gold", gold.value_or(0));
+    // Legacy binary protocol uses slot indices; inventory refresh will follow via WS.
+    spdlog::info("Legacy item sold from slot {} for {} gold", *slot, gold.value_or(0));
 }
 
 void notify_handler::handle_repair_item_price(packet_reader& reader)

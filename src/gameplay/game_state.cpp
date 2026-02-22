@@ -361,18 +361,21 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                    return;
                                }
                                sprites_.preload_pak_metadata("item-pack");
-
-                               auto* pak = sprites_.get_pak("item-pack");
-                               if (!pak)
-                                   return;
-
-                               uint32_t count = pak->sprite_count();
-                               for (uint32_t i = 0; i < count; ++i)
+                               // Same layout as item-ground: categories 1-17 at PAK indices 0-16,
+                               // categories 20-22 at PAK indices 17-19.
+                               // Global ID = item_pack_sprite_base (300) + category
+                               for (uint32_t i = 0; i < 17; ++i)
                                {
                                    sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_pack_sprite_base + i), "item-pack", i);
+                                       static_cast<uint16_t>(item_pack_sprite_base + 1 + i), "item-pack", i);
                                }
-                               spdlog::info("Loaded item-pack.pak ({} sprites)", count);
+                               // Categories 20-22 are at PAK indices 17-19
+                               for (uint32_t i = 0; i < 3; ++i)
+                               {
+                                   sprites_.store_sprite_at_id(
+                                       static_cast<uint16_t>(item_pack_sprite_base + 20 + i), "item-pack", 17 + i);
+                               }
+                               spdlog::info("Loaded item-pack.pak (20 sprites)");
                            }});
 
     init_steps_.push_back({"Setting up network...",
@@ -409,6 +412,12 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                            {
                                menu_char_renderer_.set_initialized();
                                spdlog::info("Menu character renderer initialized");
+                           }});
+
+    init_steps_.push_back({"Loading paperdoll sprites...",
+                           [this]()
+                           {
+                               paperdoll_renderer_.initialize(sprites_);
                            }});
 
     // Each monster PAK is its own step for fine-grained progress
@@ -667,6 +676,16 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
     init_steps_.push_back({"Creating dialogs...",
                            [this]()
                            {
+                               ui_.create_quest_dialog();
+                           }});
+    init_steps_.push_back({"Creating dialogs...",
+                           [this]()
+                           {
+                               ui_.create_level_up_settings_dialog();
+                           }});
+    init_steps_.push_back({"Creating dialogs...",
+                           [this]()
+                           {
                                ui_.create_fishing_dialog();
                                if (auto* dlg = dynamic_cast<fishing_dialog*>(ui_.get_dialog(dialog_type::fishing)))
                                {
@@ -690,43 +709,37 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
 
                                    // When user starts dragging an item from inventory
                                    inv_dlg->set_on_drag_start(
-                                       [this](int32_t slot, int32_t off_x, int32_t off_y)
+                                       [this](uint32_t item_id, int32_t off_x, int32_t off_y)
                                        {
-                                           const auto* itm = inventory_.get_item(static_cast<size_t>(slot));
-                                           if (itm)
-                                               ui_.begin_item_drag(itm, slot, equip_slot::none,
+                                           const auto* entry = inventory_.get_bag_item(item_id);
+                                           if (entry)
+                                               ui_.begin_item_drag(entry->data, item_id, equip_slot::none,
                                                                    dialog_type::inventory, off_x, off_y);
                                        });
                                }
 
                                // Drop item to world — snap back, lock, confirm, then send
                                ui_.set_on_drop_in_world(
-                                   [this](int32_t slot)
+                                   [this](uint32_t item_id)
                                    {
                                        auto* inv_dlg = dynamic_cast<inventory_dialog*>(
                                            ui_.get_dialog(dialog_type::inventory));
                                        if (inv_dlg)
                                            inv_dlg->restore_drag_position();
 
-                                       auto& inv_slot =
-                                           inventory_.get_slot_mut(static_cast<size_t>(slot));
-                                       inv_slot.locked = true;
-
-                                       const auto* itm = inventory_.get_item(static_cast<size_t>(slot));
-                                       if (!itm)
-                                       {
-                                           inv_slot.locked = false;
+                                       auto* entry = inventory_.get_bag_item(item_id);
+                                       if (!entry)
                                            return;
-                                       }
 
-                                       uint32_t type_id = itm->template_id;
+                                       entry->locked = true;
+                                       uint32_t type_id = entry->data.template_id;
 
                                        // Send drop request (shared lambda)
-                                       auto do_drop = [this, slot]()
+                                       auto do_drop = [this, item_id]()
                                        {
-                                           pending_drop_slot_ = slot;
-                                           spdlog::info("Dropping item from slot {}", slot);
-                                           json msg = make_player_drop_item_request(slot);
+                                           pending_drop_item_id_ = item_id;
+                                           spdlog::info("Dropping item {}", item_id);
+                                           json msg = make_player_drop_item_request(item_id);
                                            ws_connection_.send(msg);
                                        };
 
@@ -738,10 +751,10 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                        }
 
                                        // Show drop confirmation dialog
-                                       item itm_copy = *itm; // Copy for dialog lifetime
+                                       item itm_copy = entry->data; // Copy for dialog lifetime
                                        ui_.create_drop_confirm_box(
                                            itm_copy,
-                                           [this, slot, type_id, do_drop](bool confirmed, bool skip_next)
+                                           [this, item_id, type_id, do_drop](bool confirmed, bool skip_next)
                                            {
                                                if (confirmed)
                                                {
@@ -751,35 +764,24 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                                }
                                                else
                                                {
-                                                   // Cancelled — unlock the slot
-                                                   inventory_.get_slot_mut(static_cast<size_t>(slot))
-                                                       .locked = false;
+                                                   // Cancelled — unlock the item
+                                                   auto* e = inventory_.get_bag_item(item_id);
+                                                   if (e)
+                                                       e->locked = false;
                                                }
                                            });
                                    });
 
                                // Reposition item within bag (free-form mode)
-                               // Promotes item to top of z-order and updates position
+                               // Position is already updated locally by inventory_dialog during drag.
+                               // Just send the server message.
                                ui_.set_on_reposition_item(
-                                   [this](int32_t slot, int32_t x, int32_t y)
+                                   [this](uint32_t item_id, int32_t x, int32_t y)
                                    {
-                                       if (slot < 0 || slot >= static_cast<int32_t>(inventory_size))
-                                           return;
-
-                                       // Move to end of array (highest z-index)
-                                       size_t new_slot = inventory_.promote_to_top(static_cast<size_t>(slot));
-                                       if (new_slot == SIZE_MAX)
-                                           new_slot = static_cast<size_t>(slot);
-
-                                       // Update free-form position
-                                       inventory_.set_slot_position(new_slot,
-                                                                    static_cast<int16_t>(x),
-                                                                    static_cast<int16_t>(y));
-
-                                       // Tell server about the reposition
                                        json msg = make_inventory_reposition_request(
-                                           slot, static_cast<int32_t>(new_slot),
-                                           static_cast<int16_t>(x), static_cast<int16_t>(y));
+                                           item_id,
+                                           static_cast<int16_t>(x),
+                                           static_cast<int16_t>(y));
                                        ws_connection_.send(msg);
                                    });
                            }});
@@ -1271,7 +1273,7 @@ void game_state_manager::clear_game_data()
     quests_.clear();
     spell_hotbar_.fill(0);
     skip_drop_confirm_.clear();
-    pending_drop_slot_ = -1;
+    pending_drop_item_id_ = 0;
 }
 
 void game_state_manager::start_map_transition(std::function<void()> on_midpoint)

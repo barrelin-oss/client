@@ -1,5 +1,6 @@
 #include "gameplay/dialog_callbacks.hpp"
 #include "gameplay/game_state.hpp"
+#include "entity/entity.hpp"
 #include "ui/dialog_manager.hpp"
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
@@ -74,10 +75,21 @@ void dialog_callbacks::setup_callbacks()
         create_dlg->set_on_cancel([this]() { game_->change_state(game_state::select_character); });
     }
 
-    // Character dialog - stat point allocation
+    // Character dialog — wire static data sources and callbacks
+    // Note: set_player() and set_paperdoll_renderer() are called from ws_auth_handlers
+    // after the player entity is created (setup_callbacks runs before enter_game)
     if (auto* char_dlg = dynamic_cast<character_dialog*>(ui.get_dialog(dialog_type::character_info)))
     {
+        char_dlg->set_inventory(&game_->inventory());
+        char_dlg->set_sprite_manager(&game_->sprites());
+
+        // Stat allocation
         char_dlg->set_on_add_stat([&network](int stat_index) { network.request_add_stat(stat_index); });
+
+        // Action buttons
+        char_dlg->set_on_quest([this]() { game_->ui().toggle_dialog(dialog_type::quest); });
+        char_dlg->set_on_party([this]() { game_->ui().toggle_dialog(dialog_type::party); });
+        char_dlg->set_on_level_settings([this]() { game_->ui().toggle_dialog(dialog_type::level_up_settings); });
     }
 
     // Inventory dialog drag handled by ui_system cross-dialog drag system (wired in game_state)

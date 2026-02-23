@@ -286,7 +286,7 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
         uint16_t weapon_type = 0;
         if (data.attacker_id == entities.local_player_id())
         {
-            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+            if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
                 weapon_type = weapon->template_id;
         }
         else if (data.is_ranged())
@@ -429,7 +429,7 @@ void ws_message_handler::handle_entity_death(const json& message)
         uint16_t weapon_type = 0;
         if (data.killer_id == entities.local_player_id())
         {
-            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+            if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
                 weapon_type = weapon->template_id;
         }
         victim->animation().pending_impact_sound = get_weapon_impact_sound(weapon_type);

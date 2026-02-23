@@ -207,7 +207,7 @@ void paperdoll_renderer::draw(renderer& rend,
         rend.draw_sprite(*spr, x, y, body_frame);
 
     // --- Layer 2: Hair (only if no helmet equipped) ---
-    bool has_helmet = inventory && inventory->get_equipped(equip_slot::head) != nullptr;
+    bool has_helmet = inventory && inventory->get_equipped_item(equip_pos::head) != nullptr;
     if (!has_helmet)
     {
         uint16_t hair_id = equip_base + (female ? 58 : 18);
@@ -237,102 +237,102 @@ void paperdoll_renderer::draw(renderer& rend,
     bool skirt_draw = false;
     if (female)
     {
-        if (const auto* pants = inventory->get_equipped(equip_slot::pants))
+        if (const auto* pants = inventory->get_equipped_item(equip_pos::pants))
         {
-            if (pants->sprite_id == 12 && pants->equipped_sprite_id == 0)
+            if (pants->sprite_id == 12)
                 skirt_draw = true;
         }
     }
 
     // --- Layer 4: Back (cape/mantle) ---
-    if (const auto* item = inventory->get_equipped(equip_slot::back))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::cape))
     {
         draw_equip_layer(
-            rend, sprites, x + back_dx, y + back_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            rend, sprites, x + back_dx, y + back_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Female skirt: boots drawn early if skirt ---
     if (female && skirt_draw)
     {
-        if (const auto* item = inventory->get_equipped(equip_slot::boots))
+        if (const auto* item = inventory->get_equipped_item(equip_pos::boots))
         {
-            draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
         }
     }
 
     // --- Layer 5: Pants ---
-    if (const auto* item = inventory->get_equipped(equip_slot::pants))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::pants))
     {
-        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 6: Arms ---
-    if (const auto* item = inventory->get_equipped(equip_slot::arms))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::arms))
     {
-        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 7: Boots (normal position, skip if female skirt already drew them) ---
     if (!(female && skirt_draw))
     {
-        if (const auto* item = inventory->get_equipped(equip_slot::boots))
+        if (const auto* item = inventory->get_equipped_item(equip_pos::boots))
         {
-            draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
         }
     }
 
     // --- Layer 8: Body armor ---
-    if (const auto* item = inventory->get_equipped(equip_slot::body))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::body))
     {
-        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 9: Full body armor ---
-    if (const auto* item = inventory->get_equipped(equip_slot::full_body))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::full_body))
     {
-        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+        draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 10: Left hand (shield) ---
-    if (const auto* item = inventory->get_equipped(equip_slot::left_hand))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::shield))
     {
         draw_equip_layer(
-            rend, sprites, x + lhand_dx, y + lhand_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, true);
+            rend, sprites, x + lhand_dx, y + lhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 11: Right hand (weapon) ---
-    if (const auto* item = inventory->get_equipped(equip_slot::right_hand))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::weapon))
     {
         draw_equip_layer(
-            rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, true);
+            rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 12: Two-hand weapon ---
-    if (const auto* item = inventory->get_equipped(equip_slot::two_hand))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::twohand))
     {
         draw_equip_layer(
-            rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, true);
+            rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 13: Neck ---
-    if (const auto* item = inventory->get_equipped(equip_slot::neck))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::amulet))
     {
         draw_equip_layer(
-            rend, sprites, x + neck_dx, y + neck_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            rend, sprites, x + neck_dx, y + neck_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 14: Right finger ---
-    if (const auto* item = inventory->get_equipped(equip_slot::right_finger))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::ring_right))
     {
         draw_equip_layer(
-            rend, sprites, x + rfinger_dx, y + rfinger_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            rend, sprites, x + rfinger_dx, y + rfinger_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 15: Head (helmet) ---
-    if (const auto* item = inventory->get_equipped(equip_slot::head))
+    if (const auto* item = inventory->get_equipped_item(equip_pos::head))
     {
         draw_equip_layer(
-            rend, sprites, x + head_dx, y + head_dy, equip_base + item->sprite_id + g, item->equipped_sprite_id, item->color, false);
+            rend, sprites, x + head_dx, y + head_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 }
 

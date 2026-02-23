@@ -8,67 +8,31 @@
 namespace hb
 {
 
-namespace
+void ws_message_handler::handle_pickup_result(const json& message)
 {
-
-// Convert a network inv_item to a game item + bag_item
-item item_from_inv(const inventory_data_msg::inv_item& inv_item)
-{
-    item itm;
-    itm.id = inv_item.item_id;
-    itm.template_id = inv_item.template_id;
-    itm.name = inv_item.name;
-    itm.amount = static_cast<uint32_t>(inv_item.count);
-    itm.durability = static_cast<uint16_t>(inv_item.durability);
-    itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
-    itm.type = static_cast<item_type>(inv_item.item_type);
-    itm.slot = equip_slot_from_server(inv_item.equip_pos);
-    itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
-    itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
-    itm.color = static_cast<uint8_t>(inv_item.color);
-    itm.weight = static_cast<uint32_t>(inv_item.weight);
-    itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
-    itm.attribute = inv_item.attribute;
-    return itm;
-}
-
-bag_item bag_item_from_inv(const inventory_data_msg::inv_item& inv_item)
-{
-    bag_item entry;
-    entry.data = item_from_inv(inv_item);
-    entry.pos_x = inv_item.pos_x;
-    entry.pos_y = inv_item.pos_y;
-    entry.z_order = inv_item.z_order;
-    return entry;
-}
-
-} // anonymous namespace
-
-void ws_message_handler::handle_pickup_response(const json& message)
-{
-    auto response = player_pickup_response_data::from_json(message);
-
-    if (response.success)
-    {
+    auto data = pickup_result_msg::from_json(message);
+    if (data.success)
         spdlog::info("Picked up item (item update will follow)");
-    }
     else
-    {
-        spdlog::debug("Pickup failed: {}", response.error_message);
-    }
+        spdlog::debug("Pickup failed: {}", data.error);
 
     if (entity* player = game_->local_player())
     {
-        player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
+        if (!data.success)
+        {
+            // Hard rejection (dead, disconnected, etc.) — interrupt and apply cooldown
+            player->set_action_with_combat_mode(object_action::stop_peace, game_->is_combat_mode());
+            auto& input = game_->input_handler();
+            input.set_blocked_movement_cooldown(input_handler::blocked_movement_cooldown_duration);
+        }
+        // On success, let the animation play to completion naturally
     }
 }
 
 void ws_message_handler::handle_ground_item_removed(const json& message)
 {
-    auto data = ground_item_removed_data::from_json(message);
-
-    spdlog::debug("Ground item removed: {} picked up {} at ({},{})", data.picker_name, data.item_name, data.x, data.y);
-
+    auto data = ground_item_removed_msg::from_json(message);
+    spdlog::debug("Ground item removed: id={} at ({},{})", data.item_id, data.x, data.y);
     game_->ground_items().remove(data.item_id);
 }
 
@@ -135,8 +99,9 @@ void ws_message_handler::handle_stat_update(const json& message)
         stats.hunger = *data.hunger_level;
     if (data.pk_count && player->has_combat())
         player->combat().pk_count = *data.pk_count;
-    if (data.max_weight)
-        game_->inventory().set_max_weight(*data.max_weight);
+    // TODO: max_weight updates now come via inventory_weight_update message
+    // if (data.max_weight)
+    //     game_->inventory().set_weight(0, *data.max_weight);
 
     game_->update_icon_panel();
 
@@ -174,107 +139,157 @@ void ws_message_handler::handle_entity_hp_update(const json& message)
     spdlog::debug("Entity {} HP: {}/{}", data.entity_id, data.hp, data.hp_max);
 }
 
-void ws_message_handler::handle_equipment_change_broadcast(const json& message)
-{
-    auto data = equipment_change_broadcast_data::from_json(message);
-
-    // Skip our own changes — handled by equip/unequip response
-    if (data.entity_id == game_->entities().local_player_id())
-        return;
-
-    spdlog::debug("Entity {} equipment slot {} changed: item={} template={}",
-                  data.entity_id,
-                  data.slot,
-                  data.item_id,
-                  data.template_id);
-
-    // TODO: Update other player's visual equipment when character rendering supports it
-}
-
-void ws_message_handler::handle_player_equip_response(const json& message)
-{
-    auto data = player_equip_response_data::from_json(message);
-
-    if (!data.success)
-    {
-        spdlog::debug("Equip failed: {}", data.error);
-        return;
-    }
-
-    spdlog::info("Equipped '{}' to slot {}", data.item_name, data.slot);
-
-    // Server will send stat_update and inventory_data/equipment_data
-    // to refresh our state, so we don't need to manually update here
-}
-
-void ws_message_handler::handle_player_unequip_response(const json& message)
-{
-    auto data = player_unequip_response_data::from_json(message);
-
-    if (!data.success)
-    {
-        spdlog::debug("Unequip failed: {}", data.error);
-        return;
-    }
-
-    spdlog::info("Unequipped '{}' from slot {}", data.item_name, data.slot);
-}
-
-
 void ws_message_handler::handle_inventory_data(const json& message)
 {
     auto data = inventory_data_msg::from_json(message);
-
     auto& inventory = game_->inventory();
     inventory.clear();
-    inventory.set_gold(static_cast<uint32_t>(data.gold));
+    inventory.set_gold(data.gold);
+    inventory.set_weight(data.weight, data.max_weight);
 
-    // Clear all equipped slots first (equipment is unified with inventory)
-    for (int i = 1; i <= 12; ++i)
-        inventory.clear_equipped(static_cast<equip_slot>(i));
+    // Load equipment slot references
+    inventory.equipment().clear_all();
+    for (const auto& [slot, item_id] : data.equipment_slots)
+        inventory.equipment().set(slot, item_id);
 
-    for (const auto& inv_item : data.items)
+    // Add all items to bag
+    for (const auto& pi : data.items)
     {
-        // Equipped items: inventory items with equipped_slot set
-        if (inv_item.equipped_slot >= 0)
-        {
-            auto eq_slot = equip_slot_from_server(inv_item.equipped_slot);
-            if (eq_slot != equip_slot::none)
-                inventory.set_equipped(eq_slot, item_from_inv(inv_item));
-        }
-        else
-        {
-            // Bag item
-            inventory.add_or_update_item(bag_item_from_inv(inv_item));
-        }
+        bag_item entry;
+        entry.data = pi.data;
+        entry.pos_x = pi.pos_x;
+        entry.pos_y = pi.pos_y;
+        entry.z_order = pi.z_order;
+        inventory.add_or_update_item(entry);
     }
 
     inventory.rebuild_render_order();
-
     spdlog::debug("Inventory refreshed: {} items, {} gold", data.items.size(), data.gold);
 }
 
-void ws_message_handler::handle_equipment_data(const json& message)
+void ws_message_handler::handle_inventory_item_add(const json& message)
 {
-    // DEPRECATED: equipment is unified with inventory. This handler kept for backward compat.
-    auto data = equipment_data_msg::from_json(message);
+    auto data = inventory_item_add_msg::from_json(message);
+    bag_item entry;
+    entry.data = data.data;
+    entry.pos_x = data.pos_x;
+    entry.pos_y = data.pos_y;
+    entry.z_order = data.z_order;
+    game_->inventory().add_or_update_item(entry);
+    spdlog::debug("Inventory item added: {} (id={})", data.data.name, data.data.item_id);
+}
 
-    auto& inventory = game_->inventory();
+void ws_message_handler::handle_inventory_item_update(const json& message)
+{
+    auto data = inventory_item_update_msg::from_json(message);
+    bag_item entry;
+    entry.data = data.data;
+    entry.pos_x = data.pos_x;
+    entry.pos_y = data.pos_y;
+    entry.z_order = data.z_order;
+    game_->inventory().add_or_update_item(entry);
+    spdlog::debug("Inventory item updated: {} (id={})", data.data.name, data.data.item_id);
+}
 
-    for (int i = 1; i <= 12; ++i)
-        inventory.clear_equipped(static_cast<equip_slot>(i));
-
-    for (const auto& eq_item : data.equipment)
+void ws_message_handler::handle_inventory_item_removed(const json& message)
+{
+    auto data = inventory_item_removed_msg::from_json(message);
+    if (data.item_id == 0)
     {
-        if (eq_item.equipped_slot >= 0)
-        {
-            auto mapped_slot = equip_slot_from_server(eq_item.equipped_slot);
-            if (mapped_slot != equip_slot::none)
-                inventory.set_equipped(mapped_slot, item_from_inv(eq_item));
-        }
+        spdlog::warn("inventory_item_removed: missing item_id");
+        return;
     }
 
-    spdlog::debug("Equipment refreshed: {} items", data.equipment.size());
+    spdlog::debug("Inventory item {} removed", data.item_id);
+    game_->inventory().remove_item(data.item_id);
+}
+
+void ws_message_handler::handle_inventory_item_delta(const json& message)
+{
+    auto data = inventory_item_delta_msg::from_json(message);
+    game_->inventory().patch_item(data.item_id, data.count, data.durability);
+    spdlog::debug("Inventory item delta: id={}", data.item_id);
+}
+
+void ws_message_handler::handle_inventory_gold_update(const json& message)
+{
+    auto data = inventory_gold_update_msg::from_json(message);
+    game_->inventory().set_gold(data.gold);
+    spdlog::debug("Gold updated: {}", data.gold);
+}
+
+void ws_message_handler::handle_inventory_weight_update(const json& message)
+{
+    auto data = inventory_weight_update_msg::from_json(message);
+    game_->inventory().set_weight(data.weight, data.max_weight);
+    spdlog::debug("Weight updated: {}/{}", data.weight, data.max_weight);
+}
+
+void ws_message_handler::handle_equip_result(const json& message)
+{
+    auto data = equip_result_msg::from_json(message);
+    if (!data.success)
+    {
+        spdlog::debug("Equip failed for slot {}", equip_pos_to_string(data.slot));
+        return;
+    }
+    spdlog::info("Equip successful: slot {}", equip_pos_to_string(data.slot));
+}
+
+void ws_message_handler::handle_unequip_result(const json& message)
+{
+    auto data = unequip_result_msg::from_json(message);
+    if (!data.success)
+    {
+        spdlog::debug("Unequip failed for slot {}", equip_pos_to_string(data.slot));
+        return;
+    }
+    spdlog::info("Unequip successful: slot {}", equip_pos_to_string(data.slot));
+}
+
+void ws_message_handler::handle_force_unequip(const json& message)
+{
+    auto data = force_unequip_msg::from_json(message);
+    game_->inventory().equipment().clear(data.slot);
+    spdlog::info("Force unequipped slot {}: {}", equip_pos_to_string(data.slot), data.reason);
+}
+
+void ws_message_handler::handle_equipment_change(const json& message)
+{
+    auto data = equipment_change_msg::from_json(message);
+    auto local_id = game_->entities().local_player_id();
+
+    if (data.entity_id == local_id)
+    {
+        if (data.item_data)
+            game_->inventory().equipment().set(data.slot, data.item_data->item_id);
+        else
+            game_->inventory().equipment().clear(data.slot);
+    }
+
+    spdlog::debug("Equipment change: entity {} slot {} {}", data.entity_id,
+                  equip_pos_to_string(data.slot), data.item_data ? "equipped" : "unequipped");
+}
+
+void ws_message_handler::handle_drop_result(const json& message)
+{
+    auto data = drop_result_msg::from_json(message);
+    if (data.success)
+    {
+        spdlog::info("Item dropped successfully");
+    }
+    else
+    {
+        spdlog::debug("Drop failed");
+        uint32_t item_id = game_->pending_drop_item_id();
+        if (item_id != 0)
+        {
+            auto* entry = game_->inventory().get_bag_item(item_id);
+            if (entry)
+                entry->locked = false;
+        }
+    }
+    game_->clear_pending_drop_item();
 }
 
 void ws_message_handler::handle_skills_data(const json& message)
@@ -365,93 +380,6 @@ void ws_message_handler::handle_player_skill_response(const json& message)
             spdlog::debug("Skill {} used, effect={}", skill_id, effect);
         }
     }
-}
-
-void ws_message_handler::handle_drop_item_response(const json& message)
-{
-    if (!message.contains("data"))
-        return;
-    const auto& d = message["data"];
-
-    uint32_t item_id = d.value("item_id", 0u);
-    if (item_id == 0)
-        item_id = game_->pending_drop_item_id();
-
-    bool success = d.value("success", false);
-    if (success)
-    {
-        spdlog::info("Item dropped successfully (item_id {})", item_id);
-        // Server will send inventory_item_removed or inventory_data refresh
-    }
-    else
-    {
-        spdlog::debug("Drop failed: {}", d.value("error", std::string("unknown")));
-        // Unlock the item so the player can interact with it again
-        if (item_id != 0)
-        {
-            auto* entry = game_->inventory().get_bag_item(item_id);
-            if (entry)
-                entry->locked = false;
-        }
-    }
-
-    game_->clear_pending_drop_item();
-}
-
-void ws_message_handler::handle_inventory_item_update(const json& message)
-{
-    auto data = inventory_item_update_msg::from_json(message);
-    if (data.item_id == 0)
-    {
-        spdlog::warn("inventory_item_update: missing item_id");
-        return;
-    }
-
-    auto& inventory = game_->inventory();
-
-    if (!data.has_item)
-    {
-        // Item removed
-        spdlog::debug("Inventory item {} removed", data.item_id);
-        inventory.remove_item(data.item_id);
-    }
-    else
-    {
-        // Item added or updated — branch equipped vs bag like handle_inventory_data does
-        if (data.item.equipped_slot >= 0)
-        {
-            auto eq_slot = equip_slot_from_server(data.item.equipped_slot);
-            if (eq_slot != equip_slot::none)
-                inventory.set_equipped(eq_slot, item_from_inv(data.item));
-            spdlog::debug("Equipment item {} updated: slot {}", data.item_id, data.item.equipped_slot);
-        }
-        else
-        {
-            auto entry = bag_item_from_inv(data.item);
-            inventory.add_or_update_item(entry);
-            spdlog::debug("Inventory item {} updated: {} x{}", data.item_id, entry.data.name, entry.data.amount);
-        }
-    }
-}
-
-void ws_message_handler::handle_inventory_item_removed(const json& message)
-{
-    auto data = inventory_item_removed_msg::from_json(message);
-    if (data.item_id == 0)
-    {
-        spdlog::warn("inventory_item_removed: missing item_id");
-        return;
-    }
-
-    spdlog::debug("Inventory item {} removed", data.item_id);
-    game_->inventory().remove_item(data.item_id);
-}
-
-void ws_message_handler::handle_inventory_weight_update(const json& message)
-{
-    auto data = inventory_weight_update_msg::from_json(message);
-    game_->inventory().set_weight_info(data.current_weight, data.max_weight);
-    spdlog::debug("Weight updated: {}/{}", data.current_weight, data.max_weight);
 }
 
 void ws_message_handler::handle_player_interact_response(const json& message)

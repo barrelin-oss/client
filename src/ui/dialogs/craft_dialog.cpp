@@ -227,10 +227,10 @@ void craft_dialog::render_ingredient_slots(renderer& rend, int32_t x, int32_t y)
             rend.draw_rect(slot_x + 4, slot_y + 4, slot_size - 8, slot_size - 8, item_color, true);
 
             // Item amount
-            if (ingredients_[i]->amount > 1)
+            if (ingredients_[i]->count > 1)
             {
                 rend.draw_text(
-                    std::to_string(ingredients_[i]->amount), slot_x + 2, slot_y + slot_size - 14, sf::Color::White, 10);
+                    std::to_string(ingredients_[i]->count), slot_x + 2, slot_y + slot_size - 14, sf::Color::White, 10);
             }
         }
     }

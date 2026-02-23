@@ -109,7 +109,8 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::player_teleport,             &ws_message_handler::handle_player_teleport},
 
         // Items / ground
-        {msg_type::player_pickup_response,      &ws_message_handler::handle_pickup_response},
+        {msg_type::pickup_result,               &ws_message_handler::handle_pickup_result},
+        {msg_type::drop_result,                 &ws_message_handler::handle_drop_result},
         {msg_type::ground_item_removed,         &ws_message_handler::handle_ground_item_removed},
         {msg_type::ground_item_spawn,           &ws_message_handler::handle_ground_item_spawn},
 
@@ -147,14 +148,16 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::stat_update,                 &ws_message_handler::handle_stat_update},
         {msg_type::hunger_update,               &ws_message_handler::handle_hunger_update},
         {msg_type::inventory_data,              &ws_message_handler::handle_inventory_data},
-        {msg_type::equipment_data,              &ws_message_handler::handle_equipment_data},
-        {msg_type::equipment_change_broadcast,  &ws_message_handler::handle_equipment_change_broadcast},
-        {msg_type::player_equip_response,       &ws_message_handler::handle_player_equip_response},
-        {msg_type::player_unequip_response,     &ws_message_handler::handle_player_unequip_response},
-        {msg_type::player_drop_item_response,   &ws_message_handler::handle_drop_item_response},
+        {msg_type::inventory_item_add,          &ws_message_handler::handle_inventory_item_add},
         {msg_type::inventory_item_update,       &ws_message_handler::handle_inventory_item_update},
         {msg_type::inventory_item_removed,      &ws_message_handler::handle_inventory_item_removed},
+        {msg_type::inventory_item_delta,        &ws_message_handler::handle_inventory_item_delta},
+        {msg_type::inventory_gold_update,       &ws_message_handler::handle_inventory_gold_update},
         {msg_type::inventory_weight_update,     &ws_message_handler::handle_inventory_weight_update},
+        {msg_type::equip_result,                &ws_message_handler::handle_equip_result},
+        {msg_type::unequip_result,              &ws_message_handler::handle_unequip_result},
+        {msg_type::force_unequip,               &ws_message_handler::handle_force_unequip},
+        {msg_type::equipment_change,            &ws_message_handler::handle_equipment_change},
 
         // Skills
         {msg_type::skills_data,                 &ws_message_handler::handle_skills_data},

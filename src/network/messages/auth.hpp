@@ -315,13 +315,8 @@ struct enter_game_inventory_item
             item.z_order = j["z_order"].get<int32_t>();
         if (j.contains("equipped_slot"))
             item.equipped_slot = j["equipped_slot"].get<int8_t>();
-        if (j.contains("attribute"))
-        {
-            if (j["attribute"].is_object())
-                item.attribute = item_attribute_data::from_json(j["attribute"]);
-            else if (j["attribute"].is_number())
-                item.attribute = item_attribute_data::from_legacy(j["attribute"].get<uint32_t>());
-        }
+        if (j.contains("attribute") && j["attribute"].is_object())
+            item.attribute = item_attribute_data::from_json(j["attribute"]);
         return item;
     }
 };

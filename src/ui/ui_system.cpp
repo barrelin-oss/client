@@ -177,7 +177,9 @@ void ui_system::update(float delta_time, const input& inp)
         // Resolve item drag first
         if (drag_state_.active)
         {
-            end_item_drag(mx, my);
+            bool shift = inp.is_key_down(sf::Keyboard::Key::LShift) ||
+                         inp.is_key_down(sf::Keyboard::Key::RShift);
+            end_item_drag(mx, my, shift);
         }
         else
         {
@@ -1265,14 +1267,16 @@ const dialog_manager& ui_system::dialogs() const
 
 // === Item drag system ===
 
-void ui_system::begin_item_drag(const item& itm, uint32_t item_id, equip_slot equip, dialog_type source,
-                                int32_t offset_x, int32_t offset_y)
+void ui_system::begin_item_drag(const item& itm, uint32_t item_id, equip_pos equip, dialog_type source,
+                                int32_t cursor_x, int32_t cursor_y, int32_t offset_x, int32_t offset_y)
 {
     drag_state_.active = true;
     drag_state_.held_item = itm;
     drag_state_.source_item_id = item_id;
     drag_state_.source_equip = equip;
     drag_state_.source_dialog = source;
+    drag_state_.cursor_x = cursor_x;
+    drag_state_.cursor_y = cursor_y;
     drag_state_.offset_x = offset_x;
     drag_state_.offset_y = offset_y;
 }
@@ -1290,7 +1294,7 @@ void ui_system::cancel_item_drag()
     drag_state_ = {};
 }
 
-void ui_system::end_item_drag(int32_t x, int32_t y)
+void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
 {
     if (!drag_state_.active)
         return;
@@ -1308,13 +1312,13 @@ void ui_system::end_item_drag(int32_t x, int32_t y)
                 auto bag = inv_dlg->bag_area();
                 int32_t item_x = x - drag_state_.offset_x - bag.x;
                 int32_t item_y = y - drag_state_.offset_y - bag.y;
-                on_reposition_item_(drag_state_.source_item_id, item_x, item_y);
+                on_reposition_item_(drag_state_.source_item_id, item_x, item_y, shift_held);
             }
         }
         else if (drag_state_.source_dialog == dialog_type::character_info)
         {
             // Unequip
-            if (on_unequip_from_drag_ && drag_state_.source_equip != equip_slot::none)
+            if (on_unequip_from_drag_ && drag_state_.source_equip != equip_pos::none)
                 on_unequip_from_drag_(drag_state_.source_equip);
         }
     }

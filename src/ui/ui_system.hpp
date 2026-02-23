@@ -38,7 +38,7 @@ struct ui_drag_state
     bool active = false;
     std::optional<item> held_item;
     uint32_t source_item_id = 0;
-    equip_slot source_equip = equip_slot::none;
+    equip_pos source_equip = equip_pos::none;
     dialog_type source_dialog = dialog_type::none;
     int32_t cursor_x = 0;
     int32_t cursor_y = 0;
@@ -166,17 +166,17 @@ public:
 
     // Item drag system
     const ui_drag_state& drag_state() const { return drag_state_; }
-    void begin_item_drag(const item& itm, uint32_t item_id, equip_slot equip, dialog_type source,
-                         int32_t offset_x = 0, int32_t offset_y = 0);
+    void begin_item_drag(const item& itm, uint32_t item_id, equip_pos equip, dialog_type source,
+                         int32_t cursor_x, int32_t cursor_y, int32_t offset_x = 0, int32_t offset_y = 0);
     void update_drag_position(int32_t x, int32_t y);
-    void end_item_drag(int32_t x, int32_t y);
+    void end_item_drag(int32_t x, int32_t y, bool shift_held);
     void cancel_item_drag();
     bool is_dragging_item() const { return drag_state_.active; }
 
     using drop_in_world_callback = std::function<void(uint32_t item_id)>;
     using equip_from_drag_callback = std::function<void(uint32_t item_id)>;
-    using unequip_from_drag_callback = std::function<void(equip_slot slot)>;
-    using reposition_callback = std::function<void(uint32_t item_id, int32_t x, int32_t y)>;
+    using unequip_from_drag_callback = std::function<void(equip_pos slot)>;
+    using reposition_callback = std::function<void(uint32_t item_id, int32_t x, int32_t y, bool shift_held)>;
     void set_on_drop_in_world(drop_in_world_callback cb) { on_drop_in_world_ = std::move(cb); }
     void set_on_equip_from_drag(equip_from_drag_callback cb) { on_equip_from_drag_ = std::move(cb); }
     void set_on_unequip_from_drag(unequip_from_drag_callback cb) { on_unequip_from_drag_ = std::move(cb); }

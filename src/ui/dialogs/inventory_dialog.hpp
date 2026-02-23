@@ -43,7 +43,7 @@ public:
 
     // Drag start callback (notifies ui_system to begin cross-dialog drag tracking)
     // offset_x/y = click position relative to item's draw position
-    using drag_start_callback = std::function<void(uint32_t item_id, int32_t offset_x, int32_t offset_y)>;
+    using drag_start_callback = std::function<void(uint32_t item_id, int32_t cursor_x, int32_t cursor_y, int32_t offset_x, int32_t offset_y)>;
     void set_on_drag_start(drag_start_callback cb) { on_drag_start_ = std::move(cb); }
 
     // Called by ui_system when drag ends

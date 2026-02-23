@@ -583,36 +583,29 @@ void ws_message_handler::handle_entity_despawn(const json& message)
 
 void ws_message_handler::handle_ground_item_spawn(const json& message)
 {
-    auto data = ground_item_spawn_data::from_json(message);
+    auto data = ground_item_spawn_msg::from_json(message);
     auto& items = game_->ground_items();
 
-    // Skip if item already exists (duplicate spawn)
-    if (items.get(data.item_id))
+    if (items.get(data.item_data.item_id))
     {
-        spdlog::debug("ground_item_spawn: item {} already exists, ignoring", data.item_id);
+        spdlog::debug("ground_item_spawn: item {} already exists, ignoring", data.item_data.item_id);
         return;
     }
 
-    ground_item item;
-    item.item_id = data.item_id;
-    item.template_id = data.template_id;
-    item.name = std::move(data.item_name);
-    item.count = data.count;
-    item.tile_x = data.x;
-    item.tile_y = data.y;
-    item.ground_sprite = data.ground_sprite;
-    item.ground_sprite_frame = data.ground_sprite_frame;
-    item.item_color = data.item_color;
-    item.freshly_dropped = (data.reason == "drop");
+    ground_item gi;
+    gi.data = std::move(data.item_data);
+    gi.tile_x = data.x;
+    gi.tile_y = data.y;
+    gi.freshly_dropped = false;
 
-    items.add(std::move(item));
+    auto item_id = gi.data.item_id;
+    auto item_name = gi.data.name;
+    auto count = gi.data.count;
+
+    items.add(std::move(gi));
 
     spdlog::debug("Ground item spawned: '{}' id={} x{} at ({},{})",
-                  items.get(data.item_id)->name,
-                  data.item_id,
-                  data.count,
-                  data.x,
-                  data.y);
+                  item_name, item_id, count, data.x, data.y);
 }
 
 } // namespace hb

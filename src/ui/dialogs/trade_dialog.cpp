@@ -131,9 +131,9 @@ void trade_dialog::render_slot(renderer& rend, int32_t x, int32_t y, const item*
         rend.draw_rect(x + 4, y + 4, slot_size - 8, slot_size - 8, item_color, true);
 
         // Item amount if stackable
-        if (itm->amount > 1)
+        if (itm->count > 1)
         {
-            rend.draw_text(std::to_string(itm->amount), x + 2, y + slot_size - 14, sf::Color::White, 10);
+            rend.draw_text(std::to_string(itm->count), x + 2, y + slot_size - 14, sf::Color::White, 10);
         }
     }
 }

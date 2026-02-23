@@ -149,7 +149,7 @@ void shop_dialog::render_item_row(renderer& rend, const shop_item& item, int32_t
     {
         item_color = sf::Color(100, 100, 200);
     }
-    else if (item.item_data.type == item_type::consume || item.item_data.type == item_type::eat)
+    else if (item.item_data.type == item_type::consumable)
     {
         item_color = sf::Color(100, 200, 100);
     }
@@ -421,7 +421,7 @@ void shop_sell_dialog::render_item_row(renderer& rend, const sell_item& item, in
     {
         item_color = sf::Color(100, 100, 200);
     }
-    else if (item.item_ptr->type == item_type::consume || item.item_ptr->type == item_type::eat)
+    else if (item.item_ptr->type == item_type::consumable)
     {
         item_color = sf::Color(100, 200, 100);
     }

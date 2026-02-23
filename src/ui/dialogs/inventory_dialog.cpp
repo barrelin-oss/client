@@ -102,11 +102,10 @@ void inventory_dialog::render_item(renderer& rend, const bag_item& entry, int32_
     bool drew_sprite = false;
     if (sprite_mgr_)
     {
-        auto* spr = sprite_mgr_->get_sprite_by_id(
-            static_cast<uint16_t>(item_pack_sprite_base + itm.sprite_id));
+        auto* spr = sprite_mgr_->get_sprite("item-pack", itm.sprite_id - 1);
         if (spr)
         {
-            uint32_t frame = static_cast<uint32_t>(itm.equipped_sprite_id);
+            uint32_t frame = static_cast<uint32_t>(itm.sprite_frame);
             if (is_locked)
             {
                 rend.draw_sprite_alpha(*spr, x, y, frame, 0.35f);
@@ -132,7 +131,7 @@ void inventory_dialog::render_item(renderer& rend, const bag_item& entry, int32_
             fallback = sf::Color(200, 100, 100);
         else if (itm.is_armor())
             fallback = sf::Color(100, 100, 200);
-        else if (itm.type == item_type::consume || itm.type == item_type::eat)
+        else if (itm.type == item_type::consumable)
             fallback = sf::Color(100, 200, 100);
         if (is_locked)
             fallback.a = 90;
@@ -140,9 +139,9 @@ void inventory_dialog::render_item(renderer& rend, const bag_item& entry, int32_
     }
 
     // Stack count (bottom-right)
-    if (itm.amount > 1)
+    if (itm.count > 1)
     {
-        rend.draw_text(std::to_string(itm.amount), x + 20, y + 22, sf::Color::White, 10);
+        rend.draw_text(std::to_string(itm.count), x + 20, y + 22, sf::Color::White, 10);
     }
 
     // Durability bar (bottom of item)
@@ -167,11 +166,10 @@ ui_rect inventory_dialog::item_sprite_rect(uint32_t item_id) const
     // Try to get actual sprite bounds (position + pivot + frame size)
     if (sprite_mgr_)
     {
-        auto* spr = sprite_mgr_->get_sprite_by_id(
-            static_cast<uint16_t>(item_pack_sprite_base + entry->data.sprite_id));
+        auto* spr = sprite_mgr_->get_sprite("item-pack", entry->data.sprite_id - 1);
         if (spr)
         {
-            uint32_t frame = static_cast<uint32_t>(entry->data.equipped_sprite_id);
+            uint32_t frame = static_cast<uint32_t>(entry->data.sprite_frame);
             const auto& f = spr->get_frame(frame);
             return {bag.x + entry->pos_x + f.pivot_x,
                     bag.y + entry->pos_y + f.pivot_y,
@@ -214,11 +212,10 @@ std::optional<uint32_t> inventory_dialog::item_at(int32_t screen_x, int32_t scre
         // Pixel-level hit test against actual sprite data
         if (sprite_mgr_)
         {
-            auto* spr = sprite_mgr_->get_sprite_by_id(
-                static_cast<uint16_t>(item_pack_sprite_base + entry->data.sprite_id));
+            auto* spr = sprite_mgr_->get_sprite("item-pack", entry->data.sprite_id - 1);
             if (spr)
             {
-                uint32_t frame = static_cast<uint32_t>(entry->data.equipped_sprite_id);
+                uint32_t frame = static_cast<uint32_t>(entry->data.sprite_frame);
                 // local coords relative to the item's draw position (before pivot)
                 int32_t local_x = screen_x - (bag.x + entry->pos_x);
                 int32_t local_y = screen_y - (bag.y + entry->pos_y);
@@ -281,7 +278,7 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
 
             // Notify ui_system for cross-dialog drop resolution
             if (on_drag_start_)
-                on_drag_start_(item_id, item_drag_off_x_, item_drag_off_y_);
+                on_drag_start_(item_id, x, y, item_drag_off_x_, item_drag_off_y_);
             return true;
         }
 

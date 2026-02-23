@@ -335,20 +335,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                    return;
                                }
                                sprites_.preload_pak_metadata("item-ground");
-                               // Legacy layout: categories 1-17 at PAK indices 0-16, categories 20-22 at PAK 17-19
-                               // Global ID = item_ground_sprite_base (100) + category
-                               for (uint32_t i = 0; i < 17; ++i)
-                               {
-                                   sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_ground_sprite_base + 1 + i), "item-ground", i);
-                               }
-                               // Categories 20-22 are at PAK indices 17-19
-                               for (uint32_t i = 0; i < 3; ++i)
-                               {
-                                   sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_ground_sprite_base + 20 + i), "item-ground", 17 + i);
-                               }
-                               spdlog::info("Loaded item-ground.pak (20 sprites)");
+                               spdlog::info("Loaded item-ground.pak");
                            }});
 
     // Load inventory item sprites (item-pack.pak) - used for inventory dialog and large ground items
@@ -361,21 +348,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                    return;
                                }
                                sprites_.preload_pak_metadata("item-pack");
-                               // Same layout as item-ground: categories 1-17 at PAK indices 0-16,
-                               // categories 20-22 at PAK indices 17-19.
-                               // Global ID = item_pack_sprite_base (300) + category
-                               for (uint32_t i = 0; i < 17; ++i)
-                               {
-                                   sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_pack_sprite_base + 1 + i), "item-pack", i);
-                               }
-                               // Categories 20-22 are at PAK indices 17-19
-                               for (uint32_t i = 0; i < 3; ++i)
-                               {
-                                   sprites_.store_sprite_at_id(
-                                       static_cast<uint16_t>(item_pack_sprite_base + 20 + i), "item-pack", 17 + i);
-                               }
-                               spdlog::info("Loaded item-pack.pak (20 sprites)");
+                               spdlog::info("Loaded item-pack.pak");
                            }});
 
     init_steps_.push_back({"Setting up network...",
@@ -709,12 +682,12 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
 
                                    // When user starts dragging an item from inventory
                                    inv_dlg->set_on_drag_start(
-                                       [this](uint32_t item_id, int32_t off_x, int32_t off_y)
+                                       [this](uint32_t item_id, int32_t cx, int32_t cy, int32_t off_x, int32_t off_y)
                                        {
                                            const auto* entry = inventory_.get_bag_item(item_id);
                                            if (entry)
-                                               ui_.begin_item_drag(entry->data, item_id, equip_slot::none,
-                                                                   dialog_type::inventory, off_x, off_y);
+                                               ui_.begin_item_drag(entry->data, item_id, equip_pos::none,
+                                                                   dialog_type::inventory, cx, cy, off_x, off_y);
                                        });
                                }
 
@@ -739,7 +712,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                        {
                                            pending_drop_item_id_ = item_id;
                                            spdlog::info("Dropping item {}", item_id);
-                                           json msg = make_player_drop_item_request(item_id);
+                                           json msg = make_drop_request(item_id);
                                            ws_connection_.send(msg);
                                        };
 
@@ -776,13 +749,39 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                // Position is already updated locally by inventory_dialog during drag.
                                // Just send the server message.
                                ui_.set_on_reposition_item(
-                                   [this](uint32_t item_id, int32_t x, int32_t y)
+                                   [this](uint32_t item_id, int32_t x, int32_t y, bool shift_held)
                                    {
-                                       json msg = make_inventory_reposition_request(
-                                           item_id,
-                                           static_cast<int16_t>(x),
-                                           static_cast<int16_t>(y));
-                                       ws_connection_.send(msg);
+                                       auto send_reposition = [this](uint32_t id, int16_t rx, int16_t ry)
+                                       {
+                                           ws_connection_.send(make_inventory_reposition_request(id, rx, ry));
+                                       };
+
+                                       auto ix = static_cast<int16_t>(x);
+                                       auto iy = static_cast<int16_t>(y);
+                                       send_reposition(item_id, ix, iy);
+
+                                       if (shift_held)
+                                       {
+                                           // Find the dragged item's template to match against
+                                           const auto* dragged = inventory_.get_bag_item(item_id);
+                                           if (!dragged)
+                                               return;
+                                           uint32_t target_template = dragged->data.template_id;
+
+                                           // Move all other items of the same type to the same position
+                                           std::vector<uint32_t> to_move;
+                                           inventory_.for_each_bag_item(
+                                               [&](uint32_t other_id, const bag_item& entry)
+                                               {
+                                                   if (other_id != item_id && entry.data.template_id == target_template)
+                                                       to_move.push_back(other_id);
+                                               });
+                                           for (uint32_t other_id : to_move)
+                                           {
+                                               inventory_.set_position(other_id, ix, iy);
+                                               send_reposition(other_id, ix, iy);
+                                           }
+                                       }
                                    });
                            }});
 
@@ -1568,9 +1567,9 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
                 // Ground item
                 if (auto* item = ground_items_.get_at_tile(static_cast<int16_t>(tile_x), static_cast<int16_t>(tile_y)))
                 {
-                    ti.ground_item_id = item->item_id;
-                    ti.ground_item_name = item->name;
-                    ti.ground_item_count = item->count;
+                    ti.ground_item_id = item->data.item_id;
+                    ti.ground_item_name = item->data.name;
+                    ti.ground_item_count = item->data.count;
                 }
             }
             debug_stats.set_hovered_tile(std::move(ti));
@@ -1740,9 +1739,9 @@ void game_state_manager::render_playing(renderer& rend)
     int32_t mouse_y = input_handler_.mouse_y();
 
     // Draw ground item sprites (flat on ground, beneath entities and objects)
-    uint16_t ground_sprite_base =
-        config::instance().game().use_large_ground_items ? item_pack_sprite_base : item_ground_sprite_base;
-    ground_items_.render_sprites(*renderer_, sprites_, cam_x, cam_y, ground_sprite_base);
+    std::string_view ground_pak =
+        config::instance().game().use_large_ground_items ? "item-pack" : "item-ground";
+    ground_items_.render_sprites(*renderer_, sprites_, cam_x, cam_y, ground_pak);
 
     auto sorted = entities_.get_visible_entities_sorted(rend, cam_x, cam_y);
 
@@ -2127,7 +2126,7 @@ void game_state_manager::update_icon_panel()
         panel->set_poisoned(player->combat().poisoned);
     }
     bool weapon_mastered = false;
-    if (const item* weapon = inventory_.get_equipped(equip_slot::right_hand))
+    if (const item* weapon = inventory_.get_equipped_item(equip_pos::weapon))
     {
         weapon_skill ws = combat_.get_weapon_skill(static_cast<uint16_t>(weapon->template_id));
         weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
@@ -2254,7 +2253,7 @@ void game_state_manager::request_pickup(int32_t tile_x, int32_t tile_y)
         player->set_action(object_action::get_item);
     }
 
-    json msg = make_player_pickup_request(tile_x, tile_y);
+    json msg = make_pickup_request(world_.current_map_name(), tile_x, tile_y);
     ws_connection_.send(msg);
 }
 

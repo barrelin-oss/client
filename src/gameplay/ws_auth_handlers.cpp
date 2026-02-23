@@ -213,49 +213,43 @@ void ws_message_handler::handle_enter_game_response(const json& message)
                   stats.sp,
                   stats.max_sp);
 
-    // Populate inventory (equipment is unified — equipped items have equipped_slot set)
+    // Populate inventory (v2: all items go into bag, equipment references bag items by ID)
     auto& inventory = game_->inventory();
     inventory.clear();
-    inventory.set_gold(static_cast<uint32_t>(ch.gold));
-
-    // Clear all equipped slots first
-    for (int i = 1; i <= 12; ++i)
-        inventory.clear_equipped(static_cast<equip_slot>(i));
+    inventory.set_gold(static_cast<int64_t>(ch.gold));
+    inventory.equipment().clear_all();
 
     for (const auto& inv_item : response.inventory.items)
     {
         item itm;
-        itm.id = inv_item.item_id;
+        itm.item_id = inv_item.item_id;
         itm.template_id = inv_item.template_id;
         itm.name = inv_item.name;
-        itm.amount = static_cast<uint32_t>(inv_item.count);
+        itm.count = static_cast<uint32_t>(inv_item.count);
         itm.durability = static_cast<uint16_t>(inv_item.durability);
         itm.max_durability = static_cast<uint16_t>(inv_item.max_durability);
         itm.type = static_cast<item_type>(inv_item.item_type);
-        itm.slot = equip_slot_from_server(inv_item.equip_pos);
+        itm.equip_position = static_cast<equip_pos>(inv_item.equip_pos);
         itm.sprite_id = static_cast<uint16_t>(inv_item.sprite);
-        itm.equipped_sprite_id = static_cast<uint16_t>(inv_item.sprite_frame);
+        itm.sprite_frame = static_cast<uint16_t>(inv_item.sprite_frame);
         itm.color = static_cast<uint8_t>(inv_item.color);
         itm.weight = static_cast<uint32_t>(inv_item.weight);
         itm.level_req = static_cast<uint16_t>(inv_item.level_limit);
         itm.attribute = inv_item.attribute;
 
-        // Equipped items: inventory items with equipped_slot set
+        bag_item entry;
+        entry.data = itm;
+        entry.pos_x = inv_item.pos_x;
+        entry.pos_y = inv_item.pos_y;
+        entry.z_order = inv_item.z_order;
+        inventory.add_or_update_item(entry);
+
+        // Set equipment reference if this item is equipped
         if (inv_item.equipped_slot >= 0)
         {
-            auto eq_slot = equip_slot_from_server(inv_item.equipped_slot);
-            if (eq_slot != equip_slot::none)
-                inventory.set_equipped(eq_slot, itm);
-        }
-        else
-        {
-            // Bag item
-            bag_item entry;
-            entry.data = itm;
-            entry.pos_x = inv_item.pos_x;
-            entry.pos_y = inv_item.pos_y;
-            entry.z_order = inv_item.z_order;
-            inventory.add_or_update_item(entry);
+            auto eq_pos = static_cast<equip_pos>(inv_item.equipped_slot);
+            if (eq_pos != equip_pos::none)
+                inventory.equipment().set(eq_pos, itm.item_id);
         }
     }
     inventory.rebuild_render_order();

@@ -1,7 +1,9 @@
 #pragma once
 
+#include "gameplay/item.hpp"
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace hb
@@ -12,15 +14,9 @@ class sprite_manager;
 
 struct ground_item
 {
-    uint32_t item_id = 0;
-    uint32_t template_id = 0;
-    std::string name;
-    int16_t count = 1;
+    item data;               // Full item object from server
     int16_t tile_x = 0;
     int16_t tile_y = 0;
-    int16_t ground_sprite = 0;       // Sprite category (1=swords, 6=misc, etc.)
-    int16_t ground_sprite_frame = 0; // Frame within sprite category
-    int8_t item_color = 0;           // Color tint index (0 = no tint)
     bool freshly_dropped = false;
 };
 
@@ -35,8 +31,8 @@ public:
     bool empty() const { return items_.empty(); }
     size_t size() const { return items_.size(); }
 
-    void render_sprites(
-        renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y, uint16_t sprite_base);
+    void render_sprites(renderer& rend, sprite_manager& sprites, int32_t camera_x, int32_t camera_y,
+                        std::string_view item_pak);
     void render_labels(renderer& rend, int32_t camera_x, int32_t camera_y, int32_t mouse_x, int32_t mouse_y);
 
     ground_item* hit_test(int32_t mouse_x, int32_t mouse_y, int32_t camera_x, int32_t camera_y);
@@ -44,10 +40,5 @@ public:
 private:
     std::unordered_map<uint32_t, ground_item> items_;
 };
-
-// Base sprite ID for ground item PAK sprites (legacy DEF_SPRID_ITEMGROUND_PIVOTPOINT)
-inline constexpr uint16_t item_ground_sprite_base = 100;
-// Base sprite ID for inventory-style item PAK sprites (legacy DEF_SPRID_ITEMPACK_PIVOTPOINT)
-inline constexpr uint16_t item_pack_sprite_base = 300;
 
 } // namespace hb

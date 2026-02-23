@@ -86,63 +86,130 @@ enum class selected_object_type : uint8_t
     item = 2
 };
 
-// Equipment slots
-enum class equip_slot : uint8_t
+// Equipment position (v2 item system)
+enum class equip_pos : uint8_t
 {
     none = 0,
-    head = 1,
-    body = 2,
-    arms = 3,
-    pants = 4,
-    boots = 5,
-    neck = 6,
-    left_hand = 7,
-    right_hand = 8,
-    two_hand = 9,
-    right_finger = 10,
-    left_finger = 11,
-    back = 12,
-    full_body = 13
+    head, body, arms, pants, boots,
+    weapon, shield, twohand,
+    ring_left, ring_right,
+    amulet, cape, angel,
+    full_body
 };
 
-// Convert a server equipment slot index to equip_slot.
-// Server protocol uses 0=head,1=body,...,10=back; returns equip_slot::none for unknown values.
-inline constexpr equip_slot equip_slot_from_server(int server_slot)
+inline constexpr std::string_view equip_pos_to_string(equip_pos pos)
 {
-    switch (server_slot)
+    switch (pos)
     {
-    case 0: return equip_slot::head;
-    case 1: return equip_slot::body;
-    case 2: return equip_slot::arms;
-    case 3: return equip_slot::pants;
-    case 4: return equip_slot::boots;
-    case 5: return equip_slot::right_hand;
-    case 6: return equip_slot::left_hand;
-    case 7: return equip_slot::left_finger;
-    case 8: return equip_slot::right_finger;
-    case 9: return equip_slot::neck;
-    case 10: return equip_slot::back;
-    default: return equip_slot::none;
+    case equip_pos::none:       return "none";
+    case equip_pos::head:       return "head";
+    case equip_pos::body:       return "body";
+    case equip_pos::arms:       return "arms";
+    case equip_pos::pants:      return "pants";
+    case equip_pos::boots:      return "boots";
+    case equip_pos::weapon:     return "weapon";
+    case equip_pos::shield:     return "shield";
+    case equip_pos::twohand:    return "twohand";
+    case equip_pos::ring_left:  return "ring_left";
+    case equip_pos::ring_right: return "ring_right";
+    case equip_pos::amulet:     return "amulet";
+    case equip_pos::cape:       return "cape";
+    case equip_pos::angel:      return "angel";
+    case equip_pos::full_body:  return "full_body";
     }
+    return "none";
 }
 
-// Item types
+inline constexpr equip_pos equip_pos_from_string(std::string_view s)
+{
+    if (s == "head")       return equip_pos::head;
+    if (s == "body")       return equip_pos::body;
+    if (s == "arms")       return equip_pos::arms;
+    if (s == "pants")      return equip_pos::pants;
+    if (s == "boots")      return equip_pos::boots;
+    if (s == "weapon")     return equip_pos::weapon;
+    if (s == "shield")     return equip_pos::shield;
+    if (s == "twohand")    return equip_pos::twohand;
+    if (s == "ring_left")  return equip_pos::ring_left;
+    if (s == "ring_right") return equip_pos::ring_right;
+    if (s == "amulet")     return equip_pos::amulet;
+    if (s == "cape")       return equip_pos::cape;
+    if (s == "angel")      return equip_pos::angel;
+    if (s == "full_body")  return equip_pos::full_body;
+    return equip_pos::none;
+}
+
+// Item types (v2 item system)
 enum class item_type : uint8_t
 {
     none = 0,
-    equip = 1,
-    apply = 2,
-    use_deplete = 3,
-    install = 4,
-    consume = 5,
-    arrow = 6,
-    eat = 7,
-    use_skill = 8,
-    use_perm = 9,
-    use_skill_enable_dialog = 10,
-    use_deplete_dest = 11,
-    material = 12
+    weapon,
+    armor,
+    accessory,
+    consumable,
+    material
 };
+
+inline constexpr std::string_view item_type_to_string(item_type type)
+{
+    switch (type)
+    {
+    case item_type::none:       return "none";
+    case item_type::weapon:     return "weapon";
+    case item_type::armor:      return "armor";
+    case item_type::accessory:  return "accessory";
+    case item_type::consumable: return "consumable";
+    case item_type::material:   return "material";
+    }
+    return "none";
+}
+
+inline constexpr item_type item_type_from_string(std::string_view s)
+{
+    if (s == "weapon")     return item_type::weapon;
+    if (s == "armor")      return item_type::armor;
+    if (s == "accessory")  return item_type::accessory;
+    if (s == "consumable") return item_type::consumable;
+    if (s == "material")   return item_type::material;
+    return item_type::none;
+}
+
+// Weapon types (v2 item system)
+enum class weapon_type : uint8_t
+{
+    none = 0,
+    sword, axe, hammer, staff, wand, bow, dagger, fist
+};
+
+inline constexpr std::string_view weapon_type_to_string(weapon_type type)
+{
+    switch (type)
+    {
+    case weapon_type::none:    return "none";
+    case weapon_type::sword:   return "sword";
+    case weapon_type::axe:     return "axe";
+    case weapon_type::hammer:  return "hammer";
+    case weapon_type::staff:   return "staff";
+    case weapon_type::wand:    return "wand";
+    case weapon_type::bow:     return "bow";
+    case weapon_type::dagger:  return "dagger";
+    case weapon_type::fist:    return "fist";
+    }
+    return "none";
+}
+
+inline constexpr weapon_type weapon_type_from_string(std::string_view s)
+{
+    if (s == "sword")  return weapon_type::sword;
+    if (s == "axe")    return weapon_type::axe;
+    if (s == "hammer") return weapon_type::hammer;
+    if (s == "staff")  return weapon_type::staff;
+    if (s == "wand")   return weapon_type::wand;
+    if (s == "bow")    return weapon_type::bow;
+    if (s == "dagger") return weapon_type::dagger;
+    if (s == "fist")   return weapon_type::fist;
+    return weapon_type::none;
+}
 
 // Magic types
 enum class magic_type : uint8_t

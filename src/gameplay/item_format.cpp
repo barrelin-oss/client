@@ -1,5 +1,4 @@
 #include "gameplay/item_format.hpp"
-#include <nlohmann/json.hpp>
 #include <format>
 
 namespace hb
@@ -8,54 +7,6 @@ namespace hb
 // ---------------------------------------------------------------------------
 // item_attribute_data
 // ---------------------------------------------------------------------------
-
-bool item_attribute_data::is_empty() const
-{
-    return upgrade_level == 0 && main_type == enchantment_type::none && sub_type == sub_enchantment_type::none &&
-           !custom_made;
-}
-
-item_attribute_data item_attribute_data::from_json(const nlohmann::json& j)
-{
-    item_attribute_data d;
-    if (j.contains("upgrade"))
-        d.upgrade_level = j["upgrade"].get<uint8_t>();
-    if (j.contains("main_type"))
-        d.main_type = static_cast<enchantment_type>(j["main_type"].get<uint8_t>());
-    if (j.contains("main_value"))
-        d.main_value = j["main_value"].get<uint8_t>();
-    if (j.contains("sub_type"))
-        d.sub_type = static_cast<sub_enchantment_type>(j["sub_type"].get<uint8_t>());
-    if (j.contains("sub_value"))
-        d.sub_value = j["sub_value"].get<uint8_t>();
-    if (j.contains("custom_made"))
-        d.custom_made = j["custom_made"].get<bool>();
-    if (j.contains("custom_quality"))
-        d.custom_quality = j["custom_quality"].get<int8_t>();
-    return d;
-}
-
-item_attribute_data item_attribute_data::from_legacy(uint32_t dw)
-{
-    item_attribute_data d;
-    if (dw == 0)
-        return d;
-
-    // Legacy bit layout:
-    // bits 31-28: upgrade level
-    // bits 23-20: main enchantment type
-    // bits 19-16: main enchantment value
-    // bits 15-12: sub enchantment type
-    // bits 11-8:  sub enchantment value
-    // bit 0:      custom made flag
-    d.upgrade_level = static_cast<uint8_t>((dw >> 28) & 0x0F);
-    d.main_type = static_cast<enchantment_type>((dw >> 20) & 0x0F);
-    d.main_value = static_cast<uint8_t>((dw >> 16) & 0x0F);
-    d.sub_type = static_cast<sub_enchantment_type>((dw >> 12) & 0x0F);
-    d.sub_value = static_cast<uint8_t>((dw >> 8) & 0x0F);
-    d.custom_made = (dw & 0x01) != 0;
-    return d;
-}
 
 // ---------------------------------------------------------------------------
 // Display formatting helpers
@@ -79,8 +30,6 @@ static const char* enchantment_name(enchantment_type t)
         return "Light";
     case enchantment_type::sharp:
         return "Sharp";
-    case enchantment_type::fire:
-        return "Fire";
     case enchantment_type::ancient:
         return "Ancient";
     case enchantment_type::magic_damage:
@@ -167,15 +116,7 @@ std::vector<item_info_line> build_item_info(const item& itm)
 
     // Custom-made indicator
     if (attr.custom_made)
-    {
-        if (attr.custom_quality > 0)
-            lines.push_back({std::format("Custom Made (Quality +{})", attr.custom_quality), sf::Color(255, 200, 100)});
-        else if (attr.custom_quality < 0)
-            lines.push_back(
-                {std::format("Custom Made (Quality {})", attr.custom_quality), sf::Color(200, 150, 100)});
-        else
-            lines.push_back({"Custom Made", sf::Color(255, 200, 100)});
-    }
+        lines.push_back({"Custom Made", sf::Color(255, 200, 100)});
 
     // Durability
     if (itm.max_durability > 0)

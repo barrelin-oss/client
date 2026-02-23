@@ -60,8 +60,8 @@
 - [x] Skills dialog
 - [x] Fishing dialog
 - [x] Guild dialog
-- [ ] Inventory dialog
-- [ ] Shop/trade dialogs
+- [x] Inventory dialog
+- [x] Shop/trade dialogs
 - [ ] Party dialog
 - [ ] Quest dialogs
 - [ ] Remaining dialog types (~30)
@@ -97,6 +97,15 @@
 ---
 
 ## Recent Changes
+
+### 2026-02-22: Item system v2
+- Rewrite item types to match v2 wire protocol (universal item shape)
+- Replace equip_slot with equip_pos (string enums at wire boundary)
+- Equipment model: ID references into inventory instead of copies
+- Rewrite all inventory/equipment message handlers for v2 channels
+- Update all UI consumers (inventory, shop, bank, trade, craft, paperdoll)
+- Switch to PAK-relative sprite lookups (sprite_id + sprite_frame from server)
+- Add sprite_frame to protocol spec, fix full_body equip_pos naming
 
 ### 2026-02-13: Guild system and rendering fixes
 - Add guild system with create, invite, promote/demote, and MOTD support

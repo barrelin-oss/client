@@ -52,6 +52,7 @@ enc_temp_folder/
 hbio/x64/
 /assets/
 build/
+compile_commands.json
 node_modules/
 /.claude
 /deploy

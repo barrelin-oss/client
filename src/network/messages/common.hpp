@@ -27,9 +27,11 @@ inline constexpr const char* delete_character_request = "delete_character_reques
 inline constexpr const char* delete_character_response = "delete_character_response";
 inline constexpr const char* set_view_range = "set_view_range";
 
-// Item pickup
-inline constexpr const char* player_pickup_request = "player_pickup_request";
-inline constexpr const char* player_pickup_response = "player_pickup_response";
+// Item pickup / drop (v2)
+inline constexpr const char* pickup_request = "pickup_request";
+inline constexpr const char* pickup_result = "pickup_result";
+inline constexpr const char* drop_request = "drop_request";
+inline constexpr const char* drop_result = "drop_result";
 inline constexpr const char* ground_item_removed = "ground_item_removed";
 
 // Player actions
@@ -44,28 +46,23 @@ inline constexpr const char* hunger_update = "hunger_update";
 inline constexpr const char* stat_update = "stat_update";
 inline constexpr const char* entity_hp_update = "entity_hp_update";
 
-// Equipment
-inline constexpr const char* player_equip_response = "player_equip_response";
-inline constexpr const char* player_unequip_response = "player_unequip_response";
-inline constexpr const char* equipment_change_broadcast = "equipment_change_broadcast";
+// Inventory (v2)
 inline constexpr const char* inventory_data = "inventory_data";
-inline constexpr const char* equipment_data = "equipment_data";
-
-// Item drop
-inline constexpr const char* player_drop_item_request = "player_drop_item_request";
-inline constexpr const char* player_drop_item_response = "player_drop_item_response";
-
-// Item-keyed inventory update (server pushes after drop, consume, etc.)
+inline constexpr const char* inventory_item_add = "inventory_item_add";
 inline constexpr const char* inventory_item_update = "inventory_item_update";
-
-// Item removed from inventory (server pushes after drop confirm, etc.)
 inline constexpr const char* inventory_item_removed = "inventory_item_removed";
-
-// Weight update (server pushes after item changes)
+inline constexpr const char* inventory_item_delta = "inventory_item_delta";
+inline constexpr const char* inventory_gold_update = "inventory_gold_update";
 inline constexpr const char* inventory_weight_update = "inventory_weight_update";
-
-// Inventory layout management
 inline constexpr const char* inventory_reposition_request = "inventory_reposition_request";
+
+// Equipment (v2)
+inline constexpr const char* equip_request = "equip_request";
+inline constexpr const char* equip_result = "equip_result";
+inline constexpr const char* unequip_request = "unequip_request";
+inline constexpr const char* unequip_result = "unequip_result";
+inline constexpr const char* force_unequip = "force_unequip";
+inline constexpr const char* equipment_change = "equipment_change";
 
 // Skills
 inline constexpr const char* skills_data = "skills_data";

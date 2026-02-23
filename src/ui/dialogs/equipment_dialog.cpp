@@ -9,7 +9,7 @@ namespace hb
 {
 
 // Slot positions arranged like a character silhouette
-const std::array<equipment_dialog::slot_position, static_cast<size_t>(equipment_dialog::max_equip_slots)>
+const std::array<equipment_dialog::slot_position, static_cast<size_t>(equipment_dialog::max_equip_poss)>
     equipment_dialog::slot_positions_ = {{
         {0, 0, "None"},       // none - unused
         {90, 30, "Head"},     // head
@@ -58,12 +58,12 @@ void equipment_dialog::render(renderer& rend)
 
     // Draw equipment slots
     // Skip slot 0 (none) and only draw valid equipment slots
-    for (size_t i = 1; i < static_cast<size_t>(equipment_dialog::max_equip_slots); ++i)
+    for (size_t i = 1; i < static_cast<size_t>(equipment_dialog::max_equip_poss); ++i)
     {
-        equip_slot slot = static_cast<equip_slot>(i);
+        equip_pos slot = static_cast<equip_pos>(i);
 
         // Skip two_hand and full_body for now (they overlap other slots)
-        if (slot == equip_slot::two_hand || slot == equip_slot::full_body)
+        if (slot == equip_pos::twohand || slot == equip_pos::full_body)
         {
             continue;
         }
@@ -74,7 +74,7 @@ void equipment_dialog::render(renderer& rend)
     // Draw tooltip for hovered slot
     if (hovered_slot_.has_value())
     {
-        equip_slot slot = hovered_slot_.value();
+        equip_pos slot = hovered_slot_.value();
         size_t idx = static_cast<size_t>(slot);
 
         int32_t tooltip_y = bounds_.y + bounds_.height - 45;
@@ -94,7 +94,7 @@ void equipment_dialog::render(renderer& rend)
     }
 }
 
-void equipment_dialog::render_slot(renderer& rend, equip_slot slot)
+void equipment_dialog::render_slot(renderer& rend, equip_pos slot)
 {
     size_t idx = static_cast<size_t>(slot);
     if (idx == 0 || idx >= slot_positions_.size())
@@ -167,7 +167,7 @@ void equipment_dialog::render_slot(renderer& rend, equip_slot slot)
     }
 }
 
-ui_rect equipment_dialog::get_slot_rect(equip_slot slot) const
+ui_rect equipment_dialog::get_slot_rect(equip_pos slot) const
 {
     size_t idx = static_cast<size_t>(slot);
     if (idx == 0 || idx >= slot_positions_.size())
@@ -181,15 +181,15 @@ ui_rect equipment_dialog::get_slot_rect(equip_slot slot) const
     return {base_x + slot_positions_[idx].x, base_y + slot_positions_[idx].y, slot_size, slot_size};
 }
 
-std::optional<equip_slot> equipment_dialog::slot_at(int32_t x, int32_t y) const
+std::optional<equip_pos> equipment_dialog::slot_at(int32_t x, int32_t y) const
 {
     // Check each valid slot
-    for (size_t i = 1; i < static_cast<size_t>(equipment_dialog::max_equip_slots); ++i)
+    for (size_t i = 1; i < static_cast<size_t>(equipment_dialog::max_equip_poss); ++i)
     {
-        equip_slot slot = static_cast<equip_slot>(i);
+        equip_pos slot = static_cast<equip_pos>(i);
 
         // Skip two_hand and full_body
-        if (slot == equip_slot::two_hand || slot == equip_slot::full_body)
+        if (slot == equip_pos::twohand || slot == equip_pos::full_body)
         {
             continue;
         }
@@ -241,7 +241,7 @@ bool equipment_dialog::handle_mouse_move(int32_t x, int32_t y)
     return dialog::handle_mouse_move(x, y);
 }
 
-void equipment_dialog::set_equipped(equip_slot slot, const item* itm)
+void equipment_dialog::set_equipped(equip_pos slot, const item* itm)
 {
     size_t idx = static_cast<size_t>(slot);
     if (idx > 0 && idx < slots_.size())
@@ -250,7 +250,7 @@ void equipment_dialog::set_equipped(equip_slot slot, const item* itm)
     }
 }
 
-void equipment_dialog::clear_slot(equip_slot slot)
+void equipment_dialog::clear_slot(equip_pos slot)
 {
     size_t idx = static_cast<size_t>(slot);
     if (idx > 0 && idx < slots_.size())
@@ -267,7 +267,7 @@ void equipment_dialog::clear_all()
     }
 }
 
-const item* equipment_dialog::get_equipped(equip_slot slot) const
+const item* equipment_dialog::get_equipped(equip_pos slot) const
 {
     size_t idx = static_cast<size_t>(slot);
     if (idx > 0 && idx < slots_.size())

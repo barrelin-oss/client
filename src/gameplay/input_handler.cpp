@@ -271,7 +271,7 @@ void input_handler::handle_movement_input(const input& inp)
             if (north_entity && north_entity->type() == entity_type::monster)
             {
                 uint8_t atk_type = 0;
-                if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+                if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
                 {
                     if (is_bow_weapon(weapon->template_id))
                         atk_type = static_cast<uint8_t>(attack_type::ranged);
@@ -813,7 +813,7 @@ void input_handler::handle_combat_input(const input& inp)
 
             // Determine attack type based on equipped weapon
             uint8_t atk_type = 0;
-            if (const auto* weapon = game_->inventory().get_equipped(equip_slot::right_hand))
+            if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
             {
                 if (is_bow_weapon(weapon->template_id))
                 {

@@ -102,11 +102,11 @@ void bank_dialog::render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y
         {
             item_color = sf::Color(100, 100, 200);
         }
-        else if (itm->type == item_type::consume || itm->type == item_type::eat)
+        else if (itm->type == item_type::consumable)
         {
             item_color = sf::Color(100, 200, 100);
         }
-        else if (itm->type == item_type::apply || itm->type == item_type::use_deplete)
+        else if (itm->type == item_type::material)
         {
             item_color = sf::Color(200, 200, 100);
         }
@@ -118,9 +118,9 @@ void bank_dialog::render_slot(renderer& rend, int32_t slot, int32_t x, int32_t y
         rend.draw_rect(x + 3, y + 3, slot_size - 6, slot_size - 6, item_color, true);
 
         // Draw quantity if stackable
-        if (itm->amount > 1)
+        if (itm->count > 1)
         {
-            std::string count_str = std::to_string(itm->amount);
+            std::string count_str = std::to_string(itm->count);
             rend.draw_text(count_str, x + 2, y + slot_size - 12, sf::Color::White, 9);
         }
     }

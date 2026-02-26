@@ -12,27 +12,6 @@
 namespace hb
 {
 
-// Equipment slot positions relative to paperdoll area top-left (150x170 area, slot_size=26)
-// Layout: head/amulet top row, body/arms/cape middle, weapon/shield/pants lower, boots/rings bottom
-const std::array<character_dialog::slot_position, character_dialog::max_equip_poss>
-    character_dialog::slot_positions_ = {{
-        {0, 0, ""},          // none — unused
-        {62, 5, "Head"},     // head
-        {62, 38, "Body"},    // body
-        {24, 38, "Arms"},    // arms
-        {62, 72, "Legs"},    // pants
-        {62, 106, "Feet"},   // boots
-        {96, 72, "Weapon"},  // weapon
-        {24, 72, "Shield"},  // shield
-        {62, 38, "2H"},      // twohand — overlaps body, skip in rendering
-        {24, 106, "L.Ring"}, // ring_left
-        {96, 106, "R.Ring"}, // ring_right
-        {96, 5, "Amulet"},   // amulet
-        {96, 38, "Cape"},    // cape
-        {0, 0, ""},          // angel — skip
-        {62, 38, ""},        // fullbody — skip
-    }};
-
 character_dialog::character_dialog() : dialog(dialog_type::character_info)
 {
     set_title("Character Info");
@@ -142,48 +121,18 @@ void character_dialog::render_equipment_and_stats(renderer& rend, int32_t& y)
     // pivot offsets to render back into the visible box.
     int32_t paperdoll_x = bounds_.x + padding;
     int32_t paperdoll_y = y;
-    paperdoll_area_y_ = paperdoll_y; // save for hit-testing in handle_mouse_down
-
     // Draw paperdoll background
     rend.draw_rect(paperdoll_x, paperdoll_y, paperdoll_area_w, paperdoll_area_h, sf::Color(30, 30, 45), true);
     rend.draw_rect(paperdoll_x, paperdoll_y, paperdoll_area_w, paperdoll_area_h, sf::Color(60, 60, 80), false);
 
-    // Anchor position: legacy offset from paperdoll area top-left, bumped up 15px, shifted right 20px
-    render_paperdoll(rend, paperdoll_x + 176, paperdoll_y + 187);
+    // Anchor position: legacy offset from paperdoll area top-left
+    int32_t anchor_x = paperdoll_x + 176;
+    int32_t anchor_y = paperdoll_y + 187;
+    paperdoll_anchor_x_ = anchor_x;
+    paperdoll_anchor_y_ = anchor_y;
 
-    // Draw interactive equipment slots over the paperdoll
-    if (inventory_)
-    {
-        for (size_t i = 1; i < max_equip_poss; ++i)
-        {
-            equip_pos slot = static_cast<equip_pos>(i);
-            if (slot == equip_pos::twohand || slot == equip_pos::angel || slot == equip_pos::full_body)
-                continue;
-
-            ui_rect rect = get_paperdoll_slot_rect(slot);
-
-            bool hovered = (hovered_equip_slot_ == slot);
-            bool dragging = (dragging_slot_ == slot);
-
-            sf::Color bg = hovered ? sf::Color(70, 70, 95, 180) : sf::Color(30, 30, 50, 140);
-            rend.draw_rect(rect.x, rect.y, rect.width, rect.height, bg, true);
-            rend.draw_rect(rect.x, rect.y, rect.width, rect.height, sf::Color(70, 70, 90), false);
-
-            if (!dragging)
-            {
-                const item* itm = inventory_->get_equipped_item(slot);
-                if (itm && sprite_mgr_)
-                {
-                    auto* spr = sprite_mgr_->get_sprite("item-pack", itm->sprite_id - 1);
-                    if (spr)
-                    {
-                        uint32_t frame = static_cast<uint32_t>(itm->sprite_frame);
-                        rend.draw_sprite(*spr, rect.x + 1, rect.y + 1, frame);
-                    }
-                }
-            }
-        }
-    }
+    // Equipment is rendered directly onto the character sprite — no icon grid
+    render_paperdoll(rend, anchor_x, anchor_y);
 
     // Right side: stats text (matching legacy labels)
     int32_t stat_x = paperdoll_x + paperdoll_area_w + 16;
@@ -262,7 +211,7 @@ void character_dialog::render_paperdoll(renderer& rend, int32_t x, int32_t y)
 
     const auto& spr = player_->sprite();
     paperdoll_->draw(rend, *sprite_mgr_, x, y, spr.gender, spr.skin_color, spr.hair_style, spr.hair_color,
-                     spr.underwear_color, inventory_);
+                     spr.underwear_color, inventory_, dragging_slot_);
 }
 
 void character_dialog::render_attributes(renderer& rend, int32_t& y)
@@ -377,28 +326,15 @@ void character_dialog::render_buttons(renderer& rend, int32_t y)
     }
 }
 
-ui_rect character_dialog::get_paperdoll_slot_rect(equip_pos slot) const
-{
-    size_t idx = static_cast<size_t>(slot);
-    if (idx == 0 || idx >= slot_positions_.size())
-        return {0, 0, 0, 0};
-    int32_t px = bounds_.x + padding + slot_positions_[idx].x;
-    int32_t py = paperdoll_area_y_ + slot_positions_[idx].y;
-    return {px, py, slot_size, slot_size};
-}
-
 std::optional<equip_pos> character_dialog::slot_at_paperdoll(int32_t x, int32_t y) const
 {
-    for (size_t i = 1; i < max_equip_poss; ++i)
-    {
-        equip_pos slot = static_cast<equip_pos>(i);
-        if (slot == equip_pos::twohand || slot == equip_pos::angel || slot == equip_pos::full_body)
-            continue;
-        ui_rect rect = get_paperdoll_slot_rect(slot);
-        if (rect.contains(x, y))
-            return slot;
-    }
-    return std::nullopt;
+    if (!paperdoll_ || !sprite_mgr_ || !player_ || !inventory_)
+        return std::nullopt;
+
+    const auto& spr = player_->sprite();
+    return paperdoll_->hit_test(*sprite_mgr_, x, y,
+                                paperdoll_anchor_x_, paperdoll_anchor_y_,
+                                spr.gender, inventory_);
 }
 
 bool character_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)

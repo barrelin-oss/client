@@ -1,6 +1,8 @@
 #pragma once
 
+#include "core/game_enums.hpp"
 #include <cstdint>
+#include <optional>
 
 namespace hb
 {
@@ -27,7 +29,20 @@ public:
               uint8_t hair_style,
               uint8_t hair_color,
               uint8_t underwear_color,
-              const inventory_system* inventory);
+              const inventory_system* inventory,
+              std::optional<equip_pos> skip_slot = std::nullopt);
+
+    // Per-pixel hit test against equipment sprites drawn on the paperdoll.
+    // Tests layers in reverse render order (topmost first).
+    // Returns the equip_pos of the first equipment sprite whose opaque pixel
+    // contains (screen_x, screen_y), or nullopt if no equipment hit.
+    auto hit_test(sprite_manager& sprites,
+                  int32_t screen_x,
+                  int32_t screen_y,
+                  int32_t anchor_x,
+                  int32_t anchor_y,
+                  uint8_t gender,
+                  const inventory_system* inventory) const -> std::optional<equip_pos>;
 
 private:
     // Draw an equipment layer with optional color tinting
@@ -39,6 +54,15 @@ private:
                           uint16_t frame,
                           uint8_t color,
                           bool is_weapon);
+
+    // Per-pixel test of a single equipment sprite at draw position (dx, dy)
+    bool test_layer(sprite_manager& sprites,
+                    int32_t screen_x,
+                    int32_t screen_y,
+                    int32_t draw_x,
+                    int32_t draw_y,
+                    uint16_t sprite_id,
+                    uint16_t frame) const;
 
     bool initialized_ = false;
 

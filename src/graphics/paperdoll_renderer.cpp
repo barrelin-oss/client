@@ -172,7 +172,8 @@ void paperdoll_renderer::draw(renderer& rend,
                               uint8_t hair_style,
                               uint8_t hair_color,
                               uint8_t underwear_color,
-                              const inventory_system* inventory)
+                              const inventory_system* inventory,
+                              std::optional<equip_pos> skip_slot)
 {
     if (!initialized_)
         return;
@@ -207,7 +208,8 @@ void paperdoll_renderer::draw(renderer& rend,
         rend.draw_sprite(*spr, x, y, body_frame);
 
     // --- Layer 2: Hair (only if no helmet equipped) ---
-    bool has_helmet = inventory && inventory->get_equipped_item(equip_pos::head) != nullptr;
+    bool has_helmet = inventory && inventory->get_equipped_item(equip_pos::head) != nullptr
+                      && skip_slot != equip_pos::head;
     if (!has_helmet)
     {
         uint16_t hair_id = equip_base + (female ? 58 : 18);
@@ -232,12 +234,19 @@ void paperdoll_renderer::draw(renderer& rend,
     if (!inventory)
         return;
 
+    // Helper: get equipped item, returning nullptr if the slot is being dragged away
+    auto get_visible_equip = [&](equip_pos slot) -> const item*
+    {
+        if (skip_slot == slot) return nullptr;
+        return inventory->get_equipped_item(slot);
+    };
+
     // Female skirt logic: if pants equipped with sprite_id==12 && frame==0,
     // boots render early (before pants) instead of after arms
     bool skirt_draw = false;
     if (female)
     {
-        if (const auto* pants = inventory->get_equipped_item(equip_pos::pants))
+        if (const auto* pants = get_visible_equip(equip_pos::pants))
         {
             if (pants->sprite_id == 12)
                 skirt_draw = true;
@@ -245,7 +254,7 @@ void paperdoll_renderer::draw(renderer& rend,
     }
 
     // --- Layer 4: Back (cape/mantle) ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::cape))
+    if (const auto* item = get_visible_equip(equip_pos::cape))
     {
         draw_equip_layer(
             rend, sprites, x + back_dx, y + back_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
@@ -254,20 +263,20 @@ void paperdoll_renderer::draw(renderer& rend,
     // --- Female skirt: boots drawn early if skirt ---
     if (female && skirt_draw)
     {
-        if (const auto* item = inventory->get_equipped_item(equip_pos::boots))
+        if (const auto* item = get_visible_equip(equip_pos::boots))
         {
             draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
         }
     }
 
     // --- Layer 5: Pants ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::pants))
+    if (const auto* item = get_visible_equip(equip_pos::pants))
     {
         draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 6: Arms ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::arms))
+    if (const auto* item = get_visible_equip(equip_pos::arms))
     {
         draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
@@ -275,65 +284,213 @@ void paperdoll_renderer::draw(renderer& rend,
     // --- Layer 7: Boots (normal position, skip if female skirt already drew them) ---
     if (!(female && skirt_draw))
     {
-        if (const auto* item = inventory->get_equipped_item(equip_pos::boots))
+        if (const auto* item = get_visible_equip(equip_pos::boots))
         {
             draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
         }
     }
 
     // --- Layer 8: Body armor ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::body))
+    if (const auto* item = get_visible_equip(equip_pos::body))
     {
         draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 9: Full body armor ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::full_body))
+    if (const auto* item = get_visible_equip(equip_pos::full_body))
     {
         draw_equip_layer(rend, sprites, x, y, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 10: Left hand (shield) ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::shield))
+    if (const auto* item = get_visible_equip(equip_pos::shield))
     {
         draw_equip_layer(
             rend, sprites, x + lhand_dx, y + lhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 11: Right hand (weapon) ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::weapon))
+    if (const auto* item = get_visible_equip(equip_pos::weapon))
     {
         draw_equip_layer(
             rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 12: Two-hand weapon ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::twohand))
+    if (const auto* item = get_visible_equip(equip_pos::twohand))
     {
         draw_equip_layer(
             rend, sprites, x + rhand_dx, y + rhand_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, true);
     }
 
     // --- Layer 13: Neck ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::amulet))
+    if (const auto* item = get_visible_equip(equip_pos::amulet))
     {
         draw_equip_layer(
             rend, sprites, x + neck_dx, y + neck_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 14: Right finger ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::ring_right))
+    if (const auto* item = get_visible_equip(equip_pos::ring_right))
     {
         draw_equip_layer(
             rend, sprites, x + rfinger_dx, y + rfinger_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
 
     // --- Layer 15: Head (helmet) ---
-    if (const auto* item = inventory->get_equipped_item(equip_pos::head))
+    if (const auto* item = get_visible_equip(equip_pos::head))
     {
         draw_equip_layer(
             rend, sprites, x + head_dx, y + head_dy, equip_base + item->sprite_id + g, item->sprite_frame, item->color, false);
     }
+}
+
+bool paperdoll_renderer::test_layer(sprite_manager& sprites,
+                                    int32_t screen_x,
+                                    int32_t screen_y,
+                                    int32_t draw_x,
+                                    int32_t draw_y,
+                                    uint16_t sprite_id,
+                                    uint16_t frame) const
+{
+    auto* spr = sprites.get_sprite_by_id(sprite_id);
+    if (!spr)
+        return false;
+
+    // hit_test expects coordinates relative to the draw position
+    return spr->hit_test(screen_x - draw_x, screen_y - draw_y, frame);
+}
+
+auto paperdoll_renderer::hit_test(sprite_manager& sprites,
+                                  int32_t screen_x,
+                                  int32_t screen_y,
+                                  int32_t anchor_x,
+                                  int32_t anchor_y,
+                                  uint8_t gender,
+                                  const inventory_system* inventory) const -> std::optional<equip_pos>
+{
+    if (!initialized_ || !inventory)
+        return std::nullopt;
+
+    bool female = (gender == 2);
+    uint16_t g = female ? female_offset : 0;
+
+    // Same position offsets as draw()
+    int32_t back_dx = female ? -126 : -130;
+    int32_t back_dy = female ? -147 : -153;
+    int32_t lhand_dx = female ? -87 : -81;
+    int32_t lhand_dy = female ? -115 : -120;
+    int32_t rhand_dx = female ? -111 : -114;
+    int32_t rhand_dy = female ? -99 : -104;
+    int32_t head_dx = -99;
+    int32_t head_dy = female ? -151 : -155;
+    int32_t neck_dx = -136;
+    int32_t neck_dy = -170;
+    int32_t rfinger_dx = -139;
+    int32_t rfinger_dy = -97;
+
+    int32_t x = anchor_x;
+    int32_t y = anchor_y;
+
+    // Test in reverse render order (topmost layer first)
+
+    // Layer 15: Head (helmet)
+    if (const auto* item = inventory->get_equipped_item(equip_pos::head))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + head_dx, y + head_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::head;
+    }
+
+    // Layer 14: Right finger (ring)
+    if (const auto* item = inventory->get_equipped_item(equip_pos::ring_right))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + rfinger_dx, y + rfinger_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::ring_right;
+    }
+
+    // Layer 13: Neck (amulet)
+    if (const auto* item = inventory->get_equipped_item(equip_pos::amulet))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + neck_dx, y + neck_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::amulet;
+    }
+
+    // Layer 12: Two-hand weapon
+    if (const auto* item = inventory->get_equipped_item(equip_pos::twohand))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + rhand_dx, y + rhand_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::twohand;
+    }
+
+    // Layer 11: Right hand (weapon)
+    if (const auto* item = inventory->get_equipped_item(equip_pos::weapon))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + rhand_dx, y + rhand_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::weapon;
+    }
+
+    // Layer 10: Left hand (shield)
+    if (const auto* item = inventory->get_equipped_item(equip_pos::shield))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + lhand_dx, y + lhand_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::shield;
+    }
+
+    // Layer 9: Full body armor
+    if (const auto* item = inventory->get_equipped_item(equip_pos::full_body))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x, y,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::full_body;
+    }
+
+    // Layer 8: Body armor
+    if (const auto* item = inventory->get_equipped_item(equip_pos::body))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x, y,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::body;
+    }
+
+    // Layer 7: Boots
+    if (const auto* item = inventory->get_equipped_item(equip_pos::boots))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x, y,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::boots;
+    }
+
+    // Layer 6: Arms
+    if (const auto* item = inventory->get_equipped_item(equip_pos::arms))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x, y,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::arms;
+    }
+
+    // Layer 5: Pants
+    if (const auto* item = inventory->get_equipped_item(equip_pos::pants))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x, y,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::pants;
+    }
+
+    // Layer 4: Cape
+    if (const auto* item = inventory->get_equipped_item(equip_pos::cape))
+    {
+        if (test_layer(sprites, screen_x, screen_y, x + back_dx, y + back_dy,
+                       equip_base + item->sprite_id + g, item->sprite_frame))
+            return equip_pos::cape;
+    }
+
+    return std::nullopt;
 }
 
 void paperdoll_renderer::draw_equip_layer(renderer& rend,

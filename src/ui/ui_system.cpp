@@ -333,9 +333,22 @@ void ui_system::render(renderer& rend)
         rend.draw_text(tooltip_text_, tooltip_x_ + 4, tooltip_y_ + 3, sf::Color::White);
     }
 
-    // Render dragged item info tooltip (inventory items move in-place, no separate sprite)
+    // Render dragged item
     if (drag_state_.active && drag_state_.held_item)
     {
+        // For paperdoll-sourced drags, render the item sprite at cursor
+        if (drag_state_.source_dialog == dialog_type::character_info && sprites_)
+        {
+            auto* spr = sprites_->get_sprite("item-pack", drag_state_.held_item->sprite_id - 1);
+            if (spr)
+            {
+                uint32_t frame = static_cast<uint32_t>(drag_state_.held_item->sprite_frame);
+                rend.draw_sprite(*spr,
+                                 drag_state_.cursor_x - drag_state_.offset_x,
+                                 drag_state_.cursor_y - drag_state_.offset_y,
+                                 frame);
+            }
+        }
         render_held_item_info(rend, *drag_state_.held_item,
                               drag_state_.cursor_x + 16, drag_state_.cursor_y + 16);
     }
@@ -1331,7 +1344,12 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
         {
             // Unequip — dragged from paperdoll to inventory
             if (on_unequip_from_drag_ && drag_state_.source_equip != equip_pos::none)
-                on_unequip_from_drag_(drag_state_.source_equip);
+            {
+                auto bag = inv_dlg->bag_area();
+                int32_t bag_x = x - bag.x;
+                int32_t bag_y = y - bag.y;
+                on_unequip_from_drag_(drag_state_.source_equip, bag_x, bag_y);
+            }
         }
     }
     // Check if dropped on character info dialog (equip from inventory, or snap-back from paperdoll drag)
@@ -1350,7 +1368,16 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
     }
 
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
+    {
+        // Restore pre-drag position when the item wasn't repositioned within the inventory.
+        // Covers: dropped on character dialog (equip attempt), dropped in world, dropped on nothing.
+        if (drag_state_.source_dialog == dialog_type::inventory
+            && !(inv_dlg->is_open() && inv_dlg->bounds().contains(x, y)))
+        {
+            inv_dlg->restore_drag_position();
+        }
         inv_dlg->clear_dragging_item();
+    }
     if (auto* chr_dlg = dynamic_cast<character_dialog*>(get_dialog(dialog_type::character_info)))
         chr_dlg->clear_dragging_slot();
     drag_state_ = {};

@@ -5,7 +5,6 @@
 #include <functional>
 #include <optional>
 #include <string>
-#include <array>
 
 namespace hb
 {
@@ -24,8 +23,6 @@ class paperdoll_renderer;
 class character_dialog : public dialog
 {
 public:
-    static constexpr int32_t slot_size = 26;
-    static constexpr size_t max_equip_poss = 15;
 
     character_dialog();
     ~character_dialog() override = default;
@@ -69,18 +66,18 @@ private:
     void render_attributes(renderer& rend, int32_t& y);
     void render_buttons(renderer& rend, int32_t y);
 
-    // Equipment slot hit-testing (relative to paperdoll area)
-    ui_rect get_paperdoll_slot_rect(equip_pos slot) const;
+    // Per-pixel equipment hit-testing against paperdoll sprites
     std::optional<equip_pos> slot_at_paperdoll(int32_t x, int32_t y) const;
 
     // Hit testing for buttons
     std::optional<int> button_at(int32_t x, int32_t y) const;
     std::optional<int> stat_button_at(int32_t x, int32_t y) const;
 
-    // Computed layout: y position where buttons start (set during render)
+    // Computed layout positions (set during render, used for hit-testing)
     int32_t buttons_y_ = 0;
     int32_t attr_y_ = 0;
-    int32_t paperdoll_area_y_ = 0; // Top of paperdoll area, set during render
+    int32_t paperdoll_anchor_x_ = 0; // Paperdoll draw anchor, set during render
+    int32_t paperdoll_anchor_y_ = 0;
 
     // Data sources (non-owning, resolved lazily)
     const entity* player_ = nullptr;
@@ -115,15 +112,6 @@ private:
     static constexpr int32_t stat_button_size = 16;
     static constexpr int32_t button_width = 88;
     static constexpr int32_t button_height = 24;
-
-    // Equipment slot positions relative to paperdoll area top-left, indexed by equip_pos
-    struct slot_position
-    {
-        int32_t x;
-        int32_t y;
-        const char* label;
-    };
-    static const std::array<slot_position, max_equip_poss> slot_positions_;
 };
 
 } // namespace hb

@@ -729,11 +729,37 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
 
                                // Drag from character dialog paperdoll to inventory triggers unequip
                                ui_.set_on_unequip_from_drag(
-                                   [this](equip_pos slot)
+                                   [this](equip_pos slot, int32_t bag_x, int32_t bag_y)
                                    {
-                                       spdlog::info("Unequipping slot {} via drag-to-inventory",
-                                                    static_cast<int>(slot));
-                                       ws_connection_.send(make_unequip_request(slot));
+                                       spdlog::info("Unequipping slot {} via drag-to-inventory at ({},{})",
+                                                    static_cast<int>(slot), bag_x, bag_y);
+                                       // Optimistically update client state so the item appears
+                                       // at the drop position immediately (no flash while waiting
+                                       // for the server). The inventory dialog skips equipped
+                                       // items, so we must clear the slot too.
+                                       if (auto item_id = inventory_.equipment().get(slot))
+                                       {
+                                           inventory_.set_position(
+                                               *item_id,
+                                               static_cast<int16_t>(bag_x),
+                                               static_cast<int16_t>(bag_y));
+                                           inventory_.equipment().clear(slot);
+                                       }
+                                       ws_connection_.send(make_unequip_request(
+                                           slot, static_cast<int16_t>(bag_x),
+                                           static_cast<int16_t>(bag_y)));
+                                   });
+
+                               // Drag from inventory to character dialog triggers equip
+                               ui_.set_on_equip_from_drag(
+                                   [this](uint32_t item_id)
+                                   {
+                                       const auto* entry = inventory_.get_bag_item(item_id);
+                                       if (!entry || !entry->data.is_equippable())
+                                           return;
+                                       spdlog::info("Equipping item {} via drag-to-paperdoll", item_id);
+                                       ws_connection_.send(
+                                           make_equip_request(item_id, entry->data.equip_position));
                                    });
 
                                // Drop item to world — snap back, lock, confirm, then send

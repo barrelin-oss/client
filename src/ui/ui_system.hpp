@@ -176,7 +176,7 @@ public:
 
     using drop_in_world_callback = std::function<void(uint32_t item_id)>;
     using equip_from_drag_callback = std::function<void(uint32_t item_id)>;
-    using unequip_from_drag_callback = std::function<void(equip_pos slot)>;
+    using unequip_from_drag_callback = std::function<void(equip_pos slot, int32_t bag_x, int32_t bag_y)>;
     using reposition_callback = std::function<void(uint32_t item_id, int32_t x, int32_t y, bool shift_held)>;
     void set_on_drop_in_world(drop_in_world_callback cb) { on_drop_in_world_ = std::move(cb); }
     void set_on_equip_from_drag(equip_from_drag_callback cb) { on_equip_from_drag_ = std::move(cb); }

@@ -498,11 +498,15 @@ inline json make_equip_request(uint32_t item_id, equip_pos slot)
         .build();
 }
 
-inline json make_unequip_request(equip_pos slot)
+inline json make_unequip_request(equip_pos slot,
+                                 std::optional<int16_t> pos_x = std::nullopt,
+                                 std::optional<int16_t> pos_y = std::nullopt)
 {
-    return message_builder(msg_type::unequip_request)
-        .set("slot", std::string(equip_pos_to_string(slot)))
-        .build();
+    auto b = message_builder(msg_type::unequip_request)
+        .set("slot", std::string(equip_pos_to_string(slot)));
+    if (pos_x) b.set("pos_x", *pos_x);
+    if (pos_y) b.set("pos_y", *pos_y);
+    return b.build();
 }
 
 inline json make_inventory_reposition_request(uint32_t item_id, int16_t pos_x, int16_t pos_y)

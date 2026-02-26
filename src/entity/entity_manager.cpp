@@ -9,6 +9,7 @@
 #include "core/direction_utils.hpp"
 #include "gameplay/effect_types.hpp"
 #include "gameplay/effect_system.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <array>
@@ -2223,6 +2224,48 @@ void entity_manager::play_monster_sound(const entity& e, monster_sound_type soun
 
     const auto& t = e.transform();
     sounds_->play_sound_at(entry.type, entry.num, t.x, t.y);
+}
+
+nlohmann::json entity_manager::last_render_diagnostic() const
+{
+    const auto& d = last_diagnostic_;
+    return {
+        {"entity_id",    d.entity_id},
+        {"action",       d.action},
+        {"direction",    d.direction},
+        {"body_id",      d.body_id},
+        {"wpn_id",       d.wpn_id},
+        {"equip_frame",  d.equip_frame},
+        {"sprite_frame", d.sprite_frame},
+        {"weapon_order", d.weapon_order},
+        {"body_found",   d.body_found},
+        {"weapon_found", d.weapon_found}
+    };
+}
+
+entity* entity_manager::get_local_player()
+{
+    return get_entity(local_player_id_);
+}
+
+void entity_manager::debug_move_local_player(int32_t x, int32_t y)
+{
+    auto* e = get_local_player();
+    if (!e) return;
+    auto& t = e->transform();
+
+    auto dir = calculate_direction(t.tile_x, t.tile_y, x, y);
+    if (!dir) return; // already at target
+
+    t.move_start_x = t.tile_x;
+    t.move_start_y = t.tile_y;
+    t.tile_x = x;
+    t.tile_y = y;
+    t.facing = *dir;
+    t.moving = true;
+    t.move_progress = 0.0f;
+
+    e->set_action(object_action::run);
 }
 
 } // namespace hb

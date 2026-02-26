@@ -307,6 +307,9 @@ private:
     // Clear all in-game data (map, entities, etc.) for clean re-entry
     void clear_game_data();
 
+    // Register all debug probes/actions/deferred handlers with debug_server
+    void register_debug_probes();
+
     // State
     game_state state_ = game_state::main_menu;
     game_state pending_state_ = game_state::main_menu;

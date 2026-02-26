@@ -12,6 +12,7 @@
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 #include "debug/debug_overlay.hpp"
 #endif
+#include "debug/mcp_server/debug_server.hpp"
 
 namespace hb
 {
@@ -192,6 +193,9 @@ bool application::initialize(const launch_options& opts)
         }
     }
 
+    // Start debug MCP server before loading so probes can register during init steps
+    debug_server::start(config::instance().debug_server());
+
     // Run loading screen while processing initialization steps (one step per frame)
     {
         auto load_start = clock::now();
@@ -247,6 +251,7 @@ bool application::initialize(const launch_options& opts)
 
 void application::shutdown()
 {
+    debug_server::stop();
     spdlog::info("Shutting down...");
 
     // Save window position before closing
@@ -364,6 +369,8 @@ void application::process_events()
 
 void application::update(float delta_time)
 {
+    debug_server::poll(delta_time);
+
     // Reset cursor at the start of each update cycle so game code can set it
     cursor_.begin_frame();
 

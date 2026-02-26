@@ -92,6 +92,13 @@ struct game_config
     bool use_large_ground_items = false;   // Use item-pack.pak (inventory sprites) instead of item-ground.pak
 };
 
+// Debug MCP server settings
+struct debug_server_config
+{
+    bool enabled = false;
+    uint16_t port = 9876;
+};
+
 // Control settings
 struct control_config
 {
@@ -151,6 +158,9 @@ public:
     control_config& controls() { return controls_; }
     const control_config& controls() const { return controls_; }
 
+    debug_server_config& debug_server() { return debug_server_; }
+    const debug_server_config& debug_server() const { return debug_server_; }
+
     // Reset to defaults
     void reset_video();
     void reset_audio();
@@ -177,6 +187,7 @@ private:
     chat_config_settings chat_;
     game_config game_;
     control_config controls_;
+    debug_server_config debug_server_;
 
     std::string config_path_;
     std::vector<config_change_callback> callbacks_;

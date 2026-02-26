@@ -137,6 +137,7 @@ add_library(helbreath_core STATIC
     debug/position_store.cpp
     debug/debug_overlay.cpp
     debug/debug_stats.cpp
+    debug/mcp_server/debug_server.cpp
 )
 
 target_include_directories(helbreath_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

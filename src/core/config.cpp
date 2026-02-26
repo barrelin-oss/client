@@ -252,6 +252,14 @@ bool config::load(std::string_view path)
                 controls_.invert_mouse_y = ctrl["invert_mouse_y"].get<bool>();
         }
 
+        // Debug server
+        if (json.contains("debug_server"))
+        {
+            auto& ds = json["debug_server"];
+            if (ds.contains("enabled")) debug_server_.enabled = ds["enabled"].get<bool>();
+            if (ds.contains("port"))    debug_server_.port    = ds["port"].get<uint16_t>();
+        }
+
         config_path_ = path;
         spdlog::info("Loaded configuration from: {}", path);
         return true;
@@ -367,6 +375,12 @@ bool config::save(std::string_view path) const
                         {"screenshot_key", controls_.screenshot_key},
                         {"mouse_sensitivity", controls_.mouse_sensitivity},
                         {"invert_mouse_y", controls_.invert_mouse_y}};
+
+    // Debug server
+    json["debug_server"] = {
+        {"enabled", debug_server_.enabled},
+        {"port",    debug_server_.port}
+    };
 
     // Write to file
     std::string out_path{path};

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 #include <functional>
+#include <nlohmann/json.hpp>
 
 namespace hb
 {
@@ -141,6 +142,25 @@ public:
     // Get tile positions of all alive entities (for debug overlay)
     std::vector<std::pair<int32_t, int32_t>> get_occupied_tiles() const;
 
+    // Debug diagnostics
+    struct render_diagnostic
+    {
+        uint32_t entity_id = 0;
+        int32_t action = 0;
+        int32_t direction = 0;
+        uint16_t body_id = 0;
+        uint16_t wpn_id = 0;
+        int32_t equip_frame = 0;
+        int32_t sprite_frame = 0;
+        int8_t weapon_order = 0;
+        bool body_found = false;
+        bool weapon_found = false;
+    };
+
+    nlohmann::json last_render_diagnostic() const;
+    entity* get_local_player();
+    void debug_move_local_player(int32_t x, int32_t y);
+
 private:
     void cleanup_removed_entities();
     void update_entity(entity& e, float delta_time, world& w, bool local_player_combat_mode);
@@ -205,6 +225,9 @@ private:
 
     // Global render mode - skip distance culling when true
     bool global_render_mode_ = false;
+
+    // Last render diagnostic captured for the local player
+    render_diagnostic last_diagnostic_;
 };
 
 } // namespace hb

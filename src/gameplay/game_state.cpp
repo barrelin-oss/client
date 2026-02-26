@@ -27,6 +27,7 @@
 #endif
 
 #include "debug/debug_stats.hpp"
+#include "debug/mcp_server/debug_server.hpp"
 
 namespace hb
 {
@@ -1010,6 +1011,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
     init_steps_.push_back({"Ready!",
                            [this]()
                            {
+                               register_debug_probes();
                                enter_state(game_state::main_menu);
                            }});
 
@@ -2440,6 +2442,149 @@ bool game_state_manager::change_resolution(
         panel->set_screen_size(width, height);
 
     return true;
+}
+
+void game_state_manager::register_debug_probes()
+{
+    if (!debug_server::is_running()) return;
+
+    debug_server::register_probe("client/status", [this]() -> nlohmann::json
+    {
+        return {
+            {"state",           static_cast<int>(state_)},
+            {"local_player_id", entities_.local_player_id()}
+        };
+    });
+
+    debug_server::register_probe("entity/local_player", [this]() -> nlohmann::json
+    {
+        auto* e = entities_.get_local_player();
+        if (!e) return {{"found", false}};
+        const auto& t = e->transform();
+        const auto& s = e->sprite();
+        return {
+            {"found",        true},
+            {"id",           e->id()},
+            {"x",            t.x},
+            {"y",            t.y},
+            {"facing",       static_cast<int>(t.facing)},
+            {"gender",       s.gender},
+            {"skin_color",   s.skin_color},
+            {"hair_style",   s.hair_style},
+            {"hair_color",   s.hair_color},
+            {"weapon",       s.weapon},
+            {"shield",       s.shield},
+            {"body_armor",   s.body_armor},
+            {"pants",        s.pants},
+            {"helmet",       s.helmet},
+            {"arm_armor",    s.arm_armor},
+            {"boots",        s.boots},
+            {"mantle",       s.mantle},
+            {"alpha",        s.alpha}
+        };
+    });
+
+    debug_server::register_probe("entity/list", [this]() -> nlohmann::json
+    {
+        nlohmann::json arr = nlohmann::json::array();
+        entities_.for_each([&](const entity& e)
+        {
+            const auto& t = e.transform();
+            const auto& s = e.sprite();
+            arr.push_back({
+                {"id",     e.id()},
+                {"type",   static_cast<int>(e.type())},
+                {"x",      t.x},
+                {"y",      t.y},
+                {"weapon", s.weapon},
+                {"gender", s.gender}
+            });
+        });
+        return arr;
+    });
+
+    debug_server::register_probe("render/last_frame", [this]() -> nlohmann::json
+    {
+        return entities_.last_render_diagnostic();
+    });
+
+    debug_server::register_action("sprite/info", [this](const nlohmann::json& args) -> nlohmann::json
+    {
+        uint16_t id = args.value("id", uint16_t(0));
+        const sprite* spr = sprites_.get_sprite_by_id(id);
+        if (!spr) return {{"found", false}, {"id", id}};
+        nlohmann::json frames = nlohmann::json::array();
+        for (uint32_t i = 0; i < spr->frame_count(); ++i)
+        {
+            const auto& f = spr->get_frame(i);
+            frames.push_back({
+                {"x",       f.source_rect.position.x},
+                {"y",       f.source_rect.position.y},
+                {"w",       f.source_rect.size.x},
+                {"h",       f.source_rect.size.y},
+                {"pivot_x", f.pivot_x},
+                {"pivot_y", f.pivot_y}
+            });
+        }
+        auto ck = spr->color_key();
+        return {
+            {"found",       true},
+            {"id",          id},
+            {"frame_count", spr->frame_count()},
+            {"tex_w",       spr->bitmap_width()},
+            {"tex_h",       spr->bitmap_height()},
+            {"color_key",   {{"r", ck.r}, {"g", ck.g}, {"b", ck.b}, {"a", ck.a}}},
+            {"frames",      frames}
+        };
+    });
+
+    debug_server::register_action("sprite/save_png", [this](const nlohmann::json& args) -> nlohmann::json
+    {
+        uint16_t id = args.value("id", uint16_t(0));
+        std::string path = args.value("path", "debug_sprite_" + std::to_string(id) + ".png");
+        const sprite* spr = sprites_.get_sprite_by_id(id);
+        if (!spr) return {{"ok", false}, {"error", "sprite not found"}};
+        sf::Image img = spr->texture().copyToImage();
+        bool saved = img.saveToFile(path);
+        return {{"ok", saved}, {"path", path}};
+    });
+
+    debug_server::register_action("entity/set_sprite_field", [this](const nlohmann::json& args) -> nlohmann::json
+    {
+        uint32_t entity_id = args.value("entity_id", uint32_t(0));
+        std::string field  = args.value("field", "");
+        uint8_t value      = args.value("value", uint8_t(0));
+        entity* e = entities_.get_entity(entity_id);
+        if (!e) return {{"ok", false}, {"error", "entity not found"}};
+        auto& s = e->sprite();
+        if      (field == "weapon")     s.weapon     = value;
+        else if (field == "shield")     s.shield     = value;
+        else if (field == "body_armor") s.body_armor = value;
+        else if (field == "pants")      s.pants      = value;
+        else if (field == "helmet")     s.helmet     = value;
+        else if (field == "arm_armor")  s.arm_armor  = value;
+        else if (field == "boots")      s.boots      = value;
+        else if (field == "mantle")     s.mantle     = value;
+        else if (field == "gender")     s.gender     = value;
+        else if (field == "skin_color") s.skin_color = value;
+        else if (field == "hair_style") s.hair_style = value;
+        else if (field == "hair_color") s.hair_color = value;
+        else return {{"ok", false}, {"error", "unknown field: " + field}};
+        entities_.load_character_sprites(*e, sprites_);
+        return {{"ok", true}, {"field", field}, {"value", value}};
+    });
+
+    debug_server::register_deferred("player/move_to", [this](const nlohmann::json& args)
+    {
+        entities_.debug_move_local_player(args.value("x", 0), args.value("y", 0));
+    });
+
+    debug_server::register_deferred("player/set_direction", [this](const nlohmann::json& args)
+    {
+        auto* e = entities_.get_local_player();
+        if (e)
+            e->transform().facing = static_cast<direction>(args.value("direction", 1));
+    });
 }
 
 } // namespace hb

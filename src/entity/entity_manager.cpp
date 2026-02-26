@@ -31,6 +31,39 @@ struct character_sprite_constants
     static constexpr uint16_t male_hair_base = 4820;
     static constexpr uint16_t female_hair_base = 14820;
     static constexpr uint16_t hair_stride = 15;
+
+    // Equipment sprite bases (male / female) and strides
+    static constexpr uint16_t male_body_armor_base = 5060;
+    static constexpr uint16_t female_body_armor_base = 15060;
+    static constexpr uint16_t body_armor_stride = 15;
+
+    static constexpr uint16_t male_arm_armor_base = 5300;
+    static constexpr uint16_t female_arm_armor_base = 15300;
+    static constexpr uint16_t arm_armor_stride = 15;
+
+    static constexpr uint16_t male_pants_base = 5540;
+    static constexpr uint16_t female_pants_base = 15540;
+    static constexpr uint16_t pants_stride = 15;
+
+    static constexpr uint16_t male_boots_base = 5780;
+    static constexpr uint16_t female_boots_base = 15780;
+    static constexpr uint16_t boots_stride = 15;
+
+    static constexpr uint16_t male_weapon_base = 6020;
+    static constexpr uint16_t female_weapon_base = 16020;
+    static constexpr uint16_t weapon_stride = 64;
+
+    static constexpr uint16_t male_shield_base = 9100;
+    static constexpr uint16_t female_shield_base = 19100;
+    static constexpr uint16_t shield_stride = 8;
+
+    static constexpr uint16_t male_mantle_base = 9230;
+    static constexpr uint16_t female_mantle_base = 19230;
+    static constexpr uint16_t mantle_stride = 15;
+
+    static constexpr uint16_t male_helmet_base = 9300;
+    static constexpr uint16_t female_helmet_base = 19300;
+    static constexpr uint16_t helmet_stride = 15;
 };
 
 // NPC/Monster sprite constants
@@ -80,6 +113,113 @@ inline uint16_t calculate_hair_sprite_id(bool is_female, uint8_t hair_style, int
         is_female ? character_sprite_constants::female_hair_base : character_sprite_constants::male_hair_base;
     return static_cast<uint16_t>(base + clamped_style * character_sprite_constants::hair_stride + action);
 }
+
+// Calculate body armor sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_body_armor_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_body_armor_base
+                              : character_sprite_constants::male_body_armor_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::body_armor_stride + action);
+}
+
+// Calculate arm armor sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_arm_armor_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_arm_armor_base
+                              : character_sprite_constants::male_arm_armor_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::arm_armor_stride + action);
+}
+
+// Calculate pants sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_pants_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_pants_base
+                              : character_sprite_constants::male_pants_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::pants_stride + action);
+}
+
+// Calculate boots sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_boots_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_boots_base
+                              : character_sprite_constants::male_boots_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::boots_stride + action);
+}
+
+// Calculate helmet sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_helmet_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_helmet_base
+                              : character_sprite_constants::male_helmet_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::helmet_stride + action);
+}
+
+// Calculate mantle sprite ID
+// Formula: base + type * 15 + action
+inline uint16_t calculate_mantle_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    uint16_t base = is_female ? character_sprite_constants::female_mantle_base
+                              : character_sprite_constants::male_mantle_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::mantle_stride + action);
+}
+
+// Map body object_action to weapon/shield sprite action slot.
+// Melee weapon PAK layout (8 slots x 8 dirs = stride 64):
+//   0=idle_peace, 1=idle_combat, 2=walk_peace, 3=walk_combat,
+//   4=attack (32-39), 5=unknown/flinch (40-47), 6=run (48-55), 7=bow_attack
+// Both attack_peace and attack_combat map to slot 4 — there is only one attack slot.
+// magic(8+) fall back to stop.
+inline int32_t body_action_to_weapon_action(int32_t body_action)
+{
+    switch (static_cast<object_action>(body_action))
+    {
+    case object_action::stop_peace:        return 0;
+    case object_action::stop_combat:       return 1;
+    case object_action::move_peace:        return 2;
+    case object_action::move_combat:       return 3;
+    case object_action::run:               return 6; // weapon run at slot 6 (offset 48)
+    case object_action::attack_peace:
+    case object_action::attack_combat:     return 4; // single attack slot (offset 32)
+    case object_action::attack_combat_bow: return 7;
+    default:                               return 0; // magic, get_item, damage, dying
+    }
+}
+
+// Calculate weapon sprite ID — direction encoded in sprite ID, not frame
+// Formula: base + type * 64 + weapon_action * 8 + (dir - 1)
+inline uint16_t calculate_weapon_sprite_id(bool is_female, uint8_t type, int32_t action, int32_t dir)
+{
+    int32_t weapon_action = body_action_to_weapon_action(action);
+    uint16_t base = is_female ? character_sprite_constants::female_weapon_base
+                              : character_sprite_constants::male_weapon_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::weapon_stride + weapon_action * 8 + (dir - 1));
+}
+
+// Calculate shield sprite ID
+// Formula: base + type * 8 + weapon_action
+inline uint16_t calculate_shield_sprite_id(bool is_female, uint8_t type, int32_t action)
+{
+    int32_t weapon_action = body_action_to_weapon_action(action);
+    uint16_t base = is_female ? character_sprite_constants::female_shield_base
+                              : character_sprite_constants::male_shield_base;
+    return static_cast<uint16_t>(base + type * character_sprite_constants::shield_stride + weapon_action);
+}
+
+// Direction-dependent draw orders (verified: legacy Game.cpp lines 57-59)
+// Index 0 is unused (directions are 1-8), kept for direct indexing with dir.
+// Weapon: 0 = drawn LAST (in front of body), 1 = drawn FIRST (behind body)
+static constexpr int8_t drawing_order[9] = {0, 1, 0, 0, 0, 0, 0, 1, 1};
+
+// Mantle: 0 = early (before underwear), 1 = after shield, 2 = between armor and shield
+static constexpr int8_t mantle_drawing_order[9] = {0, 1, 1, 1, 0, 0, 0, 2, 2};
+
+// Mantle order when running — always after shield (except facing S/SE/SW/E)
+static constexpr int8_t mantle_drawing_order_on_run[9] = {0, 1, 1, 1, 1, 1, 1, 1, 1};
 
 // Equipment sprites have different frame counts per direction depending on action type.
 // Legacy: OnStop/OnMove/OnRun/OnAttack = 8 frames/dir, OnMagic = 16, OnGetItem/OnDamage = 4
@@ -1421,49 +1561,155 @@ void entity_manager::render_player_character(renderer& rend,
     uint16_t hair_id = calculate_hair_sprite_id(is_female, s.hair_style, action);
     const sprite* hair_spr = sprites.get_sprite_by_id(hair_id);
 
-    // Draw layers: body (skin) first, then underwear on top, then hair
+    // --- Equipment sprite lookups (per-frame) ---
+    const sprite* body_armor_spr = nullptr;
+    const sprite* arm_armor_spr = nullptr;
+    const sprite* pants_spr = nullptr;
+    const sprite* boots_spr = nullptr;
+    const sprite* helmet_spr = nullptr;
+    const sprite* mantle_spr = nullptr;
+    const sprite* weapon_spr = nullptr;
+    const sprite* shield_spr = nullptr;
+
+    if (s.body_armor > 0)
+        body_armor_spr = sprites.get_sprite_by_id(calculate_body_armor_sprite_id(is_female, s.body_armor, action));
+    if (s.arm_armor > 0)
+        arm_armor_spr = sprites.get_sprite_by_id(calculate_arm_armor_sprite_id(is_female, s.arm_armor, action));
+    if (s.pants > 0)
+        pants_spr = sprites.get_sprite_by_id(calculate_pants_sprite_id(is_female, s.pants, action));
+    if (s.boots > 0)
+        boots_spr = sprites.get_sprite_by_id(calculate_boots_sprite_id(is_female, s.boots, action));
+    if (s.helmet > 0)
+        helmet_spr = sprites.get_sprite_by_id(calculate_helmet_sprite_id(is_female, s.helmet, action));
+    if (s.mantle > 0)
+        mantle_spr = sprites.get_sprite_by_id(calculate_mantle_sprite_id(is_female, s.mantle, action));
+    if (s.weapon > 0)
+        weapon_spr = sprites.get_sprite_by_id(calculate_weapon_sprite_id(is_female, s.weapon, action, dir));
+    if (s.shield > 0)
+        shield_spr = sprites.get_sprite_by_id(calculate_shield_sprite_id(is_female, s.shield, action));
+
+    // Direction-dependent draw ordering
+    int8_t weapon_order = drawing_order[dir];
+    bool is_running = (action == static_cast<int32_t>(object_action::run));
+    const auto& active_mantle_order = is_running ? mantle_drawing_order_on_run : mantle_drawing_order;
+    int8_t mantle_order = active_mantle_order[dir];
+
+    // Skirt detection: female with pants type 1 draws boots before pants
+    bool is_skirt = is_female && (s.pants == 1);
+
+    // Update render diagnostic for debug_server probe (local player only)
+    if (e.id() == local_player_id_)
+    {
+        last_diagnostic_.entity_id    = e.id();
+        last_diagnostic_.action       = action;
+        last_diagnostic_.direction    = dir;
+        last_diagnostic_.body_id      = body_id;
+        last_diagnostic_.wpn_id       = s.weapon > 0
+            ? calculate_weapon_sprite_id(is_female, s.weapon, action, dir) : 0;
+        last_diagnostic_.equip_frame  = equip_frame;
+        last_diagnostic_.sprite_frame = static_cast<int32_t>(sprite_frame);
+        last_diagnostic_.weapon_order = weapon_order;
+        last_diagnostic_.body_found   = body_spr != nullptr;
+        last_diagnostic_.weapon_found = weapon_spr != nullptr;
+    }
+
+    // Helper lambda for drawing with alpha support
+    auto draw_layer = [&](const sprite& spr, int32_t frame)
+    {
+        if (s.alpha < 1.0f)
+            rend.draw_sprite_alpha(spr, screen_x, screen_y, frame, s.alpha);
+        else
+            rend.draw_sprite(spr, screen_x, screen_y, frame);
+    };
+
+    // Weapon draw helper — always uses the silhouette-discarding shader.
+    // Draw order (before/after body) controls overlap, but the near-black
+    // silhouette baked into weapon sprites must never be visible in either case.
+    auto draw_weapon = [&](const sprite& spr, int32_t frame)
+    {
+        if (s.alpha < 1.0f)
+            rend.draw_sprite_weapon_front_alpha(spr, screen_x, screen_y, frame, s.alpha);
+        else
+            rend.draw_sprite_weapon_front(spr, screen_x, screen_y, frame);
+    };
+
+    // ======== 16-LAYER DRAW SEQUENCE ========
+    // Verified against legacy Game.cpp DrawObject_OnMove (lines 12320-12673)
+
+    // Layer 1: Weapon behind body (facing N, NW, W — drawing_order[dir]==1)
+    // Shader discards near-black silhouette; blade peeks past body edge correctly.
+    if (weapon_spr && weapon_order == 1)
+        draw_weapon(*weapon_spr, sprite_frame);
+
+    // Layer 2: Body (skin)
     if (body_spr)
-    {
-        if (s.alpha < 1.0f)
-        {
-            rend.draw_sprite_alpha(*body_spr, screen_x, screen_y, sprite_frame, s.alpha);
-        }
-        else
-        {
-            rend.draw_sprite(*body_spr, screen_x, screen_y, sprite_frame);
-        }
-    }
+        draw_layer(*body_spr, sprite_frame);
 
+    // Layer 3: Mantle early (facing S, SE, SW — mantle_order==0)
+    if (mantle_spr && mantle_order == 0)
+        draw_layer(*mantle_spr, equip_frame);
+
+    // Layer 4: Underwear
     if (underwear_spr)
-    {
-        if (s.alpha < 1.0f)
-        {
-            rend.draw_sprite_alpha(*underwear_spr, screen_x, screen_y, equip_frame, s.alpha);
-        }
-        else
-        {
-            rend.draw_sprite(*underwear_spr, screen_x, screen_y, equip_frame);
-        }
-    }
+        draw_layer(*underwear_spr, equip_frame);
 
-    // Hair with color tinting (if no helm)
-    if (!s.helm_sprite && hair_spr)
+    // Layer 5: Hair (only if no helmet equipped)
+    if (s.helmet == 0 && hair_spr)
     {
         uint8_t hc = std::clamp(s.hair_color, uint8_t(0), uint8_t(15));
         const auto& tint = hair_colors[hc];
         if (tint.r == 0.0f && tint.g == 0.0f && tint.b == 0.0f)
         {
-            rend.draw_sprite(*hair_spr, screen_x, screen_y, equip_frame);
+            draw_layer(*hair_spr, equip_frame);
         }
         else
         {
+            // TODO: draw_sprite_tinted doesn't support alpha — add draw_sprite_tinted_alpha
             rend.draw_sprite_tinted(*hair_spr, screen_x, screen_y, equip_frame, tint.r, tint.g, tint.b);
         }
     }
 
-    // TODO: Armor, helmet, weapon, shield rendering with dynamic lookup
+    // Layer 6: Boots under skirt (female pants==1 only)
+    if (is_skirt && boots_spr)
+        draw_layer(*boots_spr, equip_frame);
 
-    // Effect overlay (keep using pre-loaded sprite pointer)
+    // Layer 7: Pants/Skirt
+    if (pants_spr)
+        draw_layer(*pants_spr, equip_frame);
+
+    // Layer 8: Arm armor
+    if (arm_armor_spr)
+        draw_layer(*arm_armor_spr, equip_frame);
+
+    // Layer 9: Boots over pants (normal, non-skirt)
+    if (!is_skirt && boots_spr)
+        draw_layer(*boots_spr, equip_frame);
+
+    // Layer 10: Body armor
+    if (body_armor_spr)
+        draw_layer(*body_armor_spr, equip_frame);
+
+    // Layer 11: Helmet (replaces hair at layer 5)
+    if (helmet_spr)
+        draw_layer(*helmet_spr, equip_frame);
+
+    // Layer 12: Mantle between armor and shield (facing W, NW — mantle_order==2)
+    if (mantle_spr && mantle_order == 2)
+        draw_layer(*mantle_spr, equip_frame);
+
+    // Layer 13: Shield
+    if (shield_spr)
+        draw_layer(*shield_spr, equip_frame);
+
+    // Layer 14: Mantle after shield (facing N, NE, E — mantle_order==1)
+    if (mantle_spr && mantle_order == 1)
+        draw_layer(*mantle_spr, equip_frame);
+
+    // Layer 15: Weapon in front (facing E, SE, S, SW, NE — drawing_order[dir]==0)
+    if (weapon_spr && weapon_order == 0)
+        draw_weapon(*weapon_spr, sprite_frame);
+
+    // Layer 16: Effect overlay (keep using pre-loaded sprite pointer)
     if (s.effect_sprite)
     {
         rend.draw_sprite(*s.effect_sprite, screen_x, screen_y, a.current_frame);

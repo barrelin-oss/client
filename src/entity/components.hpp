@@ -42,6 +42,16 @@ struct sprite_component
     const sprite* underwear_sprite = nullptr;
     const sprite* effect_sprite = nullptr;
 
+    // Equipment type IDs (0 = not equipped, used for per-frame sprite lookup)
+    uint8_t body_armor = 0;   // 1-15
+    uint8_t arm_armor = 0;    // 1-15
+    uint8_t pants = 0;        // 1-15 (1=skirt for female)
+    uint8_t boots = 0;        // 1-15
+    uint8_t helmet = 0;       // 1-15
+    uint8_t mantle = 0;       // 1-15
+    uint8_t weapon = 0;       // 0-255 (wider range than armor)
+    uint8_t shield = 0;       // 1-9
+
     uint8_t body_frame = 0;
     uint8_t armor_frame = 0;
     uint8_t weapon_frame = 0;

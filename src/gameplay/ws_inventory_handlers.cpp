@@ -3,6 +3,7 @@
 #include "ui/dialogs/skills_dialog.hpp"
 #include "world/ground_item.hpp"
 #include "core/game_enums.hpp"
+#include <algorithm>
 #include <spdlog/spdlog.h>
 
 namespace hb
@@ -234,6 +235,7 @@ void ws_message_handler::handle_equip_result(const json& message)
         return;
     }
     spdlog::info("Equip successful: slot {}", equip_pos_to_string(data.slot));
+    game_->sounds().play_ui_sound(28);
 }
 
 void ws_message_handler::handle_unequip_result(const json& message)
@@ -245,6 +247,7 @@ void ws_message_handler::handle_unequip_result(const json& message)
         return;
     }
     spdlog::info("Unequip successful: slot {}", equip_pos_to_string(data.slot));
+    game_->sounds().play_ui_sound(29);
 }
 
 void ws_message_handler::handle_force_unequip(const json& message)
@@ -252,6 +255,7 @@ void ws_message_handler::handle_force_unequip(const json& message)
     auto data = force_unequip_msg::from_json(message);
     game_->inventory().equipment().clear(data.slot);
     game_->inventory().notify_equipment_changed(data.slot);
+    game_->sounds().play_ui_sound(29);
     spdlog::info("Force unequipped slot {}: {}", equip_pos_to_string(data.slot), data.reason);
 }
 
@@ -270,8 +274,51 @@ void ws_message_handler::handle_equipment_change(const json& message)
         game_->inventory().notify_equipment_changed(data.slot);
     }
 
-    spdlog::debug("Equipment change: entity {} slot {} {}", data.entity_id,
-                  equip_pos_to_string(data.slot), data.item_data ? "equipped" : "unequipped");
+    // Update sprite_component equipment visual for the entity
+    auto* ent = game_->entities().get_entity(data.entity_id);
+    if (ent)
+    {
+        auto& spr = ent->sprite();
+        uint8_t appr_val = static_cast<uint8_t>(std::max(int8_t(0), data.appr));
+        switch (data.slot)
+        {
+        case equip_pos::weapon:
+        case equip_pos::twohand:
+            spr.weapon = appr_val;
+            break;
+        case equip_pos::shield:
+            spr.shield = appr_val;
+            break;
+        case equip_pos::body:
+        case equip_pos::full_body:
+            spr.body_armor = appr_val;
+            break;
+        case equip_pos::pants:
+            spr.pants = appr_val;
+            break;
+        case equip_pos::head:
+            spr.helmet = appr_val;
+            break;
+        case equip_pos::arms:
+            spr.arm_armor = appr_val;
+            break;
+        case equip_pos::boots:
+            spr.boots = appr_val;
+            break;
+        case equip_pos::cape:
+            spr.mantle = appr_val;
+            break;
+        default:
+            break;
+        }
+
+        auto& sprites_mgr = game_->sprites();
+        game_->entities().load_character_sprites(*ent, sprites_mgr);
+    }
+
+    spdlog::debug("Equipment change: entity {} slot {} {} appr={}", data.entity_id,
+                  equip_pos_to_string(data.slot), data.item_data ? "equipped" : "unequipped",
+                  data.appr);
 }
 
 void ws_message_handler::handle_drop_result(const json& message)

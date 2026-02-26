@@ -98,6 +98,9 @@ public:
     uint32_t bitmap_width() const { return bitmap_width_; }
     uint32_t bitmap_height() const { return bitmap_height_; }
 
+    // Debug: color key used for transparency masking
+    sf::Color color_key() const { return color_key_; }
+
     // Direct texture access (for custom rendering) - loads bitmap if needed
     const sf::Texture& texture() const;
 

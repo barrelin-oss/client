@@ -192,6 +192,16 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     sprite.underwear_color = static_cast<uint8_t>(ch.underwear_color);
     sprite.gender = (ch.gender == 0) ? 1 : 2;
 
+    // Equipment visuals
+    sprite.weapon = ch.weapon_appr;
+    sprite.shield = ch.shield_appr;
+    sprite.body_armor = ch.body_appr;
+    sprite.pants = ch.pants_appr;
+    sprite.helmet = ch.head_appr;
+    sprite.arm_armor = ch.arms_appr;
+    sprite.boots = ch.boots_appr;
+    sprite.mantle = ch.cape_appr;
+
     entities.load_character_sprites(player, sprites);
 
     auto& anim = player.animation();

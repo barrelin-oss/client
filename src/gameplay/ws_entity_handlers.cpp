@@ -475,6 +475,30 @@ void ws_message_handler::handle_entity_spawn(const json& message)
         ent.combat().combat_stance = data.combat_mode;
     }
 
+    // Initialize appearance for player entities
+    if (data.type == "player")
+    {
+        auto& sprite = ent.sprite();
+        sprite.gender = (data.gender == 0) ? 1 : 2;
+        sprite.skin_color = data.skin_color;
+        sprite.hair_style = data.hair_style;
+        sprite.hair_color = data.hair_color;
+        sprite.underwear_color = data.underwear_color;
+
+        // Equipment visuals
+        sprite.weapon = data.weapon_appr;
+        sprite.shield = data.shield_appr;
+        sprite.body_armor = data.body_appr;
+        sprite.pants = data.pants_appr;
+        sprite.helmet = data.head_appr;
+        sprite.arm_armor = data.arms_appr;
+        sprite.boots = data.boots_appr;
+        sprite.mantle = data.cape_appr;
+
+        auto& sprites_mgr = game_->sprites();
+        game_->entities().load_character_sprites(ent, sprites_mgr);
+    }
+
     if (data.is_dead)
     {
         init_entity_dead_state(ent, entities);

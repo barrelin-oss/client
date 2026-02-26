@@ -1,6 +1,7 @@
 #pragma once
 
 #include "network/messages/common.hpp"
+#include <algorithm>
 
 namespace hb
 {
@@ -434,6 +435,23 @@ struct entity_spawn_data
     bool combat_mode = false;
     bool is_dead = false;
 
+    // Equipment visuals (appr values for rendering)
+    uint8_t weapon_appr = 0;
+    uint8_t shield_appr = 0;
+    uint8_t body_appr = 0;
+    uint8_t pants_appr = 0;
+    uint8_t head_appr = 0;
+    uint8_t arms_appr = 0;
+    uint8_t boots_appr = 0;
+    uint8_t cape_appr = 0;
+
+    // Base appearance (for spawning other players)
+    uint8_t gender = 0;
+    uint8_t skin_color = 0;
+    uint8_t hair_style = 0;
+    uint8_t hair_color = 0;
+    uint8_t underwear_color = 0;
+
     static entity_spawn_data from_json(const json& j)
     {
         entity_spawn_data data;
@@ -468,6 +486,38 @@ struct entity_spawn_data
                 data.combat_mode = d["combat_mode"].get<bool>();
             if (d.contains("is_dead"))
                 data.is_dead = d["is_dead"].get<bool>();
+
+            // Base appearance
+            if (d.contains("gender"))
+                data.gender = d["gender"].get<uint8_t>();
+            if (d.contains("skin_color"))
+                data.skin_color = d["skin_color"].get<uint8_t>();
+            if (d.contains("hair_style"))
+                data.hair_style = d["hair_style"].get<uint8_t>();
+            if (d.contains("hair_color"))
+                data.hair_color = d["hair_color"].get<uint8_t>();
+            if (d.contains("underwear_color"))
+                data.underwear_color = d["underwear_color"].get<uint8_t>();
+
+            // Equipment visuals
+            if (d.contains("equipment") && d["equipment"].is_object())
+            {
+                const auto& eq = d["equipment"];
+                auto read_appr = [](const nlohmann::json& slot_j) -> uint8_t
+                {
+                    if (slot_j.contains("appr"))
+                        return static_cast<uint8_t>(std::max(0, slot_j["appr"].get<int>()));
+                    return 0;
+                };
+                if (eq.contains("weapon")) data.weapon_appr = read_appr(eq["weapon"]);
+                if (eq.contains("shield")) data.shield_appr = read_appr(eq["shield"]);
+                if (eq.contains("body"))   data.body_appr = read_appr(eq["body"]);
+                if (eq.contains("pants"))  data.pants_appr = read_appr(eq["pants"]);
+                if (eq.contains("head"))   data.head_appr = read_appr(eq["head"]);
+                if (eq.contains("arms"))   data.arms_appr = read_appr(eq["arms"]);
+                if (eq.contains("boots"))  data.boots_appr = read_appr(eq["boots"]);
+                if (eq.contains("cape"))   data.cape_appr = read_appr(eq["cape"]);
+            }
         }
         return data;
     }

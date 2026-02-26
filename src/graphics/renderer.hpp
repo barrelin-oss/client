@@ -134,6 +134,12 @@ public:
     void draw_sprite_tinted(
         const sprite& spr, int32_t x, int32_t y, uint32_t frame, float r_offset, float g_offset, float b_offset);
 
+    // Weapon draw: discards near-black silhouette pixels, keeps colored weapon pixels.
+    // Use for all weapon draws — draw order (before/after body) controls overlap,
+    // but the silhouette should never be visible regardless of direction.
+    void draw_sprite_weapon_front(const sprite& spr, int32_t x, int32_t y, uint32_t frame);
+    void draw_sprite_weapon_front_alpha(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
+
     // Sprite drawing without color key (for backgrounds, etc.)
     void draw_sprite_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame = 0);
     void draw_sprite_alpha_no_color_key(const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha);
@@ -258,6 +264,12 @@ private:
     static bool tint_shader_loaded_;
     static bool tint_shader_init_attempted_;
     static bool load_tint_shader();
+
+    // Weapon-in-front shader (lazy-loaded, discards near-black silhouette pixels)
+    static sf::Shader weapon_front_shader_;
+    static bool weapon_front_shader_loaded_;
+    static bool weapon_front_shader_init_attempted_;
+    static bool load_weapon_front_shader();
 };
 
 } // namespace hb

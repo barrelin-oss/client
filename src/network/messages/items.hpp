@@ -278,6 +278,8 @@ struct equipment_change_msg
     uint32_t entity_id = 0;
     equip_pos slot = equip_pos::none;
     std::optional<item> item_data; // nullopt = unequipped
+    int8_t appr = 0;  // Equipment visual type for rendering
+    int8_t color = 0;  // Equipment color tint
 
     static equipment_change_msg from_json(const json& j)
     {
@@ -291,6 +293,10 @@ struct equipment_change_msg
                 msg.slot = equip_pos_from_string(d["slot"].get<std::string>());
             if (d.contains("item") && !d["item"].is_null())
                 msg.item_data = item::from_json(d["item"]);
+            if (d.contains("appr"))
+                msg.appr = d["appr"].get<int8_t>();
+            if (d.contains("color"))
+                msg.color = d["color"].get<int8_t>();
         }
         return msg;
     }

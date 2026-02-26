@@ -185,6 +185,16 @@ struct enter_game_character
     std::string guild_tag;
     uint8_t guild_rank = 255; // 255 = not in guild
 
+    // Equipment visuals (from server appearance state)
+    uint8_t weapon_appr = 0;
+    uint8_t shield_appr = 0;
+    uint8_t body_appr = 0;
+    uint8_t pants_appr = 0;
+    uint8_t head_appr = 0;
+    uint8_t arms_appr = 0;
+    uint8_t boots_appr = 0;
+    uint8_t cape_appr = 0;
+
     static enter_game_character from_json(const json& j)
     {
         enter_game_character c;
@@ -252,6 +262,27 @@ struct enter_game_character
             c.guild_tag = j["guild_tag"].get<std::string>();
         if (j.contains("guild_rank"))
             c.guild_rank = j["guild_rank"].get<uint8_t>();
+
+        // Equipment visuals
+        if (j.contains("equipment") && j["equipment"].is_object())
+        {
+            const auto& eq = j["equipment"];
+            auto read_appr = [](const nlohmann::json& slot_j) -> uint8_t
+            {
+                if (slot_j.contains("appr"))
+                    return static_cast<uint8_t>(std::max(0, slot_j["appr"].get<int>()));
+                return 0;
+            };
+            if (eq.contains("weapon")) c.weapon_appr = read_appr(eq["weapon"]);
+            if (eq.contains("shield")) c.shield_appr = read_appr(eq["shield"]);
+            if (eq.contains("body"))   c.body_appr = read_appr(eq["body"]);
+            if (eq.contains("pants"))  c.pants_appr = read_appr(eq["pants"]);
+            if (eq.contains("head"))   c.head_appr = read_appr(eq["head"]);
+            if (eq.contains("arms"))   c.arms_appr = read_appr(eq["arms"]);
+            if (eq.contains("boots"))  c.boots_appr = read_appr(eq["boots"]);
+            if (eq.contains("cape"))   c.cape_appr = read_appr(eq["cape"]);
+        }
+
         return c;
     }
 };

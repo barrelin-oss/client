@@ -35,6 +35,10 @@ sf::Shader renderer::tint_shader_;
 bool renderer::tint_shader_loaded_ = false;
 bool renderer::tint_shader_init_attempted_ = false;
 
+sf::Shader renderer::weapon_front_shader_;
+bool renderer::weapon_front_shader_loaded_ = false;
+bool renderer::weapon_front_shader_init_attempted_ = false;
+
 bool renderer::initialize(
     uint32_t width, uint32_t height, bool fullscreen, bool borderless, int32_t monitor_x, int32_t monitor_y)
 {
@@ -997,6 +1001,99 @@ void renderer::draw_sprite_tinted(
     tint_shader_.setUniform("texture", sf::Shader::CurrentTexture);
     tint_shader_.setUniform("color_offset", sf::Glsl::Vec3(r_offset, g_offset, b_offset));
     states.shader = &tint_shader_;
+
+    active_target_->draw(sf_spr, states);
+    ++draw_call_count_;
+}
+
+bool renderer::load_weapon_front_shader()
+{
+    // Discards near-black pixels (character silhouette in weapon sprites).
+    // Palette indices 2-6 have max channel < 7/255 ≈ 0.027; actual weapon
+    // pixels start at palette index 7 with max channel ≥ 33/255 ≈ 0.13.
+    // Threshold of 0.05 cleanly separates silhouette from weapon.
+    static const char* fragment_shader = R"(
+        uniform sampler2D texture;
+
+        void main()
+        {
+            vec4 color = texture2D(texture, gl_TexCoord[0].xy);
+            float brightness = max(max(color.r, color.g), color.b);
+            if (brightness < 0.05 || color.a < 0.5)
+                discard;
+            gl_FragColor = color * gl_Color;
+        }
+    )";
+
+    if (!sf::Shader::isAvailable())
+    {
+        spdlog::warn("Shaders not available - weapon-in-front silhouette discard disabled");
+        return false;
+    }
+
+    if (!weapon_front_shader_.loadFromMemory(fragment_shader, sf::Shader::Type::Fragment))
+    {
+        spdlog::error("Failed to load weapon-front shader");
+        return false;
+    }
+
+    return true;
+}
+
+void renderer::draw_sprite_weapon_front(const sprite& spr, int32_t x, int32_t y, uint32_t frame)
+{
+    if (!weapon_front_shader_init_attempted_)
+    {
+        weapon_front_shader_init_attempted_ = true;
+        weapon_front_shader_loaded_ = load_weapon_front_shader();
+    }
+
+    if (!weapon_front_shader_loaded_)
+    {
+        // Fallback: skip drawing to avoid the black body issue
+        return;
+    }
+
+    if (!spr.ensure_loaded() || frame >= spr.frame_count())
+        return;
+
+    const auto& f = spr.get_frame(frame);
+    sf::Sprite sf_spr(spr.texture(), f.source_rect);
+    sf_spr.setPosition({static_cast<float>(x + f.pivot_x), static_cast<float>(y + f.pivot_y)});
+
+    sf::RenderStates states;
+    weapon_front_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+    states.shader = &weapon_front_shader_;
+
+    active_target_->draw(sf_spr, states);
+    ++draw_call_count_;
+}
+
+void renderer::draw_sprite_weapon_front_alpha(
+    const sprite& spr, int32_t x, int32_t y, uint32_t frame, float alpha)
+{
+    if (!weapon_front_shader_init_attempted_)
+    {
+        weapon_front_shader_init_attempted_ = true;
+        weapon_front_shader_loaded_ = load_weapon_front_shader();
+    }
+
+    if (!weapon_front_shader_loaded_)
+        return;
+
+    if (!spr.ensure_loaded() || frame >= spr.frame_count())
+        return;
+
+    const auto& f = spr.get_frame(frame);
+    sf::Sprite sf_spr(spr.texture(), f.source_rect);
+    sf_spr.setPosition({static_cast<float>(x + f.pivot_x), static_cast<float>(y + f.pivot_y)});
+
+    uint8_t alpha_byte = static_cast<uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
+    sf_spr.setColor(sf::Color(255, 255, 255, alpha_byte));
+
+    sf::RenderStates states;
+    weapon_front_shader_.setUniform("texture", sf::Shader::CurrentTexture);
+    states.shader = &weapon_front_shader_;
 
     active_target_->draw(sf_spr, states);
     ++draw_call_count_;

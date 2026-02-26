@@ -163,6 +163,7 @@ public:
 
     // Check if a screen point is over any open dialog
     bool is_point_over_dialog(int32_t x, int32_t y) const;
+    bool is_any_dialog_dragging() const;
 
     // Item drag system
     const ui_drag_state& drag_state() const { return drag_state_; }

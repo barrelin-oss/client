@@ -34,7 +34,7 @@ ui_rect inventory_dialog::bag_area() const
 
 void inventory_dialog::update(float delta_time, const input& /*inp*/)
 {
-    (void)delta_time;
+    click_elapsed_ += delta_time;
 }
 
 void inventory_dialog::render(renderer& rend)
@@ -59,6 +59,9 @@ void inventory_dialog::render(renderer& rend)
             const auto* entry = inventory_->get_bag_item(item_id);
             if (!entry)
                 continue;
+
+            if (inventory_->equipment().find_slot_for(item_id).has_value())
+                continue; // equipped items are shown in the equipment dialog, not here
 
             render_item(rend, *entry, bag.x + entry->pos_x, bag.y + entry->pos_y);
         }
@@ -202,6 +205,8 @@ std::optional<uint32_t> inventory_dialog::item_at(int32_t screen_x, int32_t scre
             continue;
         if (entry->locked)
             continue; // Locked items are not interactable
+        if (inventory_->equipment().find_slot_for(item_id).has_value())
+            continue; // Equipped items are not shown in inventory
 
         // Quick bounding box reject first
         auto rect = item_sprite_rect(item_id);
@@ -257,6 +262,23 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
         if (hit.has_value() && inventory_)
         {
             uint32_t item_id = hit.value();
+
+            // Double-click detection: same item within threshold → equip it
+            bool is_double_click = (item_id == last_clicked_item_id_) &&
+                                   (click_elapsed_ < double_click_threshold_);
+            last_clicked_item_id_ = item_id;
+            click_elapsed_ = 0.0f;
+
+            if (is_double_click && on_equip_)
+            {
+                const auto* dbl_entry = inventory_->get_bag_item(item_id);
+                if (dbl_entry && dbl_entry->data.is_equippable())
+                {
+                    on_equip_(item_id);
+                    return true;
+                }
+            }
+
             pressed_item_id_ = item_id;
             dragging_item_id_ = item_id;
 

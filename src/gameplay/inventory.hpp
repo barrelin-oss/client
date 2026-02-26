@@ -115,9 +115,9 @@ public:
 
     // Notify helpers (public for network handlers)
     void notify_item_changed(uint32_t item_id);
+    void notify_equipment_changed(equip_pos slot);
 
 private:
-    void notify_equipment_changed(equip_pos slot);
     int32_t max_z_order() const;
 
     std::unordered_map<uint32_t, bag_item> bag_items_; // keyed by item.data.item_id

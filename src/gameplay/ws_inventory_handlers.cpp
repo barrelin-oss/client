@@ -251,6 +251,7 @@ void ws_message_handler::handle_force_unequip(const json& message)
 {
     auto data = force_unequip_msg::from_json(message);
     game_->inventory().equipment().clear(data.slot);
+    game_->inventory().notify_equipment_changed(data.slot);
     spdlog::info("Force unequipped slot {}: {}", equip_pos_to_string(data.slot), data.reason);
 }
 
@@ -265,6 +266,8 @@ void ws_message_handler::handle_equipment_change(const json& message)
             game_->inventory().equipment().set(data.slot, data.item_data->item_id);
         else
             game_->inventory().equipment().clear(data.slot);
+
+        game_->inventory().notify_equipment_changed(data.slot);
     }
 
     spdlog::debug("Equipment change: entity {} slot {} {}", data.entity_id,

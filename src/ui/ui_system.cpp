@@ -1051,6 +1051,16 @@ bool ui_system::is_point_over_dialog(int32_t x, int32_t y) const
     return false;
 }
 
+bool ui_system::is_any_dialog_dragging() const
+{
+    for (const auto& [type, dlg] : dialogs_)
+    {
+        if (dlg->is_open() && dlg->is_window_dragging())
+            return true;
+    }
+    return false;
+}
+
 bool ui_system::is_mouse_consumed(sf::Mouse::Button btn) const
 {
     if (btn == sf::Mouse::Button::Left)
@@ -1291,6 +1301,8 @@ void ui_system::cancel_item_drag()
 {
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
         inv_dlg->clear_dragging_item();
+    if (auto* chr_dlg = dynamic_cast<character_dialog*>(get_dialog(dialog_type::character_info)))
+        chr_dlg->clear_dragging_slot();
     drag_state_ = {};
 }
 
@@ -1317,17 +1329,18 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
         }
         else if (drag_state_.source_dialog == dialog_type::character_info)
         {
-            // Unequip
+            // Unequip — dragged from paperdoll to inventory
             if (on_unequip_from_drag_ && drag_state_.source_equip != equip_pos::none)
                 on_unequip_from_drag_(drag_state_.source_equip);
         }
     }
-    // Check if dropped on character info dialog (equip)
+    // Check if dropped on character info dialog (equip from inventory, or snap-back from paperdoll drag)
     else if (auto* chr = get_dialog(dialog_type::character_info);
              chr && chr->is_open() && chr->bounds().contains(x, y))
     {
         if (drag_state_.source_dialog == dialog_type::inventory && on_equip_from_drag_)
             on_equip_from_drag_(drag_state_.source_item_id);
+        // Dropping a paperdoll item back onto character dialog = snap back (noop)
     }
     // Dropped in game world
     else if (!is_point_over_dialog(x, y))
@@ -1338,6 +1351,8 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
 
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory)))
         inv_dlg->clear_dragging_item();
+    if (auto* chr_dlg = dynamic_cast<character_dialog*>(get_dialog(dialog_type::character_info)))
+        chr_dlg->clear_dragging_slot();
     drag_state_ = {};
 }
 

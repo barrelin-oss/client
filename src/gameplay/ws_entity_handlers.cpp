@@ -248,10 +248,12 @@ void ws_message_handler::handle_npc_move(const json& message)
     auto& t = ent->transform();
     t.facing = direction_from_protocol(data.direction).value_or(direction::south);
 
-    // If the NPC hasn't been positioned yet (just spawned), snap to destination
+    // If the NPC hasn't been positioned yet (just spawned), or the destination is more than 1 tile
+    // away (stale client position due to missed despawn), snap directly without interpolation.
     bool first_position = (t.tile_x == 0 && t.tile_y == 0 && t.x == 0 && t.y == 0);
+    bool far_away = std::abs(t.tile_x - data.x) > 1 || std::abs(t.tile_y - data.y) > 1;
 
-    if (first_position || !ent->has_movement())
+    if (first_position || far_away || !ent->has_movement())
     {
         // Snap directly
         t.tile_x = data.x;
@@ -260,6 +262,8 @@ void ws_message_handler::handle_npc_move(const json& message)
         t.move_start_y = data.y;
         t.x = data.x * hb::tile_width + 16;
         t.y = data.y * hb::tile_height + 16;
+        t.moving = false;
+        t.move_progress = 0.0f;
     }
     else
     {
@@ -416,12 +420,22 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     auto data = entity_spawn_data::from_json(message);
     auto& entities = game_->entities();
 
-    // Skip if entity already exists (unless it's fading out — let the respawn replace it)
+    // If entity already exists and is not fading out, snap it to the spawn position (server is
+    // re-streaming an entity that was never despawned client-side) and return — no need to recreate.
     if (auto* existing = entities.get_entity(data.entity_id))
     {
         if (!existing->is_fading_out())
         {
-            spdlog::debug("entity_spawn: entity {} already exists, ignoring", data.entity_id);
+            spdlog::debug("entity_spawn: entity {} already exists, snapping to ({},{})", data.entity_id, data.x, data.y);
+            auto& t = existing->transform();
+            t.tile_x = data.x;
+            t.tile_y = data.y;
+            t.move_start_x = data.x;
+            t.move_start_y = data.y;
+            t.x = data.x * hb::tile_width + 16;
+            t.y = data.y * hb::tile_height + 16;
+            t.moving = false;
+            t.move_progress = 0.0f;
             return;
         }
     }
@@ -490,12 +504,21 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     auto data = npc_spawn_data::from_json(message);
     auto& entities = game_->entities();
 
-    // Skip if entity already exists (unless it's fading out — let the respawn replace it)
+    // If entity already exists and is not fading out, snap it to the spawn position and return.
     if (auto* existing = entities.get_entity(data.entity_id))
     {
         if (!existing->is_fading_out())
         {
-            spdlog::debug("npc_spawn: entity {} already exists, ignoring", data.entity_id);
+            spdlog::debug("npc_spawn: entity {} already exists, snapping to ({},{})", data.entity_id, data.x, data.y);
+            auto& t = existing->transform();
+            t.tile_x = data.x;
+            t.tile_y = data.y;
+            t.move_start_x = data.x;
+            t.move_start_y = data.y;
+            t.x = data.x * hb::tile_width + 16;
+            t.y = data.y * hb::tile_height + 16;
+            t.moving = false;
+            t.move_progress = 0.0f;
             return;
         }
     }

@@ -551,11 +551,6 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
     init_steps_.push_back({"Creating dialogs...",
                            [this]()
                            {
-                               ui_.create_equipment_dialog();
-                           }});
-    init_steps_.push_back({"Creating dialogs...",
-                           [this]()
-                           {
                                ui_.create_spellbook_dialog();
                            }});
     init_steps_.push_back({"Creating dialogs...",
@@ -689,7 +684,57 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                                ui_.begin_item_drag(entry->data, item_id, equip_pos::none,
                                                                    dialog_type::inventory, cx, cy, off_x, off_y);
                                        });
+
+                                   // Double-click an equippable item to equip it
+                                   inv_dlg->set_on_equip(
+                                       [this](uint32_t item_id)
+                                       {
+                                           const auto* entry = inventory_.get_bag_item(item_id);
+                                           if (!entry || !entry->data.is_equippable())
+                                               return;
+                                           spdlog::info("Equipping item {} via double-click", item_id);
+                                           ws_connection_.send(
+                                               make_equip_request(item_id, entry->data.equip_position));
+                                       });
                                }
+
+                               // character_dialog reads inventory directly — no explicit slot-update needed.
+                               // Set empty callbacks struct to satisfy the API.
+                               inventory_.set_callbacks({});
+
+                               // Wire character dialog — drag and double-click to unequip
+                               if (auto* chr_dlg =
+                                       dynamic_cast<character_dialog*>(ui_.get_dialog(dialog_type::character_info)))
+                               {
+                                   chr_dlg->set_on_drag_start_slot(
+                                       [this, chr_dlg](equip_pos slot, int32_t cx, int32_t cy)
+                                       {
+                                           auto item_id_opt = inventory_.equipment().get(slot);
+                                           const item* itm = inventory_.get_equipped_item(slot);
+                                           if (!itm || !item_id_opt)
+                                               return;
+                                           chr_dlg->set_dragging_slot(slot);
+                                           ui_.begin_item_drag(*itm, *item_id_opt, slot,
+                                                               dialog_type::character_info, cx, cy, 0, 0);
+                                       });
+
+                                   chr_dlg->set_on_double_click_slot(
+                                       [this](equip_pos slot)
+                                       {
+                                           spdlog::info("Unequipping slot {} via double-click",
+                                                        static_cast<int>(slot));
+                                           ws_connection_.send(make_unequip_request(slot));
+                                       });
+                               }
+
+                               // Drag from character dialog paperdoll to inventory triggers unequip
+                               ui_.set_on_unequip_from_drag(
+                                   [this](equip_pos slot)
+                                   {
+                                       spdlog::info("Unequipping slot {} via drag-to-inventory",
+                                                    static_cast<int>(slot));
+                                       ws_connection_.send(make_unequip_request(slot));
+                                   });
 
                                // Drop item to world — snap back, lock, confirm, then send
                                ui_.set_on_drop_in_world(
@@ -1385,6 +1430,31 @@ void game_state_manager::update_playing(float delta_time, const input& inp)
 
     // Update entities
     entities_.update(delta_time, world_, input_handler_.is_combat_mode());
+
+    // Cull entities that have drifted beyond the server's view radius.
+    // The server should send despawn messages, but this acts as a client-side safety net
+    // so stale entities don't accumulate when despawns are missed.
+    if (!sees_all_)
+    {
+        if (const entity* player = local_player())
+        {
+            const auto& pt = player->transform();
+            std::vector<entity_id> to_cull;
+            entities_.for_each([&](const entity& ent)
+            {
+                if (ent.id() == entities_.local_player_id())
+                    return;
+                const auto& t = ent.transform();
+                if (std::abs(t.tile_x - pt.tile_x) > view_radius_x_ ||
+                    std::abs(t.tile_y - pt.tile_y) > view_radius_y_)
+                {
+                    to_cull.push_back(ent.id());
+                }
+            });
+            for (auto id : to_cull)
+                entities_.remove_entity(id);
+        }
+    }
 
     // Feed occupied tiles to map renderer for debug overlay
     if (world_.render_config().show_walkability)

@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <array>
 
 namespace hb
 {
@@ -19,10 +20,13 @@ class entity;
 class paperdoll_renderer;
 
 // Character information dialog — comprehensive character sheet
-// Shows name/faction, paperdoll with equipment, stats, attributes, and action buttons
+// Shows name/faction, paperdoll with interactive equipment slots, stats, and attributes
 class character_dialog : public dialog
 {
 public:
+    static constexpr int32_t slot_size = 26;
+    static constexpr size_t max_equip_poss = 15;
+
     character_dialog();
     ~character_dialog() override = default;
 
@@ -40,14 +44,22 @@ public:
     // Stat point allocation
     void set_stat_points(int32_t points) { stat_points_ = points; }
 
+    // Mark a slot as being dragged (renders empty while item follows cursor)
+    void set_dragging_slot(equip_pos slot) { dragging_slot_ = slot; }
+    void clear_dragging_slot() { dragging_slot_ = std::nullopt; }
+
     // Callbacks
     using stat_callback = std::function<void(int)>;
     using action_callback = std::function<void()>;
+    using slot_callback = std::function<void(equip_pos)>;
+    using drag_start_callback = std::function<void(equip_pos slot, int32_t cx, int32_t cy)>;
 
     void set_on_add_stat(stat_callback cb) { on_add_stat_ = std::move(cb); }
     void set_on_quest(action_callback cb) { on_quest_ = std::move(cb); }
     void set_on_party(action_callback cb) { on_party_ = std::move(cb); }
     void set_on_level_settings(action_callback cb) { on_level_settings_ = std::move(cb); }
+    void set_on_double_click_slot(slot_callback cb) { on_double_click_slot_ = std::move(cb); }
+    void set_on_drag_start_slot(drag_start_callback cb) { on_drag_start_slot_ = std::move(cb); }
 
 private:
     // Rendering sections
@@ -57,13 +69,18 @@ private:
     void render_attributes(renderer& rend, int32_t& y);
     void render_buttons(renderer& rend, int32_t y);
 
-    // Hit testing
+    // Equipment slot hit-testing (relative to paperdoll area)
+    ui_rect get_paperdoll_slot_rect(equip_pos slot) const;
+    std::optional<equip_pos> slot_at_paperdoll(int32_t x, int32_t y) const;
+
+    // Hit testing for buttons
     std::optional<int> button_at(int32_t x, int32_t y) const;
     std::optional<int> stat_button_at(int32_t x, int32_t y) const;
 
     // Computed layout: y position where buttons start (set during render)
     int32_t buttons_y_ = 0;
     int32_t attr_y_ = 0;
+    int32_t paperdoll_area_y_ = 0; // Top of paperdoll area, set during render
 
     // Data sources (non-owning, resolved lazily)
     const entity* player_ = nullptr;
@@ -73,20 +90,40 @@ private:
 
     int32_t stat_points_ = 0;
     int32_t hovered_button_ = -1;
+    std::optional<equip_pos> hovered_equip_slot_;
+    std::optional<equip_pos> dragging_slot_;
+
+    // Double-click tracking
+    static constexpr float double_click_threshold_ = 0.35f;
+    float click_elapsed_ = 0.0f;
+    std::optional<equip_pos> last_clicked_slot_;
 
     // Callbacks
     stat_callback on_add_stat_;
     action_callback on_quest_;
     action_callback on_party_;
     action_callback on_level_settings_;
+    slot_callback on_double_click_slot_;
+    drag_start_callback on_drag_start_slot_;
 
     // Layout constants
     static constexpr int32_t dialog_width = 330;
     static constexpr int32_t dialog_height = 420;
     static constexpr int32_t padding = 10;
+    static constexpr int32_t paperdoll_area_w = 150;
+    static constexpr int32_t paperdoll_area_h = 170;
     static constexpr int32_t stat_button_size = 16;
     static constexpr int32_t button_width = 88;
     static constexpr int32_t button_height = 24;
+
+    // Equipment slot positions relative to paperdoll area top-left, indexed by equip_pos
+    struct slot_position
+    {
+        int32_t x;
+        int32_t y;
+        const char* label;
+    };
+    static const std::array<slot_position, max_equip_poss> slot_positions_;
 };
 
 } // namespace hb

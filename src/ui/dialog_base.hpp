@@ -121,6 +121,7 @@ public:
 
     void set_drag_clamp(drag_clamp mode) { drag_clamp_ = mode; }
     drag_clamp get_drag_clamp() const { return drag_clamp_; }
+    bool is_window_dragging() const { return dragging_; }
 
     // Callbacks
     using close_callback = std::function<void()>;

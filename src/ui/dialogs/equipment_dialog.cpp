@@ -40,6 +40,7 @@ equipment_dialog::equipment_dialog() : dialog(dialog_type::equipment)
 void equipment_dialog::update(float delta_time, const input& inp)
 {
     dialog::update(delta_time, inp);
+    click_elapsed_ += delta_time;
 }
 
 void equipment_dialog::render(renderer& rend)
@@ -116,8 +117,8 @@ void equipment_dialog::render_slot(renderer& rend, equip_pos slot)
     rend.draw_rect(slot_x, slot_y, slot_size, slot_size, bg_color, true);
     rend.draw_rect(slot_x, slot_y, slot_size, slot_size, sf::Color(70, 70, 90), false);
 
-    // Draw item if equipped
-    if (slots_[idx].item_ptr)
+    // Draw item if equipped and not currently being dragged
+    if (slots_[idx].item_ptr && dragging_slot_ != slot)
     {
         const item* itm = slots_[idx].item_ptr;
 
@@ -213,7 +214,23 @@ bool equipment_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
     {
         if (btn == sf::Mouse::Button::Left)
         {
-            if (on_slot_click_)
+            size_t idx = static_cast<size_t>(slot.value());
+            const item* itm = (idx < slots_.size()) ? slots_[idx].item_ptr : nullptr;
+
+            bool is_double_click = (last_clicked_slot_ == slot) && (click_elapsed_ < double_click_threshold_);
+            last_clicked_slot_ = slot;
+            click_elapsed_ = 0.0f;
+
+            if (is_double_click)
+            {
+                if (on_double_click_slot_)
+                    on_double_click_slot_(slot.value());
+            }
+            else if (itm && on_drag_start_slot_)
+            {
+                on_drag_start_slot_(slot.value(), x, y);
+            }
+            else if (on_slot_click_)
             {
                 on_slot_click_(slot.value());
             }
@@ -222,9 +239,7 @@ bool equipment_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
         else if (btn == sf::Mouse::Button::Right)
         {
             if (on_slot_right_click_)
-            {
                 on_slot_right_click_(slot.value());
-            }
             return true;
         }
     }

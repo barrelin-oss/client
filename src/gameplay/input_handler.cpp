@@ -119,6 +119,8 @@ void input_handler::handle_playing_input(const input& inp)
 
     if (ui.is_modal_open())
     {
+        // Still step in-progress tile movement; skip all new input commands
+        handle_movement_input(inp);
         return;
     }
 
@@ -220,7 +222,7 @@ void input_handler::handle_playing_input(const input& inp)
     }
 
     handle_combat_input(inp);
-    if (!attack_consumed_)
+    if (!attack_consumed_ && !ui.is_any_dialog_dragging())
     {
         handle_movement_input(inp);
     }
@@ -252,7 +254,9 @@ void input_handler::handle_movement_input(const input& inp)
     auto& entities = game_->entities();
     auto& sprites = game_->sprites();
 
-    if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
+    bool modal_open = game_->ui().is_modal_open();
+
+    if (!modal_open && inp.is_mouse_pressed(sf::Mouse::Button::Left))
     {
         [[maybe_unused]] auto [dest_x, dest_y] = world.screen_to_tile(mouse_x_, mouse_y_);
         auto& t = player->transform();
@@ -301,7 +305,7 @@ void input_handler::handle_movement_input(const input& inp)
         }
     }
 
-    if (inp.is_mouse_down(sf::Mouse::Button::Left))
+    if (!modal_open && inp.is_mouse_down(sf::Mouse::Button::Left))
     {
         // During a one-shot animation (pickup, attack), don't re-evaluate the
         // mouse — sprite bounds shift mid-animation and would cause false
@@ -342,7 +346,7 @@ void input_handler::handle_movement_input(const input& inp)
         }
     }
 
-    if (inp.is_mouse_down(sf::Mouse::Button::Right))
+    if (!modal_open && inp.is_mouse_down(sf::Mouse::Button::Right))
     {
         auto& t = player->transform();
 
@@ -392,7 +396,7 @@ void input_handler::handle_movement_input(const input& inp)
     }
 
     // Right click held interrupts pathfinding
-    if (inp.is_mouse_down(sf::Mouse::Button::Right) && move_dest_x_ >= 0)
+    if (!modal_open && inp.is_mouse_down(sf::Mouse::Button::Right) && move_dest_x_ >= 0)
     {
         move_dest_x_ = -1;
         move_dest_y_ = -1;
@@ -502,15 +506,15 @@ void input_handler::handle_movement_input(const input& inp)
         game_->ws_connection().send(msg);
     }
 
-    // Keyboard movement
+    // Keyboard movement (blocked when modal dialog is open)
     int32_t dx = 0, dy = 0;
-    if (inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::Up))
+    if (!modal_open && (inp.is_key_down(sf::Keyboard::Key::W) || inp.is_key_down(sf::Keyboard::Key::Up)))
         dy = -1;
-    if (inp.is_key_down(sf::Keyboard::Key::S) || inp.is_key_down(sf::Keyboard::Key::Down))
+    if (!modal_open && (inp.is_key_down(sf::Keyboard::Key::S) || inp.is_key_down(sf::Keyboard::Key::Down)))
         dy = 1;
-    if (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left))
+    if (!modal_open && (inp.is_key_down(sf::Keyboard::Key::A) || inp.is_key_down(sf::Keyboard::Key::Left)))
         dx = -1;
-    if (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right))
+    if (!modal_open && (inp.is_key_down(sf::Keyboard::Key::D) || inp.is_key_down(sf::Keyboard::Key::Right)))
         dx = 1;
 
     if (dx != 0 || dy != 0)
@@ -1073,7 +1077,7 @@ void input_handler::handle_hotkey_input(const input& inp)
     if (inp.is_key_pressed(sf::Keyboard::Key::I))
         ui.toggle_dialog(dialog_type::inventory);
     if (inp.is_key_pressed(sf::Keyboard::Key::E))
-        ui.toggle_dialog(dialog_type::equipment);
+        ui.toggle_dialog(dialog_type::character_info);
     if (inp.is_key_pressed(sf::Keyboard::Key::K))
         ui.toggle_dialog(dialog_type::skills);
     if (inp.is_key_pressed(sf::Keyboard::Key::M))

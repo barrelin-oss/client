@@ -130,6 +130,14 @@ public:
     size_t entity_count() const { return entities_.size(); }
     size_t entity_count_of_type(entity_type type) const;
 
+    // Iterate all entities
+    template<typename Func>
+    void for_each(Func&& func) const
+    {
+        for (const auto& [id, ent] : entities_)
+            func(*ent);
+    }
+
     // Get tile positions of all alive entities (for debug overlay)
     std::vector<std::pair<int32_t, int32_t>> get_occupied_tiles() const;
 

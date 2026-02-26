@@ -66,7 +66,7 @@ bool reconnect_screen::update(float delta_time, const input& inp)
     if (inp.is_mouse_pressed(sf::Mouse::Button::Left) && screen_width_ > 0)
     {
         int32_t btn_x = (screen_width_ - button_width_) / 2;
-        int32_t btn_y = screen_height_ * 55 / 100;
+        int32_t btn_y = screen_height_ * 72 / 100;
         int32_t exit_btn_y = btn_y + button_height_ + 12;
 
         if (mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_ && mouse_y_ >= btn_y &&
@@ -295,7 +295,7 @@ void reconnect_screen::render(renderer& rend, sprite_manager& sprites)
 
     // Reconnect button
     int32_t btn_x = (sw - button_width_) / 2;
-    int32_t btn_y = sh * 55 / 100;
+    int32_t btn_y = sh * 72 / 100;
 
     bool reconnect_hovered = mouse_x_ >= btn_x && mouse_x_ <= btn_x + button_width_ && mouse_y_ >= btn_y &&
                              mouse_y_ <= btn_y + button_height_;

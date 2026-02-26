@@ -94,16 +94,6 @@ void dialog_callbacks::setup_callbacks()
 
     // Inventory dialog drag handled by ui_system cross-dialog drag system (wired in game_state)
 
-    // Equipment dialog - equip/unequip
-    if (auto* equip_dlg = dynamic_cast<equipment_dialog*>(ui.get_dialog(dialog_type::equipment)))
-    {
-        equip_dlg->set_on_slot_click([](equip_pos slot)
-                                     { spdlog::debug("Equipment slot {} clicked", static_cast<int>(slot)); });
-
-        equip_dlg->set_on_slot_right_click([&network](equip_pos slot)
-                                           { network.request_unequip(static_cast<uint8_t>(slot)); });
-    }
-
     // Spellbook dialog - single click to cast
     if (auto* spell_dlg = dynamic_cast<spellbook_dialog*>(ui.get_dialog(dialog_type::spellbook)))
     {

@@ -89,7 +89,7 @@ sf::Color item_name_color(const item& itm)
     return sf::Color::White;
 }
 
-std::vector<item_info_line> build_item_info(const item& itm)
+std::vector<item_info_line> build_item_info(const item& itm, int32_t total_count)
 {
     std::vector<item_info_line> lines;
 
@@ -118,9 +118,13 @@ std::vector<item_info_line> build_item_info(const item& itm)
     if (attr.custom_made)
         lines.push_back({"Custom Made", sf::Color(255, 200, 100)});
 
-    // Durability
-    if (itm.max_durability > 0)
+    // Durability (skip for single-endurance items)
+    if (itm.max_durability > 1)
         lines.push_back({std::format("Endurance: {}", itm.durability), sf::Color(180, 180, 180)});
+
+    // Total count across inventory
+    if (total_count > 1)
+        lines.push_back({std::format("Total: {}", total_count), sf::Color(180, 180, 180)});
 
     return lines;
 }

@@ -6,6 +6,7 @@
 #include "assets/sprite_manager.hpp"
 #include "gameplay/item.hpp"
 #include "gameplay/item_format.hpp"
+#include "gameplay/inventory.hpp"
 #include "world/ground_item.hpp"
 #include "core/constants.hpp"
 #include <spdlog/spdlog.h>
@@ -804,7 +805,13 @@ void ui_system::create_confirm_box(std::string_view title,
 void ui_system::create_drop_confirm_box(const item& itm,
                                         std::function<void(bool confirmed, bool skip_next)> on_result)
 {
-    auto info_lines = build_item_info(itm);
+    int32_t total = 0;
+    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory));
+        inv_dlg && inv_dlg->inventory())
+    {
+        total = static_cast<int32_t>(inv_dlg->inventory()->count_item_type(itm.template_id));
+    }
+    auto info_lines = build_item_info(itm, total);
 
     // Calculate dialog height based on content:
     // title bar ~24px + item info lines + question label + toggle label + buttons + padding
@@ -1385,7 +1392,13 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
 
 void ui_system::render_held_item_info(renderer& rend, const item& itm, int32_t x, int32_t y)
 {
-    auto lines = build_item_info(itm);
+    int32_t total = 0;
+    if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory));
+        inv_dlg && inv_dlg->inventory())
+    {
+        total = static_cast<int32_t>(inv_dlg->inventory()->count_item_type(itm.template_id));
+    }
+    auto lines = build_item_info(itm, total);
     if (lines.empty())
         return;
 

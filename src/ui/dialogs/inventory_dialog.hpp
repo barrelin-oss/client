@@ -39,6 +39,7 @@ public:
 
     // Data binding
     void set_inventory(inventory_system* inv) { inventory_ = inv; }
+    const inventory_system* inventory() const { return inventory_; }
     void set_sprite_manager(sprite_manager* mgr) { sprite_mgr_ = mgr; }
 
     // Drag start callback (notifies ui_system to begin cross-dialog drag tracking)

@@ -29,10 +29,10 @@ enum class weapon_skill : uint8_t
     shield = 14,  // Shield blocking
 };
 
-// Weapon type 40+ are bows/crossbows (ranged weapons)
-inline bool is_bow_weapon(uint16_t weapon_type)
+// Check if weapon is a bow/crossbow (ranged weapon)
+inline bool is_bow_weapon(weapon_type wt)
 {
-    return weapon_type >= 40;
+    return wt == weapon_type::bow;
 }
 
 // Attack types
@@ -68,7 +68,7 @@ struct attack_params
     entity_id attacker = invalid_entity_id;
     entity_id target = invalid_entity_id;
     attack_type type = attack_type::normal;
-    uint16_t weapon_type = 0;
+    weapon_type weapon = weapon_type::none;
     int32_t attack_power = 0;
     int32_t hit_ratio = 0;
     int32_t critical_ratio = 0;
@@ -159,14 +159,14 @@ public:
     void process_attack(entity_id attacker, entity_id target, int32_t damage);
 
     // Attack type determination
-    attack_type get_attack_type(uint16_t weapon_type, uint8_t skill_mastery, bool use_super) const;
-    weapon_skill get_weapon_skill(uint16_t weapon_type) const;
+    attack_type get_attack_type(weapon_type wt, uint8_t skill_mastery, bool use_super) const;
+    weapon_skill get_weapon_skill(weapon_type wt) const;
 
     // Range checking
     bool is_in_melee_range(entity_id attacker, entity_id target) const;
     bool is_in_dash_range(entity_id attacker, entity_id target) const;
     bool is_in_ranged_range(entity_id attacker, entity_id target) const;
-    int32_t get_attack_range(attack_type type, uint16_t weapon_type) const;
+    int32_t get_attack_range(attack_type type, weapon_type wt) const;
 
     // Dash attack check - requires mastered weapon skill and non-bow weapon
     bool can_dash_attack(entity_id attacker) const;
@@ -206,7 +206,7 @@ private:
     int get_player_type(entity_id id) const;
 
     // Play combat sounds
-    void play_attack_sound(entity_id attacker, uint16_t weapon_type);
+    void play_attack_sound(entity_id attacker, weapon_type wt);
     void play_hurt_sound(entity_id target);
     void play_death_sound(entity_id target);
     void play_critical_sound(entity_id attacker);

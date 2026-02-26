@@ -2224,7 +2224,7 @@ void game_state_manager::update_icon_panel()
     bool weapon_mastered = false;
     if (const item* weapon = inventory_.get_equipped_item(equip_pos::weapon))
     {
-        weapon_skill ws = combat_.get_weapon_skill(static_cast<uint16_t>(weapon->template_id));
+        weapon_skill ws = combat_.get_weapon_skill(weapon->weapon);
         weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
     }
     panel->set_super_attack_available(weapon_mastered);

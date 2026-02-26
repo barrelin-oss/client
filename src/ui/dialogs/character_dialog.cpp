@@ -193,7 +193,7 @@ void character_dialog::render_equipment_and_stats(renderer& rend, int32_t& y)
     uint32_t weight = inventory_ ? inventory_->current_weight() : 0;
     uint32_t max_weight = inventory_ ? inventory_->max_weight() : 0;
 
-    rend.draw_text(std::format("Weight: {} / {}", weight, max_weight), stat_x, stat_y, sf::Color::White);
+    rend.draw_text(std::format("Weight: {} / {}", weight / 100, max_weight / 100), stat_x, stat_y, sf::Color::White);
     stat_y += 16;
     rend.draw_text(std::format("EK Count: {}", ek), stat_x, stat_y, sf::Color::White);
     stat_y += 16;

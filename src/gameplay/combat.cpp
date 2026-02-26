@@ -62,7 +62,7 @@ damage_result combat_system::calculate_damage(const attack_params& params)
     }
 
     // Apply weapon skill bonus
-    weapon_skill skill = get_weapon_skill(params.weapon_type);
+    weapon_skill skill = get_weapon_skill(params.weapon);
     uint8_t mastery = 0;
     if (skills_)
     {
@@ -154,17 +154,17 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
     att->combat().attack_type = static_cast<uint8_t>(type);
 
     // Get equipped weapon type for animation and sound selection
-    uint16_t weapon_type = 0;
+    weapon_type wt = weapon_type::none;
     if (inventory_)
     {
         if (const auto* weapon = inventory_->get_equipped_item(equip_pos::weapon))
         {
-            weapon_type = weapon->template_id;
+            wt = weapon->weapon;
         }
     }
 
     // Set animation - use bow animation for ranged weapons
-    if (type == attack_type::ranged || is_bow_weapon(weapon_type))
+    if (type == attack_type::ranged || is_bow_weapon(wt))
     {
         att->set_action(object_action::attack_combat_bow);
     }
@@ -173,7 +173,7 @@ void combat_system::start_attack(entity_id attacker, entity_id target, attack_ty
         att->set_action(object_action::attack_peace);
     }
 
-    play_attack_sound(attacker, weapon_type);
+    play_attack_sound(attacker, wt);
 
     // Play critical sound for super attacks
     if (type >= attack_type::super_1 && type <= attack_type::super_8)
@@ -243,10 +243,10 @@ void combat_system::process_attack(entity_id attacker, entity_id target, int32_t
     }
 }
 
-attack_type combat_system::get_attack_type(uint16_t weapon_type, uint8_t skill_mastery, bool use_super) const
+attack_type combat_system::get_attack_type(weapon_type wt, uint8_t skill_mastery, bool use_super) const
 {
     // Bow weapons use ranged attack
-    if (weapon_type >= 40 && weapon_type < 50)
+    if (is_bow_weapon(wt))
     {
         return attack_type::ranged;
     }
@@ -255,7 +255,7 @@ attack_type combat_system::get_attack_type(uint16_t weapon_type, uint8_t skill_m
     if (use_super && skill_mastery >= 100)
     {
         // Determine which super attack based on weapon type
-        weapon_skill skill = get_weapon_skill(weapon_type);
+        weapon_skill skill = get_weapon_skill(wt);
         switch (skill)
         {
         case weapon_skill::sword:
@@ -282,46 +282,26 @@ attack_type combat_system::get_attack_type(uint16_t weapon_type, uint8_t skill_m
     return attack_type::normal;
 }
 
-weapon_skill combat_system::get_weapon_skill(uint16_t weapon_type) const
+weapon_skill combat_system::get_weapon_skill(weapon_type wt) const
 {
-    // Based on original _iGetWeaponSkillType from Game.cpp
-    if (weapon_type == 0)
+    switch (wt)
     {
+    case weapon_type::fist:
+    case weapon_type::none:
         return weapon_skill::fist;
-    }
-    else if (weapon_type >= 1 && weapon_type <= 2)
-    {
-        return weapon_skill::two_hand;
-    }
-    else if (weapon_type >= 3 && weapon_type <= 6)
-    {
+    case weapon_type::sword:
+    case weapon_type::dagger:
         return weapon_skill::sword;
-    }
-    else if (weapon_type == 7)
-    {
-        return weapon_skill::spear;
-    }
-    else if (weapon_type >= 8 && weapon_type <= 19)
-    {
-        return weapon_skill::sword;
-    }
-    else if (weapon_type >= 20 && weapon_type <= 29)
-    {
+    case weapon_type::axe:
         return weapon_skill::axe;
-    }
-    else if (weapon_type >= 30 && weapon_type <= 34)
-    {
-        return weapon_skill::shield;
-    }
-    else if (weapon_type >= 35 && weapon_type <= 39)
-    {
+    case weapon_type::hammer:
+        return weapon_skill::hammer;
+    case weapon_type::staff:
+    case weapon_type::wand:
         return weapon_skill::staff;
-    }
-    else if (weapon_type >= 40)
-    {
+    case weapon_type::bow:
         return weapon_skill::archery;
     }
-
     return weapon_skill::fist;
 }
 
@@ -386,14 +366,14 @@ bool combat_system::can_dash_attack(entity_id attacker) const
 
     // Get equipped weapon type
     const auto* weapon = inventory_->get_equipped_item(equip_pos::weapon);
-    uint16_t weapon_type = weapon ? static_cast<uint16_t>(weapon->template_id) : 0;
+    weapon_type wt = weapon ? weapon->weapon : weapon_type::none;
 
     // Bows cannot dash
-    if (is_bow_weapon(weapon_type))
+    if (is_bow_weapon(wt))
         return false;
 
     // Check if weapon skill is mastered (level 100)
-    weapon_skill skill = get_weapon_skill(weapon_type);
+    weapon_skill skill = get_weapon_skill(wt);
     return skills_->is_skill_mastered(static_cast<uint16_t>(skill));
 }
 
@@ -419,9 +399,8 @@ bool combat_system::is_in_ranged_range(entity_id attacker, entity_id target) con
     return distance <= 10;
 }
 
-int32_t combat_system::get_attack_range(attack_type type, uint16_t weapon_type) const
+int32_t combat_system::get_attack_range(attack_type type, weapon_type /*wt*/) const
 {
-    (void)weapon_type;
 
     switch (type)
     {
@@ -741,7 +720,7 @@ int combat_system::get_player_type(entity_id id) const
     return 1;
 }
 
-void combat_system::play_attack_sound(entity_id attacker, uint16_t weapon_type)
+void combat_system::play_attack_sound(entity_id attacker, weapon_type wt)
 {
     if (!sounds_ || !entities_)
         return;
@@ -751,7 +730,7 @@ void combat_system::play_attack_sound(entity_id attacker, uint16_t weapon_type)
         return;
 
     // Get sound based on weapon type
-    character_sound sound = get_weapon_swing_sound(weapon_type);
+    character_sound sound = get_weapon_swing_sound(wt);
 
     // Play at entity position
     const auto& t = att->transform();

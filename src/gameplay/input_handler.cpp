@@ -277,7 +277,7 @@ void input_handler::handle_movement_input(const input& inp)
                 uint8_t atk_type = 0;
                 if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
                 {
-                    if (is_bow_weapon(weapon->template_id))
+                    if (is_bow_weapon(weapon->weapon))
                         atk_type = static_cast<uint8_t>(attack_type::ranged);
                 }
 
@@ -819,7 +819,7 @@ void input_handler::handle_combat_input(const input& inp)
             uint8_t atk_type = 0;
             if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
             {
-                if (is_bow_weapon(weapon->template_id))
+                if (is_bow_weapon(weapon->weapon))
                 {
                     atk_type = static_cast<uint8_t>(attack_type::ranged);
                 }

@@ -283,17 +283,17 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
     // (the composite split point). process_damage_effects() plays it at the right frame.
     if (data.hit && data.damage > 0 && target)
     {
-        uint16_t weapon_type = 0;
+        weapon_type wt = weapon_type::none;
         if (data.attacker_id == entities.local_player_id())
         {
             if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
-                weapon_type = weapon->template_id;
+                wt = weapon->weapon;
         }
         else if (data.is_ranged())
         {
-            weapon_type = 40; // Arrow range → C7 (arrow_impact)
+            wt = weapon_type::bow;
         }
-        target->animation().pending_impact_sound = get_weapon_impact_sound(weapon_type);
+        target->animation().pending_impact_sound = get_weapon_impact_sound(wt);
     }
 
     spdlog::debug("Combat broadcast: {} -> {} ({} {} dmg={})",
@@ -426,13 +426,13 @@ void ws_message_handler::handle_entity_death(const json& message)
     // Store weapon impact sound for the killing blow (played at frame 4 of dying).
     // Legacy MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDYING.
     {
-        uint16_t weapon_type = 0;
+        weapon_type wt = weapon_type::none;
         if (data.killer_id == entities.local_player_id())
         {
             if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
-                weapon_type = weapon->template_id;
+                wt = weapon->weapon;
         }
-        victim->animation().pending_impact_sound = get_weapon_impact_sound(weapon_type);
+        victim->animation().pending_impact_sound = get_weapon_impact_sound(wt);
     }
 
     // Transition to dead immediately, then play the dying animation.

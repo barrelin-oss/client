@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/game_enums.hpp"
 #include <cstdint>
 
 namespace hb
@@ -78,57 +79,42 @@ inline character_sound get_critical_sound(int player_type)
 }
 
 // Get weapon swing sound based on weapon type
-// Weapon type ranges:
-//   0      - unarmed (fist)
-//   1-2    - two-hand weapons (small sword swing)
-//   3-19   - swords (large sword swing)
-//   20-39  - axes/maces/hammers (mace swing)
-//   40-59  - bows/crossbows (bow attack)
-inline character_sound get_weapon_swing_sound(int weapon_type)
+inline character_sound get_weapon_swing_sound(weapon_type wt)
 {
-    if (weapon_type == 0)
+    switch (wt)
     {
+    case weapon_type::none:
+    case weapon_type::fist:
         return character_sound::punch;
-    }
-    if (weapon_type >= 1 && weapon_type <= 2)
-    {
-        return character_sound::small_sword_swing;
-    }
-    if (weapon_type >= 3 && weapon_type <= 19)
-    {
+    case weapon_type::sword:
+    case weapon_type::dagger:
         return character_sound::large_sword_swing;
-    }
-    if (weapon_type >= 20 && weapon_type <= 39)
-    {
+    case weapon_type::axe:
+    case weapon_type::hammer:
         return character_sound::mace_swing;
-    }
-    if (weapon_type >= 40 && weapon_type <= 59)
-    {
+    case weapon_type::staff:
+    case weapon_type::wand:
+        return character_sound::small_sword_swing;
+    case weapon_type::bow:
         return character_sound::bow_attack;
     }
-    // Fallback for unknown weapon types
     return character_sound::punch;
 }
 
 // Get weapon IMPACT sound based on weapon type
-// Legacy: MapData.cpp plays C5/C6/C7 at frame 4 of DEF_OBJECTDAMAGE/DEF_OBJECTDYING.
-// Distinct from swing sounds — impact plays on the TARGET when hit lands.
-//   0      - unarmed → C5 (punch)
-//   1-39   - melee weapons → C6 (sword_impact)
-//   40-59  - bows/crossbows → C7 (arrow_impact)
-inline character_sound get_weapon_impact_sound(int weapon_type)
+inline character_sound get_weapon_impact_sound(weapon_type wt)
 {
-    if (weapon_type >= 40 && weapon_type <= 59)
+    if (wt == weapon_type::bow)
         return character_sound::arrow_impact;
-    if (weapon_type >= 1 && weapon_type <= 39)
+    if (wt != weapon_type::none && wt != weapon_type::fist)
         return character_sound::sword_impact;
     return character_sound::punch;
 }
 
 // Check if weapon type is ranged (bow/crossbow)
-inline bool is_ranged_weapon(int weapon_type)
+inline bool is_ranged_weapon(weapon_type wt)
 {
-    return weapon_type >= 40 && weapon_type <= 59;
+    return wt == weapon_type::bow;
 }
 
 } // namespace hb

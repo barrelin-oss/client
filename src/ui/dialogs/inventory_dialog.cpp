@@ -67,14 +67,28 @@ void inventory_dialog::render(renderer& rend)
         }
     }
 
-    // Footer: gold and weight
+    // Footer: gold, item count, and weight
     int32_t footer_y = bounds_.y + bounds_.height - chrome_bottom + 4;
     if (inventory_)
     {
         rend.draw_text(std::format("Gold: {}", inventory_->gold()),
                        bounds_.x + chrome_sides, footer_y, sf::Color::Yellow);
+
+        // Item count with color coding
+        size_t item_count = inventory_->bag_count();
+        sf::Color count_color;
+        if (item_count >= max_items)
+            count_color = sf::Color::Red;
+        else if (item_count > max_items / 2)
+            count_color = sf::Color::Yellow;
+        else
+            count_color = sf::Color::Green;
+        rend.draw_text(std::format("{}/{}", item_count, max_items),
+                       bounds_.x + bounds_.width - 140, footer_y, count_color);
+
+        // Weight (divided by 100)
         auto wt_color = inventory_->is_overweight() ? sf::Color::Red : sf::Color(180, 180, 180);
-        rend.draw_text(std::format("{}/{}", inventory_->current_weight(), inventory_->max_weight()),
+        rend.draw_text(std::format("{}/{}", inventory_->current_weight() / 100, inventory_->max_weight() / 100),
                        bounds_.x + bounds_.width - 80, footer_y, wt_color);
     }
 

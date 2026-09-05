@@ -103,7 +103,7 @@
 - A right click on a dialog that is not right-click-closeable is delivered to it instead of ignored; the bank dialog is such a dialog, so "right-click to withdraw" works. The shop, sell and bank dialogs are not modal, since two of them are open at once and a modal front dialog swallowed the other's clicks
 
 ### 2026-09-05: Shops and the bank on the JSON protocol
-- Clicking a merchant opens the shop dialog with the server's catalogue (`player_interact_response`, interaction_type `shop`) and the sell dialog listing the bag; buying is `shop_buy_request`, selling asks for the quote (`shop_sell_request`) and confirms it (`shop_sell_confirm_request`), and the inventory pushes keep the bag in sync (`ws_shop_handlers.cpp`)
+- Clicking a merchant opens the shop dialog with the server's catalogue (`player_interact_response`, interaction_type `shop`) and the sell dialog listing the bag with the merchant's own offer per item: a quote (`shop_sell_request`) is asked for every item and commits to nothing, items the merchant refuses leave the list. Buying is `shop_buy_request`; Sell asks the quote again and confirms it (`shop_sell_confirm_request`); the inventory pushes keep the bag and the list in sync (`ws_shop_handlers.cpp`)
 - Clicking the banker opens the bank dialog with its slots; withdraw by clicking a slot (`bank_withdraw_request`), deposit by dragging an item from the inventory onto the bank dialog (`bank_deposit_request`); after either the bank is re-read by interacting again
 - The NPC dialog actions `open_shop`/`open_bank` interact again, which is how the server hands out the shop or bank
 

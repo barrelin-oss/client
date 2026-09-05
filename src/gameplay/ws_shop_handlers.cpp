@@ -9,6 +9,7 @@
 #include "network/messages/shop.hpp"
 #include "ui/dialogs/shop_dialog.hpp"
 #include "ui/dialogs/bank_dialog.hpp"
+#include <algorithm>
 #include <format>
 #include <spdlog/spdlog.h>
 
@@ -91,24 +92,35 @@ void ws_message_handler::open_shop(uint32_t npc_entity_id, const json& interacti
     spdlog::info("Shop '{}' opened: {} items", shop_name, rows.size());
 }
 
-// The sell list is the bag as it is now; the price shown is the item's base price, the
-// merchant's real offer comes back with the quote when the player sells.
+// The sell list is the bag as it is now. The value column is the merchant's own offer:
+// a quote (shop_sell_request) is asked for every item and commits to nothing, since only
+// shop_sell_confirm_request sells. Until the quote arrives the value is 0; an item the
+// merchant refuses leaves the list.
 void ws_message_handler::refresh_sell_dialog()
 {
     auto* sell = get_sell_dialog(*game_);
     if (!sell)
         return;
-    std::vector<shop_sell_dialog::sell_item> rows;
+    sell_rows_.clear();
+    sell_quote_seqs_.clear();
     game_->inventory().for_each_bag_item(
         [&](uint32_t item_id, const bag_item& entry)
         {
             shop_sell_dialog::sell_item row;
             row.item_ptr = &entry.data;
             row.inventory_slot = static_cast<int32_t>(item_id); // v2 items have ids, not slots
-            row.sell_price = entry.data.price / 2;
-            rows.push_back(row);
+            row.sell_price = 0;
+            sell_rows_.push_back(row);
         });
-    sell->set_items(rows);
+    sell->set_items(sell_rows_);
+    if (shop_npc_id_ == 0)
+        return;
+    for (const auto& row : sell_rows_)
+    {
+        auto msg = make_shop_sell_request(shop_npc_id_, static_cast<uint32_t>(row.inventory_slot), 1);
+        sell_quote_seqs_[msg.value("seq", 0u)] = static_cast<uint32_t>(row.inventory_slot);
+        game_->ws_connection().send(msg);
+    }
 }
 
 void ws_message_handler::request_shop_buy(size_t catalogue_index, uint32_t count)
@@ -126,7 +138,9 @@ void ws_message_handler::request_shop_sell(uint32_t item_id, uint32_t count)
         return;
     pending_sell_item_id_ = item_id;
     pending_sell_count_ = static_cast<int32_t>(std::max(1u, count));
-    game_->ws_connection().send(make_shop_sell_request(shop_npc_id_, item_id, pending_sell_count_));
+    auto msg = make_shop_sell_request(shop_npc_id_, item_id, pending_sell_count_);
+    pending_sell_seq_ = msg.value("seq", 0u);
+    game_->ws_connection().send(msg);
     spdlog::info("Sent shop_sell_request: npc={} item={} count={}", shop_npc_id_, item_id, pending_sell_count_);
 }
 
@@ -147,7 +161,28 @@ void ws_message_handler::handle_shop_buy_response(const json& message)
 void ws_message_handler::handle_shop_sell_response(const json& message)
 {
     auto r = shop_sell_response_data::from_json(message);
-    if (!r.success || pending_sell_item_id_ == 0)
+    const uint32_t seq = message.value("seq", 0u);
+
+    // A quote asked for the list: fill in the value, or drop what the merchant refuses
+    if (auto it = sell_quote_seqs_.find(seq); it != sell_quote_seqs_.end())
+    {
+        const uint32_t item_id = it->second;
+        sell_quote_seqs_.erase(it);
+        auto row = std::find_if(sell_rows_.begin(), sell_rows_.end(),
+                                [&](const auto& s) { return static_cast<uint32_t>(s.inventory_slot) == item_id; });
+        if (row != sell_rows_.end())
+        {
+            if (r.success)
+                row->sell_price = static_cast<uint32_t>(std::max<int64_t>(0, r.offered_price));
+            else
+                sell_rows_.erase(row);
+            if (auto* sell = get_sell_dialog(*game_))
+                sell->set_items(sell_rows_);
+        }
+        return;
+    }
+
+    if (seq != pending_sell_seq_ || !r.success || pending_sell_item_id_ == 0)
     {
         game_->get_status_log().add_event("Cannot sell: " + (r.error.empty() ? "refused" : r.error), message_color::red);
         pending_sell_item_id_ = 0;

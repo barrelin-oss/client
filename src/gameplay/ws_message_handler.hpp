@@ -2,10 +2,12 @@
 
 #include "network/messages.hpp"
 #include "gameplay/item.hpp"
+#include "ui/dialogs/shop_dialog.hpp"
 #include "ui/screens/character_create_screen.hpp"
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace hb
@@ -212,8 +214,13 @@ private:
     // Shop and bank in use (JSON): who we are trading with and what the dialogs show
     uint32_t shop_npc_id_ = 0;
     std::vector<uint32_t> shop_catalogue_; // template ids in the shop dialog's row order
-    uint32_t pending_sell_item_id_ = 0;    // quote requested, confirm follows
+    uint32_t pending_sell_item_id_ = 0;    // the player pressed Sell: this quote is confirmed
     int32_t pending_sell_count_ = 1;
+    uint32_t pending_sell_seq_ = 0;
+    // Quotes asked only to show the merchant's real offer in the sell list (the sale
+    // needs shop_sell_confirm_request, so a quote commits to nothing): seq -> item id
+    std::unordered_map<uint32_t, uint32_t> sell_quote_seqs_;
+    std::vector<shop_sell_dialog::sell_item> sell_rows_;
     uint32_t bank_npc_id_ = 0;
     std::vector<item> bank_items_; // one per bank slot; the bank dialog points into it
 

@@ -13,7 +13,7 @@ namespace hb
 party_dialog::party_dialog() : dialog(dialog_type::party)
 {
     set_title("Party");
-    set_bounds({20, 120, 200, 280});
+    set_bounds({20, 120, 220, 320});
     set_draggable(true);
     set_closeable(true);
     set_visible(false);
@@ -34,25 +34,48 @@ void party_dialog::render(renderer& rend)
     int32_t x = bounds_.x + 10;
     int32_t y = bounds_.y + 32;
 
+    // Invite banner
+    if (has_pending_invite_)
+    {
+        rend.draw_rect(x - 4, y - 2, bounds_.width - 12, 46, sf::Color(35, 55, 35), true);
+        rend.draw_text(pending_inviter_ + " invites you", x, y, sf::Color(130, 255, 130), 12);
+        rend.draw_rect(x, y + 18, 70, 20, sf::Color(60, 100, 60), true);
+        rend.draw_text("Accept", x + 14, y + 21, sf::Color::White, 12);
+        rend.draw_rect(x + 80, y + 18, 70, 20, sf::Color(100, 60, 60), true);
+        rend.draw_text("Decline", x + 91, y + 21, sf::Color::White, 12);
+        y += 52;
+    }
+
     if (members_.empty())
     {
         rend.draw_text("Not in a party", x, y, sf::Color(150, 150, 150));
-        return;
+        y += 20;
     }
-
-    // Party size
-    rend.draw_text(std::format("Members: {}/{}", members_.size(), max_party_size), x, y, sf::Color(180, 180, 200), 12);
-    y += 20;
+    else
+    {
+        rend.draw_text(std::format("Members: {}/{}", members_.size(), max_party_size), x, y, sf::Color(180, 180, 200), 12);
+        y += 20;
+    }
 
     content_start_y_ = y;
 
-    // Draw member rows
+    const int32_t rows_bottom = bounds_.y + bounds_.height - 70;
     for (size_t i = 0; i < members_.size(); ++i)
     {
+        if (y + member_row_height > rows_bottom)
+            break;
         bool hovered = hovered_index_.has_value() && hovered_index_.value() == i;
         render_member_row(rend, members_[i], y, hovered);
         y += member_row_height;
     }
+
+    // Invite field: type a name, Enter or the button sends the invite
+    const int32_t field_y = bounds_.y + bounds_.height - 64;
+    rend.draw_rect(x, field_y, 130, 20, invite_field_active_ ? sf::Color(40, 40, 60) : sf::Color(25, 25, 35), true);
+    rend.draw_text(invite_input_.empty() && !invite_field_active_ ? "player name" : invite_input_ + (invite_field_active_ ? "_" : ""),
+                   x + 4, field_y + 3, invite_input_.empty() && !invite_field_active_ ? sf::Color(110, 110, 120) : sf::Color::White, 12);
+    rend.draw_rect(x + 136, field_y, 56, 20, sf::Color(60, 80, 100), true);
+    rend.draw_text("Invite", x + 148, field_y + 3, sf::Color::White, 12);
 
     // Leave button
     y = bounds_.y + bounds_.height - 35;
@@ -139,6 +162,46 @@ bool party_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn
     if (!visible_)
         return false;
 
+    const int32_t bx = bounds_.x + 10;
+
+    // Invite banner buttons
+    if (has_pending_invite_ && btn == sf::Mouse::Button::Left)
+    {
+        const int32_t by = bounds_.y + 32 + 18;
+        ui_rect accept_btn{bx, by, 70, 20};
+        ui_rect decline_btn{bx + 80, by, 70, 20};
+        if (accept_btn.contains(x, y) || decline_btn.contains(x, y))
+        {
+            if (on_answer_invite_)
+                on_answer_invite_(pending_party_id_, accept_btn.contains(x, y));
+            clear_pending_invite();
+            return true;
+        }
+    }
+
+    // Invite field and button
+    const int32_t field_y = bounds_.y + bounds_.height - 64;
+    ui_rect field{bx, field_y, 130, 20};
+    ui_rect invite_btn{bx + 136, field_y, 56, 20};
+    if (btn == sf::Mouse::Button::Left)
+    {
+        if (field.contains(x, y))
+        {
+            invite_field_active_ = true;
+            return true;
+        }
+        invite_field_active_ = false;
+        if (invite_btn.contains(x, y))
+        {
+            if (on_invite_ && !invite_input_.empty())
+            {
+                on_invite_(invite_input_);
+                invite_input_.clear();
+            }
+            return true;
+        }
+    }
+
     // Check leave button
     int32_t leave_y = bounds_.y + bounds_.height - 35;
     ui_rect leave_btn{bounds_.x + 65, leave_y, 80, 24};
@@ -164,6 +227,59 @@ bool party_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn
     }
 
     return dialog::handle_mouse_down(x, y, btn);
+}
+
+bool party_dialog::handle_key_press(sf::Keyboard::Key key)
+{
+    if (!visible_ || !invite_field_active_)
+        return false;
+    if (key == sf::Keyboard::Key::Escape)
+    {
+        invite_field_active_ = false;
+        return true;
+    }
+    if (key == sf::Keyboard::Key::Backspace)
+    {
+        if (!invite_input_.empty())
+            invite_input_.pop_back();
+        return true;
+    }
+    if (key == sf::Keyboard::Key::Enter)
+    {
+        if (on_invite_ && !invite_input_.empty())
+        {
+            on_invite_(invite_input_);
+            invite_input_.clear();
+        }
+        invite_field_active_ = false;
+        return true;
+    }
+    return true; // the field has focus: keep game hotkeys out of it
+}
+
+bool party_dialog::handle_text_input(char32_t unicode)
+{
+    if (!visible_ || !invite_field_active_)
+        return false;
+    if (unicode < 32 || unicode > 126)
+        return false;
+    if (invite_input_.size() < 20)
+        invite_input_ += static_cast<char>(unicode);
+    return true;
+}
+
+void party_dialog::set_pending_invite(std::string_view inviter, uint32_t party_id)
+{
+    has_pending_invite_ = true;
+    pending_inviter_ = inviter;
+    pending_party_id_ = party_id;
+}
+
+void party_dialog::clear_pending_invite()
+{
+    has_pending_invite_ = false;
+    pending_inviter_.clear();
+    pending_party_id_ = 0;
 }
 
 bool party_dialog::handle_mouse_move(int32_t x, int32_t y)

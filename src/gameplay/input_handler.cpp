@@ -810,6 +810,17 @@ void input_handler::handle_combat_input(const input& inp)
             if (target->has_name())
                 target_hostility = target->name().hostile;
 
+            // A plain left click on a town NPC talks to it; the dialog that comes back
+            // drives quests (and, once wired, shops and banks)
+            if (!ctrl_held && !right_click && target->type() == entity_type::npc)
+            {
+                // Once per press: the block runs every frame while the button is held
+                if (inp.is_mouse_pressed(sf::Mouse::Button::Left))
+                    game_->ws_handler().request_interact(target->id());
+                attack_consumed_ = true;
+                return;
+            }
+
             // Hostile entities: attack on plain click
             // Friendly/neutral entities: Ctrl required
             if (target_hostility != hostility::enemy && !ctrl_held)
@@ -1084,6 +1095,12 @@ void input_handler::handle_hotkey_input(const input& inp)
         ui.toggle_dialog(dialog_type::spellbook);
     if (inp.is_key_pressed(sf::Keyboard::Key::P))
         ui.toggle_dialog(dialog_type::party);
+    if (inp.is_key_pressed(sf::Keyboard::Key::J))
+    {
+        ui.toggle_dialog(dialog_type::quest);
+        if (ui.is_dialog_open(dialog_type::quest))
+            game_->ws_handler().request_quest_journal();
+    }
     if (inp.is_key_pressed(sf::Keyboard::Key::G))
     {
         ui.toggle_dialog(dialog_type::guild);

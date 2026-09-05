@@ -190,6 +190,20 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::guild_info_response,         &ws_message_handler::handle_guild_info_response},
         {msg_type::guild_update,                &ws_message_handler::handle_guild_update},
 
+        // NPC dialog, quests, party
+        {msg_type::dialog_choice_response,      &ws_message_handler::handle_dialog_choice_response},
+        {msg_type::quest_list_response,         &ws_message_handler::handle_quest_list_response},
+        {msg_type::quest_accept_response,       &ws_message_handler::handle_quest_accept_response},
+        {msg_type::quest_abandon_response,      &ws_message_handler::handle_quest_abandon_response},
+        {msg_type::quest_complete_response,     &ws_message_handler::handle_quest_complete_response},
+        {msg_type::quest_journal_response,      &ws_message_handler::handle_quest_journal_response},
+        {msg_type::quest_update,                &ws_message_handler::handle_quest_update},
+        {msg_type::party_invite_response,       &ws_message_handler::handle_party_invite_response},
+        {msg_type::party_invite_notice,         &ws_message_handler::handle_party_invite_notice},
+        {msg_type::party_accept_response,       &ws_message_handler::handle_party_accept_response},
+        {msg_type::party_leave_response,        &ws_message_handler::handle_party_leave_response},
+        {msg_type::party_update,                &ws_message_handler::handle_party_update},
+
         // Environment / rendering
         {msg_type::environment_update,          &ws_message_handler::handle_environment_update},
         {msg_type::set_render_mode,             &ws_message_handler::handle_set_render_mode},

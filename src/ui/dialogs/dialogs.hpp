@@ -13,6 +13,7 @@
 #include "ui/dialogs/chat_dialog.hpp"
 #include "ui/dialogs/party_dialog.hpp"
 #include "ui/dialogs/npc_dialog.hpp"
+#include "ui/dialogs/quest_dialog.hpp"
 #include "ui/dialogs/trade_dialog.hpp"
 #include "ui/dialogs/craft_dialog.hpp"
 #include "ui/dialogs/map_dialog.hpp"

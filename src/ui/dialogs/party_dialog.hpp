@@ -35,6 +35,12 @@ public:
     void render(renderer& rend) override;
     bool handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn) override;
     bool handle_mouse_move(int32_t x, int32_t y) override;
+    bool handle_key_press(sf::Keyboard::Key key) override;
+    bool handle_text_input(char32_t unicode) override;
+
+    // Invite notice (party_invite_notice) shown as a banner with Accept/Decline
+    void set_pending_invite(std::string_view inviter, uint32_t party_id);
+    void clear_pending_invite();
 
     // Set party data
     void set_members(const std::vector<party_member_info>& members);
@@ -53,6 +59,8 @@ public:
     void set_on_promote(member_callback callback) { on_promote_ = std::move(callback); }
     void set_on_leave(std::function<void()> callback) { on_leave_ = std::move(callback); }
     void set_on_invite(invite_callback callback) { on_invite_ = std::move(callback); }
+    using answer_callback = std::function<void(uint32_t party_id, bool accept)>;
+    void set_on_answer_invite(answer_callback callback) { on_answer_invite_ = std::move(callback); }
 
 private:
     void render_member_row(renderer& rend, const party_member_info& member, int32_t y, bool hovered);
@@ -67,6 +75,13 @@ private:
     member_callback on_promote_;
     std::function<void()> on_leave_;
     invite_callback on_invite_;
+    answer_callback on_answer_invite_;
+
+    bool has_pending_invite_ = false;
+    std::string pending_inviter_;
+    uint32_t pending_party_id_ = 0;
+    std::string invite_input_;
+    bool invite_field_active_ = false;
 
     static constexpr int32_t member_row_height = 50;
     int32_t content_start_y_ = 0;

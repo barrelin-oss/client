@@ -82,6 +82,7 @@ inline constexpr const char* entity_spawn = "entity_spawn";
 inline constexpr const char* ground_item_spawn = "ground_item_spawn";
 
 // NPC interaction
+inline constexpr const char* player_interact_request = "player_interact_request";
 inline constexpr const char* player_interact_response = "player_interact_response";
 
 // System
@@ -164,6 +165,29 @@ inline constexpr const char* guild_set_motd_response = "guild_set_motd_response"
 inline constexpr const char* guild_info_request = "guild_info_request";
 inline constexpr const char* guild_info_response = "guild_info_response";
 inline constexpr const char* guild_update = "guild_update";
+
+// NPC dialog choices, quests and party (JSON) - network/messages/quest.hpp
+inline constexpr const char* dialog_choice_request = "dialog_choice_request";
+inline constexpr const char* dialog_choice_response = "dialog_choice_response";
+inline constexpr const char* quest_list_request = "quest_list_request";
+inline constexpr const char* quest_list_response = "quest_list_response";
+inline constexpr const char* quest_accept_request = "quest_accept_request";
+inline constexpr const char* quest_accept_response = "quest_accept_response";
+inline constexpr const char* quest_abandon_request = "quest_abandon_request";
+inline constexpr const char* quest_abandon_response = "quest_abandon_response";
+inline constexpr const char* quest_complete_request = "quest_complete_request";
+inline constexpr const char* quest_complete_response = "quest_complete_response";
+inline constexpr const char* quest_journal_request = "quest_journal_request";
+inline constexpr const char* quest_journal_response = "quest_journal_response";
+inline constexpr const char* quest_update = "quest_update";
+inline constexpr const char* party_invite_request = "party_invite_request";
+inline constexpr const char* party_invite_response = "party_invite_response";
+inline constexpr const char* party_invite_notice = "party_invite_notice";
+inline constexpr const char* party_accept_request = "party_accept_request";
+inline constexpr const char* party_accept_response = "party_accept_response";
+inline constexpr const char* party_leave_request = "party_leave_request";
+inline constexpr const char* party_leave_response = "party_leave_response";
+inline constexpr const char* party_update = "party_update";
 
 // Command autocomplete
 inline constexpr const char* available_commands = "available_commands";

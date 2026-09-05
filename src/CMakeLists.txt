@@ -84,6 +84,7 @@ add_library(helbreath_core STATIC
     ui/dialogs/chat_dialog.cpp
     ui/dialogs/party_dialog.cpp
     ui/dialogs/npc_dialog.cpp
+    ui/dialogs/quest_dialog.cpp
     ui/dialogs/trade_dialog.cpp
     ui/dialogs/craft_dialog.cpp
     ui/dialogs/map_dialog.cpp
@@ -120,6 +121,8 @@ add_library(helbreath_core STATIC
     gameplay/ws_combat_handlers.cpp
     gameplay/ws_inventory_handlers.cpp
     gameplay/ws_guild_handlers.cpp
+    gameplay/ws_quest_handlers.cpp
+    gameplay/ws_party_handlers.cpp
     gameplay/ws_misc_handlers.cpp
     gameplay/game_state.cpp
     gameplay/chat_input_overlay.cpp

@@ -15,6 +15,8 @@ class game_state_manager;
 
 // Handles all WebSocket JSON messages received from the server.
 // Owns session/disconnect state that bridges the background WS thread to the main thread.
+struct npc_dialog_node_data;
+
 class ws_message_handler
 {
 public:
@@ -68,6 +70,19 @@ public:
     void request_guild_demote(std::string_view target);
     void request_guild_set_motd(std::string_view motd);
     void request_guild_info();
+
+    // NPC dialog, quests and party (JSON) - ws_quest_handlers.cpp, ws_party_handlers.cpp
+    void request_interact(uint32_t target_id);
+    void request_dialog_choice(int32_t choice_index);
+    void open_npc_dialog(uint32_t npc_entity_id, const json& interaction_data);
+    void request_quest_list(uint32_t npc_entity_id);
+    void request_quest_accept(uint32_t npc_entity_id, uint32_t quest_id);
+    void request_quest_abandon(uint32_t quest_id);
+    void request_quest_complete(uint32_t npc_entity_id, uint32_t quest_id);
+    void request_quest_journal();
+    void request_party_invite(std::string_view target_name);
+    void request_party_accept(uint32_t party_id, bool accept);
+    void request_party_leave();
 
 private:
     // Individual message handlers
@@ -143,6 +158,21 @@ private:
     void handle_guild_set_motd_response(const json& message);
     void handle_guild_info_response(const json& message);
     void handle_guild_update(const json& message);
+
+    // NPC dialog, quests, party
+    void handle_dialog_choice_response(const json& message);
+    void handle_quest_list_response(const json& message);
+    void handle_quest_accept_response(const json& message);
+    void handle_quest_abandon_response(const json& message);
+    void handle_quest_complete_response(const json& message);
+    void handle_quest_journal_response(const json& message);
+    void handle_quest_update(const json& message);
+    void handle_party_invite_response(const json& message);
+    void handle_party_invite_notice(const json& message);
+    void handle_party_accept_response(const json& message);
+    void handle_party_leave_response(const json& message);
+    void handle_party_update(const json& message);
+    void show_npc_node(uint32_t npc_entity_id, const npc_dialog_node_data& node);
     void handle_available_commands(const json& message);
     void handle_command_availability_update(const json& message);
     void handle_pong(const json& message);
@@ -155,6 +185,11 @@ private:
     static void init_entity_dead_state(entity& ent, entity_manager& entities);
 
     game_state_manager* game_ = nullptr;
+
+    // NPC conversation in progress: dialog_choice_request needs the node the options came from
+    uint32_t dialog_npc_id_ = 0;
+    std::string dialog_node_id_;
+    std::string dialog_npc_name_;
 
     // Session state
     std::string session_token_;

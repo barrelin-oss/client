@@ -30,7 +30,7 @@
 - [x] Character movement (origin/destination model)
 - [x] Monster/NPC sounds
 - [x] Entity info debug overlay
-- [ ] Dead body / corpse rendering
+- [x] Dead body / corpse rendering
 - [ ] Mount rendering
 
 ## Combat
@@ -62,8 +62,8 @@
 - [x] Guild dialog
 - [x] Inventory dialog
 - [x] Shop/trade dialogs
-- [ ] Party dialog
-- [ ] Quest dialogs
+- [x] Party dialog
+- [x] Quest dialogs
 - [ ] Remaining dialog types (~30)
 
 ## Networking
@@ -90,13 +90,19 @@
 - [x] Guild system (create, invite, promote/demote, MOTD)
 - [ ] Localization
 - [ ] Skill training
-- [ ] Party system
+- [x] Party system
 - [ ] Trade system
 - [ ] Crusade/Heldenian events
 
 ---
 
 ## Recent Changes
+
+### 2026-09-05: Quests and party on the JSON protocol; NPC talk by click
+- A plain click on a town NPC sends `player_interact_request`; the `dialog` interaction opens the NPC dialog with the server's text and options, and each option goes back as `dialog_choice_request` (`ws_quest_handlers.cpp`). `goto_node` continues the conversation; `open_quests` and `claim_rewards` close it and let the server push what follows
+- Quest dialog rewritten (`ui/dialogs/quest_dialog.*`): the officer's offers (from `quest_list_response`) and the journal (J key or the character dialog's Quest button, `quest_journal_request`) in one list-and-details dialog with Accept, Complete and Abandon; `quest_update` pushes refresh it and report progress in the status log
+- Party moved from the legacy packet to JSON (`ws_party_handlers.cpp`): invite by name from the party dialog's new field, invite banner with Accept/Decline for `party_invite_notice`, leave, and `party_update` membership
+- A plain click on a town NPC is sent once per press; the NPC dialog box grew to fit the city hall officer's six options. Corpses were already drawn (entity_death keeps the entity as a corpse until despawn); the checklist now says so
 
 ### 2026-09-05: In-game UI follows the scaled view
 - In the scaled view mode the HUD, dialogs, chat, status bar, cursor and FPS text draw through the same placement as the scene (internal resolution letterboxed or stretched into the window), so a 1200x900 window shows the whole game 1.5x instead of a small HUD in the corner. Mouse pixels are mapped into the internal resolution once (`input::set_mouse_transform`, per axis for the stretch aspect) and `display_to_scene` is identity there

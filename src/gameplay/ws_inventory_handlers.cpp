@@ -465,7 +465,7 @@ void ws_message_handler::handle_player_interact_response(const json& message)
     else if (interaction_type == "dialog")
     {
         spdlog::info("NPC dialog: {}", result["interaction_data"].value("npc_name", ""));
-        // TODO: Open NPC dialog with text and options from interaction_data
+        open_npc_dialog(result.value("target_id", 0u), result["interaction_data"]);
     }
     else
     {

@@ -5,6 +5,7 @@
 #include "ui/managed_dialog.hpp"
 #include "ui/dialogs/icon_panel_dialog.hpp"
 #include "ui/dialogs/system_menu_dialog.hpp"
+#include "ui/dialogs/quest_dialog.hpp"
 #include "core/config.hpp"
 #include "network/messages.hpp"
 #include "debug/debug_stats.hpp"
@@ -87,7 +88,13 @@ void dialog_callbacks::setup_callbacks()
         char_dlg->set_on_add_stat([&network](int stat_index) { network.request_add_stat(stat_index); });
 
         // Action buttons
-        char_dlg->set_on_quest([this]() { game_->ui().toggle_dialog(dialog_type::quest); });
+        char_dlg->set_on_quest(
+            [this]()
+            {
+                game_->ui().toggle_dialog(dialog_type::quest);
+                if (game_->ui().is_dialog_open(dialog_type::quest))
+                    game_->ws_handler().request_quest_journal();
+            });
         char_dlg->set_on_party([this]() { game_->ui().toggle_dialog(dialog_type::party); });
         char_dlg->set_on_level_settings([this]() { game_->ui().toggle_dialog(dialog_type::level_up_settings); });
     }
@@ -131,9 +138,19 @@ void dialog_callbacks::setup_callbacks()
     // Party dialog - party actions
     if (auto* party_dlg = dynamic_cast<party_dialog*>(ui.get_dialog(dialog_type::party)))
     {
-        party_dlg->set_on_invite([&network](std::string_view name) { network.request_party_invite(name); });
+        party_dlg->set_on_invite([this](std::string_view name) { game_->ws_handler().request_party_invite(name); });
+        party_dlg->set_on_leave([this]() { game_->ws_handler().request_party_leave(); });
+        party_dlg->set_on_answer_invite([this](uint32_t party_id, bool accept)
+                                        { game_->ws_handler().request_party_accept(party_id, accept); });
+    }
 
-        party_dlg->set_on_leave([&network]() { network.request_party_leave(); });
+    // Quest dialog - accept/complete go through the officer, abandon does not
+    if (auto* quest_dlg = dynamic_cast<quest_dialog*>(ui.get_dialog(dialog_type::quest)))
+    {
+        quest_dlg->set_on_accept([this](uint32_t npc, uint32_t quest) { game_->ws_handler().request_quest_accept(npc, quest); });
+        quest_dlg->set_on_complete([this](uint32_t npc, uint32_t quest)
+                                   { game_->ws_handler().request_quest_complete(npc, quest); });
+        quest_dlg->set_on_abandon([this](uint32_t quest) { game_->ws_handler().request_quest_abandon(quest); });
     }
 
     // Guild dialog - guild actions
@@ -217,7 +234,8 @@ void dialog_callbacks::setup_callbacks()
     // NPC dialog - conversation responses
     if (auto* npc_dlg = dynamic_cast<npc_dialog*>(ui.get_dialog(dialog_type::npc_dialog)))
     {
-        npc_dlg->set_on_option_select([&network](int32_t option_id) { network.send_npc_response(option_id); });
+        // Options are the indexes of the JSON dialog node the server sent (ws_quest_handlers.cpp)
+        npc_dlg->set_on_option_select([this](int32_t option_id) { game_->ws_handler().request_dialog_choice(option_id); });
     }
 
     // Trade dialog - player trading

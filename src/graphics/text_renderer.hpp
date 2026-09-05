@@ -27,6 +27,13 @@ public:
     // Switch render target (called by renderer when switching between window and scene_rt_)
     void set_target(sf::RenderTarget& target);
 
+    // Logical-to-window pixel scale of the current view (1 = native). Under a scaled
+    // view glyphs are rasterized at size * scale and drawn scaled back down, so text
+    // stays crisp instead of being a magnified small bitmap. Positions and
+    // measure_width() stay in logical units.
+    void set_pixel_scale(float scale) { pixel_scale_ = scale > 0.0f ? scale : 1.0f; }
+    float pixel_scale() const { return pixel_scale_; }
+
     // Primary: draw styled text at screen position
     // time = elapsed seconds for animation (0 for static)
     void draw(std::string_view text, int32_t x, int32_t y, const text_style& style, float time = 0.0f);
@@ -65,6 +72,11 @@ private:
 
     sf::Font* font_ = nullptr;
     sf::RenderTarget* target_ = nullptr;
+    float pixel_scale_ = 1.0f;
+
+    // Character size and sprite scale for a logical size under pixel_scale_
+    uint32_t raster_size(uint32_t size) const;
+    void apply_raster_scale(sf::Text& text) const;
 
     // Render texture for shader effects (lazily created)
     std::unique_ptr<sf::RenderTexture> shader_rt_;

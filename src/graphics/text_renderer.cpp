@@ -36,6 +36,25 @@ void text_renderer::set_target(sf::RenderTarget& target)
     target_ = &target;
 }
 
+uint32_t text_renderer::raster_size(uint32_t size) const
+{
+    if (pixel_scale_ == 1.0f)
+    {
+        return size;
+    }
+    return static_cast<uint32_t>(std::lround(static_cast<float>(size) * pixel_scale_));
+}
+
+void text_renderer::apply_raster_scale(sf::Text& text) const
+{
+    if (pixel_scale_ != 1.0f)
+    {
+        // Rasterized larger, drawn back down: the view scales it up to exactly 1:1 pixels
+        const float inv = 1.0f / pixel_scale_;
+        text.setScale({inv, inv});
+    }
+}
+
 void text_renderer::draw(std::string_view text, int32_t x, int32_t y, const text_style& style, float time)
 {
     if (!font_ || !target_)
@@ -223,7 +242,8 @@ void text_renderer::draw_shader_effect(std::string_view text, int32_t x, int32_t
 
 void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y, const text_style& style, uint8_t alpha)
 {
-    sf::Text sf_text(*font_, std::string(text), style.size);
+    sf::Text sf_text(*font_, std::string(text), raster_size(style.size));
+    apply_raster_scale(sf_text);
     sf::Color color = style.color;
     color.a = alpha;
     sf_text.setFillColor(color);
@@ -233,7 +253,7 @@ void text_renderer::draw_none(std::string_view text, int32_t x, int32_t y, const
         sf::Color outline = style.outline_color;
         outline.a = alpha;
         sf_text.setOutlineColor(outline);
-        sf_text.setOutlineThickness(style.outline_thickness);
+        sf_text.setOutlineThickness(style.outline_thickness * pixel_scale_);
     }
 
     sf_text.setPosition({static_cast<float>(x), static_cast<float>(y)});
@@ -508,7 +528,8 @@ void text_renderer::draw_outline_pulse(
 
 void text_renderer::draw_char(char c, float x, float y, sf::Color color, const text_style& style, uint8_t alpha)
 {
-    sf::Text sf_text(*font_, std::string(1, c), style.size);
+    sf::Text sf_text(*font_, std::string(1, c), raster_size(style.size));
+    apply_raster_scale(sf_text);
     color.a = alpha;
     sf_text.setFillColor(color);
     if (style.outline_thickness > 0.0f)
@@ -516,7 +537,7 @@ void text_renderer::draw_char(char c, float x, float y, sf::Color color, const t
         sf::Color outline = style.outline_color;
         outline.a = alpha;
         sf_text.setOutlineColor(outline);
-        sf_text.setOutlineThickness(style.outline_thickness);
+        sf_text.setOutlineThickness(style.outline_thickness * pixel_scale_);
     }
     sf_text.setPosition({x, y});
     target_->draw(sf_text);

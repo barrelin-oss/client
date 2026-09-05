@@ -20,8 +20,8 @@ void input::process_event(const sf::Event& event)
     }
     else if (const auto* moved = event.getIf<sf::Event::MouseMoved>())
     {
-        mouse_x_ = static_cast<int32_t>((static_cast<float>(moved->position.x) - mouse_offset_x_) / mouse_scale_);
-        mouse_y_ = static_cast<int32_t>((static_cast<float>(moved->position.y) - mouse_offset_y_) / mouse_scale_);
+        mouse_x_ = static_cast<int32_t>((static_cast<float>(moved->position.x) - mouse_offset_x_) / mouse_scale_x_);
+        mouse_y_ = static_cast<int32_t>((static_cast<float>(moved->position.y) - mouse_offset_y_) / mouse_scale_y_);
     }
     else if (const auto* pressed = event.getIf<sf::Event::MouseButtonPressed>())
     {

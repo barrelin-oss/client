@@ -98,6 +98,11 @@
 
 ## Recent Changes
 
+### 2026-09-05: In-game UI follows the scaled view
+- In the scaled view mode the HUD, dialogs, chat, status bar, cursor and FPS text draw through the same placement as the scene (internal resolution letterboxed or stretched into the window), so a 1200x900 window shows the whole game 1.5x instead of a small HUD in the corner. Mouse pixels are mapped into the internal resolution once (`input::set_mouse_transform`, per axis for the stretch aspect) and `display_to_scene` is identity there
+- Scissor rectangles and the three places that measured the window instead of the logical screen (time/weather bar, chat, death dialog) now use the logical size, which is what broke the first attempt
+- Text under a scaled view is rasterized at the final pixel size (`text_renderer::set_pixel_scale`) and drawn back down, so it stays crisp; positions and measurements stay logical
+
 ### 2026-02-22: Item system v2
 - Rewrite item types to match v2 wire protocol (universal item shape)
 - Replace equip_slot with equip_pos (string enums at wire boundary)

@@ -86,18 +86,24 @@ public:
     std::pair<int32_t, int32_t> display_to_scene(int32_t x, int32_t y) const;
     std::pair<int32_t, int32_t> scene_to_display(int32_t x, int32_t y) const;
 
-    // Letterboxed internal-resolution view over the whole window, for the screens that
-    // draw in 640x480 coordinates without begin_scene (main menu, login, character
-    // select, loading). Independent of the in-game view mode.
+    // Where the internal resolution lands inside the window: the scene composite, the
+    // in-game UI (scaled mode) and the menu/login/loading screens all use this one
+    // placement, so a logical pixel is the same window pixel for every layer. Uniform
+    // scale with bars for the letterbox aspect, independent x/y scale for stretch.
     struct letterbox_transform
     {
-        float scale{1.0f};
+        float scale_x{1.0f};
+        float scale_y{1.0f};
         float offset_x{0.0f};
         float offset_y{0.0f};
     };
     letterbox_transform window_letterbox() const;
     void begin_letterbox_view();
     void end_letterbox_view();
+
+    // True when mouse pixels must be mapped through window_letterbox() before use:
+    // the scaled view mode draws the scene and the UI in the internal resolution.
+    bool logical_input() const { return view_mode_ == view_mode::scaled; }
 
     // Fair zone bounds in screen coordinates (for extended mode culling/targeting)
     sf::IntRect fair_bounds() const;
@@ -250,6 +256,7 @@ private:
     float ui_scale_ = 1.0f;
     sf::RenderTarget* active_target_ = nullptr;
     bool rendering_scene_ = false;
+    bool logical_view_ = false; // window view maps the internal resolution (begin_letterbox_view)
 
     // Fog overlay system
     fog_style fog_style_ = fog_style::solid;

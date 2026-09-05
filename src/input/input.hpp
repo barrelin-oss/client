@@ -18,12 +18,14 @@ public:
     // Call at end of frame to reset per-frame state
     void end_frame();
 
-    // Window pixels -> logical coordinates for mouse events. The menu screens draw in
-    // 640x480 through a letterboxed view, so their clicks must be mapped the same way.
-    // scale 1 / offset 0 = identity (used while playing; the game maps itself).
-    void set_mouse_transform(float scale, float offset_x, float offset_y)
+    // Window pixels -> logical coordinates for mouse events. The menu screens, and in
+    // the scaled view mode the game itself, draw in the internal resolution through a
+    // view placed inside the window, so clicks must be mapped the same way.
+    // scale 1 / offset 0 = identity (special/extended view modes work in window pixels).
+    void set_mouse_transform(float scale_x, float scale_y, float offset_x, float offset_y)
     {
-        mouse_scale_ = scale > 0.0f ? scale : 1.0f;
+        mouse_scale_x_ = scale_x > 0.0f ? scale_x : 1.0f;
+        mouse_scale_y_ = scale_y > 0.0f ? scale_y : 1.0f;
         mouse_offset_x_ = offset_x;
         mouse_offset_y_ = offset_y;
     }
@@ -62,7 +64,8 @@ private:
     int32_t mouse_x_ = 0;
     int32_t mouse_y_ = 0;
     int32_t wheel_delta_ = 0;
-    float mouse_scale_ = 1.0f;
+    float mouse_scale_x_ = 1.0f;
+    float mouse_scale_y_ = 1.0f;
     float mouse_offset_x_ = 0.0f;
     float mouse_offset_y_ = 0.0f;
 

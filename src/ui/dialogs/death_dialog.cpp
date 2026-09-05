@@ -45,7 +45,7 @@ void death_dialog::render(renderer& rend)
         return;
 
     // Center horizontally, near top of screen
-    int32_t display_w = static_cast<int32_t>(rend.display_width());
+    int32_t display_w = static_cast<int32_t>(rend.width()); // logical width: the UI view may be scaled
     actual_x_ = (display_w - dialog_width) / 2;
     actual_y_ = top_margin;
 

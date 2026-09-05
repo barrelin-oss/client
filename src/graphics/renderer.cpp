@@ -222,6 +222,8 @@ void renderer::begin_frame()
     window_.clear(sf::Color::Black);
     active_target_ = &window_;
     rendering_scene_ = false;
+    logical_view_ = false;
+    text_renderer_.set_pixel_scale(1.0f);
     draw_call_count_ = 0;
 }
 
@@ -279,6 +281,7 @@ void renderer::begin_scene()
         scene_rt_->clear(sf::Color::Black);
         rendering_scene_ = true;
         text_renderer_.set_target(*active_target_);
+        text_renderer_.set_pixel_scale(1.0f); // the scene texture is 1:1 logical
     }
 }
 
@@ -294,7 +297,9 @@ void renderer::end_scene()
         rendering_scene_ = false;
         text_renderer_.set_target(*active_target_);
 
-        // Composite scene_rt_ onto window
+        // Composite scene_rt_ onto window, always in window pixels
+        window_.setView(window_.getDefaultView());
+        logical_view_ = false;
         const auto& tex = scene_rt_->getTexture();
         auto tex_smooth = scale_filter_ == scale_filter::bilinear;
         // SFML 3 textures are const from RenderTexture, use setSmooth on rt before display
@@ -361,9 +366,19 @@ void renderer::end_scene()
 
 void renderer::begin_ui()
 {
+    // Scaled: the UI is laid out for the internal resolution like the scene, so it
+    // draws through the same placement (a bigger window used to leave it small in the
+    // top-left corner). Other modes: native window pixels.
+    if (view_mode_ == view_mode::scaled)
+    {
+        begin_letterbox_view();
+        return;
+    }
     active_target_ = &window_;
     rendering_scene_ = false;
+    logical_view_ = false;
     text_renderer_.set_target(window_);
+    text_renderer_.set_pixel_scale(1.0f);
     window_.setView(window_.getDefaultView());
 }
 
@@ -376,9 +391,19 @@ renderer::letterbox_transform renderer::window_letterbox() const
     const float internal_h = static_cast<float>(internal_height_);
     if (internal_w <= 0.0f || internal_h <= 0.0f)
         return t;
-    t.scale = std::min(display_w / internal_w, display_h / internal_h);
-    t.offset_x = (display_w - internal_w * t.scale) / 2.0f;
-    t.offset_y = (display_h - internal_h * t.scale) / 2.0f;
+    if (aspect_mode_ == aspect_mode::letterbox)
+    {
+        const float scale = std::min(display_w / internal_w, display_h / internal_h);
+        t.scale_x = scale;
+        t.scale_y = scale;
+        t.offset_x = (display_w - internal_w * scale) / 2.0f;
+        t.offset_y = (display_h - internal_h * scale) / 2.0f;
+    }
+    else
+    {
+        t.scale_x = display_w / internal_w;
+        t.scale_y = display_h / internal_h;
+    }
     return t;
 }
 
@@ -386,20 +411,24 @@ void renderer::begin_letterbox_view()
 {
     active_target_ = &window_;
     rendering_scene_ = false;
+    logical_view_ = true;
     text_renderer_.set_target(window_);
     const auto t = window_letterbox();
+    text_renderer_.set_pixel_scale(t.scale_y);
     const float display_w = static_cast<float>(width_);
     const float display_h = static_cast<float>(height_);
     sf::View view(sf::FloatRect({0.0f, 0.0f},
                                 {static_cast<float>(internal_width_), static_cast<float>(internal_height_)}));
     view.setViewport(sf::FloatRect({t.offset_x / display_w, t.offset_y / display_h},
-                                   {static_cast<float>(internal_width_) * t.scale / display_w,
-                                    static_cast<float>(internal_height_) * t.scale / display_h}));
+                                   {static_cast<float>(internal_width_) * t.scale_x / display_w,
+                                    static_cast<float>(internal_height_) * t.scale_y / display_h}));
     window_.setView(view);
 }
 
 void renderer::end_letterbox_view()
 {
+    logical_view_ = false;
+    text_renderer_.set_pixel_scale(1.0f);
     window_.setView(window_.getDefaultView());
 }
 
@@ -437,6 +466,12 @@ uint32_t renderer::interaction_height() const
 
 std::pair<int32_t, int32_t> renderer::display_to_scene(int32_t x, int32_t y) const
 {
+    // Scaled: input::set_mouse_transform (see application::process_events) already maps
+    // pixels into the internal resolution, so the coordinates arrive in scene space.
+    if (logical_input())
+    {
+        return {x, y};
+    }
     if (view_mode_ == view_mode::scaled)
     {
         float display_w = static_cast<float>(width_);
@@ -1243,6 +1278,19 @@ void renderer::push_scissor(int32_t x, int32_t y, int32_t w, int32_t h)
     else
     {
         (void)window_.setActive(true);
+    }
+
+    // The scissor rectangle is in target pixels. Under the logical view (menus, and
+    // the in-game UI in scaled mode) x/y/w/h arrive in the internal resolution and
+    // must be placed the way the view places them, or lists get clipped at the
+    // wrong spot in a bigger window.
+    if (!rendering_scene_ && logical_view_)
+    {
+        const auto t = window_letterbox();
+        x = static_cast<int32_t>(std::lround(t.offset_x + static_cast<float>(x) * t.scale_x));
+        y = static_cast<int32_t>(std::lround(t.offset_y + static_cast<float>(y) * t.scale_y));
+        w = static_cast<int32_t>(std::lround(static_cast<float>(w) * t.scale_x));
+        h = static_cast<int32_t>(std::lround(static_cast<float>(h) * t.scale_y));
     }
 
     // OpenGL Y coordinate is flipped (0 at bottom)

@@ -357,17 +357,18 @@ void application::main_loop()
 
 void application::process_events()
 {
-    // Outside the game the screens draw in 640x480 through a letterboxed view (see
-    // render()), so mouse pixels are mapped back to that space here. In game the game
-    // state maps coordinates itself (display_to_scene), so the transform is identity.
-    if (uses_letterbox_view())
+    // Outside the game the screens draw in the internal resolution through a view
+    // placed inside the window (see render()); in the scaled view mode the game scene
+    // and its UI do too. Mouse pixels are mapped into that space here, once, so every
+    // layer sees the same coordinates. Special/extended modes work in window pixels.
+    if (uses_letterbox_view() || renderer_.logical_input())
     {
         const auto t = renderer_.window_letterbox();
-        input_.set_mouse_transform(t.scale, t.offset_x, t.offset_y);
+        input_.set_mouse_transform(t.scale_x, t.scale_y, t.offset_x, t.offset_y);
     }
     else
     {
-        input_.set_mouse_transform(1.0f, 0.0f, 0.0f);
+        input_.set_mouse_transform(1.0f, 1.0f, 0.0f, 0.0f);
     }
 
     while (auto event = renderer_.window().pollEvent())
@@ -411,7 +412,7 @@ void application::update(float delta_time)
 
 bool application::uses_letterbox_view() const
 {
-    // Everything but the actual game scene draws at the internal 640x480 resolution.
+    // Everything but the actual game scene draws at the internal resolution.
     return !game_state_ || game_state_->current_state() != game_state::playing;
 }
 
@@ -419,7 +420,8 @@ void application::render()
 {
     renderer_.begin_frame();
 
-    // Menu, login, character screens and the loading bar are laid out for 640x480:
+    // Menu, login, character screens and the loading bar are laid out for the
+    // internal resolution (800x600):
     // scale them to the window (letterboxed, integer-friendly) instead of leaving
     // them small in the middle of a bigger window.
     const bool letterbox = uses_letterbox_view();
@@ -431,6 +433,12 @@ void application::render()
     {
         game_state_->render(renderer_);
     }
+
+    // In game the UI overlay decides the view (native pixels, or the internal
+    // resolution placed in the window for the scaled mode); the FPS text and the
+    // cursor belong to that layer, and the cursor position is in its coordinates.
+    if (!letterbox)
+        renderer_.begin_ui();
 
     // Show FPS if enabled
     if (config::instance().video().show_fps)

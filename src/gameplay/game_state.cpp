@@ -1907,7 +1907,7 @@ void game_state_manager::render_playing(renderer& rend)
 
     rend.end_scene(); // Scaled: composite. Extended: fog overlay. Special: no-op.
 
-    rend.begin_ui(); // Switch to native resolution for UI overlay
+    rend.begin_ui(); // UI overlay: native pixels, or the internal resolution placed in the window (scaled)
 
     // Update rendering stats
     auto& ds = debug::debug_stats::instance();
@@ -1949,7 +1949,7 @@ void game_state_manager::render_playing(renderer& rend)
         char status_buf[64];
         std::snprintf(status_buf, sizeof(status_buf), "%s  %s  %s", time_buf, time_str, weather_str);
 
-        int32_t display_w = static_cast<int32_t>(rend.display_width());
+        int32_t display_w = static_cast<int32_t>(rend.width()); // logical width: the UI view may be scaled
         int32_t padding = 6;
         int32_t text_w = static_cast<int32_t>(std::strlen(status_buf)) * 7;
         int32_t bar_w = text_w + padding * 2;
@@ -1961,11 +1961,10 @@ void game_state_manager::render_playing(renderer& rend)
         rend.draw_text(status_buf, bar_x + padding, bar_y + 2, sf::Color(220, 220, 220), 12);
     }
 
-    status_log_.render(
-        rend, static_cast<int32_t>(rend.display_width()), static_cast<int32_t>(rend.display_height()), 70);
+    status_log_.render(rend, static_cast<int32_t>(rend.width()), static_cast<int32_t>(rend.height()), 70);
 
     // Chat input overlay (always on top of game, above icon panel)
-    chat_input_.render(rend, static_cast<int32_t>(rend.display_width()), static_cast<int32_t>(rend.display_height()));
+    chat_input_.render(rend, static_cast<int32_t>(rend.width()), static_cast<int32_t>(rend.height()));
 }
 
 void game_state_manager::setup_network_handlers()

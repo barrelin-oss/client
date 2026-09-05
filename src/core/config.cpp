@@ -108,6 +108,8 @@ bool config::load(std::string_view path)
                 video_.scale_filter = v["scale_filter"].get<uint8_t>();
             if (v.contains("ui_scale"))
                 video_.ui_scale = v["ui_scale"].get<float>();
+            if (v.contains("view_mode"))
+                video_.view_mode = v["view_mode"].get<std::string>();
         }
 
         // Audio settings
@@ -291,7 +293,8 @@ bool config::save(std::string_view path) const
                      {"window_y", video_.window_y},
                      {"aspect_mode", video_.aspect_mode},
                      {"scale_filter", video_.scale_filter},
-                     {"ui_scale", video_.ui_scale}};
+                     {"ui_scale", video_.ui_scale},
+                     {"view_mode", video_.view_mode}};
 
     // Audio settings
     json["audio"] = {{"master_volume", audio_.master_volume},

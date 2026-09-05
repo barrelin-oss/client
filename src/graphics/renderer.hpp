@@ -86,6 +86,19 @@ public:
     std::pair<int32_t, int32_t> display_to_scene(int32_t x, int32_t y) const;
     std::pair<int32_t, int32_t> scene_to_display(int32_t x, int32_t y) const;
 
+    // Letterboxed internal-resolution view over the whole window, for the screens that
+    // draw in 640x480 coordinates without begin_scene (main menu, login, character
+    // select, loading). Independent of the in-game view mode.
+    struct letterbox_transform
+    {
+        float scale{1.0f};
+        float offset_x{0.0f};
+        float offset_y{0.0f};
+    };
+    letterbox_transform window_letterbox() const;
+    void begin_letterbox_view();
+    void end_letterbox_view();
+
     // Fair zone bounds in screen coordinates (for extended mode culling/targeting)
     sf::IntRect fair_bounds() const;
     bool is_in_fair_zone(int32_t display_x, int32_t display_y) const;

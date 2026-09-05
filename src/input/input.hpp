@@ -18,6 +18,16 @@ public:
     // Call at end of frame to reset per-frame state
     void end_frame();
 
+    // Window pixels -> logical coordinates for mouse events. The menu screens draw in
+    // 640x480 through a letterboxed view, so their clicks must be mapped the same way.
+    // scale 1 / offset 0 = identity (used while playing; the game maps itself).
+    void set_mouse_transform(float scale, float offset_x, float offset_y)
+    {
+        mouse_scale_ = scale > 0.0f ? scale : 1.0f;
+        mouse_offset_x_ = offset_x;
+        mouse_offset_y_ = offset_y;
+    }
+
     // Mouse state
     int32_t mouse_x() const { return mouse_x_; }
     int32_t mouse_y() const { return mouse_y_; }
@@ -52,6 +62,9 @@ private:
     int32_t mouse_x_ = 0;
     int32_t mouse_y_ = 0;
     int32_t wheel_delta_ = 0;
+    float mouse_scale_ = 1.0f;
+    float mouse_offset_x_ = 0.0f;
+    float mouse_offset_y_ = 0.0f;
 
     std::array<bool, max_mouse_buttons> mouse_down_{};
     std::array<bool, max_mouse_buttons> mouse_pressed_{};

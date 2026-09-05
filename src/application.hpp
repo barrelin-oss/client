@@ -44,6 +44,7 @@ private:
     void process_events();
     void update(float delta_time);
     void render();
+    bool uses_letterbox_view() const;
 
     // Loading screen
     void render_loading_frame(float progress, std::string_view message, float elapsed_time);

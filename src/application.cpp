@@ -112,6 +112,18 @@ bool application::initialize(const launch_options& opts)
     renderer_.set_scale_filter(static_cast<scale_filter>(video_cfg.scale_filter));
     renderer_.set_ui_scale(video_cfg.ui_scale);
 
+    // Initial in-game view mode from config.json (F8 cycles it in game).
+    {
+        view_mode mode = view_mode::scaled;
+        if (video_cfg.view_mode == "special")
+            mode = view_mode::special;
+        else if (video_cfg.view_mode == "extended")
+            mode = view_mode::extended;
+        else if (video_cfg.view_mode != "scaled")
+            spdlog::warn("Unknown video.view_mode '{}', using scaled", video_cfg.view_mode);
+        renderer_.set_view_mode(mode);
+    }
+
     // Load font for text rendering
     if (!renderer_.load_font("assets/fonts/OpenSans-Regular.ttf"))
     {
@@ -345,6 +357,19 @@ void application::main_loop()
 
 void application::process_events()
 {
+    // Outside the game the screens draw in 640x480 through a letterboxed view (see
+    // render()), so mouse pixels are mapped back to that space here. In game the game
+    // state maps coordinates itself (display_to_scene), so the transform is identity.
+    if (uses_letterbox_view())
+    {
+        const auto t = renderer_.window_letterbox();
+        input_.set_mouse_transform(t.scale, t.offset_x, t.offset_y);
+    }
+    else
+    {
+        input_.set_mouse_transform(1.0f, 0.0f, 0.0f);
+    }
+
     while (auto event = renderer_.window().pollEvent())
     {
         input_.process_event(*event);
@@ -384,9 +409,22 @@ void application::update(float delta_time)
     }
 }
 
+bool application::uses_letterbox_view() const
+{
+    // Everything but the actual game scene draws at the internal 640x480 resolution.
+    return !game_state_ || game_state_->current_state() != game_state::playing;
+}
+
 void application::render()
 {
     renderer_.begin_frame();
+
+    // Menu, login, character screens and the loading bar are laid out for 640x480:
+    // scale them to the window (letterboxed, integer-friendly) instead of leaving
+    // them small in the middle of a bigger window.
+    const bool letterbox = uses_letterbox_view();
+    if (letterbox)
+        renderer_.begin_letterbox_view();
 
     // Render game state
     if (game_state_)
@@ -403,6 +441,9 @@ void application::render()
 
     // Software cursor - always drawn last to guarantee visibility on top of everything
     cursor_.render(renderer_, input_.mouse_x(), input_.mouse_y());
+
+    if (letterbox)
+        renderer_.end_letterbox_view();
 
     renderer_.end_frame();
 }

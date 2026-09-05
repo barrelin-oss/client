@@ -367,6 +367,42 @@ void renderer::begin_ui()
     window_.setView(window_.getDefaultView());
 }
 
+renderer::letterbox_transform renderer::window_letterbox() const
+{
+    letterbox_transform t;
+    const float display_w = static_cast<float>(width_);
+    const float display_h = static_cast<float>(height_);
+    const float internal_w = static_cast<float>(internal_width_);
+    const float internal_h = static_cast<float>(internal_height_);
+    if (internal_w <= 0.0f || internal_h <= 0.0f)
+        return t;
+    t.scale = std::min(display_w / internal_w, display_h / internal_h);
+    t.offset_x = (display_w - internal_w * t.scale) / 2.0f;
+    t.offset_y = (display_h - internal_h * t.scale) / 2.0f;
+    return t;
+}
+
+void renderer::begin_letterbox_view()
+{
+    active_target_ = &window_;
+    rendering_scene_ = false;
+    text_renderer_.set_target(window_);
+    const auto t = window_letterbox();
+    const float display_w = static_cast<float>(width_);
+    const float display_h = static_cast<float>(height_);
+    sf::View view(sf::FloatRect({0.0f, 0.0f},
+                                {static_cast<float>(internal_width_), static_cast<float>(internal_height_)}));
+    view.setViewport(sf::FloatRect({t.offset_x / display_w, t.offset_y / display_h},
+                                   {static_cast<float>(internal_width_) * t.scale / display_w,
+                                    static_cast<float>(internal_height_) * t.scale / display_h}));
+    window_.setView(view);
+}
+
+void renderer::end_letterbox_view()
+{
+    window_.setView(window_.getDefaultView());
+}
+
 uint32_t renderer::scene_width() const
 {
     if (view_mode_ == view_mode::scaled)

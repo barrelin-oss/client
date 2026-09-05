@@ -31,6 +31,9 @@ struct video_config
     uint8_t aspect_mode = 0;  // 0=letterbox, 1=stretch (scaled mode only)
     uint8_t scale_filter = 0; // 0=nearest, 1=bilinear (scaled mode only)
     float ui_scale = 1.0f;    // 1.0 = native, max ~3.0 (all modes)
+    // Initial view mode: "scaled" (640x480 look, scaled to the window), "special"
+    // (native pixels, more world visible) or "extended". F8 cycles it in game.
+    std::string view_mode = "scaled";
 };
 
 // Audio settings

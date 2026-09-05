@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 project(helbreath_client VERSION 3.0.0 LANGUAGES CXX)
 
+# Windows: stop windows.h from defining min/max macros (they clobber std::min/std::max)
+if(WIN32)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

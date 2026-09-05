@@ -7,6 +7,10 @@
 #include <cctype>
 #include <ctime>
 
+#ifdef _WIN32
+inline std::tm* localtime_r(const std::time_t* t, std::tm* r) { return ::localtime_s(r, t) == 0 ? r : nullptr; }
+#endif
+
 namespace hb
 {
 

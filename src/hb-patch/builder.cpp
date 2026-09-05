@@ -7,9 +7,14 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <future>
 #include <iomanip>
 #include <sstream>
+
+#ifdef _WIN32
+inline std::tm* gmtime_r(const std::time_t* t, std::tm* r) { return ::gmtime_s(r, t) == 0 ? r : nullptr; }
+#endif
 #include <thread>
 #include <vector>
 

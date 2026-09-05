@@ -189,6 +189,18 @@ inline constexpr const char* party_leave_request = "party_leave_request";
 inline constexpr const char* party_leave_response = "party_leave_response";
 inline constexpr const char* party_update = "party_update";
 
+// Shops and bank (JSON) - network/messages/shop.hpp
+inline constexpr const char* shop_buy_request = "shop_buy_request";
+inline constexpr const char* shop_buy_response = "shop_buy_response";
+inline constexpr const char* shop_sell_request = "shop_sell_request";
+inline constexpr const char* shop_sell_response = "shop_sell_response";
+inline constexpr const char* shop_sell_confirm_request = "shop_sell_confirm_request";
+inline constexpr const char* shop_sell_confirm_response = "shop_sell_confirm_response";
+inline constexpr const char* bank_deposit_request = "bank_deposit_request";
+inline constexpr const char* bank_deposit_response = "bank_deposit_response";
+inline constexpr const char* bank_withdraw_request = "bank_withdraw_request";
+inline constexpr const char* bank_withdraw_response = "bank_withdraw_response";
+
 // Command autocomplete
 inline constexpr const char* available_commands = "available_commands";
 inline constexpr const char* command_availability_update = "command_availability_update";

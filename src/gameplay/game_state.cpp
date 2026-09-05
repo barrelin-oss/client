@@ -568,6 +568,7 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                            [this]()
                            {
                                ui_.create_shop_dialog();
+                               ui_.create_shop_sell_dialog();
                            }});
     init_steps_.push_back({"Creating dialogs...",
                            [this]()
@@ -764,6 +765,10 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                    });
 
                                // Drop item to world — snap back, lock, confirm, then send
+                               // Drop on the bank dialog: deposit (JSON), the bank re-reads itself
+                               ui_.set_on_deposit_to_bank([this](uint32_t item_id)
+                                                          { ws_handler().request_bank_deposit(item_id); });
+
                                ui_.set_on_drop_in_world(
                                    [this](uint32_t item_id)
                                    {
@@ -934,9 +939,14 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                {
                                    if (!world_.initialize(tile_registry_))
                                        spdlog::warn("World initialization failed - terrain rendering may not work");
+                                   // The camera centres on the scene, which in the scaled view mode is the
+                                   // internal resolution, not the window: with the window size here the
+                                   // player sat right of centre until the first resolution change
                                    const auto& video = config::instance().video();
-                                   world_.set_screen_size(video.screen_width, video.screen_height);
-                                   weather_system_.set_screen_size(video.screen_width, video.screen_height);
+                                   const uint32_t scene_w = renderer_ ? renderer_->scene_width() : video.screen_width;
+                                   const uint32_t scene_h = renderer_ ? renderer_->scene_height() : video.screen_height;
+                                   world_.set_screen_size(scene_w, scene_h);
+                                   weather_system_.set_screen_size(scene_w, scene_h);
                                    spdlog::info("Tile sprite registry: {} mappings", tile_registry_.registered_count());
                                }
                                else

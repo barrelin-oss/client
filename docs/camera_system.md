@@ -236,7 +236,9 @@ The camera snaps instantly (no lerp/smoothing). The player is centered in the vi
 
 ## Map Bounds Clamping
 
-The camera is clamped to prevent showing areas outside the map:
+There is none any more (2026-09-05): `center_on_player()` keeps the player in the middle of the screen on every map, like the original client, and the area past the map edge is simply not drawn. The clamp below is what used to happen; it left the player off-centre near edges and in every small interior map.
+
+Formerly the camera was clamped to prevent showing areas outside the map:
 
 ```
 min_x = 0

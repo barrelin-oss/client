@@ -161,6 +161,12 @@ void ui_system::update(float delta_time, const input& inp)
                         (*it)->close();
                         closed_any = true;
                     }
+                    else
+                    {
+                        // A dialog that keeps right clicks for itself (the bank withdraws with one)
+                        (*it)->handle_mouse_down(mx, my, sf::Mouse::Button::Right);
+                        mouse_consumed_right_ = true;
+                    }
                     break; // Only close topmost
                 }
             }
@@ -666,6 +672,11 @@ void ui_system::create_shop_dialog()
 void ui_system::create_bank_dialog()
 {
     add_dialog(dialog_type::bank, std::make_unique<bank_dialog>());
+}
+
+void ui_system::create_shop_sell_dialog()
+{
+    add_dialog(dialog_type::shop_sell, std::make_unique<shop_sell_dialog>());
 }
 
 void ui_system::create_party_dialog()
@@ -1300,6 +1311,7 @@ const dialog_manager& ui_system::dialogs() const
 void ui_system::begin_item_drag(const item& itm, uint32_t item_id, equip_pos equip, dialog_type source,
                                 int32_t cursor_x, int32_t cursor_y, int32_t offset_x, int32_t offset_y)
 {
+    spdlog::debug("Item drag begins: item {} from dialog {}", item_id, static_cast<int>(source));
     drag_state_.active = true;
     drag_state_.held_item = itm;
     drag_state_.source_item_id = item_id;
@@ -1330,6 +1342,7 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
 {
     if (!drag_state_.active)
         return;
+    spdlog::debug("Item drag ends at ({}, {}), item {}", x, y, drag_state_.source_item_id);
 
     // Check if dropped on inventory dialog
     if (auto* inv_dlg = dynamic_cast<inventory_dialog*>(get_dialog(dialog_type::inventory));
@@ -1358,6 +1371,13 @@ void ui_system::end_item_drag(int32_t x, int32_t y, bool shift_held)
                 on_unequip_from_drag_(drag_state_.source_equip, bag_x, bag_y);
             }
         }
+    }
+    // Dropped on the open bank dialog: deposit
+    else if (auto* bank = get_dialog(dialog_type::bank);
+             bank && bank->is_open() && bank->bounds().contains(x, y) &&
+             drag_state_.source_dialog == dialog_type::inventory && on_deposit_to_bank_)
+    {
+        on_deposit_to_bank_(drag_state_.source_item_id);
     }
     // Check if dropped on character info dialog (equip from inventory, or snap-back from paperdoll drag)
     else if (auto* chr = get_dialog(dialog_type::character_info);

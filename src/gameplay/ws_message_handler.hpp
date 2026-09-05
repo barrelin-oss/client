@@ -1,10 +1,12 @@
 #pragma once
 
 #include "network/messages.hpp"
+#include "gameplay/item.hpp"
 #include "ui/screens/character_create_screen.hpp"
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace hb
 {
@@ -83,6 +85,15 @@ public:
     void request_party_invite(std::string_view target_name);
     void request_party_accept(uint32_t party_id, bool accept);
     void request_party_leave();
+
+    // Shops and bank (JSON) - ws_shop_handlers.cpp
+    void open_shop(uint32_t npc_entity_id, const json& interaction_data);
+    void open_bank(uint32_t npc_entity_id, const json& interaction_data);
+    void refresh_sell_dialog();
+    void request_shop_buy(size_t catalogue_index, uint32_t count);
+    void request_shop_sell(uint32_t item_id, uint32_t count);
+    void request_bank_deposit(uint32_t item_id);
+    void request_bank_withdraw(int32_t bank_slot);
 
 private:
     // Individual message handlers
@@ -172,6 +183,13 @@ private:
     void handle_party_accept_response(const json& message);
     void handle_party_leave_response(const json& message);
     void handle_party_update(const json& message);
+
+    // Shops and bank
+    void handle_shop_buy_response(const json& message);
+    void handle_shop_sell_response(const json& message);
+    void handle_shop_sell_confirm_response(const json& message);
+    void handle_bank_deposit_response(const json& message);
+    void handle_bank_withdraw_response(const json& message);
     void show_npc_node(uint32_t npc_entity_id, const npc_dialog_node_data& node);
     void handle_available_commands(const json& message);
     void handle_command_availability_update(const json& message);
@@ -190,6 +208,14 @@ private:
     uint32_t dialog_npc_id_ = 0;
     std::string dialog_node_id_;
     std::string dialog_npc_name_;
+
+    // Shop and bank in use (JSON): who we are trading with and what the dialogs show
+    uint32_t shop_npc_id_ = 0;
+    std::vector<uint32_t> shop_catalogue_; // template ids in the shop dialog's row order
+    uint32_t pending_sell_item_id_ = 0;    // quote requested, confirm follows
+    int32_t pending_sell_count_ = 1;
+    uint32_t bank_npc_id_ = 0;
+    std::vector<item> bank_items_; // one per bank slot; the bank dialog points into it
 
     // Session state
     std::string session_token_;

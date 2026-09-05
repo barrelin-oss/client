@@ -124,15 +124,20 @@ void dialog_callbacks::setup_callbacks()
     // Shop dialog - buy/sell
     if (auto* shop_dlg = dynamic_cast<shop_dialog*>(ui.get_dialog(dialog_type::shop)))
     {
-        shop_dlg->set_on_buy(
-            [&network](size_t item_index, uint32_t quantity)
-            { network.request_buy(static_cast<uint16_t>(item_index), static_cast<int32_t>(quantity)); });
+        shop_dlg->set_on_buy([this](size_t item_index, uint32_t quantity)
+                             { game_->ws_handler().request_shop_buy(item_index, quantity); });
+    }
+    if (auto* sell_dlg = dynamic_cast<shop_sell_dialog*>(ui.get_dialog(dialog_type::shop_sell)))
+    {
+        // inventory_slot carries the item id: v2 items are addressed by id, not by slot
+        sell_dlg->set_on_sell([this](int32_t item_id, uint32_t quantity)
+                              { game_->ws_handler().request_shop_sell(static_cast<uint32_t>(item_id), quantity); });
     }
 
-    // Bank dialog - deposit/withdraw
+    // Bank dialog - withdraw by slot; deposit is a drag from the inventory (ui_system)
     if (auto* bank_dlg = dynamic_cast<bank_dialog*>(ui.get_dialog(dialog_type::bank)))
     {
-        bank_dlg->set_on_withdraw([&network](int32_t slot) { network.request_bank_withdraw(slot); });
+        bank_dlg->set_on_withdraw([this](int32_t slot) { game_->ws_handler().request_bank_withdraw(slot); });
     }
 
     // Party dialog - party actions

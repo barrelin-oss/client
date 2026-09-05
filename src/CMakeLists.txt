@@ -123,6 +123,7 @@ add_library(helbreath_core STATIC
     gameplay/ws_guild_handlers.cpp
     gameplay/ws_quest_handlers.cpp
     gameplay/ws_party_handlers.cpp
+    gameplay/ws_shop_handlers.cpp
     gameplay/ws_misc_handlers.cpp
     gameplay/game_state.cpp
     gameplay/chat_input_overlay.cpp

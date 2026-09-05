@@ -1,4 +1,5 @@
 #include "ui/dialogs/inventory_dialog.hpp"
+#include <spdlog/spdlog.h>
 #include "assets/sprite_manager.hpp"
 #include "assets/sprite.hpp"
 #include "gameplay/inventory.hpp"
@@ -295,6 +296,7 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
 
             pressed_item_id_ = item_id;
             dragging_item_id_ = item_id;
+            spdlog::debug("Inventory: press on item {} at ({}, {})", item_id, x, y);
 
             // Bring to front immediately on click
             inventory_->bring_to_front(item_id);

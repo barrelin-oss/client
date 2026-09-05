@@ -231,14 +231,10 @@ void world::center_on_player()
     double target_x = static_cast<double>(player_world_x_) - static_cast<double>(screen_width_) / 2.0;
     double target_y = static_cast<double>(player_world_y_) - static_cast<double>(screen_height_) / 2.0;
 
-    // Clamp to map bounds
-    if (current_map_.is_loaded())
-    {
-        double max_x = static_cast<double>(current_map_.width() * tile_width) - static_cast<double>(screen_width_);
-        double max_y = static_cast<double>(current_map_.height() * tile_height) - static_cast<double>(screen_height_);
-        target_x = std::clamp(target_x, 0.0, std::max(0.0, max_x));
-        target_y = std::clamp(target_y, 0.0, std::max(0.0, max_y));
-    }
+    // No clamping to the map bounds: the original client keeps the player in the middle
+    // of the screen everywhere and simply shows nothing past the map edge. Clamping put
+    // the player off-centre near edges and in every small interior map (warehouses,
+    // shops), and the visible tile range is already limited to the map by the renderer.
 
     camera_x_ = target_x;
     camera_y_ = target_y;

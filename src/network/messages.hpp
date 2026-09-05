@@ -7,5 +7,6 @@
 #include "network/messages/items.hpp"
 #include "network/messages/social.hpp"
 #include "network/messages/quest.hpp"
+#include "network/messages/shop.hpp"
 #include "network/messages/fishing.hpp"
 #include "network/messages/system.hpp"

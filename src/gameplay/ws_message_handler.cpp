@@ -204,6 +204,13 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::party_leave_response,        &ws_message_handler::handle_party_leave_response},
         {msg_type::party_update,                &ws_message_handler::handle_party_update},
 
+        // Shops and bank
+        {msg_type::shop_buy_response,           &ws_message_handler::handle_shop_buy_response},
+        {msg_type::shop_sell_response,          &ws_message_handler::handle_shop_sell_response},
+        {msg_type::shop_sell_confirm_response,  &ws_message_handler::handle_shop_sell_confirm_response},
+        {msg_type::bank_deposit_response,       &ws_message_handler::handle_bank_deposit_response},
+        {msg_type::bank_withdraw_response,      &ws_message_handler::handle_bank_withdraw_response},
+
         // Environment / rendering
         {msg_type::environment_update,          &ws_message_handler::handle_environment_update},
         {msg_type::set_render_mode,             &ws_message_handler::handle_set_render_mode},

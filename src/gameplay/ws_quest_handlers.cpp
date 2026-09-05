@@ -140,8 +140,8 @@ void ws_message_handler::handle_dialog_choice_response(const json& message)
     game_->ui().close_dialog(dialog_type::npc_dialog);
     if (r.action == "open_shop" || r.action == "open_bank")
     {
-        game_->get_status_log().add_event("This client does not open the shop or bank from the dialog yet.",
-                                          message_color::yellow);
+        // The server answers a plain interact with the shop or bank when the NPC has one
+        request_interact(dialog_npc_id_);
     }
 }
 

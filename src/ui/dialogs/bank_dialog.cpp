@@ -24,6 +24,7 @@ bank_dialog::bank_dialog() : dialog(dialog_type::bank)
     set_draggable(true);
     set_closeable(true);
     set_modal(true);
+    set_right_click_closeable(false); // a right click on a slot withdraws, it must not close the bank
     set_visible(false);
 }
 

@@ -177,6 +177,7 @@ void ws_message_handler::handle_inventory_item_add(const json& message)
     entry.pos_y = data.pos_y;
     entry.z_order = data.z_order;
     game_->inventory().add_or_update_item(entry);
+    refresh_sell_dialog(); // the sell list mirrors the bag
     spdlog::debug("Inventory item added: {} (id={})", data.data.name, data.data.item_id);
 }
 
@@ -203,6 +204,7 @@ void ws_message_handler::handle_inventory_item_removed(const json& message)
 
     spdlog::debug("Inventory item {} removed", data.item_id);
     game_->inventory().remove_item(data.item_id);
+    refresh_sell_dialog(); // the sell list points into the bag
 }
 
 void ws_message_handler::handle_inventory_item_delta(const json& message)
@@ -442,7 +444,8 @@ void ws_message_handler::handle_player_interact_response(const json& message)
     if (!success)
     {
         std::string error = d.value("error", "Interaction failed");
-        spdlog::debug("Interaction failed: {}", error);
+        spdlog::info("Interaction failed: {}", error);
+        game_->get_status_log().add_event("Cannot interact: " + error, message_color::yellow);
         return;
     }
 
@@ -454,13 +457,11 @@ void ws_message_handler::handle_player_interact_response(const json& message)
 
     if (interaction_type == "shop")
     {
-        spdlog::info("Shop opened: {}", result["interaction_data"].value("npc_name", ""));
-        // TODO: Open shop dialog with items from interaction_data
+        open_shop(result.value("target_id", 0u), result["interaction_data"]);
     }
     else if (interaction_type == "bank")
     {
-        spdlog::info("Bank opened: {}", result["interaction_data"].value("npc_name", ""));
-        // TODO: Open bank dialog with items from interaction_data
+        open_bank(result.value("target_id", 0u), result["interaction_data"]);
     }
     else if (interaction_type == "dialog")
     {

@@ -100,6 +100,7 @@ public:
     void create_chat_dialog();
     void create_shop_dialog();
     void create_bank_dialog();
+    void create_shop_sell_dialog();
     void create_party_dialog();
     void create_guild_dialog();
     void create_npc_dialog();
@@ -182,6 +183,9 @@ public:
     void set_on_equip_from_drag(equip_from_drag_callback cb) { on_equip_from_drag_ = std::move(cb); }
     void set_on_unequip_from_drag(unequip_from_drag_callback cb) { on_unequip_from_drag_ = std::move(cb); }
     void set_on_reposition_item(reposition_callback cb) { on_reposition_item_ = std::move(cb); }
+    // Item dragged from the inventory and dropped on the open bank dialog
+    using deposit_to_bank_callback = std::function<void(uint32_t item_id)>;
+    void set_on_deposit_to_bank(deposit_to_bank_callback cb) { on_deposit_to_bank_ = std::move(cb); }
 
     // Track whether a mouse button press was consumed by the UI.
     // Returns true from press until release, preventing held-button
@@ -240,6 +244,7 @@ private:
     ui_drag_state drag_state_;
     drop_in_world_callback on_drop_in_world_;
     equip_from_drag_callback on_equip_from_drag_;
+    deposit_to_bank_callback on_deposit_to_bank_;
     unequip_from_drag_callback on_unequip_from_drag_;
     reposition_callback on_reposition_item_;
 };

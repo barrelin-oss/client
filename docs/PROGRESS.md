@@ -98,6 +98,15 @@
 
 ## Recent Changes
 
+### 2026-09-05: Player always centred; right click reaches the bank
+- The camera centred on the window size from the config (1280x720) instead of the scene size (800x600 in the scaled view mode) until the first resolution change, which put the player right of centre; the world and weather now take the renderer's scene size at start-up. `world::center_on_player` also no longer clamps the camera to the map bounds: the player stays in the middle of the screen on every map, as in the original client, and nothing is drawn past the map edge (`docs/camera_system.md` updated)
+- A right click on a dialog that is not right-click-closeable is delivered to it instead of ignored; the bank dialog is such a dialog, so "right-click to withdraw" works. The shop, sell and bank dialogs are not modal, since two of them are open at once and a modal front dialog swallowed the other's clicks
+
+### 2026-09-05: Shops and the bank on the JSON protocol
+- Clicking a merchant opens the shop dialog with the server's catalogue (`player_interact_response`, interaction_type `shop`) and the sell dialog listing the bag; buying is `shop_buy_request`, selling asks for the quote (`shop_sell_request`) and confirms it (`shop_sell_confirm_request`), and the inventory pushes keep the bag in sync (`ws_shop_handlers.cpp`)
+- Clicking the banker opens the bank dialog with its slots; withdraw by clicking a slot (`bank_withdraw_request`), deposit by dragging an item from the inventory onto the bank dialog (`bank_deposit_request`); after either the bank is re-read by interacting again
+- The NPC dialog actions `open_shop`/`open_bank` interact again, which is how the server hands out the shop or bank
+
 ### 2026-09-05: Quests and party on the JSON protocol; NPC talk by click
 - A plain click on a town NPC sends `player_interact_request`; the `dialog` interaction opens the NPC dialog with the server's text and options, and each option goes back as `dialog_choice_request` (`ws_quest_handlers.cpp`). `goto_node` continues the conversation; `open_quests` and `claim_rewards` close it and let the server push what follows
 - Quest dialog rewritten (`ui/dialogs/quest_dialog.*`): the officer's offers (from `quest_list_response`) and the journal (J key or the character dialog's Quest button, `quest_journal_request`) in one list-and-details dialog with Accept, Complete and Abandon; `quest_update` pushes refresh it and report progress in the status log

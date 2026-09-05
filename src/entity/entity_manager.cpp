@@ -58,8 +58,8 @@ struct character_sprite_constants
     static constexpr uint16_t female_shield_base = 19100;
     static constexpr uint16_t shield_stride = 8;
 
-    static constexpr uint16_t male_mantle_base = 9230;
-    static constexpr uint16_t female_mantle_base = 19230;
+    static constexpr uint16_t male_mantle_base = 9600;
+    static constexpr uint16_t female_mantle_base = 19600;
     static constexpr uint16_t mantle_stride = 15;
 
     static constexpr uint16_t male_helmet_base = 9300;
@@ -68,11 +68,13 @@ struct character_sprite_constants
 };
 
 // NPC/Monster sprite constants
-// Legacy formula: 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+// Legacy formula: 1220 + (type - 10) * 56 + action * 8 + (dir - 1). The legacy base only
+// has room up to type 78 before it runs into the male body armour ids at 5060; sprite ids
+// are internal to this client, so the NPC block lives at 20000 instead.
 // Each NPC/monster type has 56 frames: 7 actions × 8 directions
 struct npc_sprite_constants
 {
-    static constexpr uint16_t npc_base = 1220;
+    static constexpr uint16_t npc_base = 20000;
     static constexpr uint16_t npc_type_offset = 10;
     static constexpr uint16_t frames_per_type = 56; // 7 actions * 8 directions
     static constexpr uint16_t directions_per_action = 8;
@@ -296,7 +298,7 @@ inline int32_t action_to_npc_action_index(object_action action)
 }
 
 // Calculate NPC/monster sprite ID
-// Formula: 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+// Formula: npc_base + (type - 10) * 56 + action * 8 + (dir - 1)
 inline uint16_t calculate_npc_sprite_id(uint16_t npc_type, int32_t action, int32_t dir)
 {
     // npc_type is already the visual type (10=Slime, 11=Skeleton, etc.)

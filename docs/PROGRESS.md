@@ -98,6 +98,14 @@
 
 ## Recent Changes
 
+### 2026-09-05: Every sprite pack on disk is registered; NPC ids move to 20000
+
+- The equipment tables in `menu_character_renderer.cpp` only knew the 3.51 set. Packs that had been on disk all along (StormBringer, the Kloness weapons, Devastator, LightBlade, the hero mails/robes/hauberks/leggings/helms/caps, Staff3, ReMagicWand, Direct/Fire bows, mantles 4-6) were never loaded, so a character with those items showed bare hands and no armour. The tables now follow the 3.82 Game.cpp list, plus the Olympia packs where the id layout has room (Hanbok, the D-plate/robe/helm/wizhat, HauberkN, angels/dark/knock bows, absorpwand, AM/AW mantles).
+- Mantles live at 9600/19600: the legacy base 9230 runs into the helmets at 9300 past the 4th mantle.
+- NPC sprite ids start at 20000 instead of 1220: the legacy base only reaches type 78 before the equipment ids at 5060. Types 70-91 (Barlog to Gate; packs on disk, never registered) and the Olympia NPCs at 100-112 (Scarecrow, Ghost, Princess, Bat, officers, guard variants, chests, black beholder; our own numbering) are in the monster table, `npc_type_last` is 119.
+- Packs keep empty records for the directions a figure lacks (Gate, the officers): `store_sprite_at_id` skips them quietly instead of logging an error per record.
+- Checked in the real client: GmSmoke wearing eHeroOfCap, eHeroOfArmor, KnightHauberk, Cape+1 and KlonessBlade renders dressed in game; Minotaurus and Centaurus (types 78 and 71) visible in procella.
+
 ### 2026-09-05: Olympia assets: sprite packs, maps and the music
 - `tools/opk2pak.mjs` converts the `.opk` sprite packs of the Helbreath Olympia client into the classic `.pak` this client reads (same frames and 8-bit BMPs, reorganised: a 13-byte record per sprite up front, BMPs at the end). Validated against `Ant.pak`/`ABS.pak`: identical frame tables, BMPs differing only in the palette's reserved byte and a handful of pixels
 - Imported into `bin/assets/sprites` (not versioned) the 79 packs Olympia has and this client lacked: 56 player equipment packs (mantles, dark/hero sets, staffs, bows), 13 NPCs (Bat, Ghost, Scarecrow, Battle/Event officers, the three guards, the three chests, the princess), 1 effect pack, 2 object sets, 5 UI packs and 2 tile sets (`create_acc.opk` has another layout and was skipped). Nothing existing was replaced

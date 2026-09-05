@@ -109,7 +109,7 @@ static constexpr std::array<pak_load_entry, 8> female_hair_paks = {{
 }};
 
 // Male body armor PAKs
-static constexpr std::array<pak_load_entry, 7> male_body_armor_paks = {{
+static constexpr std::array<pak_load_entry, 14> male_body_armor_paks = {{
     {"MLArmor", 5060 + 15 * 1, 12, 0},
     {"MCMail", 5060 + 15 * 2, 12, 0},
     {"MSMail", 5060 + 15 * 3, 12, 0},
@@ -117,10 +117,17 @@ static constexpr std::array<pak_load_entry, 7> male_body_armor_paks = {{
     {"Mtunic", 5060 + 15 * 5, 12, 0},
     {"MRobe1", 5060 + 15 * 6, 12, 0},
     {"MSanta", 5060 + 15 * 7, 12, 0},
+    {"MHPMail1", 5060 + 15 * 8, 12, 0},
+    {"MHPMail2", 5060 + 15 * 9, 12, 0},
+    {"MHRobe1", 5060 + 15 * 10, 12, 0},
+    {"MHRobe2", 5060 + 15 * 11, 12, 0},
+    {"MDPlatemail", 5060 + 15 * 12, 12, 0}, // Olympia
+    {"MDRobe", 5060 + 15 * 13, 12, 0}, // Olympia
+    {"MHanbok", 5060 + 15 * 14, 12, 0}, // Olympia
 }};
 
 // Female body armor PAKs
-static constexpr std::array<pak_load_entry, 8> female_body_armor_paks = {{
+static constexpr std::array<pak_load_entry, 15> female_body_armor_paks = {{
     {"WBodice1", 15060 + 15 * 1, 12, 0},
     {"WBodice2", 15060 + 15 * 2, 12, 0},
     {"WLArmor", 15060 + 15 * 3, 12, 0},
@@ -129,36 +136,57 @@ static constexpr std::array<pak_load_entry, 8> female_body_armor_paks = {{
     {"WPMail", 15060 + 15 * 6, 12, 0},
     {"WRobe1", 15060 + 15 * 7, 12, 0},
     {"WSanta", 15060 + 15 * 8, 12, 0},
+    {"WHPMail1", 15060 + 15 * 9, 12, 0},
+    {"WHPMail2", 15060 + 15 * 10, 12, 0},
+    {"WHRobe1", 15060 + 15 * 11, 12, 0},
+    {"WHRobe2", 15060 + 15 * 12, 12, 0},
+    {"WDPlatemail", 15060 + 15 * 13, 12, 0}, // Olympia
+    {"WDRobe", 15060 + 15 * 14, 12, 0}, // Olympia
+    {"WHanbok", 15060 + 15 * 15, 12, 0}, // Olympia
 }};
 
 // Male arm armor (shirts)
-static constexpr std::array<pak_load_entry, 2> male_arm_armor_paks = {{
+static constexpr std::array<pak_load_entry, 6> male_arm_armor_paks = {{
     {"MShirt", 5300 + 15 * 1, 12, 0},
     {"MHauberk", 5300 + 15 * 2, 12, 0},
+    {"MHHauberk1", 5300 + 15 * 3, 12, 0},
+    {"MHHauberk2", 5300 + 15 * 4, 12, 0},
+    {"MDHauberk", 5300 + 15 * 5, 12, 0}, // Olympia
+    {"MHauberkN", 5300 + 15 * 6, 12, 0}, // Olympia
 }};
 
 // Female arm armor (shirts)
-static constexpr std::array<pak_load_entry, 3> female_arm_armor_paks = {{
+static constexpr std::array<pak_load_entry, 7> female_arm_armor_paks = {{
     {"WChemiss", 15300 + 15 * 1, 12, 0},
     {"WShirt", 15300 + 15 * 2, 12, 0},
     {"WHauberk", 15300 + 15 * 3, 12, 0},
+    {"WHHauberk1", 15300 + 15 * 4, 12, 0},
+    {"WHHauberk2", 15300 + 15 * 5, 12, 0},
+    {"WDHauberk", 15300 + 15 * 6, 12, 0}, // Olympia
+    {"WHauberkN", 15300 + 15 * 7, 12, 0}, // Olympia
 }};
 
 // Male pants/trousers
-static constexpr std::array<pak_load_entry, 4> male_pants_paks = {{
+static constexpr std::array<pak_load_entry, 7> male_pants_paks = {{
     {"MTrouser", 5540 + 15 * 1, 12, 0},
     {"MHTrouser", 5540 + 15 * 2, 12, 0},
     {"MCHoses", 5540 + 15 * 3, 12, 0},
     {"MLeggings", 5540 + 15 * 4, 12, 0},
+    {"MHLeggings1", 5540 + 15 * 5, 12, 0},
+    {"MHLeggings2", 5540 + 15 * 6, 12, 0},
+    {"MDLeggings", 5540 + 15 * 7, 12, 0}, // Olympia
 }};
 
 // Female pants/skirts
-static constexpr std::array<pak_load_entry, 5> female_pants_paks = {{
+static constexpr std::array<pak_load_entry, 8> female_pants_paks = {{
     {"WSkirt", 15540 + 15 * 1, 12, 0},
     {"WTrouser", 15540 + 15 * 2, 12, 0},
     {"WHTrouser", 15540 + 15 * 3, 12, 0},
     {"WCHoses", 15540 + 15 * 4, 12, 0},
     {"WLeggings", 15540 + 15 * 5, 12, 0},
+    {"WHLeggings1", 15540 + 15 * 6, 12, 0},
+    {"WHLeggings2", 15540 + 15 * 7, 12, 0},
+    {"WDLeggings", 15540 + 15 * 8, 12, 0}, // Olympia
 }};
 
 // Male boots
@@ -174,7 +202,7 @@ static constexpr std::array<pak_load_entry, 2> female_boots_paks = {{
 }};
 
 // Male weapons - swords (loaded via loop at multiple offsets)
-static constexpr std::array<pak_load_entry, 14> male_sword_paks = {{
+static constexpr std::array<pak_load_entry, 19> male_sword_paks = {{
     {"Msw", 6020 + 64 * 1, 56, 0},
     {"Msw", 6020 + 64 * 2, 56, 0},
     {"Msw", 6020 + 64 * 3, 56, 0},
@@ -188,11 +216,16 @@ static constexpr std::array<pak_load_entry, 14> male_sword_paks = {{
     {"Msw", 6020 + 64 * 11, 56, 0},
     {"Msw", 6020 + 64 * 12, 56, 0},
     {"Msw2", 6020 + 64 * 13, 56, 0},
-    {"Msw2", 6020 + 64 * 14, 56, 0},
+    {"Msw3", 6020 + 64 * 14, 56, 0},
+    {"MStormBringer", 6020 + 64 * 15, 56, 0},
+    {"MDarkExec", 6020 + 64 * 16, 56, 0},
+    {"MKlonessBlade", 6020 + 64 * 17, 56, 0},
+    {"MKlonessAstock", 6020 + 64 * 18, 56, 0},
+    {"MDebastator", 6020 + 64 * 19, 56, 0},
 }};
 
 // Male weapons - axes
-static constexpr std::array<pak_load_entry, 8> male_axe_paks = {{
+static constexpr std::array<pak_load_entry, 10> male_axe_paks = {{
     {"MAxe1", 6020 + 64 * 20, 56, 0},
     {"MAxe2", 6020 + 64 * 21, 56, 0},
     {"MAxe3", 6020 + 64 * 22, 56, 0},
@@ -201,24 +234,38 @@ static constexpr std::array<pak_load_entry, 8> male_axe_paks = {{
     {"MPickAxe1", 6020 + 64 * 25, 56, 0},
     {"MAxe6", 6020 + 64 * 26, 56, 0},
     {"Mhoe", 6020 + 64 * 27, 56, 0},
+    {"MKlonessAxe", 6020 + 64 * 28, 56, 0},
+    {"MLightBlade", 6020 + 64 * 29, 56, 0},
 }};
 
 // Male weapons - hammers and staffs
-static constexpr std::array<pak_load_entry, 4> male_hammer_staff_paks = {{
+static constexpr std::array<pak_load_entry, 10> male_hammer_staff_paks = {{
     {"MHammer", 6020 + 64 * 30, 56, 0},
     {"MBHammer", 6020 + 64 * 31, 56, 0},
-    {"Mstaff1", 6020 + 64 * 35, 56, 0},
-    {"Mstaff2", 6020 + 64 * 36, 56, 0},
+    {"MBabHammer", 6020 + 64 * 32, 56, 0},
+    {"MBShadowSword", 6020 + 64 * 33, 56, 0},
+    {"MBerserkWand", 6020 + 64 * 34, 56, 0},
+    {"MStaff1", 6020 + 64 * 35, 56, 0},
+    {"MStaff2", 6020 + 64 * 36, 56, 0},
+    {"MStaff3", 6020 + 64 * 37, 56, 0},
+    {"MReMagicWand", 6020 + 64 * 38, 56, 0},
+    {"MKlonessWand", 6020 + 64 * 39, 56, 0},
 }};
 
 // Male weapons - bow
-static constexpr std::array<pak_load_entry, 2> male_bow_paks = {{
+static constexpr std::array<pak_load_entry, 8> male_bow_paks = {{
     {"Mbo", 6020 + 64 * 40, 56, 0},
     {"Mbo", 6020 + 64 * 41, 56, 0},
+    {"MDirectBow", 6020 + 64 * 42, 56, 0},
+    {"MFireBow", 6020 + 64 * 43, 56, 0},
+    {"Mangelsbow", 6020 + 64 * 44, 56, 0}, // Olympia
+    {"MDarkBow", 6020 + 64 * 45, 56, 0}, // Olympia
+    {"MKnockBow", 6020 + 64 * 46, 56, 0}, // Olympia
+    {"Mabsorpwand", 6020 + 64 * 47, 56, 0}, // Olympia (wand)
 }};
 
 // Female weapons - swords
-static constexpr std::array<pak_load_entry, 14> female_sword_paks = {{
+static constexpr std::array<pak_load_entry, 19> female_sword_paks = {{
     {"Wsw", 16020 + 64 * 1, 56, 0},
     {"Wsw", 16020 + 64 * 2, 56, 0},
     {"Wsw", 16020 + 64 * 3, 56, 0},
@@ -232,33 +279,52 @@ static constexpr std::array<pak_load_entry, 14> female_sword_paks = {{
     {"Wsw", 16020 + 64 * 11, 56, 0},
     {"Wsw", 16020 + 64 * 12, 56, 0},
     {"Wsw2", 16020 + 64 * 13, 56, 0},
-    {"Wsw2", 16020 + 64 * 14, 56, 0},
+    {"Wsw3", 16020 + 64 * 14, 56, 0},
+    {"WStormbringer", 16020 + 64 * 15, 56, 0},
+    {"WDarkExec", 16020 + 64 * 16, 56, 0},
+    {"WKlonessBlade", 16020 + 64 * 17, 56, 0},
+    {"WKlonessAstock", 16020 + 64 * 18, 56, 0},
+    {"WDebastator", 16020 + 64 * 19, 56, 0},
 }};
 
 // Female weapons - axes
-static constexpr std::array<pak_load_entry, 8> female_axe_paks = {{
+static constexpr std::array<pak_load_entry, 10> female_axe_paks = {{
     {"WAxe1", 16020 + 64 * 20, 56, 0},
     {"WAxe2", 16020 + 64 * 21, 56, 0},
     {"WAxe3", 16020 + 64 * 22, 56, 0},
     {"WAxe4", 16020 + 64 * 23, 56, 0},
     {"WAxe5", 16020 + 64 * 24, 56, 0},
-    {"WpickAxe1", 16020 + 64 * 25, 56, 0},
+    {"WPickAxe1", 16020 + 64 * 25, 56, 0},
     {"WAxe6", 16020 + 64 * 26, 56, 0},
     {"Whoe", 16020 + 64 * 27, 56, 0},
+    {"WKlonessAxe", 16020 + 64 * 28, 56, 0},
+    {"WLightBlade", 16020 + 64 * 29, 56, 0},
 }};
 
 // Female weapons - hammers and staffs
-static constexpr std::array<pak_load_entry, 4> female_hammer_staff_paks = {{
+static constexpr std::array<pak_load_entry, 10> female_hammer_staff_paks = {{
     {"WHammer", 16020 + 64 * 30, 56, 0},
     {"WBHammer", 16020 + 64 * 31, 56, 0},
-    {"Wstaff1", 16020 + 64 * 35, 56, 0},
-    {"Wstaff2", 16020 + 64 * 36, 56, 0},
+    {"WBabHammer", 16020 + 64 * 32, 56, 0},
+    {"WBShadowSword", 16020 + 64 * 33, 56, 0},
+    {"WBerserkWand", 16020 + 64 * 34, 56, 0},
+    {"WStaff1", 16020 + 64 * 35, 56, 0},
+    {"WStaff2", 16020 + 64 * 36, 56, 0},
+    {"WStaff3", 16020 + 64 * 37, 56, 0},
+    {"WReMagicWand", 16020 + 64 * 38, 56, 0},
+    {"WKlonessWand", 16020 + 64 * 39, 56, 0},
 }};
 
 // Female weapons - bow
-static constexpr std::array<pak_load_entry, 2> female_bow_paks = {{
+static constexpr std::array<pak_load_entry, 8> female_bow_paks = {{
     {"Wbo", 16020 + 64 * 40, 56, 0},
     {"Wbo", 16020 + 64 * 41, 56, 0},
+    {"WDirectBow", 16020 + 64 * 42, 56, 0},
+    {"WFireBow", 16020 + 64 * 43, 56, 0},
+    {"Wangelsbow", 16020 + 64 * 44, 56, 0}, // Olympia
+    {"WDarkBow", 16020 + 64 * 45, 56, 0}, // Olympia
+    {"WKnockBow", 16020 + 64 * 46, 56, 0}, // Olympia
+    {"Wabsorpwand", 16020 + 64 * 47, 56, 0}, // Olympia (wand)
 }};
 
 // Male shields (Msh.pak) - 9 types, 7 sprites each
@@ -268,21 +334,31 @@ static constexpr pak_load_entry male_shield_pak = {"Msh", 9100, 72, 0};
 static constexpr pak_load_entry female_shield_pak = {"Wsh", 19100, 72, 0};
 
 // Male mantles
-static constexpr std::array<pak_load_entry, 3> male_mantle_paks = {{
-    {"Mmantle01", 9230 + 15 * 1, 12, 0},
-    {"Mmantle02", 9230 + 15 * 2, 12, 0},
-    {"Mmantle03", 9230 + 15 * 3, 12, 0},
+static constexpr std::array<pak_load_entry, 8> male_mantle_paks = {{
+    {"Mmantle01", 9600 + 15 * 1, 12, 0},
+    {"Mmantle02", 9600 + 15 * 2, 12, 0},
+    {"Mmantle03", 9600 + 15 * 3, 12, 0},
+    {"Mmantle04", 9600 + 15 * 4, 12, 0},
+    {"Mmantle05", 9600 + 15 * 5, 12, 0},
+    {"Mmantle06", 9600 + 15 * 6, 12, 0},
+    {"AMmantle01", 9600 + 15 * 7, 12, 0}, // Olympia
+    {"AMmantle02", 9600 + 15 * 8, 12, 0}, // Olympia
 }};
 
 // Female mantles
-static constexpr std::array<pak_load_entry, 3> female_mantle_paks = {{
-    {"Wmantle01", 19230 + 15 * 1, 12, 0},
-    {"Wmantle02", 19230 + 15 * 2, 12, 0},
-    {"Wmantle03", 19230 + 15 * 3, 12, 0},
+static constexpr std::array<pak_load_entry, 8> female_mantle_paks = {{
+    {"Wmantle01", 19600 + 15 * 1, 12, 0},
+    {"Wmantle02", 19600 + 15 * 2, 12, 0},
+    {"Wmantle03", 19600 + 15 * 3, 12, 0},
+    {"Wmantle04", 19600 + 15 * 4, 12, 0},
+    {"Wmantle05", 19600 + 15 * 5, 12, 0},
+    {"Wmantle06", 19600 + 15 * 6, 12, 0},
+    {"AWmantle01", 19600 + 15 * 7, 12, 0}, // Olympia
+    {"AWmantle02", 19600 + 15 * 8, 12, 0}, // Olympia
 }};
 
 // Male helmets
-static constexpr std::array<pak_load_entry, 8> male_helmet_paks = {{
+static constexpr std::array<pak_load_entry, 14> male_helmet_paks = {{
     {"MHelm1", 9300 + 15 * 1, 12, 0},
     {"MHelm2", 9300 + 15 * 2, 12, 0},
     {"MHelm3", 9300 + 15 * 3, 12, 0},
@@ -291,16 +367,28 @@ static constexpr std::array<pak_load_entry, 8> male_helmet_paks = {{
     {"NMHelm2", 9300 + 15 * 6, 12, 0},
     {"NMHelm3", 9300 + 15 * 7, 12, 0},
     {"NMHelm4", 9300 + 15 * 8, 12, 0},
+    {"MHHelm1", 9300 + 15 * 9, 12, 0},
+    {"MHHelm2", 9300 + 15 * 10, 12, 0},
+    {"MHCap1", 9300 + 15 * 11, 12, 0},
+    {"MHCap2", 9300 + 15 * 12, 12, 0},
+    {"MDHelm", 9300 + 15 * 13, 12, 0}, // Olympia
+    {"MDWizhat", 9300 + 15 * 14, 12, 0}, // Olympia
 }};
 
 // Female helmets
-static constexpr std::array<pak_load_entry, 6> female_helmet_paks = {{
+static constexpr std::array<pak_load_entry, 12> female_helmet_paks = {{
     {"WHelm1", 19300 + 15 * 1, 12, 0},
     {"WHelm4", 19300 + 15 * 4, 12, 0},
     {"NWHelm1", 19300 + 15 * 5, 12, 0},
     {"NWHelm2", 19300 + 15 * 6, 12, 0},
     {"NWHelm3", 19300 + 15 * 7, 12, 0},
     {"NWHelm4", 19300 + 15 * 8, 12, 0},
+    {"WHHelm1", 19300 + 15 * 9, 12, 0},
+    {"WHHelm2", 19300 + 15 * 10, 12, 0},
+    {"WHCap1", 19300 + 15 * 11, 12, 0},
+    {"WHCap2", 19300 + 15 * 12, 12, 0},
+    {"WDHelm", 19300 + 15 * 13, 12, 0}, // Olympia
+    {"WDWizhat", 19300 + 15 * 14, 12, 0}, // Olympia
 }};
 
 // Helper to load a PAK and store sprites at global IDs
@@ -381,7 +469,8 @@ std::vector<equipment_pak_entry> menu_character_renderer::get_pak_load_list()
     add(male_shield_pak);
     add(female_shield_pak);
 
-    // Mantles
+    // Mantles (the legacy base 9230 runs into the helmets at 9300 past the 4th mantle;
+// the ids are internal to this client, so the mantles live at 9600/19600)
     add_array(male_mantle_paks);
     add_array(female_mantle_paks);
 

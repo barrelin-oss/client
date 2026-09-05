@@ -68,7 +68,8 @@ static constexpr std::array effect_paks = {
 // Monster/NPC PAK loading table
 // Matches legacy Game.cpp MakeSprite() calls: MakeSprite("slm", 1220 + 7*8*0, 40, TRUE)
 // Each entry: {pak_name, sprite_id_start, sprite_count}
-// Formula: sprite_id = 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+// Formula: sprite_id = npc_base + (type - 10) * 56 + action * 8 + (dir - 1)
+// (npc_base is 20000, not the legacy 1220: see npc_sprite_constants in entity_manager.cpp)
 struct monster_pak_entry
 {
     const char* pak_name;
@@ -76,7 +77,7 @@ struct monster_pak_entry
     uint16_t sprite_count;
 };
 
-static constexpr uint16_t npc_base = 1220;
+static constexpr uint16_t npc_base = 20000;
 static constexpr uint16_t npc_stride = 56; // 7 actions * 8 directions
 
 // All monster/NPC PAK files from legacy loading (Game.cpp lines 3836-3930)
@@ -143,6 +144,43 @@ static constexpr std::array monster_paks = {
     monster_pak_entry{"McGaffin", static_cast<uint16_t>(npc_base + npc_stride * 57), 16},  // McGaffin (Type: 67)
     monster_pak_entry{"Perry", static_cast<uint16_t>(npc_base + npc_stride * 58), 16},     // Perry (Type: 68)
     monster_pak_entry{"Devlin", static_cast<uint16_t>(npc_base + npc_stride * 59), 16},    // Devlin (Type: 69)
+    // v3.82 monsters (types 70-91, numbering of the Korean 3.82 server) and the Olympia NPCs
+    // (types 100-112: our own numbering, the packs come from the Helbreath Olympia client)
+    monster_pak_entry{"Barlog", static_cast<uint16_t>(npc_base + npc_stride * 60), 40},   // Barlog (Type: 70)
+    monster_pak_entry{"Centaurus", static_cast<uint16_t>(npc_base + npc_stride * 61), 40}, // Centaurus (Type: 71)
+    monster_pak_entry{"Clawturtle", static_cast<uint16_t>(npc_base + npc_stride * 62), 40}, // Claw-Turtle (Type: 72)
+    monster_pak_entry{"FireWyvern", static_cast<uint16_t>(npc_base + npc_stride * 63), 24}, // Fire-Wyvern (Type: 73)
+    monster_pak_entry{"GiantCrayfish", static_cast<uint16_t>(npc_base + npc_stride * 64), 40}, // Giant-Cray-Fish (Type: 74)
+    monster_pak_entry{"GiantLizard", static_cast<uint16_t>(npc_base + npc_stride * 65), 40}, // Lizard (Type: 75)
+    monster_pak_entry{"GiantPlant", static_cast<uint16_t>(npc_base + npc_stride * 66), 40}, // Giant-Plant (Type: 76)
+    monster_pak_entry{"MasterMageOrc", static_cast<uint16_t>(npc_base + npc_stride * 67), 40}, // Master-Mage-Orc (Type: 77)
+    monster_pak_entry{"Minotaurs", static_cast<uint16_t>(npc_base + npc_stride * 68), 40}, // Minotaurus (Type: 78)
+    monster_pak_entry{"Nizie", static_cast<uint16_t>(npc_base + npc_stride * 69), 40},    // Nizie (Type: 79)
+    monster_pak_entry{"Tentocle", static_cast<uint16_t>(npc_base + npc_stride * 70), 40}, // Tentocle (Type: 80)
+    monster_pak_entry{"yspro", static_cast<uint16_t>(npc_base + npc_stride * 71), 32},    // Abaddon (Type: 81)
+    monster_pak_entry{"Sorceress", static_cast<uint16_t>(npc_base + npc_stride * 72), 40}, // Sorceress (Type: 82)
+    monster_pak_entry{"TPKnight", static_cast<uint16_t>(npc_base + npc_stride * 73), 40}, // ATK (Temple Knight) (Type: 83)
+    monster_pak_entry{"ElfMaster", static_cast<uint16_t>(npc_base + npc_stride * 74), 40}, // Elf Master (Type: 84)
+    monster_pak_entry{"DarkKnight", static_cast<uint16_t>(npc_base + npc_stride * 75), 40}, // DSK (Dark Knight) (Type: 85)
+    monster_pak_entry{"HBTank", static_cast<uint16_t>(npc_base + npc_stride * 76), 32},   // HBT (Heavy Battle Tank) (Type: 86)
+    monster_pak_entry{"CBTurret", static_cast<uint16_t>(npc_base + npc_stride * 77), 32}, // CT (Crossbow Turret) (Type: 87)
+    monster_pak_entry{"Babarian", static_cast<uint16_t>(npc_base + npc_stride * 78), 40}, // Barbarian (Type: 88)
+    monster_pak_entry{"ACannon", static_cast<uint16_t>(npc_base + npc_stride * 79), 32},  // AGC (Cannon) (Type: 89)
+    monster_pak_entry{"Gail", static_cast<uint16_t>(npc_base + npc_stride * 80), 8},      // Gail (Type: 90)
+    monster_pak_entry{"Gate", static_cast<uint16_t>(npc_base + npc_stride * 81), 24},     // Gate (Type: 91)
+    monster_pak_entry{"Scarecrow", static_cast<uint16_t>(npc_base + npc_stride * 90), 40}, // Scarecrow (Olympia) (Type: 100)
+    monster_pak_entry{"Ghost", static_cast<uint16_t>(npc_base + npc_stride * 91), 40},    // Ghost (Olympia) (Type: 101)
+    monster_pak_entry{"lgn_Princess", static_cast<uint16_t>(npc_base + npc_stride * 92), 8}, // Princess (Olympia) (Type: 102)
+    monster_pak_entry{"Bat", static_cast<uint16_t>(npc_base + npc_stride * 93), 8},       // Bat (Olympia) (Type: 103)
+    monster_pak_entry{"eventofficer", static_cast<uint16_t>(npc_base + npc_stride * 94), 8}, // Event Officer (Olympia) (Type: 104)
+    monster_pak_entry{"battleofficer", static_cast<uint16_t>(npc_base + npc_stride * 95), 8}, // Battle Officer (Olympia) (Type: 105)
+    monster_pak_entry{"Guard_Archer", static_cast<uint16_t>(npc_base + npc_stride * 96), 40}, // Guard Archer (Olympia) (Type: 106)
+    monster_pak_entry{"Guard_Axe", static_cast<uint16_t>(npc_base + npc_stride * 97), 40}, // Guard Axe (Olympia) (Type: 107)
+    monster_pak_entry{"Guard_Sword", static_cast<uint16_t>(npc_base + npc_stride * 98), 40}, // Guard Sword (Olympia) (Type: 108)
+    monster_pak_entry{"ChestBronze", static_cast<uint16_t>(npc_base + npc_stride * 99), 1}, // Bronze Chest (Olympia) (Type: 109)
+    monster_pak_entry{"ChestSilver", static_cast<uint16_t>(npc_base + npc_stride * 100), 1}, // Silver Chest (Olympia) (Type: 110)
+    monster_pak_entry{"ChestGold", static_cast<uint16_t>(npc_base + npc_stride * 101), 1}, // Gold Chest (Olympia) (Type: 111)
+    monster_pak_entry{"BBeholder", static_cast<uint16_t>(npc_base + npc_stride * 102), 40}, // Black Beholder (Olympia) (Type: 112)
 };
 
 const char* weather_to_str(weather_type w)

@@ -231,6 +231,18 @@ void sprite_manager::shrink_cache(size_t max_entries)
 
 bool sprite_manager::store_sprite_at_id(uint16_t id, std::string_view pak_name, uint32_t index)
 {
+    // Packs keep empty records for the directions a figure does not have (Gate, the Olympia
+    // officers): no frames, a 2x2 bitmap. Nothing to draw, nothing to report.
+    if (auto* pak = get_pak(pak_name))
+    {
+        auto meta = pak->read_sprite_metadata(index);
+        if (meta && meta->frames.empty())
+        {
+            spdlog::debug("Sprite {}[{}] has no frames, id {} left empty", pak_name, index, id);
+            return false;
+        }
+    }
+
     // Load the sprite first
     sprite* spr = get_sprite(pak_name, index);
     if (!spr)

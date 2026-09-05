@@ -402,7 +402,7 @@ hair_id = base + style * 15 + action
 ### NPC/Monster (`entity_manager.cpp:112-123`)
 
 ```
-npc_id = 1220 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
+npc_id = 20000 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
 ```
 
 - `visual_type` starts at 10 (Slime = 10, Skeleton = 11, ...)
@@ -425,7 +425,7 @@ All equipment uses the same pattern: `base + (type-1) * stride + action`
 | Boots | 5780 | 15780 | 15 | Per type (1-15) |
 | Weapons | 6020 | 16020 | 64 | 8 actions x 8 dirs per weapon |
 | Shields | 9100 | 19100 | 8 | Per type (1-9) |
-| Mantles | 9230 | 19230 | 15 | Per type |
+| Mantles | 9600 | 19600 | 15 | Per type |
 | Helmets | 9300 | 19300 | 15 | Per type |
 
 ---
@@ -606,7 +606,7 @@ Alpha transparency: when `sprite.alpha < 1.0`, uses `draw_sprite_alpha()` with a
 Single sprite per NPC/monster:
 
 ```
-sprite_id = 1220 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
+sprite_id = 20000 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
 frame = current_frame
 ```
 

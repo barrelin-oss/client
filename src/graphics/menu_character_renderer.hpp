@@ -245,9 +245,9 @@ private:
     static constexpr uint16_t female_shield_base = 19100;
     static constexpr uint16_t shield_stride = 8;
 
-    // Mantles: Male = 9230, Female = 19230 (stride 15 per type)
-    static constexpr uint16_t male_mantle_base = 9230;
-    static constexpr uint16_t female_mantle_base = 19230;
+    // Mantles: Male = 9600, Female = 19600 (stride 15 per type)
+    static constexpr uint16_t male_mantle_base = 9600;
+    static constexpr uint16_t female_mantle_base = 19600;
     static constexpr uint16_t mantle_stride = 15;
 
     // Helmets: Male = 9300, Female = 19300 (stride 15 per type)

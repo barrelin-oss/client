@@ -326,7 +326,7 @@ sprite_id = base + style * 15 + action
 `calculate_npc_sprite_id()` (`entity/entity_manager.cpp:112`):
 
 ```
-sprite_id = 1220 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
+sprite_id = 20000 + (visual_type - 10) * 56 + npc_action * 8 + (direction - 1)
 ```
 
 - `visual_type`: 10+ (10=Slime, 11=Skeleton, etc.)
@@ -346,7 +346,7 @@ Full equipment sprite ID formulas from `menu_character_renderer.hpp`:
 | Boots | `base + type * 15 + action` | 5780 / 15780 | 15 per type |
 | Weapons | `base + type * 64 + action * 8 + (dir-1)` | 6020 / 16020 | 64 per type |
 | Shields | `base + type * 8 + action` | 9100 / 19100 | 8 per type |
-| Mantles | `base + type * 15 + action` | 9230 / 19230 | 15 per type |
+| Mantles | `base + type * 15 + action` | 9600 / 19600 | 15 per type |
 | Helmets | `base + type * 15 + action` | 9300 / 19300 | 15 per type |
 
 Note: Weapons have a larger stride (64 = 8 actions x 8 directions) because they encode direction in the sprite ID, similar to body sprites. All other equipment types encode direction in the frame index.

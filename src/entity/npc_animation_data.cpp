@@ -21,7 +21,7 @@ enum legacy_action : int
 };
 
 static constexpr int npc_type_first = 10;
-static constexpr int npc_type_last = 99;  // was 69, extended for v3.82 monsters
+static constexpr int npc_type_last = 119; // 70-99 v3.82 monsters, 100-112 Olympia NPCs
 static constexpr int npc_type_count = npc_type_last - npc_type_first + 1;
 
 // Table populated once, indexed by [visual_type - 10][legacy_action]
@@ -612,6 +612,12 @@ static void init_npc_frame_table()
     set(91, act_stop, 7, 250);
     set(91, act_damage, 7, 100);
     set(91, act_dying, 10, 180);
+
+    // Olympia NPCs (100-112): Scarecrow and the chests only stand there
+    set(100, act_stop, 7, 250);
+    set(109, act_stop, 0, 1000);
+    set(110, act_stop, 0, 1000);
+    set(111, act_stop, 0, 1000);
 
     // Willowisp (95)
     set(95, act_stop, 21, 150);

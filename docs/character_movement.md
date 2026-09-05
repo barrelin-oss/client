@@ -867,7 +867,7 @@ int32_t frame_index = (dir - 1) * 8 + anim.current_frame;
 For NPCs/monsters (`render_npc_or_monster`):
 
 ```cpp
-// Sprite ID: 1220 + (type - 10) * 56 + action * 8 + (dir - 1)
+// Sprite ID: 20000 + (type - 10) * 56 + action * 8 + (dir - 1)
 ```
 
 ### Visibility Culling

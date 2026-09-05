@@ -98,6 +98,12 @@
 
 ## Recent Changes
 
+### 2026-09-05: Olympia assets: sprite packs, maps and the music
+- `tools/opk2pak.mjs` converts the `.opk` sprite packs of the Helbreath Olympia client into the classic `.pak` this client reads (same frames and 8-bit BMPs, reorganised: a 13-byte record per sprite up front, BMPs at the end). Validated against `Ant.pak`/`ABS.pak`: identical frame tables, BMPs differing only in the palette's reserved byte and a handful of pixels
+- Imported into `bin/assets/sprites` (not versioned) the 79 packs Olympia has and this client lacked: 56 player equipment packs (mantles, dark/hero sets, staffs, bows), 13 NPCs (Bat, Ghost, Scarecrow, Battle/Event officers, the three guards, the three chests, the princess), 1 effect pack, 2 object sets, 5 UI packs and 2 tile sets (`create_acc.opk` has another layout and was skipped). Nothing existing was replaced
+- 16 maps Olympia has and this world lacked, copied to the client and the server (`arena1`-`arena9`, `astoria`, `huntzone5`, `huntzone6`, `oldelvine`, `village`, `wzdtwr_1f`, `wzdtwr_2f`); the server loads them without generators until someone writes their YAML
+- Music: the tracks are on disk as `.wav` (MainTm, aresden, elvine, dungeon, middleland, abaddon, druncncity, Carol) while the sound manager asked for `.ogg`, so nothing ever played. `resolve_music_path` falls back to the same name as `.wav`/`.flac`, and the title screen maps to MainTm
+
 ### 2026-09-05: Player always centred; right click reaches the bank
 - The camera centred on the window size from the config (1280x720) instead of the scene size (800x600 in the scaled view mode) until the first resolution change, which put the player right of centre; the world and weather now take the renderer's scene size at start-up. `world::center_on_player` also no longer clamps the camera to the map bounds: the player stays in the middle of the screen on every map, as in the original client, and nothing is drawn past the map edge (`docs/camera_system.md` updated)
 - A right click on a dialog that is not right-click-closeable is delivered to it instead of ignored; the bank dialog is such a dialog, so "right-click to withdraw" works. The shop, sell and bank dialogs are not modal, since two of them are open at once and a modal front dialog swallowed the other's clicks

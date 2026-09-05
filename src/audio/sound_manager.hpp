@@ -80,6 +80,9 @@ private:
 
     // Select music track based on map name and weather
     std::string select_bgm_track(std::string_view map_name, int weather_type) const;
+    // The track name as the game asks for it, or the same file as .wav when the .ogg is not
+    // there (the music shipped as .wav); "title-screen" is the original MainTm
+    std::string resolve_music_path(std::string_view track) const;
 
     audio* audio_ = nullptr;
 

@@ -332,6 +332,25 @@ void sound_manager::set_listener_position(int32_t world_x, int32_t world_y)
     listener_y_ = world_y;
 }
 
+std::string sound_manager::resolve_music_path(std::string_view track) const
+{
+    namespace fs = std::filesystem;
+    const std::string requested = music_dir_ + std::string(track);
+    if (fs::exists(requested))
+        return requested;
+    std::string stem = fs::path(requested).stem().string();
+    std::transform(stem.begin(), stem.end(), stem.begin(), [](unsigned char c) { return std::tolower(c); });
+    if (stem == "title-screen")
+        stem = "maintm";
+    for (const char* ext : {".ogg", ".wav", ".flac"})
+    {
+        const std::string candidate = music_dir_ + stem + ext;
+        if (fs::exists(candidate))
+            return candidate;
+    }
+    return requested;
+}
+
 std::string sound_manager::select_bgm_track(std::string_view map_name, int weather_type) const
 {
     // Convert map name to lowercase for comparison
@@ -385,7 +404,7 @@ void sound_manager::start_bgm(std::string_view map_name, int weather_type)
     }
 
     // Build full path and crossfade to new track
-    std::string path = music_dir_ + track;
+    std::string path = resolve_music_path(track);
     audio_->crossfade_music(path, true);
     current_bgm_track_ = track;
     spdlog::info("Started BGM: {} (map: {})", track, map_name);
@@ -404,7 +423,7 @@ void sound_manager::play_bgm_track(std::string_view track, bool loop)
         return;
     }
 
-    std::string path = music_dir_ + track_str;
+    std::string path = resolve_music_path(track_str);
     audio_->crossfade_music(path, loop);
     current_bgm_track_ = track_str;
     spdlog::info("Started BGM track: {}", track);

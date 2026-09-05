@@ -104,6 +104,7 @@
 - Mantles live at 9600/19600: the legacy base 9230 runs into the helmets at 9300 past the 4th mantle.
 - NPC sprite ids start at 20000 instead of 1220: the legacy base only reaches type 78 before the equipment ids at 5060. Types 70-91 (Barlog to Gate; packs on disk, never registered) and the Olympia NPCs at 100-112 (Scarecrow, Ghost, Princess, Bat, officers, guard variants, chests, black beholder; our own numbering) are in the monster table, `npc_type_last` is 119.
 - Packs keep empty records for the directions a figure lacks (Gate, the officers): `store_sprite_at_id` skips them quietly instead of logging an error per record.
+- The character list reads the `equipment` object the server now sends with `get_characters_response` (same shape as the entity spawn), so the character select shows the figure dressed.
 - Checked in the real client: GmSmoke wearing eHeroOfCap, eHeroOfArmor, KnightHauberk, Cape+1 and KlonessBlade renders dressed in game; Minotaurus and Centaurus (types 78 and 71) visible in procella.
 
 ### 2026-09-05: Olympia assets: sprite packs, maps and the music

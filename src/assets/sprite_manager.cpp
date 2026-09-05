@@ -235,8 +235,8 @@ bool sprite_manager::store_sprite_at_id(uint16_t id, std::string_view pak_name, 
     // officers): no frames, a 2x2 bitmap. Nothing to draw, nothing to report.
     if (auto* pak = get_pak(pak_name))
     {
-        auto meta = pak->read_sprite_metadata(index);
-        if (meta && meta->frames.empty())
+        auto meta = pak->read_sprite_metadata(index); // nullopt when the record has no frames
+        if (!meta || meta->frames.empty())
         {
             spdlog::debug("Sprite {}[{}] has no frames, id {} left empty", pak_name, index, id);
             return false;

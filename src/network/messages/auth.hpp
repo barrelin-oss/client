@@ -74,6 +74,25 @@ struct server_character
             c.weapon = j["weapon"].get<uint8_t>();
         if (j.contains("shield"))
             c.shield = j["shield"].get<uint8_t>();
+        // The server sends the equipment the way the entity spawn does: "equipment": {slot: {appr, color}}
+        if (j.contains("equipment") && j["equipment"].is_object())
+        {
+            const auto& eq = j["equipment"];
+            auto appr = [&](const char* slot) -> uint8_t
+            {
+                if (!eq.contains(slot) || !eq[slot].is_object() || !eq[slot].contains("appr"))
+                    return 0;
+                return static_cast<uint8_t>(std::max(0, eq[slot]["appr"].get<int>()));
+            };
+            c.body_armor = appr("body");
+            c.arm_armor = appr("arms");
+            c.pants = appr("pants");
+            c.boots = appr("boots");
+            c.helmet = appr("head");
+            c.mantle = appr("cape");
+            c.weapon = appr("weapon");
+            c.shield = appr("shield");
+        }
         return c;
     }
 };

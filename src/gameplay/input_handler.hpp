@@ -75,6 +75,8 @@ private:
     void handle_spell_targeting(const input& inp);
     void update_pathfinding_trace();
     void execute_dash_attack(entity* target, const input& inp);
+    // Regular / ranged / super (Alt held, weapon mastered, a charge left) for the equipped weapon
+    uint8_t choose_attack_type(const input& inp) const;
 
     game_state_manager* game_ = nullptr;
 
@@ -97,6 +99,7 @@ private:
     bool combat_mode_ = false;
     bool safe_attack_mode_ = false;
     bool force_attack_mode_ = false;
+    float attack_cooldown_ = 0.0f; // seconds until the next attack request may be sent (server interval: 1s)
 
     // Run mode toggle
     bool run_mode_enabled_ = false;

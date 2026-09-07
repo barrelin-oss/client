@@ -64,9 +64,17 @@ inline constexpr const char* unequip_result = "unequip_result";
 inline constexpr const char* force_unequip = "force_unequip";
 inline constexpr const char* equipment_change = "equipment_change";
 
+// Consumables (v2)
+inline constexpr const char* use_item_request = "use_item_request";
+inline constexpr const char* use_item_result = "use_item_result";
+
+// Super attacks
+inline constexpr const char* super_attack_update = "super_attack_update";
+
 // Skills
 inline constexpr const char* skills_data = "skills_data";
 inline constexpr const char* skill_progress = "skill_progress";
+inline constexpr const char* skill_update = "skill_update";
 inline constexpr const char* player_skill_response = "player_skill_response";
 
 // NPC messages

@@ -40,7 +40,7 @@ void ws_message_handler::request_attack(uint32_t target_id, uint8_t attack_type)
             dir = static_cast<uint8_t>(direction_to_protocol(*calc_dir));
     }
 
-    spdlog::debug("Requesting attack on entity {} (type {} target_type {})", target_id, attack_type, target_type);
+    spdlog::info("Requesting attack on entity {} (type {} target_type {})", target_id, attack_type, target_type);
     json msg = make_player_attack_request(target_id, target_type, t.tile_x, t.tile_y, attack_type, dir);
     game_->ws_connection().send(msg);
 }
@@ -226,7 +226,8 @@ void ws_message_handler::handle_combat_attack_broadcast(const json& message)
             if (data.is_ranged())
                 attacker->set_action(object_action::attack_combat_bow);
             else
-                attacker->set_action(object_action::attack_peace);
+                attacker->set_action_with_combat_mode(object_action::attack_peace,
+                                                     attacker->has_combat() && attacker->combat().combat_stance);
         }
 
         attacker->set_target(data.target_id);
@@ -745,6 +746,18 @@ void ws_message_handler::handle_combat_mode_change_response(const json& message)
     spdlog::debug("Combat mode confirmed: {}", data.combat_mode);
 }
 
+void ws_message_handler::handle_super_attack_update(const json& message)
+{
+    if (!message.contains("data"))
+        return;
+    int32_t charges = message["data"].value("charges", 0);
+    if (entity* player = game_->local_player(); player && player->has_stats())
+        player->stats().super_attack_charges = charges;
+    if (auto* panel = game_->ui().get_icon_panel())
+        panel->set_super_attack_count(charges);
+    spdlog::info("Super attack charges: {}", charges);
+}
+
 void ws_message_handler::handle_player_action_broadcast(const json& message)
 {
     auto data = player_action_broadcast_data::from_json(message);
@@ -771,6 +784,12 @@ void ws_message_handler::handle_player_action_broadcast(const json& message)
         bool combat = ent->has_combat() && ent->combat().combat_stance;
         ent->set_action_with_combat_mode(object_action::attack_peace, combat);
         ent->animation().set_state(entity_anim_state::attack_move);
+    }
+    else if (data.action == "super_attack")
+    {
+        bool combat = ent->has_combat() && ent->combat().combat_stance;
+        ent->set_action_with_combat_mode(object_action::attack_peace, combat);
+        game_->combat().play_super_attack_shout(ent->id());
     }
     else if (data.action == "magic")
     {

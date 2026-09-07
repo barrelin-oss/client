@@ -69,7 +69,7 @@ void dialog_callbacks::setup_callbacks()
                 spdlog::info("Creating character: {} ({}, {})",
                              data.name,
                              data.warrior ? "Warrior" : "Mage",
-                             data.gender == 0 ? "Male" : "Female");
+                             data.gender == 2 ? "Female" : "Male");
                 game_->change_state(game_state::select_character);
             });
 

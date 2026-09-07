@@ -51,6 +51,10 @@ public:
     using equip_callback = std::function<void(uint32_t item_id)>;
     void set_on_equip(equip_callback cb) { on_equip_ = std::move(cb); }
 
+    // Use callback — fired when player double-clicks a non-equippable item (potion, food, scroll)
+    using use_callback = std::function<void(uint32_t item_id)>;
+    void set_on_use(use_callback cb) { on_use_ = std::move(cb); }
+
     // Called by ui_system when drag ends
     void clear_dragging_item() { dragging_item_id_ = 0; }
     bool is_dragging() const { return dragging_item_id_ != 0; }
@@ -101,6 +105,7 @@ private:
 
     drag_start_callback on_drag_start_;
     equip_callback on_equip_;
+    use_callback on_use_;
 };
 
 } // namespace hb

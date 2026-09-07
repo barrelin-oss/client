@@ -376,7 +376,7 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
         // If poisoned, tint the bar green (draw overlay)
         if (is_poisoned_)
         {
-            sf::RectangleShape poison_overlay(sf::Vector2f(static_cast<float>(hp_fill_width), 14.0f));
+            sf::RectangleShape poison_overlay(sf::Vector2f(static_cast<float>(hp_fill_width), 16.0f));
             poison_overlay.setPosition({static_cast<float>(classic_layout::hp_bar_x), static_cast<float>(hp_y)});
             poison_overlay.setFillColor(sf::Color(0, 150, 0, 128));
             rend.window().draw(poison_overlay);
@@ -385,11 +385,11 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
     else
     {
         // Fallback: programmatic rendering
-        rend.draw_rect(classic_layout::hp_bar_x, hp_y, classic_layout::bar_max_width, 14, sf::Color(40, 0, 0), true);
+        rend.draw_rect(classic_layout::hp_bar_x, hp_y, classic_layout::bar_max_width, 16, sf::Color(40, 0, 0), true);
         if (hp_fill_width > 0)
         {
             sf::Color hp_color = is_poisoned_ ? sf::Color(0, 150, 0) : sf::Color(180, 0, 0);
-            rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 14, hp_color, true);
+            rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 16, hp_color, true);
             sf::Color hp_light = is_poisoned_ ? sf::Color(0, 200, 0) : sf::Color(220, 50, 50);
             rend.draw_rect(classic_layout::hp_bar_x, hp_y, hp_fill_width, 3, hp_light, true);
         }
@@ -399,8 +399,8 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
     std::string hp_str = std::format("{}/{}", hp_current_, hp_max_);
     int32_t hp_text_x =
         classic_layout::hp_bar_x + (classic_layout::bar_max_width - static_cast<int32_t>(hp_str.length()) * 5) / 2;
-    rend.draw_text(hp_str, hp_text_x + 1, hp_y + 2, sf::Color(0, 0, 0), 10); // Shadow
-    rend.draw_text(hp_str, hp_text_x, hp_y + 1, sf::Color::White, 10);
+    rend.draw_text(hp_str, hp_text_x + 1, hp_y + 3, sf::Color(0, 0, 0), 10); // Shadow
+    rend.draw_text(hp_str, hp_text_x, hp_y + 2, sf::Color::White, 10);
 
     // MP bar
     int32_t mp_y = get_mp_bar_y();
@@ -415,10 +415,10 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
     else
     {
         // Fallback: programmatic rendering
-        rend.draw_rect(classic_layout::hp_bar_x, mp_y, classic_layout::bar_max_width, 14, sf::Color(0, 0, 40), true);
+        rend.draw_rect(classic_layout::hp_bar_x, mp_y, classic_layout::bar_max_width, 16, sf::Color(0, 0, 40), true);
         if (mp_fill_width > 0)
         {
-            rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 14, sf::Color(0, 0, 180), true);
+            rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 16, sf::Color(0, 0, 180), true);
             rend.draw_rect(classic_layout::hp_bar_x, mp_y, mp_fill_width, 3, sf::Color(50, 50, 220), true);
         }
     }
@@ -427,8 +427,8 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
     std::string mp_str = std::format("{}/{}", mp_current_, mp_max_);
     int32_t mp_text_x =
         classic_layout::hp_bar_x + (classic_layout::bar_max_width - static_cast<int32_t>(mp_str.length()) * 5) / 2;
-    rend.draw_text(mp_str, mp_text_x + 1, mp_y + 2, sf::Color(0, 0, 0), 10); // Shadow
-    rend.draw_text(mp_str, mp_text_x, mp_y + 1, sf::Color::White, 10);
+    rend.draw_text(mp_str, mp_text_x + 1, mp_y + 3, sf::Color(0, 0, 0), 10); // Shadow
+    rend.draw_text(mp_str, mp_text_x, mp_y + 2, sf::Color::White, 10);
 
     // SP bar - yellow/gold
     int32_t sp_y = get_sp_bar_y();
@@ -444,10 +444,10 @@ void icon_panel_dialog::render_classic_gauge_bars(renderer& rend)
     {
         // Fallback: programmatic rendering
         rend.draw_rect(
-            classic_layout::sp_bar_x, sp_y, classic_layout::sp_bar_max_width, 12, sf::Color(40, 35, 0), true);
+            classic_layout::sp_bar_x, sp_y, classic_layout::sp_bar_max_width, 11, sf::Color(40, 35, 0), true);
         if (sp_fill_width > 0)
         {
-            rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 12, sf::Color(180, 160, 0), true);
+            rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 11, sf::Color(180, 160, 0), true);
             rend.draw_rect(classic_layout::sp_bar_x, sp_y, sp_fill_width, 2, sf::Color(220, 200, 50), true);
         }
     }

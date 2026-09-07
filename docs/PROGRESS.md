@@ -98,6 +98,17 @@
 
 ## Recent Changes
 
+### 2026-09-06: HUD bar on the legacy layout, potions, Alt super attack
+
+- Clicking an enemy from the peace stance now switches to combat stance by itself (the server only resolves attacks in combat mode, so the character used to swing in the passive stance for nothing). Other players' swings use their own stance in `combat_attack_broadcast`.
+- `docs/assets/data/config/skills.yaml` is new (the tracked copy of `bin/assets/data/config/skills.yaml`, which the asset bundle must carry): the client loaded skills from it and the file did not exist, so the skill table was empty, every mastery stayed 0 (no super attack, empty skills dialog).
+- `skill_update` (a skill level change, pushed by the server) is handled now; it was logged as an unknown message, so skills only refreshed on login. Weapon skill ids follow the legacy numbering (short sword 7, shield 11, hammer 14); daggers use the short sword skill.
+- Gender fixed: the server sends 1 = male, 2 = female (`docs/protocol/auth.md`); the client mapped 0 to male, so every character was drawn with the female body. Character list, enter game and player spawns now use the server convention.
+- One attack request per swing: holding the mouse button sent a request every frame (the server refused the extras with `attack_too_fast`, which spammed the event log). The input handler now waits the server's 1 s interval before the next request.
+- Icon panel: height 53 (the art frame is 640x53) and the legacy offsets: HP fill at (23, +10), MP at (23, +32), SP at (147, +7), combat icon at +13, toolbar buttons at +7; the map name and position sit in the empty box under the SP bar.
+- Double-clicking a potion, food or scroll in the bag sends `use_item_request`; `use_item_result` plays the eat/drink sound or logs why it failed.
+- Alt held while attacking sends the super attack of the equipped weapon (`attack_type` 20-27) when the weapon skill is mastered and a charge is left, and plays the character's shout; `super_attack_update` keeps the charge count (icon panel counter) in sync. Other players' `super_attack` action broadcasts play the shout too.
+
 ### 2026-09-06: The legacy dialog art is back
 
 - `dialog::set_art` draws a frame of a pak as the window (the dialog takes the frame's size) with optional overlays for the title banners of DialogText; `ui_system::set_sprite_manager` hands the sprite manager to the dialogs. Windows without art use a parchment palette instead of the blue-grey boxes.

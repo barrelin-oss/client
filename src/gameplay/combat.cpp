@@ -264,7 +264,7 @@ attack_type combat_system::get_attack_type(weapon_type wt, uint8_t skill_mastery
             return attack_type::super_2;
         case weapon_skill::hammer:
             return attack_type::super_3;
-        case weapon_skill::two_hand:
+        case weapon_skill::short_sword:
             return attack_type::super_4;
         case weapon_skill::spear:
             return attack_type::super_5;
@@ -290,8 +290,9 @@ weapon_skill combat_system::get_weapon_skill(weapon_type wt) const
     case weapon_type::none:
         return weapon_skill::fist;
     case weapon_type::sword:
-    case weapon_type::dagger:
         return weapon_skill::sword;
+    case weapon_type::dagger:
+        return weapon_skill::short_sword;
     case weapon_type::axe:
         return weapon_skill::axe;
     case weapon_type::hammer:
@@ -450,7 +451,7 @@ bool combat_system::can_use_super_attack(entity_id attacker, attack_type super_t
         skill = weapon_skill::hammer;
         break;
     case attack_type::super_4:
-        skill = weapon_skill::two_hand;
+        skill = weapon_skill::short_sword;
         break;
     case attack_type::super_5:
         skill = weapon_skill::spear;

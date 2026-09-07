@@ -17,7 +17,7 @@ struct server_character
     int16_t nation = 0;     // 1=Aresden, 2=Elvine
 
     // Appearance data
-    int16_t gender = 0;          // 0=Male, 1=Female
+    int16_t gender = 1;          // 1=Male, 2=Female (server convention)
     int16_t skin_color = 0;      // 0-3
     int16_t hair_style = 0;      // 0-7
     int16_t hair_color = 0;      // 0-15
@@ -176,7 +176,7 @@ struct enter_game_character
     int16_t level = 1;
     int16_t class_type = 0; // 0=Warrior, 1=Mage
     int16_t nation = 0;    // 0=neutral, 1=aresden, 2=elvine
-    int16_t gender = 0;    // 0=Male, 1=Female
+    int16_t gender = 1;    // 1=Male, 2=Female (server convention)
     std::string map_name;
     int16_t pos_x = 0;
     int16_t pos_y = 0;

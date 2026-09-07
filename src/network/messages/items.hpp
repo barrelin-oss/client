@@ -449,6 +449,35 @@ struct skills_data_msg
     }
 };
 
+// Skill level change (server -> client, broadcast to the player and those who see them)
+struct skill_update_msg
+{
+    uint32_t player_id = 0; // the character id on the server
+    uint8_t skill_id = 0;
+    int16_t old_level = 0;
+    int16_t level = 0;
+    int32_t total_uses = 0;
+    int32_t uses_this_level = 0;
+    int32_t uses_to_next_level = 0;
+
+    static skill_update_msg from_json(const json& j)
+    {
+        skill_update_msg data;
+        if (j.contains("data"))
+        {
+            const auto& d = j["data"];
+            data.player_id = d.value("player_id", 0u);
+            data.skill_id = static_cast<uint8_t>(d.value("skill_id", 0));
+            data.old_level = static_cast<int16_t>(d.value("old_level", 0));
+            data.level = static_cast<int16_t>(d.value("level", 0));
+            data.total_uses = d.value("total_uses", 0);
+            data.uses_this_level = d.value("uses_this_level", 0);
+            data.uses_to_next_level = d.value("uses_to_next_level", 0);
+        }
+        return data;
+    }
+};
+
 // Incremental skill progress update (server -> client, every 5% threshold)
 struct skill_progress_msg
 {
@@ -492,6 +521,15 @@ inline json make_pickup_request(std::string_view map, int32_t x, int32_t y)
 inline json make_drop_request(uint32_t item_id)
 {
     return message_builder(msg_type::drop_request)
+        .set("item_id", item_id)
+        .build();
+}
+
+// Drink a potion, eat, read a scroll: the server answers use_item_result and then the
+// vital updates (hp_update...) plus inventory_item_delta / inventory_item_removed
+inline json make_use_item_request(uint32_t item_id)
+{
+    return message_builder(msg_type::use_item_request)
         .set("item_id", item_id)
         .build();
 }

@@ -3,6 +3,7 @@
 #include "ui/dialogs/skills_dialog.hpp"
 #include "world/ground_item.hpp"
 #include "core/game_enums.hpp"
+#include "audio/sound_types.hpp"
 #include <algorithm>
 #include <spdlog/spdlog.h>
 #include <format>
@@ -241,6 +242,36 @@ void ws_message_handler::handle_equip_result(const json& message)
     game_->sounds().play_ui_sound(28);
 }
 
+void ws_message_handler::request_use_item(uint32_t item_id)
+{
+    const auto* entry = game_->inventory().get_bag_item(item_id);
+    if (!entry)
+        return;
+    pending_use_item_name_ = entry->data.name;
+    spdlog::info("Using item {} ({})", item_id, entry->data.name);
+    game_->ws_connection().send(make_use_item_request(item_id));
+}
+
+void ws_message_handler::handle_use_item_result(const json& message)
+{
+    bool success = message.contains("data") && message["data"].value("success", false);
+    std::string name = pending_use_item_name_.empty() ? std::string("that item") : pending_use_item_name_;
+    pending_use_item_name_.clear();
+    if (!success)
+    {
+        game_->get_status_log().add_event(std::format("You cannot use {} now.", name), message_color::yellow);
+        return;
+    }
+    // The server follows with hp/mp/sp updates and the inventory delta; play the legacy eat/drink sound
+    if (entity* player = game_->local_player())
+    {
+        int player_type = player->sprite().gender <= 1 ? 1 : 4; // as combat_system::get_player_type
+        const auto& t = player->transform();
+        game_->sounds().play_character_sound_at(
+            is_male_player_type(player_type) ? character_sound::male_eat : character_sound::female_eat, t.x, t.y);
+    }
+}
+
 void ws_message_handler::handle_unequip_result(const json& message)
 {
     auto data = unequip_result_msg::from_json(message);
@@ -401,6 +432,40 @@ void ws_message_handler::handle_skill_progress(const json& message)
                   data.skill_id, data.percent, data.uses_this_level, data.uses_to_next_level);
 
     // Update skills dialog if open
+    if (auto* dlg = dynamic_cast<skills_dialog*>(game_->ui().get_dialog(dialog_type::skills)))
+    {
+        auto all = skills.get_all_skills();
+        std::vector<skill> skill_list;
+        skill_list.reserve(all.size());
+        for (const auto* s : all)
+            skill_list.push_back(*s);
+        dlg->set_skills(skill_list);
+    }
+}
+
+void ws_message_handler::handle_skill_update(const json& message)
+{
+    auto data = skill_update_msg::from_json(message);
+
+    // Only our own skills live on this client; the broadcast also reaches players who see us
+    const auto& chars = game_->characters();
+    size_t sel = game_->selected_character();
+    if (sel >= chars.size() || static_cast<uint32_t>(chars[sel].id) != data.player_id)
+        return;
+
+    auto& skills = game_->skills();
+    uint8_t mastery = static_cast<uint8_t>(std::clamp<int16_t>(data.level, 0, 100));
+    skills.set_mastery(data.skill_id, mastery);
+    float progress = 0.0f;
+    if (data.uses_to_next_level > 0)
+        progress = static_cast<float>(data.uses_this_level) / static_cast<float>(data.uses_to_next_level);
+    skills.set_sub_progress(data.skill_id, progress);
+    spdlog::info("skill_update: skill {} {} -> {}", data.skill_id, data.old_level, data.level);
+
+    if (const auto* sk = skills.get_skill(data.skill_id); sk && data.level > data.old_level)
+        game_->get_status_log().add_event(std::format("{} skill is now {}%.", sk->name, data.level),
+                                          message_color::green);
+
     if (auto* dlg = dynamic_cast<skills_dialog*>(game_->ui().get_dialog(dialog_type::skills)))
     {
         auto all = skills.get_all_skills();

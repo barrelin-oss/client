@@ -265,6 +265,7 @@ struct stats_component
     int32_t hit_ratio = 50;
     int32_t dodge_ratio = 10;
     int32_t critical_ratio = 5;
+    int32_t super_attack_charges = 0; // server-driven (super_attack_update): Alt attacks left
 
     // Status
     uint8_t hunger = 100;

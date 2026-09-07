@@ -75,7 +75,7 @@ void ws_message_handler::handle_get_characters_response(const json& message)
             info.name = sc.name;
             info.level = static_cast<uint16_t>(sc.level);
             info.warrior = (sc.class_type == 0);
-            info.gender = static_cast<uint8_t>(sc.gender == 0 ? 1 : 2);
+            info.gender = static_cast<uint8_t>(sc.gender == 2 ? 2 : 1); // server: 1 = male, 2 = female
             info.skin_color = static_cast<uint8_t>(sc.skin_color);
             info.hair_style = static_cast<uint8_t>(sc.hair_style);
             info.hair_color = static_cast<uint8_t>(sc.hair_color);
@@ -190,7 +190,7 @@ void ws_message_handler::handle_enter_game_response(const json& message)
     sprite.hair_style = static_cast<uint8_t>(ch.hair_style);
     sprite.hair_color = static_cast<uint8_t>(ch.hair_color);
     sprite.underwear_color = static_cast<uint8_t>(ch.underwear_color);
-    sprite.gender = (ch.gender == 0) ? 1 : 2;
+    sprite.gender = (ch.gender == 2) ? 2 : 1; // server: 1 = male, 2 = female
 
     // Equipment visuals
     sprite.weapon = ch.weapon_appr;

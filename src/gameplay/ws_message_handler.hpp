@@ -53,6 +53,9 @@ public:
     void request_combat_mode_toggle();
     void request_attack(uint32_t target_id, uint8_t attack_type = 0);
 
+    // Consumables
+    void request_use_item(uint32_t item_id);
+
     // Magic
     void request_magic(uint16_t spell_id, int32_t target_x, int32_t target_y, uint32_t target_id = 0);
 
@@ -144,6 +147,10 @@ private:
     void handle_inventory_gold_update(const json& message);
     void handle_inventory_weight_update(const json& message);
     void handle_equip_result(const json& message);
+    void handle_use_item_result(const json& message);
+    void handle_skill_update(const json& message);
+    std::string pending_use_item_name_; // name of the item of the last use_item_request (for the log line)
+    void handle_super_attack_update(const json& message);
     void handle_unequip_result(const json& message);
     void handle_force_unequip(const json& message);
     void handle_equipment_change(const json& message);

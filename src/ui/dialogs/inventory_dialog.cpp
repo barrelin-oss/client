@@ -381,12 +381,21 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
             last_clicked_item_id_ = item_id;
             click_elapsed_ = 0.0f;
 
-            if (is_double_click && on_equip_)
+            if (is_double_click)
             {
                 const auto* dbl_entry = inventory_->get_bag_item(item_id);
                 if (dbl_entry && dbl_entry->data.is_equippable())
                 {
-                    on_equip_(item_id);
+                    if (on_equip_)
+                    {
+                        on_equip_(item_id);
+                        return true;
+                    }
+                }
+                else if (dbl_entry && on_use_)
+                {
+                    // Potions, food, scrolls: drink / eat / read it
+                    on_use_(item_id);
                     return true;
                 }
             }

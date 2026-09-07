@@ -1,0 +1,28 @@
+# Client skill table (legacy skill ids, the same numbering the server uses in skills_data / skill_update).
+# category: combat | magic | crafting | gathering | misc
+# is_useable: the skill can be activated from the skills dialog (legacy "use" skills); use_method 0 = self, 1 = target
+skills:
+  - { id: 0,  name: Mining,           category: gathering, is_useable: true,  use_method: 0 }
+  - { id: 1,  name: Fishing,          category: gathering, is_useable: true,  use_method: 0 }
+  - { id: 2,  name: Farming,          category: gathering, is_useable: true,  use_method: 0 }
+  - { id: 3,  name: Magic Resistance, category: magic,     is_useable: false, use_method: 0 }
+  - { id: 4,  name: Magic,            category: magic,     is_useable: false, use_method: 0 }
+  - { id: 5,  name: Hand Attack,      category: combat,    is_useable: false, use_method: 0 }
+  - { id: 6,  name: Archery,          category: combat,    is_useable: false, use_method: 0 }
+  - { id: 7,  name: Short Sword,      category: combat,    is_useable: false, use_method: 0 }
+  - { id: 8,  name: Long Sword,       category: combat,    is_useable: false, use_method: 0 }
+  - { id: 9,  name: Fencing,          category: combat,    is_useable: false, use_method: 0 }
+  - { id: 10, name: Axe Attack,       category: combat,    is_useable: false, use_method: 0 }
+  - { id: 11, name: Shield,           category: combat,    is_useable: false, use_method: 0 }
+  - { id: 12, name: Alchemy,          category: crafting,  is_useable: true,  use_method: 0 }
+  - { id: 13, name: Manufacturing,    category: crafting,  is_useable: true,  use_method: 0 }
+  - { id: 14, name: Hammer,           category: combat,    is_useable: false, use_method: 0 }
+  - { id: 15, name: First Aid,        category: misc,      is_useable: true,  use_method: 1 }
+  - { id: 16, name: Stealing,         category: misc,      is_useable: true,  use_method: 1 }
+  - { id: 17, name: Musicality,       category: misc,      is_useable: false, use_method: 0 }
+  - { id: 18, name: Item Appraisal,   category: crafting,  is_useable: true,  use_method: 0 }
+  - { id: 19, name: Pretend Corpse,   category: misc,      is_useable: true,  use_method: 0 }
+  - { id: 20, name: Taming,           category: misc,      is_useable: true,  use_method: 1 }
+  - { id: 21, name: Staff Attack,     category: combat,    is_useable: false, use_method: 0 }
+  - { id: 22, name: Armor Crafting,   category: crafting,  is_useable: true,  use_method: 0 }
+  - { id: 23, name: Poison Resistance, category: misc,     is_useable: false, use_method: 0 }

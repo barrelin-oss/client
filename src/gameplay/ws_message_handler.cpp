@@ -155,6 +155,8 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::inventory_gold_update,       &ws_message_handler::handle_inventory_gold_update},
         {msg_type::inventory_weight_update,     &ws_message_handler::handle_inventory_weight_update},
         {msg_type::equip_result,                &ws_message_handler::handle_equip_result},
+        {msg_type::use_item_result,             &ws_message_handler::handle_use_item_result},
+        {msg_type::super_attack_update,         &ws_message_handler::handle_super_attack_update},
         {msg_type::unequip_result,              &ws_message_handler::handle_unequip_result},
         {msg_type::force_unequip,               &ws_message_handler::handle_force_unequip},
         {msg_type::equipment_change,            &ws_message_handler::handle_equipment_change},
@@ -162,6 +164,7 @@ void ws_message_handler::handle_message(const json& message)
         // Skills
         {msg_type::skills_data,                 &ws_message_handler::handle_skills_data},
         {msg_type::skill_progress,              &ws_message_handler::handle_skill_progress},
+        {msg_type::skill_update,                &ws_message_handler::handle_skill_update},
         {msg_type::player_skill_response,       &ws_message_handler::handle_player_skill_response},
 
         // Actions / interaction

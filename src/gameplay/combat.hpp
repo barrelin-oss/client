@@ -18,15 +18,15 @@ class sound_manager;
 // Weapon skill types (from original game)
 enum class weapon_skill : uint8_t
 {
-    fist = 5,     // Unarmed combat
-    archery = 6,  // Bow and arrow
-    two_hand = 7, // Two-handed weapons
-    sword = 8,    // Swords
-    spear = 9,    // Spears
-    axe = 10,     // Axes
-    hammer = 11,  // Hammers
-    staff = 21,   // Magical staves
-    shield = 14,  // Shield blocking
+    fist = 5,        // Unarmed combat (legacy SKILL_HANDATTACK)
+    archery = 6,     // Bow and arrow
+    short_sword = 7, // Daggers and short swords (legacy SKILL_SHORTSWORD)
+    sword = 8,       // Long swords
+    spear = 9,       // Fencing (esterks)
+    axe = 10,        // Axes
+    shield = 11,     // Shield blocking (legacy SKILL_SHIELD)
+    hammer = 14,     // Hammers (legacy SKILL_HAMMER)
+    staff = 21,      // Magical staves and wands
 };
 
 // Check if weapon is a bow/crossbow (ranged weapon)
@@ -156,6 +156,9 @@ public:
     damage_result calculate_damage(const attack_params& params);
     bool can_attack(entity_id attacker, entity_id target) const;
     void start_attack(entity_id attacker, entity_id target, attack_type type = attack_type::normal);
+    // The character's shout of a super attack (legacy 'YEAHH'); public so the input handler and
+    // the action broadcast can play it without going through start_attack
+    void play_super_attack_shout(entity_id attacker) { play_critical_sound(attacker); }
     void process_attack(entity_id attacker, entity_id target, int32_t damage);
 
     // Attack type determination

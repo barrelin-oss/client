@@ -481,7 +481,7 @@ void ws_message_handler::handle_entity_spawn(const json& message)
     if (data.type == "player")
     {
         auto& sprite = ent.sprite();
-        sprite.gender = (data.gender == 0) ? 1 : 2;
+        sprite.gender = (data.gender == 2) ? 2 : 1; // server: 1 = male, 2 = female
         sprite.skin_color = data.skin_color;
         sprite.hair_style = data.hair_style;
         sprite.hair_color = data.hair_color;

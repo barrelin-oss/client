@@ -134,46 +134,46 @@ private:
 
     // === Layout constants ===
     // Panel is at bottom of screen, full width
-    static constexpr int32_t panel_height = 46;
+    static constexpr int32_t panel_height = 53; // GameDialog.pak sprite 6 frame 14 is 640x53
 
     // Dynamic panel Y position (calculated from screen height)
     int32_t get_panel_y() const { return static_cast<int32_t>(screen_height_) - panel_height; }
 
     // HP/MP bars (left section)
     static constexpr int32_t hp_bar_x = 23;
-    static constexpr int32_t hp_bar_y = 3;  // Relative to panel
-    static constexpr int32_t mp_bar_y = 25; // Relative to panel
+    static constexpr int32_t hp_bar_y = 10; // Relative to panel (legacy 437 - 427)
+    static constexpr int32_t mp_bar_y = 32; // Relative to panel (legacy 459 - 427)
     static constexpr int32_t hp_mp_bar_width = 101;
     static constexpr int32_t hp_mp_bar_height = 18;
 
     // SP bar (middle-left section) - "Stamina" bar
     static constexpr int32_t sp_bar_x = 147;
-    static constexpr int32_t sp_bar_y = 1; // Relative to panel
+    static constexpr int32_t sp_bar_y = 7; // Relative to panel (legacy 434 - 427)
     static constexpr int32_t sp_bar_width = 167;
     static constexpr int32_t sp_bar_height = 12;
 
     // EXP bar (below SP bar)
     static constexpr int32_t exp_bar_x = 147;
-    static constexpr int32_t exp_bar_y = 33; // Relative to panel
+    static constexpr int32_t exp_bar_y = 40; // Relative to panel
     static constexpr int32_t exp_bar_width = 167;
     static constexpr int32_t exp_bar_height = 10;
 
     // Info area (center section)
     static constexpr int32_t info_area_x = 140;
-    static constexpr int32_t info_area_y = 16;
+    static constexpr int32_t info_area_y = 30; // the empty box under the SP bar
     static constexpr int32_t info_area_width = 183;
     static constexpr int32_t info_area_height = 16;
 
     // Action buttons (right section)
     static constexpr int32_t button_start_x = 412;
-    static constexpr int32_t button_y = 0; // Relative to panel
+    static constexpr int32_t button_y = 7; // Relative to panel (legacy 434 - 427)
     static constexpr int32_t button_width = 37;
     static constexpr int32_t button_height = 41;
     static constexpr int32_t button_count = 6;
 
     // Combat indicator position
     static constexpr int32_t combat_x = 368;
-    static constexpr int32_t combat_y = 6;
+    static constexpr int32_t combat_y = 13;
 
     // Super attack counter position
     static constexpr int32_t super_attack_x = 362;
@@ -226,16 +226,16 @@ private:
         static constexpr int32_t sp_bar_max_width = 167;
 
         // Bar Y offsets relative to panel_y
-        static constexpr int32_t hp_bar_y_offset = 3;  // panel_y + 3
-        static constexpr int32_t mp_bar_y_offset = 25; // panel_y + 25
-        static constexpr int32_t sp_bar_y_offset = 1;  // panel_y + 1
+        static constexpr int32_t hp_bar_y_offset = 10; // legacy HP fill at (23, 437), panel at 427
+        static constexpr int32_t mp_bar_y_offset = 32; // legacy MP fill at (23, 459)
+        static constexpr int32_t sp_bar_y_offset = 7;  // legacy SP fill at (147, 434)
 
         // Combat indicator X position (fixed)
         static constexpr int32_t combat_x = 368;
-        static constexpr int32_t combat_y_offset = 6; // panel_y + 6
+        static constexpr int32_t combat_y_offset = 13; // legacy combat icon at (368, 440)
 
         // Button X positions (fixed)
-        static constexpr int32_t button_y_offset = 0; // panel_y + 0
+        static constexpr int32_t button_y_offset = 7;  // legacy buttons at y 434
         static constexpr int32_t button_character_x = 412;
         static constexpr int32_t button_inventory_x = 449;
         static constexpr int32_t button_magic_x = 486;

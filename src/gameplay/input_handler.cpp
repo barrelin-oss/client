@@ -9,6 +9,12 @@
 namespace hb
 {
 
+namespace
+{
+// The server refuses a second attack inside this window (attack_too_fast, attack_interval_ms 1000)
+constexpr float attack_interval_seconds = 1.0f;
+} // namespace
+
 void input_handler::initialize(game_state_manager& game)
 {
     game_ = &game;
@@ -48,6 +54,8 @@ bool input_handler::can_perform_action() const
 
     if (blocked_movement_cooldown_ > 0.0f)
         return false;
+    if (attack_cooldown_ > 0.0f)
+        return false;
 
     if (player->transform().moving)
         return false;
@@ -61,6 +69,8 @@ bool input_handler::can_perform_action() const
 
 void input_handler::update_cooldown(float delta_time)
 {
+    if (attack_cooldown_ > 0.0f)
+        attack_cooldown_ = std::max(0.0f, attack_cooldown_ - delta_time);
     if (blocked_movement_cooldown_ > 0.0f)
     {
         blocked_movement_cooldown_ -= delta_time;
@@ -274,17 +284,13 @@ void input_handler::handle_movement_input(const input& inp)
 
             if (north_entity && north_entity->type() == entity_type::monster)
             {
-                uint8_t atk_type = 0;
-                if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
-                {
-                    if (is_bow_weapon(weapon->weapon))
-                        atk_type = static_cast<uint8_t>(attack_type::ranged);
-                }
+                uint8_t atk_type = choose_attack_type(inp);
 
                 if (can_perform_action())
                 {
                     spdlog::debug("Click on self: attacking enemy north at ({},{})", north_x, north_y);
                     game_->ws_handler().request_attack(north_entity->id(), atk_type);
+                attack_cooldown_ = attack_interval_seconds;
                     player->transform().facing = direction::north;
 
                     if (atk_type == static_cast<uint8_t>(attack_type::ranged))
@@ -826,15 +832,18 @@ void input_handler::handle_combat_input(const input& inp)
             if (target_hostility != hostility::enemy && !ctrl_held)
                 return;
 
-            // Determine attack type based on equipped weapon
-            uint8_t atk_type = 0;
-            if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
+            // Attacking from the peace stance: the server only resolves attacks in combat mode, so switch
+            // first (the toggle request goes out before the attack on the same socket). The local flag
+            // flips at once so the swing below already uses the combat-stance animation.
+            if (!combat_mode_ && inp.is_mouse_pressed(sf::Mouse::Button::Left))
             {
-                if (is_bow_weapon(weapon->weapon))
-                {
-                    atk_type = static_cast<uint8_t>(attack_type::ranged);
-                }
+                game_->toggle_combat_mode();
+                if (entity* me = game_->local_player(); me && me->has_combat())
+                    me->combat().combat_stance = true;
             }
+
+            // Determine attack type based on equipped weapon (and Alt for a super attack)
+            uint8_t atk_type = choose_attack_type(inp);
 
             // Don't attack if out of range
             bool ranged = atk_type == static_cast<uint8_t>(attack_type::ranged);
@@ -873,10 +882,16 @@ void input_handler::handle_combat_input(const input& inp)
             if (can_perform_action())
             {
                 game_->ws_handler().request_attack(target->id(), atk_type);
+                attack_cooldown_ = attack_interval_seconds;
 
                 // Immediate local attack animation (don't wait for server round-trip)
                 if (player)
                 {
+                    if (atk_type >= static_cast<uint8_t>(attack_type::super_1) &&
+                        atk_type <= static_cast<uint8_t>(attack_type::super_8))
+                    {
+                        game_->combat().play_super_attack_shout(player->id());
+                    }
                     auto dir = calculate_direction(player->transform().tile_x,
                                                    player->transform().tile_y,
                                                    target->transform().tile_x,
@@ -1221,6 +1236,39 @@ void input_handler::handle_hotkey_input(const input& inp)
     }
 }
 
+uint8_t input_handler::choose_attack_type(const input& inp) const
+{
+    weapon_type wt = weapon_type::none;
+    if (const auto* weapon = game_->inventory().get_equipped_item(equip_pos::weapon))
+        wt = weapon->weapon;
+
+    // Bows always shoot; the super attack of a bow is not sent (the server needs the ranged path for ammo)
+    if (is_bow_weapon(wt))
+        return static_cast<uint8_t>(attack_type::ranged);
+
+    // Legacy: Alt held (m_bSuperAttackMode) with charges left (m_iSuperAttackLeft) and the weapon skill at 100%
+    bool alt_held = inp.is_key_down(sf::Keyboard::Key::LAlt) || inp.is_key_down(sf::Keyboard::Key::RAlt);
+    if (!alt_held)
+        return 0;
+
+    const entity* player = game_->local_player();
+    if (!player || !player->has_stats() || player->stats().super_attack_charges <= 0)
+        return 0;
+
+    auto& cs = game_->combat();
+    weapon_skill ws = cs.get_weapon_skill(wt);
+    uint8_t mastery = game_->skills().is_skill_mastered(static_cast<uint16_t>(ws)) ? 100 : 0;
+    attack_type chosen = cs.get_attack_type(wt, mastery, true);
+    if (chosen >= attack_type::super_1 && chosen <= attack_type::super_8)
+        return static_cast<uint8_t>(chosen);
+    // Alt held but no super attack: say why (once per swing, the attack cooldown gates the calls)
+    spdlog::info("Super attack refused: weapon {} skill {} mastered={} charges={}",
+                 static_cast<int>(wt), static_cast<int>(ws), mastery, player->stats().super_attack_charges);
+    if (mastery < 100)
+        game_->get_status_log().add_event("Your weapon skill must be 100% for a super attack.", message_color::yellow);
+    return 0;
+}
+
 void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
 {
     entity* player = game_->local_player();
@@ -1317,6 +1365,7 @@ void input_handler::execute_dash_attack(entity* target, const input& /*inp*/)
 
     // Send attack request with dash attack type
     game_->ws_handler().request_attack(target->id(), static_cast<uint8_t>(attack_type::dash));
+                attack_cooldown_ = attack_interval_seconds;
 
     spdlog::debug("Dash attack: moving ({},{}) -> ({},{}) and attacking entity {}",
                   t.move_start_x,

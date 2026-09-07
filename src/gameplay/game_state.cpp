@@ -736,6 +736,10 @@ bool game_state_manager::initialize(renderer& rend, audio& aud)
                                            ws_connection_.send(
                                                make_equip_request(item_id, entry->data.equip_position));
                                        });
+
+                                   // Double-click a potion / food / scroll to use it
+                                   inv_dlg->set_on_use([this](uint32_t item_id)
+                                                       { ws_handler_.request_use_item(item_id); });
                                }
 
                                // character_dialog reads inventory directly — no explicit slot-update needed.
@@ -2277,6 +2281,8 @@ void game_state_manager::update_icon_panel()
         weapon_mastered = skills_.is_skill_mastered(static_cast<uint16_t>(ws));
     }
     panel->set_super_attack_available(weapon_mastered);
+    if (player->has_stats())
+        panel->set_super_attack_count(player->stats().super_attack_charges);
     panel->set_combat_mode(combat_mode);
     panel->set_safe_attack_mode(safe_attack_mode);
 }

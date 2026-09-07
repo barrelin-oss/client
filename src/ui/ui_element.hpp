@@ -139,7 +139,7 @@ public:
 
 protected:
     std::string text_;
-    sf::Color text_color_ = sf::Color::White;
+    sf::Color text_color_ = sf::Color(242, 228, 196);
     uint32_t font_size_ = 14;
     alignment alignment_ = alignment::left;
 };
@@ -168,11 +168,11 @@ protected:
     click_callback on_click_;
     bool pressed_ = false;
 
-    sf::Color normal_color_ = sf::Color(60, 60, 80);
-    sf::Color hover_color_ = sf::Color(80, 80, 100);
-    sf::Color pressed_color_ = sf::Color(40, 40, 60);
-    sf::Color disabled_color_ = sf::Color(40, 40, 40);
-    sf::Color text_color_ = sf::Color::White;
+    sf::Color normal_color_ = sf::Color(88, 66, 40);
+    sf::Color hover_color_ = sf::Color(124, 94, 54);
+    sf::Color pressed_color_ = sf::Color(62, 46, 28);
+    sf::Color disabled_color_ = sf::Color(52, 46, 40);
+    sf::Color text_color_ = sf::Color(242, 228, 196);
 };
 
 // Text input field
@@ -207,7 +207,7 @@ protected:
 
     sf::Color bg_color_ = sf::Color(30, 30, 40);
     sf::Color border_color_ = sf::Color(80, 80, 100);
-    sf::Color text_color_ = sf::Color::White;
+    sf::Color text_color_ = sf::Color(242, 228, 196);
     sf::Color placeholder_color_ = sf::Color(100, 100, 100);
 };
 

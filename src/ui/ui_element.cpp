@@ -276,7 +276,7 @@ void ui_button::render(renderer& rend)
     }
 
     rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, bg_color, true);
-    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, sf::Color(100, 100, 140), false);
+    rend.draw_rect(abs_x, abs_y, bounds_.width, bounds_.height, sf::Color(164, 130, 74), false);
 
     // Center text
     int32_t text_x = abs_x + bounds_.width / 2 - static_cast<int32_t>(text_.length() * 3);

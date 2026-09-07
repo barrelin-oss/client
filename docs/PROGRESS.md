@@ -101,6 +101,7 @@
 ### 2026-09-06: The legacy dialog art is back
 
 - `dialog::set_art` draws a frame of a pak as the window (the dialog takes the frame's size) with optional overlays for the title banners of DialogText; `ui_system::set_sprite_manager` hands the sprite manager to the dialogs. Windows without art use a parchment palette instead of the blue-grey boxes.
+- Buttons everywhere use the same parchment palette (brown faces, gold border, cream text).
 - Inventory is the chest (GameDialog 7), items inside the lid, gold/count/weight on the rim. Character Info is the full legacy panel (DialogText 0, labels included): name and nation in the name box, the figure in the portrait square at the legacy anchor, values right-aligned in their boxes, attributes in theirs, the three buttons along the bottom. Skills is the portrait frame with the "Skills" banner, the spellbook the pentagram page with "Magic List".
 
 ### 2026-09-06: Elites in gold, item tooltips, the new events in the log

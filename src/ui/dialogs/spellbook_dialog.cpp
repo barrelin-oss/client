@@ -23,6 +23,8 @@ spellbook_dialog::spellbook_dialog() : dialog(dialog_type::spellbook)
 {
     set_title("Spellbook");
     set_bounds({100, 80, 280, 380});
+    set_art("GameDialog", 0, 1);
+    add_art_overlay("DialogText", 0, 7); // "Magic List"
     set_draggable(true);
     set_closeable(true);
     set_visible(false);
@@ -46,9 +48,9 @@ void spellbook_dialog::render(renderer& rend)
 
     dialog::render(rend);
 
-    int32_t x = bounds_.x + 8;
-    int32_t y = bounds_.y + 28;
-    content_width_ = bounds_.width - 16;
+    int32_t x = bounds_.x + 10;
+    int32_t y = bounds_.y + 38;
+    content_width_ = bounds_.width - 20;
 
     // View mode toggle: [Classic] [Type]
     {
@@ -295,7 +297,7 @@ std::optional<size_t> spellbook_dialog::spell_index_at(int32_t x, int32_t y) con
     if (filtered_spells_.empty())
         return std::nullopt;
 
-    int32_t base_x = bounds_.x + 8;
+    int32_t base_x = bounds_.x + 10;
 
     // Check if x is within the content area
     if (x < base_x || x > base_x + content_width_)
@@ -332,7 +334,7 @@ bool spellbook_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
         rebuild_filtered_spells();
     }
 
-    int32_t base_x = bounds_.x + 8;
+    int32_t base_x = bounds_.x + 10;
 
     // Check close button
     if (closeable_)
@@ -346,7 +348,7 @@ bool spellbook_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
     }
 
     // Check view mode toggle buttons
-    int32_t toggle_y = bounds_.y + 28;
+    int32_t toggle_y = bounds_.y + 38;
     ui_rect classic_btn{base_x, toggle_y, 60, 16};
     ui_rect type_btn{base_x + 64, toggle_y, 50, 16};
 

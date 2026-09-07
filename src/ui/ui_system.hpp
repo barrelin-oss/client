@@ -65,7 +65,11 @@ public:
     ui_style style() const { return style_; }
 
     // Sprite manager for classic UI rendering
-    void set_sprite_manager(sprite_manager* sprites) { sprites_ = sprites; }
+    void set_sprite_manager(sprite_manager* sprites)
+    {
+        sprites_ = sprites;
+        dialog::set_sprite_manager(sprites);
+    }
     sprite_manager* sprites() const { return sprites_; }
 
     // Update and render

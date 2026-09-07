@@ -15,6 +15,7 @@ namespace hb
 character_dialog::character_dialog() : dialog(dialog_type::character_info)
 {
     set_title("Character Info");
+    set_art("DialogText", 0, 0); // the legacy panel, labels included
     set_bounds({20, 50, dialog_width, dialog_height});
     set_draggable(true);
     set_drag_anywhere(true);
@@ -35,6 +36,12 @@ void character_dialog::render(renderer& rend)
         return;
 
     dialog::render(rend);
+
+    if (has_art())
+    {
+        render_on_art(rend);
+        return;
+    }
 
     int32_t y = bounds_.y + title_bar_height + 6;
 
@@ -57,6 +64,124 @@ void character_dialog::render(renderer& rend)
     y += 6;
 
     render_buttons(rend, y);
+}
+
+// Positions inside the legacy panel (DialogText sprite 0, 270x376): the labels are part of the art.
+namespace
+{
+constexpr int32_t art_value_right = 254;                                          // right edge of the value boxes
+constexpr int32_t art_row_y[8] = {102, 118, 137, 170, 185, 202, 235, 252};        // Level..EK Count text tops
+constexpr int32_t art_attr_x[3] = {62, 152, 236};                                 // Str/Dex, Int/Mag, Vit/Chr
+constexpr int32_t art_attr_y[2] = {281, 304};
+constexpr int32_t art_button_y = 338;
+constexpr int32_t art_button_w = 76;
+constexpr int32_t art_button_h = 22;
+constexpr int32_t art_button_x0 = 14;
+constexpr int32_t art_button_gap = 6;
+} // namespace
+
+void character_dialog::render_on_art(renderer& rend)
+{
+    const int32_t x0 = bounds_.x;
+    const int32_t y0 = bounds_.y;
+    auto& text = rend.text();
+
+    // Name and nation in the name box
+    std::string name_str = player_ && player_->has_name() ? player_->name().name : "Unknown";
+    std::string faction_str = "Traveler";
+    if (player_ && player_->has_name())
+    {
+        const auto& nc = player_->name();
+        faction_str = nc.faction == "aresden" ? "Aresden" : nc.faction == "elvine" ? "Elvine" : "Traveler";
+        if (!nc.guild_name.empty())
+            faction_str += std::format(" ({})", nc.guild_name);
+    }
+    auto line = std::format("{}  -  {}", name_str, faction_str);
+    int32_t line_w = static_cast<int32_t>(text.measure_width(line, 12));
+    rend.draw_text(line, x0 + 135 - line_w / 2, y0 + 58, sf::Color(240, 230, 200), 12);
+
+    // The figure in the portrait square (legacy anchor: 171, 290 from the dialog origin)
+    paperdoll_anchor_x_ = x0 + 171;
+    paperdoll_anchor_y_ = y0 + 290;
+    render_paperdoll(rend, paperdoll_anchor_x_, paperdoll_anchor_y_);
+
+    // Right column: values right-aligned in their boxes
+    uint16_t level = 0;
+    int64_t exp = 0, exp_next = 0;
+    int32_t hp = 0, max_hp = 0, mp = 0, max_mp = 0, sp = 0, max_sp = 0, ek = 0;
+    uint16_t str = 0, int_val = 0, vit = 0, dex = 0, mag = 0, cha = 0;
+    if (player_ && player_->has_stats())
+    {
+        const auto& s = player_->stats();
+        level = s.level;
+        exp = s.experience;
+        exp_next = s.experience_to_next;
+        hp = s.hp;
+        max_hp = s.max_hp;
+        mp = s.mp;
+        max_mp = s.max_mp;
+        sp = s.sp;
+        max_sp = s.max_sp;
+        str = s.strength;
+        int_val = s.intelligence;
+        vit = s.vitality;
+        dex = s.dexterity;
+        mag = s.magic;
+        cha = s.charisma;
+    }
+    if (player_ && player_->has_combat())
+        ek = player_->combat().enemy_kill_count;
+    uint32_t weight = inventory_ ? inventory_->current_weight() : 0;
+    uint32_t max_weight = inventory_ ? inventory_->max_weight() : 0;
+
+    auto right = [&](int row, const std::string& s, sf::Color c)
+    {
+        int32_t w = static_cast<int32_t>(text.measure_width(s, 12));
+        rend.draw_text(s, x0 + art_value_right - w, y0 + art_row_y[row], c, 12);
+    };
+    const sf::Color plain(235, 225, 195);
+    right(0, std::format("{}", level), plain);
+    right(1, std::format("{}", exp), plain);
+    right(2, std::format("{}", exp_next), plain);
+    right(3, std::format("{} / {}", hp, max_hp), sf::Color(230, 90, 80));
+    right(4, std::format("{} / {}", mp, max_mp), sf::Color(110, 130, 240));
+    right(5, std::format("{} / {}", sp, max_sp), sf::Color(110, 220, 110));
+    right(6, std::format("{} / {}", weight / 100, max_weight / 100), plain);
+    right(7, std::format("{}", ek), plain);
+
+    // Attributes in their boxes: Str/Dex, Int/Mag, Vit/Chr
+    const uint16_t values[3][2] = {{str, dex}, {int_val, mag}, {vit, cha}};
+    for (int col = 0; col < 3; ++col)
+    {
+        for (int row = 0; row < 2; ++row)
+        {
+            auto s = std::format("{}", values[col][row]);
+            rend.draw_text(s, x0 + art_attr_x[col] + 2, y0 + art_attr_y[row], plain, 12);
+            if (stat_points_ > 0)
+            {
+                int32_t bx = x0 + art_attr_x[col] + 26;
+                int32_t by = y0 + art_attr_y[row] - 1;
+                rend.draw_rect(bx, by, 14, 14, sf::Color(60, 100, 60), true);
+                rend.draw_rect(bx, by, 14, 14, sf::Color(90, 150, 90), false);
+                rend.draw_text("+", bx + 3, by - 1, sf::Color::White, 12);
+            }
+        }
+    }
+    if (stat_points_ > 0)
+        rend.draw_text(std::format("Points: {}", stat_points_), x0 + 14, y0 + 322, sf::Color(100, 255, 100), 11);
+
+    // Quest / Party / Level Set. along the bottom
+    buttons_y_ = y0 + art_button_y;
+    const char* labels[] = {"Quest", "Party", "Level Set."};
+    for (int i = 0; i < 3; ++i)
+    {
+        int32_t bx = x0 + art_button_x0 + i * (art_button_w + art_button_gap);
+        sf::Color bg = (hovered_button_ == i) ? sf::Color(90, 70, 40, 200) : sf::Color(50, 38, 22, 170);
+        rend.draw_rect(bx, buttons_y_, art_button_w, art_button_h, bg, true);
+        rend.draw_rect(bx, buttons_y_, art_button_w, art_button_h, sf::Color(140, 110, 60), false);
+        int32_t tw = static_cast<int32_t>(text.measure_width(labels[i], 12));
+        rend.draw_text(labels[i], bx + (art_button_w - tw) / 2, buttons_y_ + 4, sf::Color(240, 230, 200), 12);
+    }
 }
 
 void character_dialog::render_name_section(renderer& rend, int32_t& y)
@@ -414,6 +539,18 @@ bool character_dialog::handle_mouse_move(int32_t x, int32_t y)
 
 std::optional<int> character_dialog::button_at(int32_t x, int32_t y) const
 {
+    if (has_art())
+    {
+        if (y < buttons_y_ || y > buttons_y_ + art_button_h)
+            return std::nullopt;
+        for (int i = 0; i < 3; ++i)
+        {
+            int32_t bx = bounds_.x + art_button_x0 + i * (art_button_w + art_button_gap);
+            if (x >= bx && x <= bx + art_button_w)
+                return i;
+        }
+        return std::nullopt;
+    }
     int32_t btn_y = buttons_y_;
     int32_t total_btn_width = 3 * button_width + 2 * 8;
     int32_t btn_start_x = bounds_.x + (dialog_width - total_btn_width) / 2;
@@ -433,6 +570,22 @@ std::optional<int> character_dialog::button_at(int32_t x, int32_t y) const
 
 std::optional<int> character_dialog::stat_button_at(int32_t x, int32_t y) const
 {
+    if (has_art())
+    {
+        // Str/Dex, Int/Mag, Vit/Chr columns; stat indices 0 Str, 1 Vit, 2 Dex, 3 Int, 4 Mag, 5 Chr
+        static constexpr int art_stat_indices[3][2] = {{0, 2}, {3, 4}, {1, 5}};
+        for (int col = 0; col < 3; ++col)
+        {
+            for (int row = 0; row < 2; ++row)
+            {
+                int32_t bx = bounds_.x + art_attr_x[col] + 26;
+                int32_t by = bounds_.y + art_attr_y[row] - 1;
+                if (x >= bx && x <= bx + 14 && y >= by && y <= by + 14)
+                    return art_stat_indices[col][row];
+            }
+        }
+        return std::nullopt;
+    }
     int32_t row_y = attr_y_;
     int32_t ax = bounds_.x + padding;
     int32_t col_width = (dialog_width - padding * 2) / 2;

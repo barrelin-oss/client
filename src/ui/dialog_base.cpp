@@ -1,5 +1,7 @@
 #include "ui/dialog_base.hpp"
 #include "graphics/renderer.hpp"
+#include "assets/sprite_manager.hpp"
+#include "assets/sprite.hpp"
 #include "input/input.hpp"
 #include "core/config.hpp"
 #include <algorithm>
@@ -115,6 +117,9 @@ dialog::dialog(dialog_type type) : type_(type)
 {
     // Dialogs start hidden - must be explicitly opened
     visible_ = false;
+    // Parchment palette, in line with the legacy dialog art
+    bg_color_ = sf::Color(54, 42, 30, 236);
+    border_color_ = sf::Color(150, 118, 66);
 }
 
 void dialog::update(float delta_time, const input& inp)
@@ -129,8 +134,49 @@ void dialog::render(renderer& rend)
     if (!visible_)
         return;
 
+    if (has_art())
+    {
+        render_art(rend);
+        render_children(rend);
+        return;
+    }
     ui_panel::render(rend);
     render_title_bar(rend);
+}
+
+void dialog::set_art(std::string pak, uint32_t sprite, uint32_t frame)
+{
+    art_ = art_ref{.pak = std::move(pak), .sprite = sprite, .frame = frame};
+    art_sized_ = false;
+}
+
+void dialog::add_art_overlay(std::string pak, uint32_t sprite, uint32_t frame, int32_t dx, int32_t dy)
+{
+    overlays_.push_back(art_ref{.pak = std::move(pak), .sprite = sprite, .frame = frame, .dx = dx, .dy = dy});
+}
+
+void dialog::render_art(renderer& rend)
+{
+    if (!s_sprites_ || !art_)
+        return;
+    if (auto* spr = s_sprites_->get_sprite(art_->pak, art_->sprite))
+    {
+        if (!art_sized_ && art_->frame < spr->frame_count())
+        {
+            const auto& f = spr->get_frame(art_->frame);
+            bounds_.width = f.source_rect.size.x;
+            bounds_.height = f.source_rect.size.y;
+            art_sized_ = true;
+        }
+        rend.draw_sprite(*spr, bounds_.x, bounds_.y, art_->frame);
+    }
+    for (const auto& o : overlays_)
+    {
+        if (auto* spr = s_sprites_->get_sprite(o.pak, o.sprite))
+            rend.draw_sprite(*spr, bounds_.x + o.dx, bounds_.y + o.dy, o.frame);
+    }
+    if (closeable_)
+        rend.draw_text("x", bounds_.x + bounds_.width - 15, bounds_.y + 2, sf::Color(170, 70, 60), 13);
 }
 
 bool dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button btn)
@@ -266,15 +312,15 @@ void dialog::set_position(int32_t x, int32_t y)
 void dialog::render_title_bar(renderer& rend)
 {
     // Title bar background
-    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, title_bar_height, sf::Color(60, 60, 80), true);
+    rend.draw_rect(bounds_.x, bounds_.y, bounds_.width, title_bar_height, sf::Color(84, 62, 36), true);
     rend.draw_line(bounds_.x,
                    bounds_.y + title_bar_height,
                    bounds_.x + bounds_.width,
                    bounds_.y + title_bar_height,
-                   sf::Color(100, 100, 140));
+                   sf::Color(170, 136, 78));
 
     // Title text
-    rend.draw_text(title_, bounds_.x + 8, bounds_.y + 4, sf::Color::White);
+    rend.draw_text(title_, bounds_.x + 8, bounds_.y + 4, sf::Color(242, 228, 196));
 
     // Close button
     if (closeable_)

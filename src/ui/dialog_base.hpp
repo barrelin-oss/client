@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 #include <functional>
+#include <optional>
+#include <vector>
 
 #ifdef HB_DEBUG_OVERLAY_ENABLED
 #include "debug/positionable.hpp"
@@ -12,6 +14,7 @@
 
 namespace hb
 {
+class sprite_manager;
 
 class renderer;
 class input;
@@ -130,6 +133,13 @@ public:
     // Set a custom position ID (for managed dialogs with YAML names)
     void set_position_id(std::string_view id) { position_id_ = id; }
 
+    // Legacy dialog art: a background frame from a pak (the dialog takes the frame's size) and
+    // optional overlays (the title banners of DialogText) drawn at an offset from the origin.
+    void set_art(std::string pak, uint32_t sprite, uint32_t frame);
+    void add_art_overlay(std::string pak, uint32_t sprite, uint32_t frame, int32_t dx = 0, int32_t dy = 0);
+    bool has_art() const { return art_.has_value(); }
+    static void set_sprite_manager(sprite_manager* sprites) { s_sprites_ = sprites; }
+
 #ifdef HB_DEBUG_OVERLAY_ENABLED
     // positionable interface
     std::string position_id() const override;
@@ -139,6 +149,20 @@ public:
 
 protected:
     void render_title_bar(renderer& rend);
+    void render_art(renderer& rend);
+
+    struct art_ref
+    {
+        std::string pak;
+        uint32_t sprite{0};
+        uint32_t frame{0};
+        int32_t dx{0};
+        int32_t dy{0};
+    };
+    std::optional<art_ref> art_;
+    std::vector<art_ref> overlays_;
+    bool art_sized_ = false;
+    static inline sprite_manager* s_sprites_ = nullptr;
     void clamp_to_screen();
 
     dialog_type type_;

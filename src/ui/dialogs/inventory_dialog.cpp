@@ -18,6 +18,7 @@ namespace hb
 inventory_dialog::inventory_dialog() : dialog(dialog_type::inventory)
 {
     set_title("Inventory");
+    set_art("GameDialog", 7, 0); // the chest
 
     int32_t dialog_width = min_width;
     int32_t dialog_height = min_height;
@@ -32,6 +33,8 @@ inventory_dialog::inventory_dialog() : dialog(dialog_type::inventory)
 
 ui_rect inventory_dialog::bag_area() const
 {
+    if (has_art())
+        return {bounds_.x + 14, bounds_.y + 30, 198, 122}; // the inside of the chest
     return {bounds_.x + chrome_sides, bounds_.y + chrome_top,
             bounds_.width - chrome_sides * 2, bounds_.height - chrome_top - chrome_bottom};
 }
@@ -50,9 +53,12 @@ void inventory_dialog::render(renderer& rend)
 
     auto bag = bag_area();
 
-    // Bag background
-    rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(20, 20, 30), true);
-    rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(50, 50, 70), false);
+    // Bag background (the chest art has its own)
+    if (!has_art())
+    {
+        rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(20, 20, 30), true);
+        rend.draw_rect(bag.x, bag.y, bag.width, bag.height, sf::Color(50, 50, 70), false);
+    }
 
     // Render items in z-order (render_order_ is sorted ascending, lower z = drawn first).
     // Dragged item renders at its current (moving) position — no separate copy.
@@ -71,12 +77,15 @@ void inventory_dialog::render(renderer& rend)
         }
     }
 
-    // Footer: gold, item count, and weight
-    int32_t footer_y = bounds_.y + bounds_.height - chrome_bottom + 4;
+    // Footer: gold, item count, and weight (on the lid strip of the chest when drawn with art)
+    int32_t footer_y = has_art() ? bounds_.y + 150 : bounds_.y + bounds_.height - chrome_bottom + 4;
+    const int32_t gold_x = has_art() ? bounds_.x + 16 : bounds_.x + chrome_sides;
+    const int32_t count_x = has_art() ? bounds_.x + 120 : bounds_.x + bounds_.width - 140;
+    const int32_t weight_x = has_art() ? bounds_.x + 165 : bounds_.x + bounds_.width - 80;
+    const uint32_t footer_font = has_art() ? 11 : 14;
     if (inventory_)
     {
-        rend.draw_text(std::format("Gold: {}", inventory_->gold()),
-                       bounds_.x + chrome_sides, footer_y, sf::Color::Yellow);
+        rend.draw_text(std::format("Gold: {}", inventory_->gold()), gold_x, footer_y, sf::Color::Yellow, footer_font);
 
         // Item count with color coding
         size_t item_count = inventory_->bag_count();
@@ -87,16 +96,16 @@ void inventory_dialog::render(renderer& rend)
             count_color = sf::Color::Yellow;
         else
             count_color = sf::Color::Green;
-        rend.draw_text(std::format("{}/{}", item_count, max_items),
-                       bounds_.x + bounds_.width - 140, footer_y, count_color);
+        rend.draw_text(std::format("{}/{}", item_count, max_items), count_x, footer_y, count_color, footer_font);
 
         // Weight (divided by 100)
         auto wt_color = inventory_->is_overweight() ? sf::Color::Red : sf::Color(180, 180, 180);
         rend.draw_text(std::format("{}/{}", inventory_->current_weight() / 100, inventory_->max_weight() / 100),
-                       bounds_.x + bounds_.width - 80, footer_y, wt_color);
+                       weight_x, footer_y, wt_color, footer_font);
     }
 
-    // Resize handle — diagonal grip lines at bottom-right corner
+    // Resize handle — diagonal grip lines at bottom-right corner (not with art: the chest has one size)
+    if (!has_art())
     {
         int32_t bx = bounds_.x + bounds_.width;
         int32_t by = bounds_.y + bounds_.height;
@@ -350,7 +359,7 @@ bool inventory_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button
         // Check resize handle
         int32_t rx = bounds_.x + bounds_.width - resize_handle_size;
         int32_t ry = bounds_.y + bounds_.height - resize_handle_size;
-        if (x >= rx && y >= ry && x < bounds_.x + bounds_.width && y < bounds_.y + bounds_.height)
+        if (!has_art() && x >= rx && y >= ry && x < bounds_.x + bounds_.width && y < bounds_.y + bounds_.height)
         {
             resizing_ = true;
             resize_start_w_ = bounds_.width;

@@ -70,6 +70,7 @@ private:
     std::optional<equip_pos> slot_at_paperdoll(int32_t x, int32_t y) const;
 
     // Hit testing for buttons
+    void render_on_art(renderer& rend);
     std::optional<int> button_at(int32_t x, int32_t y) const;
     std::optional<int> stat_button_at(int32_t x, int32_t y) const;
 

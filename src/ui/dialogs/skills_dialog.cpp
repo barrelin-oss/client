@@ -12,6 +12,8 @@ skills_dialog::skills_dialog() : dialog(dialog_type::skills)
 {
     set_title("Skills");
     set_bounds({100, 80, 280, 370});
+    set_art("GameDialog", 1, 0);
+    add_art_overlay("DialogText", 0, 1); // "Skills"
     set_draggable(true);
     set_drag_anywhere(true);
     set_closeable(true);
@@ -48,11 +50,11 @@ void skills_dialog::render(renderer& rend)
     dialog::render(rend);
 
     int32_t x = bounds_.x + 10;
-    int32_t y = bounds_.y + 32;
+    int32_t y = bounds_.y + 38;
 
     // Category tabs
     const char* categories[] = {"All", "Combat", "Magic", "Craft", "Misc"};
-    int32_t tab_width = 50;
+    int32_t tab_width = 46;
     for (int i = 0; i < 5; ++i)
     {
         int32_t tab_x = x + i * (tab_width + 2);
@@ -243,8 +245,8 @@ bool skills_dialog::handle_mouse_down(int32_t x, int32_t y, sf::Mouse::Button bt
         return false;
 
     // Check category tabs
-    int32_t tab_y = bounds_.y + 32;
-    int32_t tab_width = 50;
+    int32_t tab_y = bounds_.y + 38;
+    int32_t tab_width = 46;
     for (int i = 0; i < 5; ++i)
     {
         int32_t tab_x = bounds_.x + 10 + i * (tab_width + 2);

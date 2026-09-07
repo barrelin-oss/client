@@ -124,14 +124,25 @@ void debug_server::start(const debug_server_config& cfg)
                         return;
                     }
 
+                    // A request with a numeric id (or any field of the wrong type) used to throw out of this
+                    // socket-thread callback and take the whole client down; echo such ids back as text.
                     pending_request pr;
-                    pr.connection_id    = conn_id;
-                    pr.id               = req.value("id", "");
-                    pr.type             = req.value("type", "");
-                    pr.name             = req.value("name", req.value("action", ""));
-                    pr.args             = req.value("args", nlohmann::json::object());
-                    pr.capture_probe    = req.value("capture", "");
-                    pr.capture_after_ms = req.value("capture_after_ms", 0.0f);
+                    try
+                    {
+                        pr.connection_id    = conn_id;
+                        if (req.contains("id"))
+                            pr.id = req["id"].is_string() ? req["id"].get<std::string>() : req["id"].dump();
+                        pr.type             = req.value("type", "");
+                        pr.name             = req.value("name", req.value("action", ""));
+                        pr.args             = req.value("args", nlohmann::json::object());
+                        pr.capture_probe    = req.value("capture", "");
+                        pr.capture_after_ms = req.value("capture_after_ms", 0.0f);
+                    }
+                    catch (const nlohmann::json::exception& e)
+                    {
+                        spdlog::warn("debug_server: bad request from {}: {}", conn_id, e.what());
+                        return;
+                    }
 
                     std::lock_guard lock(s.queue_mutex);
                     s.queue.push_back(std::move(pr));

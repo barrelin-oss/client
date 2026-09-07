@@ -3,6 +3,7 @@
 #include "graphics/text_renderer.hpp"
 #include <SFML/Graphics.hpp>
 #include <chrono>
+#include <filesystem>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -58,6 +59,10 @@ public:
 
     void begin_frame();
     void end_frame();
+
+    // Save the frame being finished to a PNG: end_frame() reads the window's back buffer right
+    // before display(). This also works while the display is asleep (only presentation stops).
+    void request_screenshot(std::filesystem::path path);
 
     // View mode system
     void set_view_mode(view_mode mode);
@@ -238,6 +243,7 @@ private:
     void draw_targeting_boundary(const sf::IntRect& fair);
 
     sf::RenderWindow window_;
+    std::filesystem::path pending_screenshot_;
     sf::Font font_;
     bool font_loaded_ = false;
 

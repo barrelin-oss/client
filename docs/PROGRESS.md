@@ -98,6 +98,11 @@
 
 ## Recent Changes
 
+### 2026-09-07: Screenshots, debug server hardening
+
+- F12 saves `screenshots/screenshot_YYYYMMDD_HHMMSS.png` (the TODO in `application.cpp`); the renderer reads the back buffer in `end_frame()` before `display()`, so it works even with the display asleep. The debug server gained the `render/screenshot` action (`args.path` optional) for the same capture.
+- The debug server crashed the client (0xc0000409) on a request whose `id` was a number: the JSON field reads now sit in a try/catch and non-string ids are echoed back as text.
+
 ### 2026-09-06: HUD bar on the legacy layout, potions, Alt super attack
 
 - Clicking an enemy from the peace stance now switches to combat stance by itself (the server only resolves attacks in combat mode, so the character used to swing in the passive stance for nothing). Other players' swings use their own stance in `combat_attack_broadcast`.

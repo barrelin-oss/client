@@ -229,7 +229,33 @@ void renderer::begin_frame()
 
 void renderer::end_frame()
 {
+    if (!pending_screenshot_.empty())
+    {
+        auto path = std::move(pending_screenshot_);
+        pending_screenshot_.clear();
+        sf::Texture capture;
+        bool saved = false;
+        if (capture.resize(window_.getSize()))
+        {
+            capture.update(window_);
+            if (!path.parent_path().empty())
+            {
+                std::error_code ec;
+                std::filesystem::create_directories(path.parent_path(), ec);
+            }
+            saved = capture.copyToImage().saveToFile(path);
+        }
+        if (saved)
+            spdlog::info("Screenshot saved: {} ({}x{})", path.string(), window_.getSize().x, window_.getSize().y);
+        else
+            spdlog::warn("Screenshot failed: {}", path.string());
+    }
     window_.display();
+}
+
+void renderer::request_screenshot(std::filesystem::path path)
+{
+    pending_screenshot_ = std::move(path);
 }
 
 // ---------------------------------------------------------------------------

@@ -13,9 +13,29 @@
 #include "debug/debug_overlay.hpp"
 #endif
 #include "debug/mcp_server/debug_server.hpp"
+#include <ctime>
+#include <filesystem>
 
 namespace hb
 {
+
+namespace
+{
+// screenshots/screenshot_YYYYMMDD_HHMMSS.png next to the executable (F12 and the render/screenshot action)
+auto default_screenshot_path() -> std::filesystem::path
+{
+    std::time_t now = std::time(nullptr);
+    std::tm local{};
+#ifdef _WIN32
+    localtime_s(&local, &now);
+#else
+    localtime_r(&now, &local);
+#endif
+    char stamp[32];
+    std::strftime(stamp, sizeof(stamp), "%Y%m%d_%H%M%S", &local);
+    return std::filesystem::path("screenshots") / (std::string("screenshot_") + stamp + ".png");
+}
+} // namespace
 
 int application::run(const launch_options& opts)
 {
@@ -208,6 +228,18 @@ bool application::initialize(const launch_options& opts)
     // Start debug MCP server before loading so probes can register during init steps
     debug_server::start(config::instance().debug_server());
 
+    // {"type":"action","name":"render/screenshot","args":{"path":"x.png"}}: the file is written at the
+    // end of the current frame, so read it a frame or two after the reply.
+    debug_server::register_action("render/screenshot", [this](const nlohmann::json& args) -> nlohmann::json
+    {
+        std::filesystem::path path = args.value("path", std::string());
+        if (path.empty())
+            path = default_screenshot_path();
+        renderer_.request_screenshot(path);
+        auto size = renderer_.window().getSize();
+        return {{"ok", true}, {"path", path.string()}, {"width", size.x}, {"height", size.y}};
+    });
+
     // Run loading screen while processing initialization steps (one step per frame)
     {
         auto load_start = clock::now();
@@ -387,9 +419,10 @@ void application::process_events()
     // Handle global hotkeys
     if (input_.is_key_pressed(sf::Keyboard::Key::F12))
     {
-        // Screenshot
-        spdlog::info("Screenshot requested");
-        // TODO: Implement screenshot
+        // Screenshot of this frame (saved in end_frame)
+        auto path = default_screenshot_path();
+        spdlog::info("Screenshot requested: {}", path.string());
+        renderer_.request_screenshot(path);
     }
 }
 

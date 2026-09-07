@@ -317,6 +317,7 @@ void ws_message_handler::handle_entity_info_response(const json& message)
         ent.name().name = data.name;
         ent.name().faction = data.faction;
         ent.name().hostile = hostility_from_string(data.hostility);
+        ent.name().elite = data.name.rfind("Elite ", 0) == 0;
     }
 
     init_entity_visual_type(ent, data.sprite_id, data.template_id, data.hostility);
@@ -459,6 +460,7 @@ void ws_message_handler::handle_entity_spawn(const json& message)
         ent.name().name = data.name;
         ent.name().faction = data.faction;
         ent.name().hostile = hostility_from_string(data.hostility);
+        ent.name().elite = data.name.rfind("Elite ", 0) == 0;
         ent.name().pk = pk_status_from_string(data.pk_status);
         ent.name().guild_name = data.guild_name;
         ent.name().guild_tag = data.guild_tag;
@@ -565,6 +567,7 @@ void ws_message_handler::handle_npc_spawn(const json& message)
     {
         ent.name().name = data.name;
         ent.name().hostile = hostility_from_string(data.hostility);
+        ent.name().elite = data.name.rfind("Elite ", 0) == 0;
     }
 
     init_entity_visual_type(ent, data.sprite_id, data.template_id, data.hostility);

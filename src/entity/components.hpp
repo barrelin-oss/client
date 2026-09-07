@@ -320,6 +320,7 @@ struct name_component
     std::string faction;                         // "neutral", "aresden", "elvine"
     enum hostility hostile = hostility::neutral; // server-authoritative
     enum pk_status pk = pk_status::innocent;
+    bool elite = false; // elite monster: golden name
 
     // Chat bubble
     std::string chat_message;

@@ -198,6 +198,8 @@ void ws_message_handler::handle_message(const json& message)
         {msg_type::quest_complete_response,     &ws_message_handler::handle_quest_complete_response},
         {msg_type::quest_journal_response,      &ws_message_handler::handle_quest_journal_response},
         {msg_type::quest_update,                &ws_message_handler::handle_quest_update},
+        {msg_type::specialty_update,            &ws_message_handler::handle_specialty_update},
+        {msg_type::achievement_unlocked,        &ws_message_handler::handle_achievement_unlocked},
         {msg_type::party_invite_response,       &ws_message_handler::handle_party_invite_response},
         {msg_type::party_invite_notice,         &ws_message_handler::handle_party_invite_notice},
         {msg_type::party_accept_response,       &ws_message_handler::handle_party_accept_response},

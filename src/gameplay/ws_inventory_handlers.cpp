@@ -5,6 +5,7 @@
 #include "core/game_enums.hpp"
 #include <algorithm>
 #include <spdlog/spdlog.h>
+#include <format>
 
 namespace hb
 {
@@ -467,6 +468,15 @@ void ws_message_handler::handle_player_interact_response(const json& message)
     {
         spdlog::info("NPC dialog: {}", result["interaction_data"].value("npc_name", ""));
         open_npc_dialog(result.value("target_id", 0u), result["interaction_data"]);
+    }
+    else if (interaction_type == "treasure")
+    {
+        const auto& t = result["interaction_data"];
+        game_->get_status_log().add_event(std::format("You opened a {} treasure chest: {} gold, {} items on the ground",
+                                                      t.value("tier", std::string("")),
+                                                      t.value("gold", 0),
+                                                      t.value("items", 0)),
+                                          message_color::yellow);
     }
     else
     {

@@ -180,6 +180,8 @@ private:
     void handle_quest_complete_response(const json& message);
     void handle_quest_journal_response(const json& message);
     void handle_quest_update(const json& message);
+    void handle_specialty_update(const json& message);
+    void handle_achievement_unlocked(const json& message);
     void handle_party_invite_response(const json& message);
     void handle_party_invite_notice(const json& message);
     void handle_party_accept_response(const json& message);

@@ -1841,6 +1841,10 @@ void entity_manager::render_entity_name(
             else
                 name_color = sf::Color(80, 160, 255); // Blue - neutral
         }
+        else if (name.elite && (e.type() == entity_type::npc || e.type() == entity_type::monster))
+        {
+            name_color = sf::Color(255, 215, 0); // Gold: elite monster
+        }
         else if (e.type() == entity_type::npc || e.type() == entity_type::monster)
         {
             if (name.hostile == hostility::friendly)

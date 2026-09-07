@@ -261,6 +261,31 @@ void ws_message_handler::handle_quest_journal_response(const json& message)
     dlg->show_journal(to_views(r.quests));
 }
 
+// Specialties (monster mastery) and achievements: the server also writes a system chat line; here
+// they go to the on-screen event log, in gold, so they are not missed.
+void ws_message_handler::handle_specialty_update(const json& message)
+{
+    if (!message.contains("data"))
+        return;
+    const auto& d = message["data"];
+    game_->get_status_log().add_event(std::format("{} specialty reached level {} ({} kills)",
+                                                  d.value("npc_name", std::string("Monster")),
+                                                  d.value("level", 0),
+                                                  d.value("kills", 0)),
+                                      message_color::yellow);
+}
+
+void ws_message_handler::handle_achievement_unlocked(const json& message)
+{
+    if (!message.contains("data"))
+        return;
+    const auto& d = message["data"];
+    game_->get_status_log().add_event(std::format("Achievement unlocked: {} (+{} points)",
+                                                  d.value("name", std::string("?")),
+                                                  d.value("points", 0)),
+                                      message_color::yellow);
+}
+
 void ws_message_handler::handle_quest_update(const json& message)
 {
     if (!message.contains("data"))

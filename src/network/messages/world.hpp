@@ -434,6 +434,7 @@ struct entity_spawn_data
     std::string guild_tag;
     bool combat_mode = false;
     bool is_dead = false;
+    bool is_elite = false; // "elite": true on the wire
 
     // Equipment visuals (appr values for rendering)
     uint8_t weapon_appr = 0;
@@ -486,6 +487,8 @@ struct entity_spawn_data
                 data.combat_mode = d["combat_mode"].get<bool>();
             if (d.contains("is_dead"))
                 data.is_dead = d["is_dead"].get<bool>();
+            if (d.contains("elite"))
+                data.is_elite = d["elite"].get<bool>();
 
             // Base appearance
             if (d.contains("gender"))
@@ -540,6 +543,7 @@ struct npc_spawn_data
     std::string hostility;
     std::vector<std::string> attributes; // e.g. "Berserk", "Clairvoyant"
     bool is_dead = false;
+    bool is_elite = false; // "elite": true on the wire
 
     static npc_spawn_data from_json(const json& j)
     {
@@ -578,6 +582,8 @@ struct npc_spawn_data
             }
             if (d.contains("is_dead"))
                 data.is_dead = d["is_dead"].get<bool>();
+            if (d.contains("elite"))
+                data.is_elite = d["elite"].get<bool>();
         }
         return data;
     }

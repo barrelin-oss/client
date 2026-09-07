@@ -8,6 +8,9 @@
 #include "world/ground_item.hpp"
 #include "core/constants.hpp"
 #include <format>
+#include <format>
+#include <sstream>
+#include <vector>
 
 namespace hb
 {
@@ -105,6 +108,91 @@ void inventory_dialog::render(renderer& rend)
             rend.draw_line(bx - off, by - 1, bx - 1, by - off, dark);
             rend.draw_line(bx - off - 1, by - 1, bx - 1, by - off - 1, light);
         }
+    }
+    render_tooltip(rend);
+}
+
+namespace
+{
+// Word wrap at about `width` characters
+auto wrap_text(const std::string& text, size_t width) -> std::vector<std::string>
+{
+    std::vector<std::string> lines;
+    std::string line;
+    std::istringstream words(text);
+    std::string word;
+    while (words >> word)
+    {
+        if (!line.empty() && line.size() + 1 + word.size() > width)
+        {
+            lines.push_back(line);
+            line.clear();
+        }
+        if (!line.empty())
+            line += ' ';
+        line += word;
+    }
+    if (!line.empty())
+        lines.push_back(line);
+    return lines;
+}
+} // namespace
+
+void inventory_dialog::render_tooltip(renderer& rend)
+{
+    if (hover_item_id_ == 0 || dragging_item_id_ != 0 || !inventory_)
+        return;
+    const auto* entry = inventory_->get_bag_item(hover_item_id_);
+    if (!entry)
+        return;
+    const auto& itm = entry->data;
+
+    struct line
+    {
+        std::string text;
+        sf::Color color;
+    };
+    std::vector<line> lines;
+    lines.push_back({itm.count > 1 ? std::format("{} x{}", itm.name, itm.count) : itm.name, sf::Color::White});
+    for (const auto& l : wrap_text(itm.description, 40))
+        lines.push_back({l, sf::Color(235, 205, 90)});
+    const sf::Color stat(190, 190, 200);
+    if (itm.damage_max > 0)
+        lines.push_back({std::format("Damage {}-{}", itm.damage_min, itm.damage_max), stat});
+    if (itm.defense > 0)
+        lines.push_back({std::format("Defense {}", itm.defense), stat});
+    if (itm.magic_defense > 0)
+        lines.push_back({std::format("Magic defense {}", itm.magic_defense), stat});
+    if (itm.level_req > 0)
+        lines.push_back({std::format("Level {}", itm.level_req), itm.level_req > 0 ? stat : stat});
+    if (itm.max_durability > 0)
+        lines.push_back({std::format("Durability {}/{}", itm.durability, itm.max_durability), stat});
+    lines.push_back({std::format("Weight {}   Price {}", itm.weight, itm.price), stat});
+
+    constexpr int32_t font = 12;
+    constexpr int32_t line_h = 15;
+    constexpr int32_t pad = 6;
+    size_t longest = 0;
+    for (const auto& l : lines)
+        longest = std::max(longest, l.text.size());
+    const int32_t w = static_cast<int32_t>(longest) * 7 + pad * 2;
+    const int32_t h = static_cast<int32_t>(lines.size()) * line_h + pad * 2;
+    int32_t x = hover_x_ + 18;
+    int32_t y = hover_y_ + 18;
+    const auto max_x = static_cast<int32_t>(rend.scene_width());
+    const auto max_y = static_cast<int32_t>(rend.scene_height());
+    if (x + w > max_x)
+        x = std::max(0, hover_x_ - w - 6);
+    if (y + h > max_y)
+        y = std::max(0, max_y - h);
+
+    rend.draw_rect(x, y, w, h, sf::Color(12, 12, 24, 235), true);
+    rend.draw_rect(x, y, w, h, sf::Color(120, 110, 70), false);
+    int32_t ty = y + pad;
+    for (const auto& l : lines)
+    {
+        rend.draw_text(l.text, x + pad, ty, l.color, font);
+        ty += line_h;
     }
 }
 
@@ -369,6 +457,9 @@ bool inventory_dialog::handle_mouse_move(int32_t x, int32_t y)
         return true;
     }
 
+    hover_x_ = x;
+    hover_y_ = y;
+    hover_item_id_ = item_at(x, y).value_or(0);
     return dialog::handle_mouse_move(x, y);
 }
 

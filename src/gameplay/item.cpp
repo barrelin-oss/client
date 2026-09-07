@@ -71,6 +71,7 @@ item item::from_json(const nlohmann::json& j)
     itm.count = j.value("count", 1u);
     itm.weight = j.value("weight", 0u);
     itm.price = j.value("price", 0u);
+    itm.description = j.value("description", std::string{});
 
     // Combat stats
     itm.damage_min = j.value("damage_min", 0);

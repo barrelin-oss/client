@@ -234,6 +234,7 @@ struct item
     uint32_t item_id = 0;
     uint32_t template_id = 0;
     std::string name;
+    std::string description; // tooltip text from the server (may be empty)
 
     // Classification
     item_type type = item_type::none;

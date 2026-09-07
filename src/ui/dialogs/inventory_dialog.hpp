@@ -63,6 +63,11 @@ public:
 
 private:
     void render_item(renderer& rend, const bag_item& entry, int32_t x, int32_t y);
+    // Tooltip of the item under the mouse: name, description, the numbers that matter
+    void render_tooltip(renderer& rend);
+    uint32_t hover_item_id_ = 0;
+    int32_t hover_x_ = 0;
+    int32_t hover_y_ = 0;
     std::optional<uint32_t> item_at(int32_t screen_x, int32_t screen_y) const;
 
     // Get the screen-space bounding rect of an item's sprite (accounts for pivot offset).

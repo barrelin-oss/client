@@ -98,6 +98,12 @@
 
 ## Recent Changes
 
+### 2026-09-06: Elites in gold, item tooltips, the new events in the log
+
+- `npc_spawn` carries `"elite": true`; an elite monster's name (the server puts "Elite " in front) is drawn in gold.
+- Inventory tooltip: the item under the mouse shows its name, the description the server now sends (the Olympia texts, in yellow, word-wrapped), damage or defense, level, durability, weight and price. `inventory_dialog::render_tooltip`.
+- Opening a treasure chest, a specialty level (`specialty_update`) and an unlocked achievement (`achievement_unlocked`) go to the on-screen event log in yellow, next to the system chat line the server also sends.
+
 ### 2026-09-05: Every sprite pack on disk is registered; NPC ids move to 20000
 
 - The equipment tables in `menu_character_renderer.cpp` only knew the 3.51 set. Packs that had been on disk all along (StormBringer, the Kloness weapons, Devastator, LightBlade, the hero mails/robes/hauberks/leggings/helms/caps, Staff3, ReMagicWand, Direct/Fire bows, mantles 4-6) were never loaded, so a character with those items showed bare hands and no armour. The tables now follow the 3.82 Game.cpp list, plus the Olympia packs where the id layout has room (Hanbok, the D-plate/robe/helm/wizhat, HauberkN, angels/dark/knock bows, absorpwand, AM/AW mantles).

@@ -199,11 +199,25 @@ void tile_sprite_registry::register_core_paks()
     // Tree shadows - TreeShadows.pak (46 sprites at IDs 150-195)
     register_range(150, "TreeShadows", 46);
 
-    // Objects - multiple PAK files
-    register_range(200, "Objects1", 8); // IDs 200-207
-    register_range(211, "Objects2", 5); // IDs 211-215
-    register_range(216, "Objects3", 4); // IDs 216-219
-    register_range(220, "objects4", 1); // ID 220
+    // Buildings - Structures1.pak (20 sprites at IDs 50-69; the 3.82 client loads the pack sprite by sprite)
+    register_range(50, "Structures1", 20);
+
+    // Objects - the 3.82 Game.cpp list (objects1 grew to 10 and objects4 to 2 with 3.82)
+    register_range(200, "Objects1", 10); // IDs 200-209
+    register_range(211, "Objects2", 5);  // IDs 211-215
+    register_range(216, "Objects3", 4);  // IDs 216-219
+    register_range(220, "objects4", 2);  // IDs 220-221
+    register_range(230, "Objects5", 9);  // IDs 230-238
+    register_range(238, "Objects6", 4);  // IDs 238-241 (the legacy table overlaps 238 too)
+    register_range(242, "Objects7", 7);  // IDs 242-248
+    register_range(249, "lgn_objects", 1); // ID 249 (Olympia, next in its load order)
+
+    // Later terrain sets (maptiles2 is registered below at 300; TileNNN-MMM packs are discovered by name)
+    register_range(315, "lgn_maptiles", 5);    // IDs 315-319 (Olympia; sits between maptiles2 and maptiles4 in its load order)
+    register_range(320, "maptiles4", 10);      // IDs 320-329
+    register_range(330, "maptiles5", 19);      // IDs 330-348
+    register_range(349, "maptiles6", 4);       // IDs 349-352
+    register_range(353, "maptiles353-361", 9); // IDs 353-361
 
     // Additional terrain - maptiles2.pak (15 sprites at IDs 300-314)
     register_range(300, "maptiles2", 15);
